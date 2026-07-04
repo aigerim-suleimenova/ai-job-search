@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — результаты</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🔎 AI Job Search</h1>
+  <nav>
+    <a href="/">Настройки</a>
+    <a href="/results">Результаты</a>
+    <a href="/coverage">Покрытие</a>
+  </nav>
+</header>
+
+<section class="card row" style="justify-content:space-between">
+  <span>Показаны вакансии с оценкой ≥ <b>{{ min_score }}%</b> ({{ jobs|length }})</span>
+  <span>
+    <a href="/results?min=0">все</a> ·
+    <a href="/results?min=50">≥50%</a> ·
+    <a href="/results?min=70">≥70%</a> ·
+    <a href="/results?min=80">≥80%</a>
+  </span>
+</section>
+
+{% if not jobs %}
+<section class="card"><p>Ничего с такой оценкой нет. Попробуйте фильтр «все» или запустите поиск на странице настроек.</p></section>
+{% endif %}
+
+{% for j in jobs %}
+<section class="card job {% if j.is_direct and not j.is_agency %}direct{% endif %}">
+  <div class="job-head">
+    <span class="score">{{ j.score }}%</span>
+    <div>
+      <h3><a href="{{ j.url }}" target="_blank" rel="noopener">{{ j.title }}</a></h3>
+      <p class="meta">
+        {{ j.company }} · {{ j.location or "локация не указана" }} · источник: {{ j.source }}
+        {% if j.is_direct and not j.is_agency %}<span class="badge ok">напрямую от компании</span>
+        {% elif j.is_agency %}<span class="badge warn">похоже на агентство</span>
+        {% else %}<span class="badge">агрегатор</span>{% endif %}
+        · прогон #{{ j.run_id }} · {{ j.first_seen }}
+      </p>
+    </div>
+  </div>
+  {% if j.reason %}<p>💬 {{ j.reason }}</p>{% endif %}
+  {% if j.advice_data %}
+  <details open>
+    <summary>Правки под эту вакансию</summary>
+    {% if j.advice_data.cv_changes %}
+    <p><b>📝 CV:</b></p>
+    <ul>{% for c in j.advice_data.cv_changes %}<li>{{ c }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if j.advice_data.linkedin_changes %}
+    <p><b>💼 LinkedIn:</b></p>
+    <ul>{% for c in j.advice_data.linkedin_changes %}<li>{{ c }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if j.advice_data.cover_hint %}<p><b>✉️ В отклике:</b> {{ j.advice_data.cover_hint }}</p>{% endif %}
+  </details>
+  {% endif %}
+  {% if j.description %}
+  <details><summary>Описание вакансии</summary><p class="desc">{{ j.description[:3000] }}</p></details>
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if runs %}
+<section class="card">
+  <h2>Журнал последнего прогона</h2>
+  <pre class="log">{{ runs[0].log }}</pre>
+</section>
+{% endif %}
+</body>
+</html>

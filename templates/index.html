@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — настройки</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🔎 AI Job Search</h1>
+  <nav>
+    <a href="/">Настройки</a>
+    <a href="/results">Результаты</a>
+    <a href="/coverage">Покрытие</a>
+  </nav>
+</header>
+
+{% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+
+<section class="card status" id="status-card">
+  <div>
+    <b>Статус:</b>
+    <span id="status-text">{% if state.running %}идёт поиск — {{ state.stage }}{% else %}ожидание{% endif %}</span>
+    {% if next_run %} · следующий запуск по расписанию: {{ next_run }}{% endif %}
+  </div>
+  <form method="post" action="/run" style="margin:0">
+    <button class="primary" {% if state.running %}disabled{% endif %}>▶ Запустить поиск сейчас</button>
+  </form>
+</section>
+<pre id="live-log" class="log" {% if not state.running %}hidden{% endif %}></pre>
+
+<form method="post" action="/save">
+
+<section class="card">
+  <h2>👤 Профиль</h2>
+  <div class="row" style="margin-bottom:12px">
+    <button formaction="/save?then=profile_from_cv">✨ Заполнить пустые поля из CV</button>
+    <span class="hint">Сначала загрузите CV внизу страницы — Claude сам предложит роли, уровень и описание.</span>
+  </div>
+  <label>О себе: знания, опыт, стек, достижения
+    <textarea name="summary" rows="5" placeholder="Например: 8 лет backend-разработки на Python и Go, высоконагруженные сервисы, Kubernetes, руководил командой из 5 человек...">{{ cfg.profile.summary }}</textarea>
+  </label>
+  <div class="grid2">
+    <label>Желаемые роли (через запятую)
+      <input name="roles" value="{{ cfg.profile.roles }}" placeholder="Backend Engineer, Platform Engineer">
+    </label>
+    <label>Уровень
+      <input name="seniority" value="{{ cfg.profile.seniority }}" placeholder="Senior / Staff / Lead">
+    </label>
+    <label>Зарплатные ожидания
+      <input name="salary" value="{{ cfg.profile.salary }}" placeholder="от €90k / $140k в год">
+    </label>
+    <label>Формат работы
+      <select name="work_format">
+        {% for v, t in [("any","любой"),("remote","удалённо"),("hybrid","гибрид"),("onsite","офис")] %}
+        <option value="{{ v }}" {% if cfg.profile.work_format == v %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Языки
+      <input name="languages" value="{{ cfg.profile.languages }}" placeholder="английский C1, немецкий A2">
+    </label>
+    <label class="check"><input type="checkbox" name="visa_required" {% if cfg.profile.visa_required %}checked{% endif %}> Нужна виза / спонсорство</label>
+    <label>Комментарий про визу
+      <input name="visa_note" value="{{ cfg.profile.visa_note }}" placeholder="есть Blue Card / нужен sponsorship в США">
+    </label>
+  </div>
+  <div class="grid3">
+    <label>Email <input name="email" value="{{ cfg.profile.email }}" placeholder="you@example.com"></label>
+    <label>Telegram <input name="telegram_user" value="{{ cfg.profile.telegram }}" placeholder="@username"></label>
+    <label>LinkedIn <input name="linkedin" value="{{ cfg.profile.linkedin }}" placeholder="https://linkedin.com/in/..."></label>
+  </div>
+</section>
+
+<section class="card">
+  <h2>🌍 Параметры поиска</h2>
+  <div class="grid2">
+    <label>Локации (через запятую: EU, USA, город, страна)
+      <input name="locations" value="{{ cfg.search.locations }}">
+    </label>
+    <label>Порог совпадения, %
+      <input type="number" name="threshold" min="0" max="100" value="{{ cfg.search.threshold }}">
+    </label>
+    <label>Ключевые слова — обязательно искать
+      <input name="keywords_include" value="{{ cfg.search.keywords_include }}" placeholder="python, kubernetes">
+    </label>
+    <label>Стоп-слова — исключать
+      <input name="keywords_exclude" value="{{ cfg.search.keywords_exclude }}" placeholder="php, 1c, intern">
+    </label>
+    <label class="check"><input type="checkbox" name="include_remote" {% if cfg.search.include_remote %}checked{% endif %}> Учитывать удалённые вакансии</label>
+    <span></span>
+    <label>Предел вакансий на LLM-оценку за прогон
+      <input type="number" name="triage_limit" min="5" value="{{ cfg.search.triage_limit }}">
+    </label>
+    <label>Глубокий разбор (правки CV) для топ-N
+      <input type="number" name="deep_top_n" min="0" value="{{ cfg.search.deep_top_n }}">
+    </label>
+    <label>Параллельных LLM-вызовов (быстрее, но нагрузка выше)
+      <input type="number" name="parallelism" min="1" max="10" value="{{ cfg.search.parallelism }}">
+    </label>
+  </div>
+  <p class="hint">При параллельной оценке за один прогон успевают оцениться все новые вакансии,
+    а не только первые несколько десятков — очередь не копится.</p>
+</section>
+
+<section class="card">
+  <h2>🏢 Источники</h2>
+  <label>Компании для прямого мониторинга — по одной на строку: <code>Название | URL страницы вакансий</code>.
+    ATS-ссылки (greenhouse, lever, ashby, workable, smartrecruiters, recruitee, personio) читаются через API, остальные — краулятся.
+    <textarea name="companies" rows="6" placeholder="Anthropic | https://boards.greenhouse.io/anthropic
+Spotify | https://jobs.lever.co/spotify
+Моя компания мечты | https://example.com/careers">{{ companies_text }}</textarea>
+  </label>
+  <div class="grid3">
+    <label class="check"><input type="checkbox" name="use_remotive" {% if cfg.sources.use_remotive %}checked{% endif %}> Remotive (remote)</label>
+    <label class="check"><input type="checkbox" name="use_arbeitnow" {% if cfg.sources.use_arbeitnow %}checked{% endif %}> Arbeitnow (ЕС)</label>
+    <label class="check"><input type="checkbox" name="use_hnhiring" {% if cfg.sources.use_hnhiring %}checked{% endif %}> HN Who is Hiring</label>
+  </div>
+  <div class="grid2" style="align-items:end">
+    <label>Искать новых компаний за прогон (веб-поиск через Claude, 0 = выключить)
+      <input type="number" name="discover_per_run" min="0" value="{{ cfg.search.discover_per_run }}">
+    </label>
+    <div class="row" style="margin-bottom:10px">
+      <button formaction="/save?then=discover">🔍 Найти компании сейчас</button>
+    </div>
+  </div>
+  <p class="hint">Найденные компании добавляются в список выше — их можно редактировать и удалять.
+    Что реально просмотрено в каждом прогоне — на странице «Покрытие».</p>
+  <details>
+    <summary>Adzuna и Jooble (нужны бесплатные API-ключи)</summary>
+    <div class="grid3">
+      <label>Adzuna app_id <input name="adzuna_app_id" value="{{ cfg.sources.adzuna_app_id }}"></label>
+      <label>Adzuna app_key <input name="adzuna_app_key" value="{{ cfg.sources.adzuna_app_key }}"></label>
+      <label>Adzuna страны <input name="adzuna_countries" value="{{ cfg.sources.adzuna_countries }}"></label>
+      <label>Jooble key <input name="jooble_key" value="{{ cfg.sources.jooble_key }}"></label>
+    </div>
+  </details>
+</section>
+
+<section class="card">
+  <h2>🤖 LLM (Claude Code CLI)</h2>
+  <div class="grid3">
+    <label>Команда claude
+      <input name="claude_bin" value="{{ cfg.llm.claude_bin }}">
+    </label>
+    <label>Модель для триажа (дёшево, много вакансий)
+      <input name="triage_model" value="{{ cfg.llm.triage_model }}" placeholder="haiku">
+    </label>
+    <label>Модель для глубокого разбора (пусто = по умолчанию)
+      <input name="deep_model" value="{{ cfg.llm.deep_model }}" placeholder="opus">
+    </label>
+  </div>
+</section>
+
+<section class="card">
+  <h2>📨 Telegram</h2>
+  <div class="grid2">
+    <label>Bot token (от @BotFather)
+      <input name="bot_token" value="{{ cfg.telegram.bot_token }}" placeholder="1234567890:AA...">
+    </label>
+    <label>Chat ID
+      <input name="chat_id" value="{{ cfg.telegram.chat_id }}" placeholder="определится кнопкой ниже">
+    </label>
+  </div>
+  <div class="row">
+    <button formaction="/save?then=tg_detect">💾 Сохранить и определить chat id</button>
+    <button formaction="/save?then=tg_test">💾 Сохранить и отправить тест</button>
+  </div>
+  <p class="hint">Создайте бота через @BotFather (/newbot), вставьте token, напишите боту любое сообщение —
+    и нажмите «Сохранить и определить chat id». Кнопки сохраняют все настройки на странице.</p>
+</section>
+
+<section class="card">
+  <h2>⏰ Расписание</h2>
+  <div class="grid3">
+    <label class="check"><input type="checkbox" name="schedule_enabled" {% if cfg.schedule.enabled %}checked{% endif %}> Запускать автоматически</label>
+    <label>Каждые
+      <input type="number" name="every_value" min="1" value="{{ cfg.schedule.every_value }}">
+    </label>
+    <label>Единица
+      <select name="every_unit">
+        {% for v, t in [("hours","часов"),("days","дней"),("weeks","недель")] %}
+        <option value="{{ v }}" {% if cfg.schedule.every_unit == v %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <p class="hint">Расписание работает, пока приложение запущено. Автозапуск при включении Mac — см. README (launchd).</p>
+</section>
+
+<div class="actions">
+  <button class="primary" type="submit">💾 Сохранить настройки</button>
+</div>
+</form>
+
+<section class="card">
+  <h2>📄 CV</h2>
+  {% if cv.filename %}
+  <p>Загружено: <b>{{ cv.filename }}</b> ({{ cv.chars }} символов извлечено)</p>
+  {% else %}
+  <p class="hint">CV ещё не загружено. Подойдёт PDF, TXT или MD. Туда же можно добавить экспорт LinkedIn-профиля (LinkedIn → Ещё → Сохранить в PDF).</p>
+  {% endif %}
+  <form method="post" action="/upload_cv" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept=".pdf,.txt,.md">
+    <button>Загрузить</button>
+  </form>
+</section>
+
+{% if runs %}
+<section class="card">
+  <h2>🗂 Последние прогоны</h2>
+  <table>
+    <tr><th>#</th><th>Начало</th><th>Конец</th><th>Собрано</th><th>Новых</th><th>Подошло</th><th>Статус</th></tr>
+    {% for r in runs %}
+    <tr>
+      <td>{{ r.id }}</td><td>{{ r.started }}</td><td>{{ r.finished or "…" }}</td>
+      <td>{{ r.found }}</td><td>{{ r.fresh }}</td><td>{{ r.matched }}</td>
+      <td class="st-{{ r.status }}">{{ r.status }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+
+<script>
+async function poll() {
+  try {
+    const r = await fetch("/status");
+    const s = await r.json();
+    const text = document.getElementById("status-text");
+    const log = document.getElementById("live-log");
+    if (s.running) {
+      text.textContent = "идёт поиск — " + s.stage;
+      log.hidden = false;
+      log.textContent = s.log.join("\n");
+      log.scrollTop = log.scrollHeight;
+      setTimeout(poll, 2500);
+    } else if (text.textContent.startsWith("идёт")) {
+      location.reload();
+    }
+  } catch (e) { setTimeout(poll, 5000); }
+}
+{% if state.running %}poll();{% endif %}
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+:root {
+  --bg: #f5f6f8; --card: #ffffff; --text: #1c2430; --muted: #67707e;
+  --accent: #2563eb; --border: #e3e7ee; --ok: #16a34a; --warn: #d97706;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c; --card: #1b212a; --text: #e6eaf0; --muted: #94a0b0;
+    --accent: #5b8def; --border: #2a3340; --ok: #4ade80; --warn: #fbbf24;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto; max-width: 960px; padding: 16px 20px 60px;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg); color: var(--text);
+}
+header { display: flex; align-items: baseline; gap: 24px; margin: 8px 0 20px; }
+h1 { font-size: 22px; margin: 0; }
+nav a { margin-right: 14px; color: var(--accent); text-decoration: none; font-weight: 500; }
+nav a:hover { text-decoration: underline; }
+h2 { font-size: 16px; margin: 0 0 14px; }
+h3 { margin: 0; font-size: 16px; }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 18px 20px; margin-bottom: 16px;
+}
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+input[type="text"], input[type="number"], input:not([type]), textarea, select {
+  display: block; width: 100%; margin-top: 4px; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--text); font: inherit;
+}
+textarea { resize: vertical; }
+label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+label.check input { width: auto; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 18px; }
+@media (max-width: 700px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+button {
+  padding: 9px 16px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:hover { filter: brightness(1.07); }
+button:disabled { opacity: .5; cursor: default; }
+.actions { margin: 4px 0 20px; }
+.row { display: flex; gap: 10px; align-items: center; }
+.flash {
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  border: 1px solid var(--accent); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+}
+.status { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.hint { color: var(--muted); font-size: 13px; }
+.log {
+  background: #0d1117; color: #9ecbff; border-radius: 10px; padding: 12px 14px;
+  font: 12px/1.5 ui-monospace, Menlo, monospace; max-height: 260px; overflow: auto;
+  white-space: pre-wrap; word-break: break-word;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; }
+.st-ok { color: var(--ok); } .st-error { color: #ef4444; } .st-warn { color: var(--warn); }
+details { margin: 8px 0; }
+summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 12.5px; }
+
+.job.direct { border-left: 4px solid var(--ok); }
+.job-head { display: flex; gap: 14px; align-items: flex-start; }
+.score {
+  font-size: 20px; font-weight: 700; color: var(--accent); min-width: 58px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border-radius: 10px; text-align: center; padding: 8px 4px;
+}
+.meta { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+.badge {
+  display: inline-block; padding: 1px 8px; border-radius: 20px; font-size: 12px;
+  background: var(--bg); border: 1px solid var(--border);
+}
+.badge.ok { color: var(--ok); border-color: var(--ok); }
+.badge.warn { color: var(--warn); border-color: var(--warn); }
+.desc { color: var(--muted); font-size: 13px; white-space: pre-wrap; }
+.job a { color: var(--text); }
+.job a:hover { color: var(--accent); }
