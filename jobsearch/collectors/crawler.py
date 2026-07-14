@@ -29,6 +29,8 @@ EXTRACT_PROMPT = """Ниже — текст и ссылки со страниц�
 def fetch_page(url: str):
     r = requests.get(url, headers=UA, timeout=TIMEOUT)
     r.raise_for_status()
+    base_url = r.url  # сайты часто редиректят (смена домена/ребрендинг) —
+    # относительные ссылки резолвим от итогового URL, а не от исходного
     soup = BeautifulSoup(r.text, "html.parser")
     for tag in soup(["script", "style", "noscript", "svg"]):
         tag.decompose()
@@ -36,7 +38,7 @@ def fetch_page(url: str):
     links = []
     for a in soup.find_all("a", href=True):
         label = " ".join(a.get_text(" ", strip=True).split())[:120]
-        href = urljoin(url, a["href"])
+        href = urljoin(base_url, a["href"])
         if label and href.startswith("http"):
             links.append(f"{label} :: {href}")
     return text, links
@@ -51,11 +53,32 @@ def fetch_job_text(url: str, limit: int = 6000) -> str:
         return ""
 
 
-def crawl_company(name: str, url: str, cfg: dict, log) -> list:
+# многие careers-страницы — лендинг «о нас», а реальный список вакансий лежит
+# на отдельной подстранице вида «Open Roles» / «Job Board» / «See open positions»
+_BOARD_LINK_WORDS = (
+    "open role", "open position", "job board", "current opening",
+    "view all job", "view open job", "see open", "all openings",
+    "vacanc", "view jobs", "browse jobs", "open jobs", "open vacanc",
+)
+
+
+def _find_board_link(page_url: str, links: list) -> str:
+    base_path = urlparse(page_url).path.rstrip("/")
+    for entry in links:
+        label, _, href = entry.partition(" :: ")
+        if urlparse(href).path.rstrip("/") == base_path:
+            continue  # ссылка на саму эту же страницу — не переход
+        if any(w in label.lower() for w in _BOARD_LINK_WORDS):
+            return href
+    return ""
+
+
+def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
     try:
         r = requests.get(url, headers=UA, timeout=TIMEOUT)
         r.raise_for_status()
         raw_html = r.text
+        base_url = r.url  # см. комментарий в fetch_page — учитываем редиректы
     except requests.RequestException as e:
         log(f"crawl {name}: {e}")
         return []
@@ -80,14 +103,14 @@ def crawl_company(name: str, url: str, cfg: dict, log) -> list:
     links = []
     for a in soup.find_all("a", href=True):
         label = " ".join(a.get_text(" ", strip=True).split())[:120]
-        href = urljoin(url, a["href"])
+        href = urljoin(base_url, a["href"])
         if label and href.startswith("http"):
             links.append(f"{label} :: {href}")
     if len(text) < 100:
         log(f"crawl {name}: страница почти пустая (вероятно, контент рендерится JS без встроенного ATS)")
         return []
     prompt = EXTRACT_PROMPT.format(
-        name=name, url=url, text=text[:12000], links="\n".join(links[:150]),
+        name=name, url=base_url, text=text[:12000], links="\n".join(links[:150]),
     )
     try:
         items = llm.ask_json(
@@ -111,11 +134,29 @@ def crawl_company(name: str, url: str, cfg: dict, log) -> list:
             "title": title,
             "company": name,
             "location": str(it.get("location", "")).strip(),
-            "url": job_url or url,
+            "url": job_url or base_url,
             "description": "",
             "source": "crawl",
             "is_direct": True,
         })
+
+    # 3. Присланная страница — лендинг без списка вакансий (0 найдено):
+    # ищем ссылку вида «Open Roles» / «Job Board» и пробуем её (один уровень вглубь).
+    if not jobs and _depth == 0:
+        board_url = _find_board_link(base_url, links)
+        if board_url:
+            log(f"crawl {name}: на {base_url} вакансий не нашлось, пробую подстраницу {board_url}")
+            return crawl_company(name, board_url, cfg, log, _depth=1)
+
+    # 4. Последний fallback: careers-страница целиком на JS без обнаружимого API —
+    # пробуем угадать ATS-борд по названию компании (напр. Datadog → greenhouse/datadog).
+    if not jobs and name:
+        guessed = ats.guess_by_name(name)
+        if guessed:
+            log(f"crawl {name}: careers на JS, ATS угадан по названию ({guessed[0]}/{guessed[1]}) — {len(guessed[2])}")
+            return guessed[2]
+        return jobs
+
     # подтягиваем описания со страниц вакансий: без них лексический отбор
     # и триаж почти слепые (ограничиваем число запросов на компанию)
     for j in jobs[:20]:

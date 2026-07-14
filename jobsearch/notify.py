@@ -4,6 +4,8 @@ import json
 
 import requests
 
+from . import i18n
+
 TIMEOUT = 30
 
 
@@ -59,19 +61,24 @@ def _esc(s: str) -> str:
     return html.escape(str(s or ""))
 
 
-def format_digest(jobs: list, threshold: int, base_url: str = "", demoted: list = ()) -> str:
+def format_digest(jobs: list, threshold: int, base_url: str = "", demoted: list = (), lang: str = "ru") -> str:
+    def tr(key):
+        return i18n.t(lang, key)
+
     if not jobs and not demoted:
-        return f"🔍 Новых вакансий с совпадением ≥ {threshold}% не найдено."
+        return tr("dg_none").format(t=threshold)
     if not jobs:
-        lines = [f"🔍 Выше порога {threshold}% ничего, но близкие варианты были (точная оценка ниже порога):"]
+        lines = [tr("dg_near_only").format(t=threshold)]
         for j in demoted:
             lines.append(f"\n{j.get('score')}% — {_esc(j.get('title'))} @ {_esc(j.get('company'))}\n{_esc(j.get('url'))}")
         if base_url:
-            lines.append(f"\nДетали: {base_url}/results")
+            lines.append("\n" + tr("dg_details").format(u=base_url))
         return "\n".join(lines)
     direct = [j for j in jobs if j.get("is_direct") and not j.get("is_agency")]
     rest = [j for j in jobs if j not in direct]
-    lines = [f"🎯 <b>Новые вакансии: {len(jobs)}</b> (порог {threshold}%)"]
+    lines = [f"<b>{tr('dg_new_jobs').format(n=len(jobs), t=threshold)}</b>"]
+    loc_unknown = tr("dg_loc_unknown")
+    cv_label = tr("dg_cv")
 
     def block(title, items):
         if not items:
@@ -80,7 +87,7 @@ def format_digest(jobs: list, threshold: int, base_url: str = "", demoted: list 
         for j in items:
             lines.append(
                 f"\n<b>{j.get('score', '?')}%</b> — {_esc(j.get('title'))} @ {_esc(j.get('company'))}"
-                f" ({_esc(j.get('location') or 'локация не указана')})\n"
+                f" ({_esc(j.get('location') or loc_unknown)})\n"
                 f"{_esc(j.get('url'))}"
             )
             if j.get("reason"):
@@ -89,18 +96,21 @@ def format_digest(jobs: list, threshold: int, base_url: str = "", demoted: list 
             if advice:
                 try:
                     adv = json.loads(advice)
+                    salary = adv.get("salary_estimate")
+                    if salary and "не найдено" not in salary.lower() and "not found" not in salary.lower():
+                        lines.append(f"💰 {_esc(salary)}")
                     changes = (adv.get("cv_changes") or [])[:3]
                     if changes:
-                        lines.append("📝 CV: " + " • ".join(_esc(c) for c in changes))
+                        lines.append(f"{cv_label} " + " • ".join(_esc(c) for c in changes))
                 except (json.JSONDecodeError, TypeError):
                     pass
 
-    block("🏢 Напрямую от компаний", direct)
-    block("🤝 Агрегаторы и агентства", rest)
+    block(tr("dg_direct"), direct)
+    block(tr("dg_rest"), rest)
     if demoted:
-        lines.append(f"\n🔻 <b>Близко, но точная оценка ниже порога:</b>")
+        lines.append(f"\n<b>{tr('dg_below')}</b>")
         for j in demoted:
             lines.append(f"{j.get('score')}% — {_esc(j.get('title'))} @ {_esc(j.get('company'))}")
     if base_url:
-        lines.append(f"\nПодробности и правки LinkedIn: {base_url}/results")
+        lines.append("\n" + tr("dg_more").format(u=base_url))
     return "\n".join(lines)

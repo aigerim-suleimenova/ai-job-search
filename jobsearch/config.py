@@ -1,19 +1,36 @@
-"""Загрузка и сохранение настроек (data/config.json) и текста CV."""
+"""Загрузка и сохранение настроек и CV для активного профиля.
+
+Данные каждого человека — в своём каталоге data/profiles/<slug>/ (см. profiles.py).
+Пути вычисляются динамически по активному профилю, поэтому один сервер обслуживает
+несколько людей.
+"""
 import copy
 import json
 import threading
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-CONFIG_PATH = DATA_DIR / "config.json"
-CV_TEXT_PATH = DATA_DIR / "cv.txt"
-CV_META_PATH = DATA_DIR / "cv_meta.json"
+from . import profiles
+
+
+def _dir():
+    return profiles.dir()
+
+
+def config_path():
+    return _dir() / "config.json"
+
+
+def cv_text_path():
+    return _dir() / "cv.txt"
+
+
+def cv_meta_path():
+    return _dir() / "cv_meta.json"
 
 DEFAULTS = {
     "profile": {
         "summary": "",
         "roles": "",
+        "skills": "",               # ключевые навыки/технологии (напр. SAP PI/PO, Java, REST)
         "seniority": "",
         "salary": "",
         "work_format": "any",       # remote | hybrid | onsite | any
@@ -27,6 +44,8 @@ DEFAULTS = {
     "search": {
         "locations": "EU, USA",
         "threshold": 70,
+        "match_priority": "both",   # на что опираться: role | skills | both
+        "drop_off_target": True,    # отсеивать явно нерелевантные роли (продажи/HR/саппорт) до LLM
         "keywords_include": "",
         "keywords_exclude": "",
         "include_remote": True,
@@ -34,11 +53,13 @@ DEFAULTS = {
         "deep_top_n": 15,            # для скольких лучших делать разбор CV
         "discover_per_run": 5,       # сколько новых компаний искать веб-поиском за прогон
         "parallelism": 5,            # сколько LLM-вызовов выполнять параллельно
+        "research_company": True,    # искать зарплату и факты о компании (Glassdoor/Kununu/...)
     },
     "sources": {
         "companies": [],             # [{"name": ..., "url": ...}]
         "use_remotive": True,
         "use_arbeitnow": True,
+        "use_wwr": True,
         "use_hnhiring": True,
         "adzuna_app_id": "",
         "adzuna_app_key": "",
@@ -55,9 +76,14 @@ DEFAULTS = {
         "chat_id": "",
     },
     "schedule": {
-        "enabled": False,
+        "mode": "off",               # off | interval | continuous
         "every_value": 1,
-        "every_unit": "days",        # hours | days | weeks
+        "every_unit": "days",        # hours | days | weeks (для interval)
+        "continuous_cooldown_min": 20,  # пауза между прогонами в непрерывном режиме
+    },
+    "ui": {
+        "lang": "ru",                # язык интерфейса: ru | en
+        "output_lang": "ru",         # язык результатов ИИ: ru | en | de
     },
 }
 
@@ -75,53 +101,78 @@ def _merge(base: dict, override: dict) -> dict:
 
 
 def load() -> dict:
+    path = config_path()
     with _lock:
-        if CONFIG_PATH.exists():
+        if path.exists():
             try:
-                stored = json.loads(CONFIG_PATH.read_text())
+                stored = json.loads(path.read_text())
             except (json.JSONDecodeError, OSError):
                 stored = {}
         else:
             stored = {}
-    return _merge(DEFAULTS, stored)
+    cfg = _merge(DEFAULTS, stored)
+    # совместимость: старое schedule.enabled → schedule.mode
+    sched = stored.get("schedule", {})
+    if "mode" not in sched and "enabled" in sched:
+        cfg["schedule"]["mode"] = "interval" if sched.get("enabled") else "off"
+    cfg["schedule"].pop("enabled", None)
+    return cfg
 
 
 def save(cfg: dict) -> None:
     with _lock:
-        DATA_DIR.mkdir(exist_ok=True)
-        CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2))
+        config_path().write_text(json.dumps(cfg, ensure_ascii=False, indent=2))
 
 
 def cv_text() -> str:
-    if CV_TEXT_PATH.exists():
-        return CV_TEXT_PATH.read_text(errors="ignore")
+    path = cv_text_path()
+    if path.exists():
+        return path.read_text(errors="ignore")
     return ""
 
 
 def cv_meta() -> dict:
-    if CV_META_PATH.exists():
+    path = cv_meta_path()
+    if path.exists():
         try:
-            return json.loads(CV_META_PATH.read_text())
+            return json.loads(path.read_text())
         except (json.JSONDecodeError, OSError):
             return {}
     return {}
 
 
+def _docx_text(path) -> str:
+    """Извлекает текст из .docx без внешних зависимостей (docx = zip с XML)."""
+    import re
+    import zipfile
+    with zipfile.ZipFile(path) as z:
+        xml = z.read("word/document.xml").decode("utf-8", errors="ignore")
+    xml = re.sub(r"</w:p>", "\n", xml)          # конец абзаца → перенос строки
+    xml = re.sub(r"<w:tab/>", "\t", xml)
+    text = re.sub(r"<[^>]+>", "", xml)          # убрать теги
+    import html as _html
+    return _html.unescape(text)
+
+
 def save_cv(filename: str, raw: bytes) -> str:
     """Сохраняет CV, извлекает текст. Возвращает извлечённый текст."""
-    DATA_DIR.mkdir(exist_ok=True)
+    import re
+    from pathlib import Path
+    d = _dir()
     ext = Path(filename).suffix.lower()
-    stored = DATA_DIR / f"cv{ext}"
+    stored = d / f"cv{ext}"
     stored.write_bytes(raw)
 
     if ext == ".pdf":
         from pypdf import PdfReader
         reader = PdfReader(str(stored))
         text = "\n".join((page.extract_text() or "") for page in reader.pages)
+    elif ext == ".docx":
+        text = _docx_text(stored)
     else:
         text = raw.decode("utf-8", errors="ignore")
 
-    text = text.strip()
-    CV_TEXT_PATH.write_text(text)
-    CV_META_PATH.write_text(json.dumps({"filename": filename, "chars": len(text)}, ensure_ascii=False))
+    text = re.sub(r"\n{3,}", "\n\n", text.strip())
+    cv_text_path().write_text(text)
+    cv_meta_path().write_text(json.dumps({"filename": filename, "chars": len(text)}, ensure_ascii=False))
     return text

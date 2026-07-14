@@ -1,33 +1,67 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Job Search — результаты</title>
+<title>AI Job Search — {{ t('nav_results') }}</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header>
   <h1>🔎 AI Job Search</h1>
   <nav>
-    <a href="/">Настройки</a>
-    <a href="/results">Результаты</a>
-    <a href="/coverage">Покрытие</a>
+    <a href="/">{{ t('nav_settings') }}</a>
+    <a href="/results">{{ t('nav_results') }}</a>
+    <a href="/coverage">{{ t('nav_coverage') }}</a>
   </nav>
+  <form method="post" action="/profile/switch" class="profile-switch">
+    <label>{{ t('person') }}
+      <select name="slug" onchange="this.form.submit()">
+        {% for p in profiles %}
+        <option value="{{ p.slug }}" {% if p.slug == active_profile %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
 </header>
 
 <section class="card row" style="justify-content:space-between">
-  <span>Показаны вакансии с оценкой ≥ <b>{{ min_score }}%</b> ({{ jobs|length }})</span>
+  <span>{{ t('results_shown') }} <b>{{ min_score }}%</b> ({{ jobs|length }})</span>
   <span>
-    <a href="/results?min=0">все</a> ·
+    <a href="/results?min=0">{{ t('filter_all') }}</a> ·
     <a href="/results?min=50">≥50%</a> ·
     <a href="/results?min=70">≥70%</a> ·
     <a href="/results?min=80">≥80%</a>
   </span>
 </section>
 
+{% if jobs %}
+<section class="card">
+  <div class="row">
+    <a href="/export/csv?min={{ min_score }}"><button type="button">{{ t('export_csv') }}</button></a>
+    <a href="/export/report?min={{ min_score }}"><button type="button">{{ t('export_report') }}</button></a>
+  </div>
+  <p class="hint" style="margin:8px 0 0">{{ t('export_hint') }}</p>
+</section>
+{% endif %}
+
+{% if suggest_threshold %}
+<section class="card" style="border-left:4px solid var(--warn)">
+  <p style="margin:0 0 8px">{{ t('suggest_banner').format(cur=threshold, sugg=suggest_threshold) }}</p>
+  <div class="row">
+    <a href="/results?min={{ suggest_threshold }}"><button type="button">{{ t('suggest_show').format(sugg=suggest_threshold) }}</button></a>
+    <form method="post" action="/set_threshold" style="margin:0">
+      <input type="hidden" name="value" value="{{ suggest_threshold }}">
+      <button class="primary">{{ t('suggest_apply').format(sugg=suggest_threshold) }}</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+{% if jobs %}<p class="hint">{{ t('verified_hint') }}</p>{% endif %}
+
 {% if not jobs %}
-<section class="card"><p>Ничего с такой оценкой нет. Попробуйте фильтр «все» или запустите поиск на странице настроек.</p></section>
+<section class="card"><p>{{ t('results_none') }}</p></section>
 {% endif %}
 
 {% for j in jobs %}
@@ -37,18 +71,34 @@
     <div>
       <h3><a href="{{ j.url }}" target="_blank" rel="noopener">{{ j.title }}</a></h3>
       <p class="meta">
-        {{ j.company }} · {{ j.location or "локация не указана" }} · источник: {{ j.source }}
-        {% if j.is_direct and not j.is_agency %}<span class="badge ok">напрямую от компании</span>
-        {% elif j.is_agency %}<span class="badge warn">похоже на агентство</span>
-        {% else %}<span class="badge">агрегатор</span>{% endif %}
-        · прогон #{{ j.run_id }} · {{ j.first_seen }}
+        {{ j.company }} · {{ j.location or t('loc_unknown') }} · {{ t('source') }} {{ j.source }}
+        {% if j.is_direct and not j.is_agency %}<span class="badge ok">{{ t('badge_direct') }}</span>
+        {% elif j.is_agency %}<span class="badge warn">{{ t('badge_agency') }}</span>
+        {% else %}<span class="badge">{{ t('badge_aggregator') }}</span>{% endif %}
+        {% if j.verified %}<span class="badge ok">✓ {{ t('badge_verified') }}</span>
+        {% else %}<span class="badge warn">{{ t('badge_preliminary') }}</span>{% endif %}
+        · {{ t('run') }} #{{ j.run_id }} · {{ j.first_seen }}
       </p>
     </div>
   </div>
   {% if j.reason %}<p>💬 {{ j.reason }}</p>{% endif %}
+  {% if j.advice_data and (j.advice_data.salary_estimate or j.advice_data.company_insights) %}
+  <details open class="research">
+    <summary>{{ t('salary_block') }}</summary>
+    {% if j.advice_data.salary_estimate %}<p><b>{{ t('salary_label') }}</b> {{ j.advice_data.salary_estimate }}</p>{% endif %}
+    {% if j.advice_data.company_insights %}
+    <ul>{% for c in j.advice_data.company_insights %}<li>{{ c }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if j.advice_data.sources %}
+    <p class="hint">{{ t('sources_label') }}
+      {% for s in j.advice_data.sources %}<a href="{{ s }}" target="_blank" rel="noopener">{{ loop.index }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+  </details>
+  {% endif %}
   {% if j.advice_data %}
   <details open>
-    <summary>Правки под эту вакансию</summary>
+    <summary>{{ t('edits_block') }}</summary>
     {% if j.advice_data.cv_changes %}
     <p><b>📝 CV:</b></p>
     <ul>{% for c in j.advice_data.cv_changes %}<li>{{ c }}</li>{% endfor %}</ul>
@@ -57,18 +107,22 @@
     <p><b>💼 LinkedIn:</b></p>
     <ul>{% for c in j.advice_data.linkedin_changes %}<li>{{ c }}</li>{% endfor %}</ul>
     {% endif %}
-    {% if j.advice_data.cover_hint %}<p><b>✉️ В отклике:</b> {{ j.advice_data.cover_hint }}</p>{% endif %}
+    {% if j.advice_data.cover_hint %}<p><b>{{ t('cover_hint_label') }}</b> {{ j.advice_data.cover_hint }}</p>{% endif %}
   </details>
+  <p style="margin:8px 0 0">
+    <a href="/cv/{{ j.id }}" target="_blank" rel="noopener"><button type="button">{{ t('cv_button') }}</button></a>
+  </p>
+  <p class="hint" style="margin:4px 0 0">{{ t('cv_button_hint') }}</p>
   {% endif %}
   {% if j.description %}
-  <details><summary>Описание вакансии</summary><p class="desc">{{ j.description[:3000] }}</p></details>
+  <details><summary>{{ t('job_description') }}</summary><p class="desc">{{ j.description[:3000] }}</p></details>
   {% endif %}
 </section>
 {% endfor %}
 
 {% if runs %}
 <section class="card">
-  <h2>Журнал последнего прогона</h2>
+  <h2>{{ t('run_journal') }}</h2>
   <pre class="log">{{ runs[0].log }}</pre>
 </section>
 {% endif %}

@@ -75,3 +75,32 @@ def has_excluded(job: dict, exclude_terms: list) -> bool:
 def looks_like_agency(company: str) -> bool:
     name = (company or "").lower()
     return any(m in name for m in AGENCY_MARKERS)
+
+
+# заведомо не-инженерные/не-технические роли — их можно отсеять до дорогой LLM-оценки.
+# Автоадаптация: не режем, если заголовок совпадает с ролями/навыками профиля
+# (напр. профиль «Recruiter» → «Technical Recruiter» не отсеётся).
+OFF_TARGET_MARKERS = [
+    "recruiter", "talent acquisition", "talent partner", "sourcer",
+    "account executive", "account manager", "key account", "sales manager",
+    "sales representative", "sales development", "business development",
+    "customer service", "customer support", "customer success", "support agent",
+    "call center", "receptionist", "office manager", "office assistant",
+    "human resources", " hr ", "hr manager", "hr business", "people operations",
+    "accountant", "bookkeeper", "payroll", "financial controller", "auditor",
+    "marketing manager", "social media", "content writer", "copywriter",
+    "brand manager", "community manager", "paid ads", "seo specialist",
+    "legal counsel", "paralegal", "procurement", "logistics coordinator",
+    "warehouse", "driver", "nurse", "teacher", "waiter", "barista",
+]
+
+
+def off_target(job: dict, keep_terms: set) -> bool:
+    """Заведомо не та профессия? True — если заголовок явно нетехнический
+    и не пересекается с ролями/навыками кандидата."""
+    title = f" {(job.get('title') or '').lower()} "
+    if not any(m in title for m in OFF_TARGET_MARKERS):
+        return False
+    # заголовок совпадает с профилем (роли/навыки) — оставляем, пусть решит LLM
+    title_words = set(re.findall(r"[a-zа-яё0-9+#.]{3,}", title))
+    return not (title_words & keep_terms)

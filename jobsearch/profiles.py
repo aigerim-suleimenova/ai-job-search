@@ -1,0 +1,185 @@
+"""Профили: поиск для нескольких людей в одном приложении.
+
+Каждый профиль — отдельный каталог data/profiles/<slug>/ со своим config.json,
+CV и базой jobs.db. Активный профиль хранится в contextvar (задаётся на каждый
+веб-запрос из cookie и на каждый запуск пайплайна/расписания явно).
+
+Базовый каталог данных: переменная AIJS_DATA_DIR или <проект>/data — под ним
+лежат profiles/ и реестр profiles.json.
+"""
+import contextvars
+import json
+import os
+import re
+import shutil
+import threading
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_ROOT = Path(os.environ.get("AIJS_DATA_DIR") or BASE_DIR / "data")
+PROFILES_DIR = DATA_ROOT / "profiles"
+REGISTRY_PATH = DATA_ROOT / "profiles.json"
+
+_active = contextvars.ContextVar("active_profile", default=None)
+_lock = threading.Lock()
+
+
+def _slugify(name: str, taken: set) -> str:
+    translit = {
+        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+        "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+        "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+        "ф": "f", "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch",
+        "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+    }
+    low = "".join(translit.get(ch, ch) for ch in name.lower())
+    slug = re.sub(r"[^a-z0-9]+", "-", low).strip("-")[:32] or "person"
+    base, i = slug, 2
+    while slug in taken:
+        slug = f"{base}-{i}"
+        i += 1
+    return slug
+
+
+def _read_registry() -> dict:
+    if REGISTRY_PATH.exists():
+        try:
+            return json.loads(REGISTRY_PATH.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {"profiles": [], "default": ""}
+
+
+def _write_registry(reg: dict) -> None:
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    REGISTRY_PATH.write_text(json.dumps(reg, ensure_ascii=False, indent=2))
+
+
+def ensure_migrated() -> None:
+    """Однократная миграция: старый плоский data/ → data/profiles/<slug>/.
+    Также подхватывает соседний каталог data_mokhov как отдельный профиль."""
+    with _lock:
+        reg = _read_registry()
+        if reg.get("profiles"):
+            return  # уже мигрировано
+        PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+        profiles, taken = [], set()
+
+        # 1. существующие плоские данные → профиль «Я»
+        legacy_files = ["config.json", "cv.txt", "cv_meta.json"] + \
+                       [p.name for p in DATA_ROOT.glob("cv.*")] + \
+                       (["jobs.db"] if (DATA_ROOT / "jobs.db").exists() else [])
+        if (DATA_ROOT / "config.json").exists():
+            slug = _slugify("me", taken)
+            taken.add(slug)
+            dst = PROFILES_DIR / slug
+            dst.mkdir(parents=True, exist_ok=True)
+            for fn in set(legacy_files):
+                src = DATA_ROOT / fn
+                if src.exists() and src.is_file():
+                    shutil.move(str(src), str(dst / fn))
+            profiles.append({"slug": slug, "name": "Я"})
+
+        # 2. соседний data_mokhov → профиль (одноразовый импорт)
+        mokhov = BASE_DIR / "data_mokhov"
+        if mokhov.exists() and (mokhov / "config.json").exists():
+            slug = _slugify("aleksandr", taken)
+            taken.add(slug)
+            dst = PROFILES_DIR / slug
+            if not dst.exists():
+                shutil.copytree(str(mokhov), str(dst))
+                profiles.append({"slug": slug, "name": "Александр"})
+
+        # 3. если ничего не было — создаём пустой профиль
+        if not profiles:
+            slug = _slugify("me", taken)
+            (PROFILES_DIR / slug).mkdir(parents=True, exist_ok=True)
+            profiles.append({"slug": slug, "name": "Я"})
+
+        _write_registry({"profiles": profiles, "default": profiles[0]["slug"]})
+
+
+def list_profiles() -> list:
+    return _read_registry().get("profiles", [])
+
+
+def exists(slug: str) -> bool:
+    return any(p["slug"] == slug for p in list_profiles())
+
+
+def default_slug() -> str:
+    reg = _read_registry()
+    d = reg.get("default")
+    if d and exists(d):
+        return d
+    profs = reg.get("profiles", [])
+    return profs[0]["slug"] if profs else "me"
+
+
+def name_of(slug: str) -> str:
+    for p in list_profiles():
+        if p["slug"] == slug:
+            return p["name"]
+    return slug
+
+
+def active() -> str:
+    return _active.get() or default_slug()
+
+
+def set_active(slug: str) -> None:
+    _active.set(slug if exists(slug) else default_slug())
+
+
+def dir(slug: str = None) -> Path:
+    d = PROFILES_DIR / (slug or active())
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def create(name: str) -> str:
+    with _lock:
+        reg = _read_registry()
+        taken = {p["slug"] for p in reg["profiles"]}
+        slug = _slugify(name or "person", taken)
+        (PROFILES_DIR / slug).mkdir(parents=True, exist_ok=True)
+        reg["profiles"].append({"slug": slug, "name": (name or "").strip() or slug})
+        if not reg.get("default"):
+            reg["default"] = slug
+        _write_registry(reg)
+        return slug
+
+
+def rename(slug: str, name: str) -> None:
+    with _lock:
+        reg = _read_registry()
+        for p in reg["profiles"]:
+            if p["slug"] == slug:
+                p["name"] = name.strip() or p["name"]
+        _write_registry(reg)
+
+
+def delete(slug: str) -> None:
+    with _lock:
+        reg = _read_registry()
+        reg["profiles"] = [p for p in reg["profiles"] if p["slug"] != slug]
+        if reg.get("default") == slug:
+            reg["default"] = reg["profiles"][0]["slug"] if reg["profiles"] else ""
+        _write_registry(reg)
+    shutil.rmtree(PROFILES_DIR / slug, ignore_errors=True)
+
+
+def set_default(slug: str) -> None:
+    with _lock:
+        reg = _read_registry()
+        if exists(slug):
+            reg["default"] = slug
+            _write_registry(reg)
+
+
+# Миграция при первом импорте — гарантирует, что каталоги профилей готовы
+# ДО любого чтения config/db, независимо от точки входа (сервер или скрипт).
+try:
+    ensure_migrated()
+except Exception:  # noqa: BLE001 — никогда не ломаем импорт
+    pass

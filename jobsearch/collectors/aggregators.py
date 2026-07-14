@@ -1,12 +1,30 @@
-"""Агрегаторы вакансий с открытыми API: Remotive, Arbeitnow, HN Who is Hiring,
-Adzuna и Jooble (по ключам)."""
+"""Агрегаторы вакансий с открытыми API: Remotive, Arbeitnow, WeWorkRemotely,
+HN Who is Hiring, Adzuna и Jooble (по ключам).
+
+ВАЖНО (проверено эмпирически): публичные API Remotive и Arbeitnow ИГНОРИРУЮТ
+параметры search/tags — при любом запросе отдают один и тот же общий поток
+вакансий (Remotive — фиксированные ~32 штуки, Arbeitnow — последние вакансии
+по всем профессиям, не только IT). Поэтому:
+- не тратим по вызову на каждый поисковый термин — он всё равно ничего не меняет;
+- у Arbeitnow фильтруем IT-теги на своей стороне и берём больше страниц,
+  чтобы компенсировать низкую долю релевантных вакансий в общем потоке.
+"""
 import html
 import re
+import xml.etree.ElementTree as ET
 
 import requests
 
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh) ai-job-search/1.0"}
 TIMEOUT = 30
+
+# Arbeitnow — общая биржа по всем профессиям; отбираем IT-теги на своей стороне,
+# т.к. API не фильтрует по tags/search на сервере (проверено).
+ARBEITNOW_IT_TAGS = {
+    "engineering", "software development", "internet and software",
+    "information systems", "system and network administration",
+    "it", "automation engineering", "web-development",
+}
 
 
 def _strip_html(raw: str, limit: int = 5000) -> str:
@@ -15,39 +33,48 @@ def _strip_html(raw: str, limit: int = 5000) -> str:
 
 
 def _search_terms(cfg: dict) -> list:
-    raw = cfg["profile"].get("roles", "") + "," + cfg["search"].get("keywords_include", "")
+    """Для Adzuna/Jooble — эти API (в отличие от Remotive/Arbeitnow) реально
+    фильтруют по ключевым словам на своей стороне. Учитываем навыки и приоритет."""
+    p, s = cfg["profile"], cfg["search"]
+    prio = s.get("match_priority", "both")
+    parts = []
+    if prio != "skills":
+        parts.append(p.get("roles", ""))
+    if prio in ("skills", "both"):
+        parts.append(p.get("skills", ""))
+    parts.append(s.get("keywords_include", ""))
+    raw = ",".join(x for x in parts if x)
     terms = [t.strip() for t in raw.split(",") if t.strip()]
     return terms[:3] or [""]
 
 
 def remotive(cfg: dict, log) -> list:
     jobs = []
-    for term in _search_terms(cfg):
-        try:
-            r = requests.get(
-                "https://remotive.com/api/remote-jobs",
-                params={"search": term, "limit": 100},
-                headers=UA, timeout=TIMEOUT,
-            )
-            r.raise_for_status()
-            for j in r.json().get("jobs", []):
-                jobs.append({
-                    "title": j.get("title", ""),
-                    "company": j.get("company_name", ""),
-                    "location": j.get("candidate_required_location", "") or "Remote",
-                    "url": j.get("url", ""),
-                    "description": _strip_html(j.get("description", "")),
-                    "source": "remotive",
-                    "is_direct": False,
-                })
-        except requests.RequestException as e:
-            log(f"remotive ({term!r}): {e}")
+    try:
+        r = requests.get(
+            "https://remotive.com/api/remote-jobs",
+            params={"limit": 200},
+            headers=UA, timeout=TIMEOUT,
+        )
+        r.raise_for_status()
+        for j in r.json().get("jobs", []):
+            jobs.append({
+                "title": j.get("title", ""),
+                "company": j.get("company_name", ""),
+                "location": j.get("candidate_required_location", "") or "Remote",
+                "url": j.get("url", ""),
+                "description": _strip_html(j.get("description", "")),
+                "source": "remotive",
+                "is_direct": False,
+            })
+    except requests.RequestException as e:
+        log(f"remotive: {e}")
     return jobs
 
 
 def arbeitnow(cfg: dict, log) -> list:
     jobs, url = [], "https://www.arbeitnow.com/api/job-board-api"
-    for _ in range(3):  # первые 3 страницы
+    for _ in range(8):  # API не фильтрует — берём больше страниц, отбираем IT сами
         try:
             r = requests.get(url, headers=UA, timeout=TIMEOUT)
             r.raise_for_status()
@@ -56,6 +83,9 @@ def arbeitnow(cfg: dict, log) -> list:
             log(f"arbeitnow: {e}")
             break
         for j in data.get("data", []):
+            tags = {t.lower() for t in (j.get("tags") or [])}
+            if tags and not (tags & ARBEITNOW_IT_TAGS):
+                continue  # не-IT вакансия (маркетинг, продажи, HR и т.п.) — пропускаем
             jobs.append({
                 "title": j.get("title", ""),
                 "company": j.get("company_name", ""),
@@ -68,6 +98,35 @@ def arbeitnow(cfg: dict, log) -> list:
         url = (data.get("links") or {}).get("next")
         if not url:
             break
+    return jobs
+
+
+def wwr(cfg: dict, log) -> list:
+    """WeWorkRemotely — RSS категории 'programming', реально предфильтрован под IT."""
+    jobs = []
+    try:
+        r = requests.get(
+            "https://weworkremotely.com/categories/remote-programming-jobs.rss",
+            headers=UA, timeout=TIMEOUT,
+        )
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+        for item in root.iter("item"):
+            raw_title = (item.findtext("title") or "").strip()
+            company, _, title = raw_title.partition(": ")
+            if not title:  # формат не «Компания: Роль» — оставляем как есть
+                company, title = "", raw_title
+            jobs.append({
+                "title": title.strip(),
+                "company": company.strip(),
+                "location": "Remote",
+                "url": (item.findtext("link") or "").strip(),
+                "description": _strip_html(item.findtext("description") or ""),
+                "source": "wwr",
+                "is_direct": True,  # WWR — постят преимущественно сами компании
+            })
+    except (requests.RequestException, ET.ParseError) as e:
+        log(f"weworkremotely: {e}")
     return jobs
 
 
@@ -182,6 +241,7 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
 
     track(src.get("use_remotive"), "Remotive", "https://remotive.com", remotive)
     track(src.get("use_arbeitnow"), "Arbeitnow", "https://arbeitnow.com", arbeitnow)
+    track(src.get("use_wwr", True), "WeWorkRemotely", "https://weworkremotely.com", wwr)
     track(src.get("use_hnhiring"), "HN Who is Hiring", "https://news.ycombinator.com", hn_hiring)
     track(bool(src.get("adzuna_app_id")), "Adzuna", "https://adzuna.com", adzuna)
     track(bool(src.get("jooble_key")), "Jooble", "https://jooble.org", jooble)

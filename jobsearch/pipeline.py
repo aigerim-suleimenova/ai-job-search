@@ -1,13 +1,14 @@
 """Оркестрация одного прогона поиска."""
 import json
+import os
 import threading
 import traceback
 
-from . import config, db, discovery, filters, llm, notify, scoring
+from . import config, db, discovery, filters, llm, notify, profiles, scoring
 from .collectors import aggregators, ats, crawler
 
 _run_lock = threading.Lock()
-state = {"running": False, "stage": "", "log": []}
+state = {"running": False, "stage": "", "log": [], "profile": ""}
 
 
 def _log(msg: str) -> None:
@@ -21,19 +22,22 @@ def _stage(name: str) -> None:
     _log(f"— {name}")
 
 
-def run_async(trigger: str = "manual") -> bool:
+def run_async(trigger: str = "manual", profile: str = None) -> bool:
     """Запускает прогон в фоновом потоке. False, если уже идёт."""
     if state["running"]:
         return False
-    t = threading.Thread(target=run, args=(trigger,), daemon=True)
+    profile = profile or profiles.active()
+    t = threading.Thread(target=run, args=(trigger, profile), daemon=True)
     t.start()
     return True
 
 
-def run(trigger: str = "manual") -> None:
+def run(trigger: str = "manual", profile: str = None) -> None:
     if not _run_lock.acquire(blocking=False):
         return
-    state.update(running=True, stage="старт", log=[])
+    if profile:
+        profiles.set_active(profile)  # свой поток → задаём активный профиль явно
+    state.update(running=True, stage="старт", log=[], profile=profiles.active())
     cfg = config.load()
     cv = config.cv_text()
     run_id = db.start_run()
@@ -127,6 +131,20 @@ def run(trigger: str = "manual") -> None:
         # Приоритет — вакансиям компаний из списка мониторинга, затем по лексике.
         _stage("подготовка к оценке")
         terms = scoring.profile_terms(cfg, cv)
+
+        # 5a. Дешёвый пре-фильтр: отсекаем заведомо не ту профессию (продажи/HR/саппорт)
+        # ДО дорогой LLM-оценки — освобождает бюджет триажа под реальных кандидатов.
+        if cfg["search"].get("drop_off_target", True):
+            before = len(jobs)
+            kept = [j for j in jobs if not filters.off_target(j, terms)]
+            dropped = before - len(kept)
+            for j in jobs:  # отсеянных помечаем виденными, чтобы не гонять по кругу
+                if filters.off_target(j, terms):
+                    db.mark_seen(j["key"], run_id, j.get("title", ""), j.get("company", ""))
+            jobs = kept
+            if dropped:
+                _log(f"Отсеяно явно нерелевантных ролей (продажи/HR/саппорт и т.п.): {dropped}")
+
         for j in jobs:
             j["_lex"] = scoring.lexical_score(j, terms)
         limit = int(cfg["search"].get("triage_limit", 400))
@@ -164,13 +182,15 @@ def run(trigger: str = "manual") -> None:
         _log(f"Оценено триажем: {len(scored)}. Глубоко проверяем: {len(above)} прошедших порог "
              f"+ {len(to_deep) - len(above)} близких (near-miss ≥{threshold - keep_margin}%)")
 
-        # 7. Глубокий разбор (параллельно): точный %, правки CV и LinkedIn
-        _stage("глубокий разбор и советы по CV")
+        # 7. Глубокий разбор (параллельно): точный %, правки CV и LinkedIn,
+        # плюс, если включено, зарплата и факты о компании из веб-поиска
+        research = bool(cfg["search"].get("research_company", True))
+        _stage("глубокий разбор, зарплата и факты о компании" if research else "глубокий разбор и советы по CV")
         deep_done = {"n": 0}
 
         def _deep(j):
             was = j.get("score")
-            scoring.deep_analyze(j, cfg, cv, _log)
+            scoring.deep_analyze(j, cfg, cv, _log, research=research)
             deep_done["n"] += 1
             tail = f" ({was}%→{j.get('score')}%)" if j.get("score") != was else ""
             _log(f"разбор {deep_done['n']}/{len(to_deep)}: {j.get('title')} @ {j.get('company')}{tail}")
@@ -198,7 +218,9 @@ def run(trigger: str = "manual") -> None:
         _stage("сохранение и отправка")
         for j in matched:
             db.save_job(j, run_id)
-        digest = notify.format_digest(final, threshold, base_url="http://127.0.0.1:8765", demoted=demoted)
+        base_url = os.environ.get("AIJS_BASE_URL", "http://127.0.0.1:8765")
+        digest = notify.format_digest(final, threshold, base_url=base_url, demoted=demoted,
+                                      lang=cfg.get("ui", {}).get("output_lang", "ru"))
         if cfg["telegram"].get("bot_token") and cfg["telegram"].get("chat_id"):
             try:
                 notify.send_message(cfg, digest)

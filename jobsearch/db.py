@@ -1,11 +1,13 @@
-"""SQLite: виденные вакансии и история прогонов."""
+"""SQLite: виденные вакансии и история прогонов (у каждого профиля своя база)."""
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from .config import DATA_DIR
+from . import profiles
 
-DB_PATH = DATA_DIR / "jobs.db"
+
+def db_path():
+    return profiles.dir() / "jobs.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -14,7 +16,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     title TEXT, company TEXT, location TEXT, url TEXT,
     source TEXT, is_direct INTEGER DEFAULT 0, is_agency INTEGER DEFAULT 0,
     description TEXT,
-    score INTEGER, reason TEXT, advice TEXT,
+    score INTEGER, reason TEXT, advice TEXT, verified INTEGER DEFAULT 0,
     first_seen TEXT, run_id INTEGER
 );
 CREATE TABLE IF NOT EXISTS runs (
@@ -26,16 +28,29 @@ CREATE TABLE IF NOT EXISTS runs (
 """
 
 
+_initialized = set()
+
+
 def now() -> str:
     return datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
 
 @contextmanager
 def conn():
-    DATA_DIR.mkdir(exist_ok=True)
-    c = sqlite3.connect(DB_PATH, timeout=30)
+    path = db_path()
+    c = sqlite3.connect(path, timeout=30)
     c.row_factory = sqlite3.Row
     try:
+        if str(path) not in _initialized:
+            c.executescript(SCHEMA)
+            for alter in ("ALTER TABLE runs ADD COLUMN coverage TEXT",
+                          "ALTER TABLE jobs ADD COLUMN verified INTEGER DEFAULT 0",
+                          "ALTER TABLE jobs ADD COLUMN tailored_cv TEXT"):
+                try:
+                    c.execute(alter)
+                except sqlite3.OperationalError:
+                    pass  # колонка уже есть
+            _initialized.add(str(path))
         yield c
         c.commit()
     finally:
@@ -43,12 +58,8 @@ def conn():
 
 
 def init() -> None:
-    with conn() as c:
-        c.executescript(SCHEMA)
-        try:
-            c.execute("ALTER TABLE runs ADD COLUMN coverage TEXT")
-        except sqlite3.OperationalError:
-            pass  # колонка уже есть
+    with conn():  # схема создаётся лениво в conn() при первом обращении к базе профиля
+        pass
 
 
 def seen_keys() -> set:
@@ -76,14 +87,15 @@ def save_job(job: dict, run_id: int) -> None:
         c.execute(
             """INSERT OR IGNORE INTO jobs
                (key, title, company, location, url, source, is_direct, is_agency,
-                description, score, reason, advice, first_seen, run_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                description, score, reason, advice, verified, first_seen, run_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 job["key"], job.get("title", ""), job.get("company", ""),
                 job.get("location", ""), job.get("url", ""), job.get("source", ""),
                 1 if job.get("is_direct") else 0, 1 if job.get("is_agency") else 0,
                 (job.get("description") or "")[:8000],
                 job.get("score"), job.get("reason", ""), job.get("advice", ""),
+                1 if job.get("verified") else 0,
                 now(), run_id,
             ),
         )
@@ -96,6 +108,17 @@ def mark_seen(key: str, run_id: int, title: str = "", company: str = "") -> None
             "INSERT OR IGNORE INTO jobs(key, title, company, first_seen, run_id) VALUES (?,?,?,?,?)",
             (key, title, company, now(), run_id),
         )
+
+
+def get_job(job_id: int):
+    with conn() as c:
+        r = c.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+        return dict(r) if r else None
+
+
+def save_tailored_cv(job_id: int, cv_json: str) -> None:
+    with conn() as c:
+        c.execute("UPDATE jobs SET tailored_cv=? WHERE id=?", (cv_json, job_id))
 
 
 def matched_jobs(limit: int = 300, min_score: int = 0) -> list:
@@ -112,3 +135,22 @@ def recent_runs(limit: int = 10) -> list:
     with conn() as c:
         rows = c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(r) for r in rows]
+
+
+def all_scores() -> list:
+    """Все оценки по убыванию — для подсказки порога."""
+    with conn() as c:
+        return [r["score"] for r in c.execute(
+            "SELECT score FROM jobs WHERE score IS NOT NULL ORDER BY score DESC")]
+
+
+def suggest_threshold(current: int, want: int = 12) -> int:
+    """Порог, при котором в выдаче будет ~want вакансий (кратно 5).
+    Возвращает 0, если текущий порог и так даёт достаточно."""
+    scores = all_scores()
+    above = sum(1 for s in scores if s >= current)
+    if above >= max(1, want // 2) or not scores:
+        return 0  # текущий порог нормальный — подсказка не нужна
+    target = scores[min(want, len(scores)) - 1]
+    sugg = (target // 5) * 5
+    return sugg if 0 < sugg < current else 0

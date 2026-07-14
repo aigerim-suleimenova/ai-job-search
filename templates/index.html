@@ -1,69 +1,124 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Job Search — настройки</title>
+<title>AI Job Search — {{ t('nav_settings') }}</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header>
   <h1>🔎 AI Job Search</h1>
   <nav>
-    <a href="/">Настройки</a>
-    <a href="/results">Результаты</a>
-    <a href="/coverage">Покрытие</a>
+    <a href="/">{{ t('nav_settings') }}</a>
+    <a href="/results">{{ t('nav_results') }}</a>
+    <a href="/coverage">{{ t('nav_coverage') }}</a>
   </nav>
+  <form method="post" action="/profile/switch" class="profile-switch">
+    <label>{{ t('person') }}
+      <select name="slug" onchange="this.form.submit()">
+        {% for p in profiles %}
+        <option value="{{ p.slug }}" {% if p.slug == active_profile %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
 </header>
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
 
 <section class="card status" id="status-card">
   <div>
-    <b>Статус:</b>
-    <span id="status-text">{% if state.running %}идёт поиск — {{ state.stage }}{% else %}ожидание{% endif %}</span>
-    {% if next_run %} · следующий запуск по расписанию: {{ next_run }}{% endif %}
+    <b>{{ t('status') }}</b>
+    <span id="status-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% else %}{{ t('status_idle') }}{% endif %}</span>
+    {% if continuous %} · ♾️ {{ t('status_continuous') }}{% elif next_run %} · {{ t('next_run') }} {{ next_run }}{% endif %}
   </div>
   <form method="post" action="/run" style="margin:0">
-    <button class="primary" {% if state.running %}disabled{% endif %}>▶ Запустить поиск сейчас</button>
+    <button class="primary" {% if state.running %}disabled{% endif %}>{{ t('run_now') }}</button>
   </form>
 </section>
 <pre id="live-log" class="log" {% if not state.running %}hidden{% endif %}></pre>
 
+<section class="card">
+  <h2>{{ t('manage_people') }} — {{ active_name }}</h2>
+  <p class="hint">{{ t('manage_hint') }}</p>
+  <div class="row" style="flex-wrap:wrap; gap:10px">
+    <form method="post" action="/profile/create" class="row" style="margin:0">
+      <input name="name" placeholder="{{ t('new_person_name') }}" style="width:auto">
+      <button>{{ t('add_person') }}</button>
+    </form>
+    <form method="post" action="/profile/rename" class="row" style="margin:0">
+      <input name="name" value="{{ active_name }}" style="width:auto">
+      <button>{{ t('rename_person') }}</button>
+    </form>
+    {% if profiles|length > 1 %}
+    <form method="post" action="/profile/delete" style="margin:0"
+          onsubmit="return confirm('{{ t('delete_confirm') }}')">
+      <input type="hidden" name="slug" value="{{ active_profile }}">
+      <button class="danger">{{ t('delete_person') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
 <form method="post" action="/save">
 
 <section class="card">
-  <h2>👤 Профиль</h2>
-  <div class="row" style="margin-bottom:12px">
-    <button formaction="/save?then=profile_from_cv">✨ Заполнить пустые поля из CV</button>
-    <span class="hint">Сначала загрузите CV внизу страницы — Claude сам предложит роли, уровень и описание.</span>
-  </div>
-  <label>О себе: знания, опыт, стек, достижения
-    <textarea name="summary" rows="5" placeholder="Например: 8 лет backend-разработки на Python и Go, высоконагруженные сервисы, Kubernetes, руководил командой из 5 человек...">{{ cfg.profile.summary }}</textarea>
-  </label>
+  <h2>{{ t('language') }}</h2>
   <div class="grid2">
-    <label>Желаемые роли (через запятую)
-      <input name="roles" value="{{ cfg.profile.roles }}" placeholder="Backend Engineer, Platform Engineer">
-    </label>
-    <label>Уровень
-      <input name="seniority" value="{{ cfg.profile.seniority }}" placeholder="Senior / Staff / Lead">
-    </label>
-    <label>Зарплатные ожидания
-      <input name="salary" value="{{ cfg.profile.salary }}" placeholder="от €90k / $140k в год">
-    </label>
-    <label>Формат работы
-      <select name="work_format">
-        {% for v, t in [("any","любой"),("remote","удалённо"),("hybrid","гибрид"),("onsite","офис")] %}
-        <option value="{{ v }}" {% if cfg.profile.work_format == v %}selected{% endif %}>{{ t }}</option>
+    <label>{{ t('ui_lang') }}
+      <select name="ui_lang">
+        {% for code, lname in ui_langs.items() %}
+        <option value="{{ code }}" {% if cfg.ui.lang == code %}selected{% endif %}>{{ lname }}</option>
         {% endfor %}
       </select>
     </label>
-    <label>Языки
-      <input name="languages" value="{{ cfg.profile.languages }}" placeholder="английский C1, немецкий A2">
+    <label>{{ t('output_lang') }}
+      <select name="output_lang">
+        {% for code, lname in output_langs.items() %}
+        <option value="{{ code }}" {% if cfg.ui.output_lang == code %}selected{% endif %}>{{ lname }}</option>
+        {% endfor %}
+      </select>
     </label>
-    <label class="check"><input type="checkbox" name="visa_required" {% if cfg.profile.visa_required %}checked{% endif %}> Нужна виза / спонсорство</label>
-    <label>Комментарий про визу
-      <input name="visa_note" value="{{ cfg.profile.visa_note }}" placeholder="есть Blue Card / нужен sponsorship в США">
+  </div>
+  <p class="hint">{{ t('lang_hint') }}</p>
+</section>
+
+<section class="card">
+  <h2>{{ t('profile') }}</h2>
+  <div class="row" style="margin-bottom:12px">
+    <button formaction="/save?then=profile_from_cv">{{ t('profile_from_cv') }}</button>
+    <span class="hint">{{ t('profile_from_cv_hint') }}</span>
+  </div>
+  <label>{{ t('about') }}
+    <textarea name="summary" rows="5" placeholder="{{ t('about_ph') }}">{{ cfg.profile.summary }}</textarea>
+  </label>
+  <div class="grid2">
+    <label>{{ t('roles') }}
+      <input name="roles" value="{{ cfg.profile.roles }}" placeholder="Backend Engineer, Platform Engineer">
+    </label>
+    <label>{{ t('level') }}
+      <input name="seniority" value="{{ cfg.profile.seniority }}" placeholder="Senior / Staff / Lead">
+    </label>
+    <label class="grid-span2">{{ t('skills') }}
+      <input name="skills" value="{{ cfg.profile.skills }}" placeholder="{{ t('skills_ph') }}">
+    </label>
+    <label>{{ t('salary_exp') }}
+      <input name="salary" value="{{ cfg.profile.salary }}" placeholder="€90k / $140k">
+    </label>
+    <label>{{ t('work_format') }}
+      <select name="work_format">
+        {% for v, lbl in [("any", t('fmt_any')),("remote", t('fmt_remote')),("hybrid", t('fmt_hybrid')),("onsite", t('fmt_onsite'))] %}
+        <option value="{{ v }}" {% if cfg.profile.work_format == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t('langs') }}
+      <input name="languages" value="{{ cfg.profile.languages }}" placeholder="English C1, German A2">
+    </label>
+    <label class="check"><input type="checkbox" name="visa_required" {% if cfg.profile.visa_required %}checked{% endif %}> {{ t('visa_required') }}</label>
+    <label>{{ t('visa_note') }}
+      <input name="visa_note" value="{{ cfg.profile.visa_note }}" placeholder="Blue Card / US sponsorship">
     </label>
   </div>
   <div class="grid3">
@@ -74,144 +129,160 @@
 </section>
 
 <section class="card">
-  <h2>🌍 Параметры поиска</h2>
+  <h2>{{ t('search_params') }}</h2>
   <div class="grid2">
-    <label>Локации (через запятую: EU, USA, город, страна)
+    <label>{{ t('locations') }}
       <input name="locations" value="{{ cfg.search.locations }}">
     </label>
-    <label>Порог совпадения, %
+    <label>{{ t('threshold') }}
       <input type="number" name="threshold" min="0" max="100" value="{{ cfg.search.threshold }}">
     </label>
-    <label>Ключевые слова — обязательно искать
+    <label>{{ t('match_priority') }}
+      <select name="match_priority">
+        {% for v, lbl in [("role", t('prio_role')),("skills", t('prio_skills')),("both", t('prio_both'))] %}
+        <option value="{{ v }}" {% if cfg.search.match_priority == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <p class="hint grid-span2" style="margin:0">{{ t('prio_hint') }}</p>
+    <label>{{ t('kw_include') }}
       <input name="keywords_include" value="{{ cfg.search.keywords_include }}" placeholder="python, kubernetes">
     </label>
-    <label>Стоп-слова — исключать
+    <label>{{ t('kw_exclude') }}
       <input name="keywords_exclude" value="{{ cfg.search.keywords_exclude }}" placeholder="php, 1c, intern">
     </label>
-    <label class="check"><input type="checkbox" name="include_remote" {% if cfg.search.include_remote %}checked{% endif %}> Учитывать удалённые вакансии</label>
+    <label class="check"><input type="checkbox" name="include_remote" {% if cfg.search.include_remote %}checked{% endif %}> {{ t('incl_remote') }}</label>
     <span></span>
-    <label>Предел вакансий на LLM-оценку за прогон
+    <label class="check grid-span2"><input type="checkbox" name="drop_off_target" {% if cfg.search.drop_off_target %}checked{% endif %}> {{ t('drop_off_target') }}</label>
+    <label>{{ t('triage_limit') }}
       <input type="number" name="triage_limit" min="5" value="{{ cfg.search.triage_limit }}">
     </label>
-    <label>Глубокий разбор (правки CV) для топ-N
+    <label>{{ t('deep_top_n') }}
       <input type="number" name="deep_top_n" min="0" value="{{ cfg.search.deep_top_n }}">
     </label>
-    <label>Параллельных LLM-вызовов (быстрее, но нагрузка выше)
+    <label>{{ t('parallelism') }}
       <input type="number" name="parallelism" min="1" max="10" value="{{ cfg.search.parallelism }}">
     </label>
   </div>
-  <p class="hint">При параллельной оценке за один прогон успевают оцениться все новые вакансии,
-    а не только первые несколько десятков — очередь не копится.</p>
+  <p class="hint">{{ t('parallelism_hint') }}</p>
+  <label class="check"><input type="checkbox" name="research_company" {% if cfg.search.research_company %}checked{% endif %}> {{ t('research_company') }}</label>
+  <p class="hint">{{ t('research_hint') }}</p>
 </section>
 
 <section class="card">
-  <h2>🏢 Источники</h2>
-  <label>Компании для прямого мониторинга — по одной на строку: <code>Название | URL страницы вакансий</code>.
-    ATS-ссылки (greenhouse, lever, ashby, workable, smartrecruiters, recruitee, personio) читаются через API, остальные — краулятся.
+  <h2>{{ t('sources') }}</h2>
+  <label>{{ t('companies_label') }}
     <textarea name="companies" rows="6" placeholder="Anthropic | https://boards.greenhouse.io/anthropic
-Spotify | https://jobs.lever.co/spotify
-Моя компания мечты | https://example.com/careers">{{ companies_text }}</textarea>
+Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
   </label>
   <div class="grid3">
     <label class="check"><input type="checkbox" name="use_remotive" {% if cfg.sources.use_remotive %}checked{% endif %}> Remotive (remote)</label>
-    <label class="check"><input type="checkbox" name="use_arbeitnow" {% if cfg.sources.use_arbeitnow %}checked{% endif %}> Arbeitnow (ЕС)</label>
+    <label class="check"><input type="checkbox" name="use_arbeitnow" {% if cfg.sources.use_arbeitnow %}checked{% endif %}> Arbeitnow (EU)</label>
+    <label class="check"><input type="checkbox" name="use_wwr" {% if cfg.sources.use_wwr %}checked{% endif %}> WeWorkRemotely</label>
     <label class="check"><input type="checkbox" name="use_hnhiring" {% if cfg.sources.use_hnhiring %}checked{% endif %}> HN Who is Hiring</label>
   </div>
   <div class="grid2" style="align-items:end">
-    <label>Искать новых компаний за прогон (веб-поиск через Claude, 0 = выключить)
+    <label>{{ t('discover_per_run') }}
       <input type="number" name="discover_per_run" min="0" value="{{ cfg.search.discover_per_run }}">
     </label>
     <div class="row" style="margin-bottom:10px">
-      <button formaction="/save?then=discover">🔍 Найти компании сейчас</button>
+      <button formaction="/save?then=discover">{{ t('discover_now') }}</button>
     </div>
   </div>
-  <p class="hint">Найденные компании добавляются в список выше — их можно редактировать и удалять.
-    Что реально просмотрено в каждом прогоне — на странице «Покрытие».</p>
+  <p class="hint">{{ t('sources_hint') }}</p>
   <details>
-    <summary>Adzuna и Jooble (нужны бесплатные API-ключи)</summary>
+    <summary>Adzuna &amp; Jooble (API keys)</summary>
     <div class="grid3">
       <label>Adzuna app_id <input name="adzuna_app_id" value="{{ cfg.sources.adzuna_app_id }}"></label>
       <label>Adzuna app_key <input name="adzuna_app_key" value="{{ cfg.sources.adzuna_app_key }}"></label>
-      <label>Adzuna страны <input name="adzuna_countries" value="{{ cfg.sources.adzuna_countries }}"></label>
+      <label>Adzuna countries <input name="adzuna_countries" value="{{ cfg.sources.adzuna_countries }}"></label>
       <label>Jooble key <input name="jooble_key" value="{{ cfg.sources.jooble_key }}"></label>
     </div>
   </details>
 </section>
 
 <section class="card">
-  <h2>🤖 LLM (Claude Code CLI)</h2>
+  <h2>{{ t('llm') }}</h2>
   <div class="grid3">
-    <label>Команда claude
+    <label>{{ t('claude_bin') }}
       <input name="claude_bin" value="{{ cfg.llm.claude_bin }}">
     </label>
-    <label>Модель для триажа (дёшево, много вакансий)
+    <label>{{ t('triage_model') }}
       <input name="triage_model" value="{{ cfg.llm.triage_model }}" placeholder="haiku">
     </label>
-    <label>Модель для глубокого разбора (пусто = по умолчанию)
+    <label>{{ t('deep_model') }}
       <input name="deep_model" value="{{ cfg.llm.deep_model }}" placeholder="opus">
     </label>
   </div>
 </section>
 
 <section class="card">
-  <h2>📨 Telegram</h2>
+  <h2>{{ t('telegram') }}</h2>
   <div class="grid2">
-    <label>Bot token (от @BotFather)
+    <label>{{ t('bot_token') }}
       <input name="bot_token" value="{{ cfg.telegram.bot_token }}" placeholder="1234567890:AA...">
     </label>
-    <label>Chat ID
-      <input name="chat_id" value="{{ cfg.telegram.chat_id }}" placeholder="определится кнопкой ниже">
+    <label>{{ t('chat_id') }}
+      <input name="chat_id" value="{{ cfg.telegram.chat_id }}">
     </label>
   </div>
   <div class="row">
-    <button formaction="/save?then=tg_detect">💾 Сохранить и определить chat id</button>
-    <button formaction="/save?then=tg_test">💾 Сохранить и отправить тест</button>
+    <button formaction="/save?then=tg_detect">{{ t('tg_detect') }}</button>
+    <button formaction="/save?then=tg_test">{{ t('tg_test') }}</button>
   </div>
-  <p class="hint">Создайте бота через @BotFather (/newbot), вставьте token, напишите боту любое сообщение —
-    и нажмите «Сохранить и определить chat id». Кнопки сохраняют все настройки на странице.</p>
+  <p class="hint">{{ t('tg_hint') }}</p>
 </section>
 
 <section class="card">
-  <h2>⏰ Расписание</h2>
+  <h2>{{ t('schedule') }}</h2>
   <div class="grid3">
-    <label class="check"><input type="checkbox" name="schedule_enabled" {% if cfg.schedule.enabled %}checked{% endif %}> Запускать автоматически</label>
-    <label>Каждые
-      <input type="number" name="every_value" min="1" value="{{ cfg.schedule.every_value }}">
-    </label>
-    <label>Единица
-      <select name="every_unit">
-        {% for v, t in [("hours","часов"),("days","дней"),("weeks","недель")] %}
-        <option value="{{ v }}" {% if cfg.schedule.every_unit == v %}selected{% endif %}>{{ t }}</option>
+    <label>{{ t('sched_mode') }}
+      <select name="schedule_mode" onchange="schedFields(this.value)">
+        {% for v, lbl in [("off", t('mode_off')),("interval", t('mode_interval')),("continuous", t('mode_continuous'))] %}
+        <option value="{{ v }}" {% if cfg.schedule.mode == v %}selected{% endif %}>{{ lbl }}</option>
         {% endfor %}
       </select>
     </label>
+    <label class="sched-interval">{{ t('sched_every') }}
+      <input type="number" name="every_value" min="1" value="{{ cfg.schedule.every_value }}">
+    </label>
+    <label class="sched-interval">{{ t('sched_unit') }}
+      <select name="every_unit">
+        {% for v, lbl in [("hours", t('unit_hours')),("days", t('unit_days')),("weeks", t('unit_weeks'))] %}
+        <option value="{{ v }}" {% if cfg.schedule.every_unit == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="sched-cont">{{ t('cooldown') }}
+      <input type="number" name="continuous_cooldown_min" min="1" value="{{ cfg.schedule.continuous_cooldown_min }}">
+    </label>
   </div>
-  <p class="hint">Расписание работает, пока приложение запущено. Автозапуск при включении Mac — см. README (launchd).</p>
+  <p class="hint">{{ t('sched_hint') }}</p>
 </section>
 
 <div class="actions">
-  <button class="primary" type="submit">💾 Сохранить настройки</button>
+  <button class="primary" type="submit">{{ t('save') }}</button>
 </div>
 </form>
 
 <section class="card">
-  <h2>📄 CV</h2>
+  <h2>{{ t('cv') }}</h2>
   {% if cv.filename %}
-  <p>Загружено: <b>{{ cv.filename }}</b> ({{ cv.chars }} символов извлечено)</p>
+  <p>{{ t('cv_loaded') }} <b>{{ cv.filename }}</b> ({{ cv.chars }} {{ t('cv_chars') }})</p>
   {% else %}
-  <p class="hint">CV ещё не загружено. Подойдёт PDF, TXT или MD. Туда же можно добавить экспорт LinkedIn-профиля (LinkedIn → Ещё → Сохранить в PDF).</p>
+  <p class="hint">{{ t('cv_none') }}</p>
   {% endif %}
   <form method="post" action="/upload_cv" enctype="multipart/form-data" class="row">
-    <input type="file" name="file" accept=".pdf,.txt,.md">
-    <button>Загрузить</button>
+    <input type="file" name="file" accept=".pdf,.docx,.txt,.md">
+    <button>{{ t('upload') }}</button>
   </form>
 </section>
 
 {% if runs %}
 <section class="card">
-  <h2>🗂 Последние прогоны</h2>
+  <h2>{{ t('recent_runs') }}</h2>
   <table>
-    <tr><th>#</th><th>Начало</th><th>Конец</th><th>Собрано</th><th>Новых</th><th>Подошло</th><th>Статус</th></tr>
+    <tr><th>#</th><th>{{ t('col_start') }}</th><th>{{ t('col_finish') }}</th><th>{{ t('col_found') }}</th><th>{{ t('col_fresh') }}</th><th>{{ t('col_matched') }}</th><th>{{ t('col_status') }}</th></tr>
     {% for r in runs %}
     <tr>
       <td>{{ r.id }}</td><td>{{ r.started }}</td><td>{{ r.finished or "…" }}</td>
@@ -224,6 +295,7 @@ Spotify | https://jobs.lever.co/spotify
 {% endif %}
 
 <script>
+const RUNNING_PREFIX = {{ t('status_running')|tojson }};
 async function poll() {
   try {
     const r = await fetch("/status");
@@ -231,17 +303,23 @@ async function poll() {
     const text = document.getElementById("status-text");
     const log = document.getElementById("live-log");
     if (s.running) {
-      text.textContent = "идёт поиск — " + s.stage;
+      text.textContent = RUNNING_PREFIX + " " + s.stage;
       log.hidden = false;
       log.textContent = s.log.join("\n");
       log.scrollTop = log.scrollHeight;
       setTimeout(poll, 2500);
-    } else if (text.textContent.startsWith("идёт")) {
+    } else if (text.textContent.startsWith(RUNNING_PREFIX)) {
       location.reload();
     }
   } catch (e) { setTimeout(poll, 5000); }
 }
 {% if state.running %}poll();{% endif %}
+
+function schedFields(mode) {
+  document.querySelectorAll(".sched-interval").forEach(e => e.style.display = mode === "interval" ? "" : "none");
+  document.querySelectorAll(".sched-cont").forEach(e => e.style.display = mode === "continuous" ? "" : "none");
+}
+schedFields(document.querySelector('select[name="schedule_mode"]').value);
 </script>
 </body>
 </html>

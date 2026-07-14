@@ -54,6 +54,9 @@ _ATS_IN_HTML = [
     ("ashby", re.compile(r"jobs\.ashbyhq\.com/([a-zA-Z0-9_-]+)")),
     ("ashby", re.compile(r"api\.ashbyhq\.com/posting-api/job-board/([a-zA-Z0-9_-]+)")),
     ("workable", re.compile(r"apply\.workable\.com/([a-zA-Z0-9_-]+)")),
+    # виджет Workable «whr_embed(<numeric account id>, ...)» — используется вместо
+    # прямой ссылки apply.workable.com/<slug>; API принимает и числовой ID как slug
+    ("workable", re.compile(r"whr_embed\(\s*(\d+)")),
     ("smartrecruiters", re.compile(r"(?:careers|jobs|api)\.smartrecruiters\.com/(?:v1/companies/)?([a-zA-Z0-9_-]+)")),
     ("recruitee", re.compile(r"([a-z0-9-]+)\.recruitee\.com")),
     ("personio", re.compile(r"([a-z0-9-]+\.jobs\.personio\.(?:de|com))")),
@@ -73,6 +76,34 @@ def detect_in_html(html: str):
         if slug.lower() in _ATS_SLUG_STOP or len(slug) < 2:
             continue
         return platform, slug
+    return None
+
+
+def _slug_variants(name: str) -> list:
+    import re as _re
+    base = _re.sub(r"\b(gmbh|inc|ltd|llc|ag|the|corp|co)\b", "", name.lower())
+    compact = _re.sub(r"[^a-z0-9]", "", base)
+    dashed = _re.sub(r"[^a-z0-9]+", "-", base).strip("-")
+    seen, out = set(), []
+    for v in (compact, dashed):
+        if v and len(v) >= 2 and v not in seen:
+            seen.add(v)
+            out.append(v)
+    return out
+
+
+def guess_by_name(name: str):
+    """Пробует угадать ATS-борд по названию компании (когда careers-страница на JS
+    без обнаружимого API). Возвращает (платформа, slug, jobs) или None.
+    Проверяет только реальным запросом к API — ложные срабатывания почти исключены."""
+    for slug in _slug_variants(name):
+        for platform in ("greenhouse", "lever", "ashby"):
+            try:
+                jobs = fetch(platform, slug, company_hint=name)
+            except Exception:  # noqa: BLE001
+                continue
+            if jobs:
+                return platform, slug, jobs
     return None
 
 

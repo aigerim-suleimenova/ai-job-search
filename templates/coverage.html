@@ -1,44 +1,85 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Job Search — покрытие</title>
+<title>AI Job Search — {{ t('nav_coverage') }}</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header>
   <h1>🔎 AI Job Search</h1>
   <nav>
-    <a href="/">Настройки</a>
-    <a href="/results">Результаты</a>
-    <a href="/coverage">Покрытие</a>
+    <a href="/">{{ t('nav_settings') }}</a>
+    <a href="/results">{{ t('nav_results') }}</a>
+    <a href="/coverage">{{ t('nav_coverage') }}</a>
   </nav>
+  <form method="post" action="/profile/switch" class="profile-switch">
+    <label>{{ t('person') }}
+      <select name="slug" onchange="this.form.submit()">
+        {% for p in profiles %}
+        <option value="{{ p.slug }}" {% if p.slug == active_profile %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
 </header>
 
+<section class="card">
+  <h2>{{ t('cov_check_title') }}</h2>
+  <p class="hint">{{ t('cov_check_hint') }}</p>
+  <form method="post" action="/coverage/check">
+    <textarea name="companies" rows="5" placeholder="Datadog
+GitLab | https://boards.greenhouse.io/gitlab
+https://www.mycompany.com/careers">{{ checked_input }}</textarea>
+    <div class="actions"><button class="primary" type="submit">{{ t('cov_check_btn') }}</button></div>
+  </form>
+  {% if checked is not none %}
+  <table>
+    <tr><th>{{ t('cov_col_company') }}</th><th>{{ t('col_status') }}</th><th>{{ t('cov_col_jobs') }}</th><th>{{ t('cov_col_how') }}</th><th></th></tr>
+    {% for c in checked %}
+    <tr>
+      <td>{% if c.url %}<a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %}
+        {% if c.monitored %}<span class="badge ok">{{ t('cov_monitored') }}</span>{% endif %}
+        {% if c.resolved_by_search %}<span class="badge">{{ t('cov_by_search') }}</span>{% endif %}</td>
+      <td>{% if c.count > 0 %}<span class="st-ok">{{ t('cov_visible') }}</span>
+          {% elif not c.url %}<span class="st-error">{{ t('cov_notfound') }}</span>
+          {% else %}<span class="st-warn">{{ t('cov_zero') }}</span>{% endif %}</td>
+      <td>{{ c.count }}</td>
+      <td>{{ c.platform }}</td>
+      <td>{% if c.url and c.count > 0 and not c.monitored %}
+        <form method="post" action="/coverage/add" style="margin:0">
+          <input type="hidden" name="name" value="{{ c.name }}"><input type="hidden" name="url" value="{{ c.url }}">
+          <button>{{ t('cov_add') }}</button>
+        </form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="hint">{{ t('cov_check_note') }}</p>
+  {% endif %}
+</section>
+
 {% if not run %}
-<section class="card"><p>Ещё не было ни одного прогона.</p></section>
+<section class="card"><p>{{ t('cov_no_runs') }}</p></section>
 {% else %}
 <section class="card">
-  <h2>Что просмотрено в прогоне #{{ run.id }} ({{ run.started }})</h2>
+  <h2>{{ t('cov_scanned') }} #{{ run.id }} ({{ run.started }})</h2>
   <p class="hint">
-    Источников: {{ entries|length }} · вакансий собрано: {{ total }} ·
-    другие прогоны:
+    {{ t('cov_sources_n') }} {{ entries|length }} · {{ t('cov_jobs_collected') }} {{ total }} ·
+    {{ t('cov_other_runs') }}
     {% for r in runs[:8] %}<a href="/coverage?run_id={{ r.id }}">#{{ r.id }}</a> {% endfor %}
   </p>
-  {% if not entries %}
-  <p class="hint">Для этого прогона данные покрытия не сохранены (старая версия).</p>
-  {% else %}
+  {% if entries %}
   <table>
-    <tr><th>Источник</th><th>Тип</th><th>Найдено</th><th>Статус</th></tr>
+    <tr><th>{{ t('cov_col_source') }}</th><th>{{ t('cov_col_type') }}</th><th>{{ t('cov_col_found') }}</th><th>{{ t('col_status') }}</th></tr>
     {% for e in entries %}
     <tr>
       <td><a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.name }}</a></td>
       <td>{{ e.kind }}</td>
       <td>{{ e.count }}</td>
       <td>{% if e.error %}<span class="st-error">{{ e.error }}</span>
-          {% elif e.count == 0 %}<span class="st-warn">пусто</span>
-          {% else %}<span class="st-ok">ок</span>{% endif %}</td>
+          {% elif e.count == 0 %}<span class="st-warn">{{ t('cov_empty') }}</span>
+          {% else %}<span class="st-ok">{{ t('cov_ok') }}</span>{% endif %}</td>
     </tr>
     {% endfor %}
   </table>
@@ -46,13 +87,14 @@
 </section>
 
 <section class="card">
-  <h2>Как расширяется покрытие</h2>
-  <p class="hint">
-    Агрегаторы дают широкий поток, компании из списка мониторятся напрямую (ATS-API или краулинг),
-    а веб-поиск каждый прогон добавляет новые компании под ваш профиль
-    (настройка «Искать новых компаний за прогон» и кнопка «Найти компании сейчас» в Источниках).
-    Всё, что найдено, проходит фильтры и LLM-оценку — на страницу «Результаты» попадают вакансии с оценкой.
-  </p>
+  <h2>{{ t('cov_honest_title') }}</h2>
+  <p class="hint">{{ t('cov_honest_1')|safe }}</p>
+  <ul class="hint">
+    <li>{{ t('cov_honest_agg')|safe }}</li>
+    <li>{{ t('cov_honest_list')|safe }}</li>
+    <li>{{ t('cov_honest_disc')|safe }}</li>
+  </ul>
+  <p class="hint">{{ t('cov_honest_2')|safe }}</p>
 </section>
 {% endif %}
 </body>
