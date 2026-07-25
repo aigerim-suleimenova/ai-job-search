@@ -46,6 +46,7 @@ DEFAULTS = {
         "threshold": 70,
         "match_priority": "both",   # на что опираться: role | skills | both
         "drop_off_target": True,    # отсеивать явно нерелевантные роли (продажи/HR/саппорт) до LLM
+        "triage_second_vote": True, # второй голос триажа для пограничных (ловит занижения)
         "keywords_include": "",
         "keywords_exclude": "",
         "include_remote": True,

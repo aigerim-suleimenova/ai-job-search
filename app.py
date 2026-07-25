@@ -145,6 +145,7 @@ async def save(request: Request, then: str = ""):
         locations=val("locations"), threshold=max(0, min(100, num("threshold", 70))),
         match_priority=prio if prio in ("role", "skills", "both") else "both",
         drop_off_target=flag("drop_off_target"),
+        triage_second_vote=flag("triage_second_vote"),
         keywords_include=val("keywords_include"), keywords_exclude=val("keywords_exclude"),
         include_remote=flag("include_remote"),
         triage_limit=max(5, num("triage_limit", 400)),

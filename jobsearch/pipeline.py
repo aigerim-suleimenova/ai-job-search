@@ -119,19 +119,28 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 by_key[j["key"]] = j
         jobs = list(by_key.values())
 
-        # 3. Жёсткие фильтры
+        # 3. Жёсткие фильтры (с примерами отсева в журнале — чтобы ловить ложные срабатывания)
         wanted = filters.parse_locations(cfg["search"].get("locations", ""))
         exclude = [t.strip().lower() for t in cfg["search"].get("keywords_exclude", "").split(",") if t.strip()]
         include_remote = bool(cfg["search"].get("include_remote", True))
-        jobs = [
-            j for j in jobs
-            if filters.location_ok(j.get("location", ""), wanted, include_remote)
-            and not filters.has_excluded(j, exclude)
-        ]
+        kept, drop_loc, drop_kw = [], [], []
+        for j in jobs:
+            if not filters.location_ok(j.get("location", ""), wanted, include_remote):
+                drop_loc.append(j)
+            elif filters.has_excluded(j, exclude):
+                drop_kw.append(j)
+            else:
+                kept.append(j)
+        jobs = kept
         for j in jobs:
             if filters.looks_like_agency(j.get("company", "")):
                 j["is_agency"] = True
-        _log(f"После фильтров локации/стоп-слов: {len(jobs)}")
+        _log(f"После фильтров локации/стоп-слов: {len(jobs)} "
+             f"(отсеяно по локации: {len(drop_loc)}, по стоп-словам: {len(drop_kw)})")
+        for j in drop_loc[:5]:
+            _log(f"  пример отсева по локации: {j.get('title', '')[:60]} — «{j.get('location', '')[:60]}»")
+        for j in drop_kw[:5]:
+            _log(f"  пример отсева по стоп-слову: {j.get('title', '')[:60]} @ {j.get('company', '')[:40]}")
 
         # 4. Только новые
         seen = db.seen_keys()
@@ -148,12 +157,11 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         # ДО дорогой LLM-оценки — освобождает бюджет триажа под реальных кандидатов.
         if cfg["search"].get("drop_off_target", True):
             before = len(jobs)
-            kept = [j for j in jobs if not filters.off_target(j, terms)]
-            dropped = before - len(kept)
-            for j in jobs:  # отсеянных помечаем виденными, чтобы не гонять по кругу
-                if filters.off_target(j, terms):
-                    db.mark_seen(j["key"], run_id, j.get("title", ""), j.get("company", ""))
-            jobs = kept
+            jobs = [j for j in jobs if not filters.off_target(j, terms)]
+            dropped = before - len(jobs)
+            # Отсеянных НЕ помечаем виденными: проверка бесплатная (строки, без LLM)
+            # и повторится в следующем прогоне, зато при смене ролей/навыков профиля
+            # такие вакансии автоматически вернутся в рассмотрение.
             if dropped:
                 _log(f"Отсеяно явно нерелевантных ролей (продажи/HR/саппорт и т.п.): {dropped}")
 
@@ -175,6 +183,26 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         scoring.triage(candidates, cfg, _log, cv=cv)
         threshold = int(cfg["search"].get("threshold", 70))
         scored = [j for j in candidates if j.get("score") is not None]
+
+        # 6b. Второе мнение для «серой зоны». Триаж шумит ±15-20 п.п.; завышение потом
+        # исправит глубокий разбор, а ЗАНИЖЕНИЕ невосполнимо: вакансия сохранится с низким
+        # баллом и больше не пересматривается. Поэтому всем, кто попал заметно ниже порога,
+        # даём второй независимый голос и берём максимум из двух.
+        if cfg["search"].get("triage_second_vote", True):
+            band = [j for j in scored if threshold - 40 <= (j["score"] or 0) < threshold]
+            if band:
+                _log(f"второе мнение триажа: {len(band)} пограничных ({threshold - 40}–{threshold - 1}%)")
+                first = {j["key"]: (j["score"], j.get("reason", "")) for j in band}
+                scoring.triage(band, cfg, _log, cv=cv)
+                rescued = 0
+                for j in band:
+                    s1, r1 = first[j["key"]]
+                    if (j.get("score") or 0) < (s1 or 0):  # первый голос был выше — берём его
+                        j["score"], j["reason"] = s1, r1
+                    if (j.get("score") or 0) >= threshold and (s1 or 0) < threshold:
+                        rescued += 1
+                if rescued:
+                    _log(f"второе мнение подняло выше порога: {rescued} — уйдут на глубокую проверку")
 
         # Триаж (haiku) систематически оптимистичен и шумит ±15-20 п.п.
         # ВСЕ вакансии, которые триаж поднял до порога, проверяем глубоко — именно они

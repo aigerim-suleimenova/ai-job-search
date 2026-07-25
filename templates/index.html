@@ -154,6 +154,7 @@
     <label class="check"><input type="checkbox" name="include_remote" {% if cfg.search.include_remote %}checked{% endif %}> {{ t('incl_remote') }}</label>
     <span></span>
     <label class="check grid-span2"><input type="checkbox" name="drop_off_target" {% if cfg.search.drop_off_target %}checked{% endif %}> {{ t('drop_off_target') }}</label>
+    <label class="check grid-span2"><input type="checkbox" name="triage_second_vote" {% if cfg.search.triage_second_vote %}checked{% endif %}> {{ t('triage_second_vote') }}</label>
     <label>{{ t('triage_limit') }}
       <input type="number" name="triage_limit" min="5" value="{{ cfg.search.triage_limit }}">
     </label>
