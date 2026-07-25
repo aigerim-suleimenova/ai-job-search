@@ -60,6 +60,18 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             else:
                 _log("новых компаний не найдено")
 
+        # 0b. Поиск вакансий прямо на доменах ATS (site:boards.greenhouse.io ...) —
+        # каждая находка даёт и вакансию, и новую компанию, чью доску забираем целиком.
+        n_ats = int(cfg["search"].get("discover_ats_per_run", 0))
+        if n_ats > 0:
+            _stage("поиск вакансий на доменах ATS (веб-поиск)")
+            ats_companies = discovery.discover_ats_jobs(cfg, _log, n=n_ats)
+            if ats_companies:
+                cfg["sources"]["companies"] = cfg["sources"].get("companies", []) + ats_companies
+                config.save(cfg)
+            else:
+                _log("новых досок на ATS не найдено")
+
         # 1. Сбор
         _stage("сбор вакансий")
         jobs = []

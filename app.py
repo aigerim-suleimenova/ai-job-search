@@ -150,6 +150,7 @@ async def save(request: Request, then: str = ""):
         triage_limit=max(5, num("triage_limit", 400)),
         deep_top_n=max(0, num("deep_top_n", 15)),
         discover_per_run=max(0, num("discover_per_run", 5)),
+        discover_ats_per_run=max(0, num("discover_ats_per_run", 5)),
         parallelism=max(1, min(10, num("parallelism", 5))),
         research_company=flag("research_company"),
     )

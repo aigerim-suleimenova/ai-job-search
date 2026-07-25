@@ -7,6 +7,7 @@ Claude с веб-поиском ищет компании/стартапы, ко
 from urllib.parse import urlparse
 
 from . import llm
+from .collectors import ats
 
 PROMPT = """Найди через веб-поиск {n} компаний или стартапов, которые ПРЯМО СЕЙЧАС нанимают:
 {target}
@@ -39,6 +40,30 @@ def _domain(url: str) -> str:
     return host.removeprefix("www.")
 
 
+def _visa_note(p: dict) -> str:
+    if not p.get("visa_required"):
+        return ""
+    note = f" ({p['visa_note']})" if p.get("visa_note") else ""
+    return (f"\nВАЖНО: кандидату нужны релокация и визовое спонсорство{note} — "
+            "предпочитай компании, известные поддержкой visa sponsorship / relocation.")
+
+
+def _target(cfg: dict) -> str:
+    """Что ищем — роль, навыки или и то, и другое (общее для всех видов discovery)."""
+    p, s = cfg["profile"], cfg["search"]
+    roles = p.get("roles") or "software engineer"
+    skills = (p.get("skills") or "").strip()
+    prio = s.get("match_priority", "both")
+    if prio == "skills" and skills:
+        return (f"кандидат владеет навыками/технологиями: {skills}\n"
+                f"Ищи вакансии, которым нужны ЭТИ навыки — название должности не важно "
+                f"(например, для навыков SAP+Java подойдут и SAP-интеграция, и Java-бэкенд).\n"
+                f"(для справки желаемые роли: {roles})")
+    if prio == "both" and skills:
+        return f"роли: {roles}\nа также вакансии под навыки/технологии: {skills}"
+    return f"роли: {roles}"
+
+
 _PER_CALL = 8  # надёжный размер за один веб-поиск; больше — набираем несколькими заходами
 
 
@@ -51,25 +76,8 @@ def discover(cfg: dict, log, n: int = 5) -> list:
     known_domains = {_domain(c["url"]) for c in known if c.get("url")}
     seen_names = [(c.get("name") or _domain(c.get("url", ""))) for c in known[:80]]
 
-    visa = ""
-    if p.get("visa_required"):
-        note = f" ({p['visa_note']})" if p.get("visa_note") else ""
-        visa = (f"\nВАЖНО: кандидату нужны релокация и визовое спонсорство{note} — "
-                "предпочитай компании, известные поддержкой visa sponsorship / relocation.")
-
-    # что ищем: роль, навыки или и то, и другое
-    roles = p.get("roles") or "software engineer"
-    skills = (p.get("skills") or "").strip()
-    prio = s.get("match_priority", "both")
-    if prio == "skills" and skills:
-        target = (f"кандидат владеет навыками/технологиями: {skills}\n"
-                  f"Ищи компании, которым нужны ЭТИ навыки — название должности не важно "
-                  f"(например, для навыков SAP+Java подойдут и SAP-интеграция, и Java-бэкенд).\n"
-                  f"(для справки желаемые роли: {roles})")
-    elif prio == "both" and skills:
-        target = f"роли: {roles}\nа также вакансии под навыки/технологии: {skills}"
-    else:
-        target = f"роли: {roles}"
+    visa = _visa_note(p)
+    target = _target(cfg)
 
     fresh = []
     rounds = max(1, -(-n // _PER_CALL))          # ceil(n / _PER_CALL)
@@ -118,3 +126,97 @@ def discover(cfg: dict, log, n: int = 5) -> list:
         if n > _PER_CALL:
             log(f"поиск компаний: заход {r + 1}, +{added}, всего {len(fresh)}/{n}")
     return fresh[:n]
+
+
+# ---------------------------------------------------------------------------
+# Поиск ВАКАНСИЙ (а не компаний) прямо на доменах ATS-систем.
+#
+# Тысячи компаний хостят вакансии на общих доменах (boards.greenhouse.io,
+# jobs.lever.co, ...). Поиск `site:boards.greenhouse.io <навыки> <регион>`
+# находит конкретные подходящие объявления у компаний, которые поиск
+# «по именам» никогда не выдал бы. Каждая находка конвертируется в компанию
+# для списка мониторинга — её доску мы затем целиком забираем через API ATS.
+# ---------------------------------------------------------------------------
+
+ATS_JOBS_PROMPT = """Найди через веб-поиск {n} ОТКРЫТЫХ вакансий, подходящих кандидату:
+{target}
+уровень: {seniority}
+регионы: {locations}{visa}
+
+Ищи ТОЛЬКО прямые ссылки на страницы вакансий на доменах ATS-систем — строй запросы вида:
+- site:boards.greenhouse.io <ключевые слова> <регион>
+- site:job-boards.greenhouse.io ... / site:job-boards.eu.greenhouse.io ...
+- site:jobs.lever.co ...
+- site:jobs.ashbyhq.com ...
+- site:apply.workable.com ...
+- site:jobs.smartrecruiters.com ... / site:careers.smartrecruiters.com ...
+- site:recruitee.com ...
+Сделай несколько разных запросов (по навыкам, по роли, по региону), чтобы охватить разные ATS.
+Каждый результат — реальная страница вакансии на одном из этих доменов, НЕ главная страница ATS.
+Вакансии этих компаний уже мониторятся, ищи ДРУГИЕ компании: {known}
+
+Верни ТОЛЬКО JSON-массив: [{{"company": "...", "title": "...", "url": "https://..."}}]"""
+
+_BOARD_URL = {
+    "greenhouse": "https://boards.greenhouse.io/{slug}",
+    "lever": "https://jobs.lever.co/{slug}",
+    "ashby": "https://jobs.ashbyhq.com/{slug}",
+    "workable": "https://apply.workable.com/{slug}",
+    "smartrecruiters": "https://careers.smartrecruiters.com/{slug}",
+    "recruitee": "https://{slug}.recruitee.com",
+    "personio": "https://{slug}",  # для personio slug — это целиком host
+}
+
+
+def _ats_key(url: str):
+    det = ats.detect(url or "")
+    return f"{det[0]}:{det[1].lower()}" if det else None
+
+
+def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
+    """Ищет подходящие вакансии прямо на доменах ATS и возвращает их компании
+    (name + канонический URL доски) для добавления в список мониторинга."""
+    known = cfg["sources"].get("companies", [])
+    known_keys = {k for k in (_ats_key(c.get("url", "")) for c in known) if k}
+    known_names = [(c.get("name") or _domain(c.get("url", ""))) for c in known[:80]]
+
+    p, s = cfg["profile"], cfg["search"]
+    prompt = ATS_JOBS_PROMPT.format(
+        n=max(n, 5),
+        target=_target(cfg),
+        seniority=p.get("seniority") or "любой",
+        locations=s.get("locations") or "anywhere",
+        visa=_visa_note(p),
+        known=", ".join(known_names[:120]) or "—",
+    )
+    try:
+        items = llm.ask_json(
+            prompt,
+            model=cfg["llm"].get("triage_model", "haiku"),
+            claude_bin=cfg["llm"].get("claude_bin", "claude"),
+            timeout=600,
+            allowed_tools=["WebSearch", "WebFetch"],
+        )
+    except llm.ClaudeError as e:
+        log(f"поиск вакансий по ATS: {e}")
+        return []
+
+    fresh = []
+    for it in items if isinstance(items, list) else []:
+        url = str(it.get("url", "")).strip()
+        det = ats.detect(url)
+        if not det:
+            continue  # не ATS-ссылка — компанию не определить надёжно
+        platform, slug = det
+        key = f"{platform}:{slug.lower()}"
+        if key in known_keys:
+            continue
+        known_keys.add(key)
+        board = _BOARD_URL[platform].format(slug=slug)
+        name = str(it.get("company", "")).strip() or slug
+        title = str(it.get("title", "")).strip()
+        fresh.append({"name": name, "url": board})
+        log(f"вакансия на ATS: {title} @ {name} → мониторим доску {board}")
+        if len(fresh) >= n:
+            break
+    return fresh
