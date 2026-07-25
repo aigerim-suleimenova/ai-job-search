@@ -15,6 +15,8 @@ import xml.etree.ElementTree as ET
 
 import requests
 
+from . import iso_date
+
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh) ai-job-search/1.0"}
 TIMEOUT = 30
 
@@ -64,6 +66,7 @@ def remotive(cfg: dict, log) -> list:
                 "location": j.get("candidate_required_location", "") or "Remote",
                 "url": j.get("url", ""),
                 "description": _strip_html(j.get("description", "")),
+                "posted_at": iso_date(j.get("publication_date")),
                 "source": "remotive",
                 "is_direct": False,
             })
@@ -92,6 +95,7 @@ def arbeitnow(cfg: dict, log) -> list:
                 "location": (j.get("location", "") or "") + (", Remote" if j.get("remote") else ""),
                 "url": j.get("url", ""),
                 "description": _strip_html(j.get("description", "")),
+                "posted_at": iso_date(j.get("created_at")),
                 "source": "arbeitnow",
                 "is_direct": False,
             })
@@ -122,6 +126,7 @@ def wwr(cfg: dict, log) -> list:
                 "location": "Remote",
                 "url": (item.findtext("link") or "").strip(),
                 "description": _strip_html(item.findtext("description") or ""),
+                "posted_at": iso_date(item.findtext("pubDate")),
                 "source": "wwr",
                 "is_direct": True,  # WWR — постят преимущественно сами компании
             })
@@ -158,6 +163,7 @@ def hn_hiring(cfg: dict, log) -> list:
                 "location": "",
                 "url": f"https://news.ycombinator.com/item?id={child.get('id')}",
                 "description": text,
+                "posted_at": iso_date(child.get("created_at")),
                 "source": "hn",
                 "is_direct": True,   # в этом треде постят сами компании
             })
@@ -352,6 +358,7 @@ def adzuna(cfg: dict, log) -> list:
                     "location": (j.get("location") or {}).get("display_name", ""),
                     "url": j.get("redirect_url", ""),
                     "description": (j.get("description") or "")[:5000],
+                    "posted_at": iso_date(j.get("created")),
                     "source": f"adzuna:{cc}",
                     "is_direct": False,
                 })
@@ -380,6 +387,7 @@ def jooble(cfg: dict, log) -> list:
                     "location": j.get("location", ""),
                     "url": j.get("link", ""),
                     "description": _strip_html(j.get("snippet", "")),
+                    "posted_at": iso_date(j.get("updated")),
                     "source": "jooble",
                     "is_direct": False,
                 })

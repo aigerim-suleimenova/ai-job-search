@@ -45,6 +45,8 @@ def conn():
             c.executescript(SCHEMA)
             for alter in ("ALTER TABLE runs ADD COLUMN coverage TEXT",
                           "ALTER TABLE jobs ADD COLUMN verified INTEGER DEFAULT 0",
+                          "ALTER TABLE jobs ADD COLUMN tailored_cv TEXT",
+                          "ALTER TABLE jobs ADD COLUMN posted_at TEXT",
                           "ALTER TABLE jobs ADD COLUMN viewed INTEGER DEFAULT 0"):
                 try:
                     c.execute(alter)
@@ -87,8 +89,8 @@ def save_job(job: dict, run_id: int) -> None:
         c.execute(
             """INSERT OR IGNORE INTO jobs
                (key, title, company, location, url, source, is_direct, is_agency,
-                description, score, reason, advice, verified, first_seen, run_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                description, score, reason, advice, verified, posted_at, first_seen, run_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 job["key"], job.get("title", ""), job.get("company", ""),
                 job.get("location", ""), job.get("url", ""), job.get("source", ""),
@@ -96,6 +98,7 @@ def save_job(job: dict, run_id: int) -> None:
                 (job.get("description") or "")[:8000],
                 job.get("score"), job.get("reason", ""), job.get("advice", ""),
                 1 if job.get("verified") else 0,
+                job.get("posted_at", "") or "",
                 now(), run_id,
             ),
         )

@@ -134,6 +134,7 @@
         {% else %}<span class="badge">{{ t('badge_aggregator') }}</span>{% endif %}
         {% if j.verified %}<span class="badge ok">✓ {{ t('badge_verified') }}</span>
         {% else %}<span class="badge warn">{{ t('badge_preliminary') }}</span>{% endif %}
+        {% if j.posted_label %} · 📅 {{ t('posted_label') }} {{ j.posted_label }}{% endif %}
         · {{ t('run') }} #{{ j.run_id }} · {{ j.first_seen }}
       </p>
     </div>

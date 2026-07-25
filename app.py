@@ -1,5 +1,6 @@
 """Веб-интерфейс: страница настроек, результаты, запуск поиска."""
 import json
+from datetime import date
 from pathlib import Path
 from urllib.parse import quote
 
@@ -271,16 +272,39 @@ def status():
     })
 
 
+def _posted_label(posted: str, lang: str) -> str:
+    """'2026-07-10' → 'опубл. 4 дн. назад (2026-07-10)' / 'posted 4d ago (…)'."""
+    if not posted:
+        return ""
+    try:
+        days = (date.today() - date.fromisoformat(posted)).days
+    except ValueError:
+        return posted
+    today = {"ru": "сегодня", "en": "today", "it": "oggi", "de": "heute"}
+    yesterday = {"ru": "вчера", "en": "yesterday", "it": "ieri", "de": "gestern"}
+    ago = {"ru": f"{days} дн. назад", "en": f"{days}d ago",
+           "it": f"{days} giorni fa", "de": f"vor {days} Tagen"}
+    if days <= 0:
+        rel = today.get(lang, today["en"])
+    elif days == 1:
+        rel = yesterday.get(lang, yesterday["en"])
+    else:
+        rel = ago.get(lang, ago["en"])
+    return f"{rel} ({posted})"
+
+
 @app.get("/results")
 def results(request: Request, min: int = 50, sort: str = "default",
             viewed: str = "all", source: str = "all", run: int = 0):
     cfg = config.load()
+    lang = cfg.get("ui", {}).get("lang", "ru")
     jobs = db.matched_jobs(min_score=min, sort=sort, viewed=viewed, source=source, run_id=run)
     for j in jobs:
         try:
             j["advice_data"] = json.loads(j["advice"]) if j.get("advice") else None
         except (json.JSONDecodeError, TypeError):
             j["advice_data"] = None
+        j["posted_label"] = _posted_label(j.get("posted_at") or "", lang)
     threshold = int(cfg["search"].get("threshold", 70))
     suggest = db.suggest_threshold(threshold)
     runs = db.recent_runs(10)

@@ -16,7 +16,7 @@ def to_csv(jobs: list) -> str:
     buf = io.StringIO()
     buf.write("﻿")  # BOM — чтобы кириллица открылась в Excel
     w = csv.writer(buf)
-    w.writerow(["Score %", "Verified", "Title", "Company", "Location", "URL", "Source",
+    w.writerow(["Score %", "Verified", "Title", "Company", "Location", "Posted", "URL", "Source",
                 "Reason", "Salary", "CV changes", "LinkedIn changes", "Cover hint"])
     for j in jobs:
         a = _advice(j)
@@ -24,6 +24,7 @@ def to_csv(jobs: list) -> str:
             j.get("score", ""),
             "yes" if j.get("verified") else "preliminary",
             j.get("title", ""), j.get("company", ""), j.get("location", ""),
+            j.get("posted_at", ""),
             j.get("url", ""), j.get("source", ""),
             j.get("reason", ""),
             a.get("salary_estimate", ""),
@@ -47,6 +48,7 @@ def to_html(jobs: list, candidate: str, when: str, min_score: int) -> str:
             f'<div class="head"><span class="score">{_e(j.get("score"))}%</span>'
             f'<div><h3><a href="{_e(j.get("url"))}">{_e(j.get("title"))}</a></h3>'
             f'<p class="meta">{_e(j.get("company"))} · {_e(j.get("location") or "—")}'
+            f'{" · 📅 " + _e(j["posted_at"]) if j.get("posted_at") else ""}'
             f'{" · ✓ verified" if j.get("verified") else " · preliminary"}</p></div></div>',
         ]
         if j.get("reason"):

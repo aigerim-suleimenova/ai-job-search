@@ -85,9 +85,10 @@ def format_digest(jobs: list, threshold: int, base_url: str = "", demoted: list 
             return
         lines.append(f"\n<b>{title}</b>")
         for j in items:
+            posted = f" · 📅 {_esc(j['posted_at'])}" if j.get("posted_at") else ""
             lines.append(
                 f"\n<b>{j.get('score', '?')}%</b> — {_esc(j.get('title'))} @ {_esc(j.get('company'))}"
-                f" ({_esc(j.get('location') or loc_unknown)})\n"
+                f" ({_esc(j.get('location') or loc_unknown)}){posted}\n"
                 f"{_esc(j.get('url'))}"
             )
             if j.get("reason"):

@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from . import iso_date
+
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh) ai-job-search/1.0"}
 TIMEOUT = 25
 
@@ -139,6 +141,7 @@ def _greenhouse(slug: str) -> list:
             "location": (j.get("location") or {}).get("name", ""),
             "url": j.get("absolute_url", ""),
             "description": _strip_html(j.get("content", "")),
+            "posted_at": iso_date(j.get("first_published") or j.get("updated_at")),
         }
         for j in data.get("jobs", [])
     ]
@@ -162,6 +165,7 @@ def _lever(slug: str) -> list:
             "location": (j.get("categories") or {}).get("location", "") or "",
             "url": j.get("hostedUrl", ""),
             "description": (j.get("descriptionPlain") or "")[:6000],
+            "posted_at": iso_date(j.get("createdAt")),
         }
         for j in data
     ]
@@ -175,6 +179,7 @@ def _ashby(slug: str) -> list:
             "location": j.get("location", "") or "",
             "url": j.get("jobUrl", "") or j.get("applyUrl", ""),
             "description": _strip_html(j.get("descriptionHtml", "")),
+            "posted_at": iso_date(j.get("publishedAt")),
         }
         for j in data.get("jobs", [])
     ]
@@ -190,6 +195,7 @@ def _workable(slug: str) -> list:
             "location": ", ".join(filter(None, [j.get("city", ""), j.get("country", "")])),
             "url": j.get("url", ""),
             "description": "",
+            "posted_at": iso_date(j.get("published_on") or j.get("created_at")),
         }
         for j in data.get("jobs", [])
     ]
@@ -206,6 +212,7 @@ def _smartrecruiters(slug: str) -> list:
             "location": ", ".join(filter(None, [loc.get("city", ""), loc.get("country", "")])),
             "url": f"https://jobs.smartrecruiters.com/{slug}/{j.get('id', '')}",
             "description": "",
+            "posted_at": iso_date(j.get("releasedDate")),
         })
     return jobs
 
@@ -218,6 +225,7 @@ def _recruitee(slug: str) -> list:
             "location": j.get("location", "") or "",
             "url": j.get("careers_url", ""),
             "description": _strip_html(j.get("description", "")),
+            "posted_at": iso_date(j.get("created_at")),
         }
         for j in data.get("offers", [])
     ]
@@ -236,5 +244,6 @@ def _personio(host: str) -> list:
             "location": (pos.findtext("office") or "").strip(),
             "url": f"https://{host}/job/{job_id}",
             "description": desc[:6000],
+            "posted_at": iso_date((pos.findtext("createdAt") or "").strip()),
         })
     return jobs
