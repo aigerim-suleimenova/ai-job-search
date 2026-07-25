@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from jobsearch import (config, coverage as coverage_check, db, discovery,
+from jobsearch import (config, coverage as coverage_check, cvcheck, db, discovery,
                        export as export_mod, i18n, llm, notify, pipeline, profiles,
                        scheduler, scoring)
 
@@ -336,6 +336,14 @@ async def viewed_all(request: Request):
     db.mark_all_viewed(min_score)
     back = str(form.get("back", "/results"))
     return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
+
+
+@app.get("/cv/check")
+def cv_check(request: Request, run: int = 0):
+    cfg = config.load()
+    result = cvcheck.analyze(cfg) if run else cvcheck.last_result()
+    return render(request, "cvcheck.html",
+                  {"result": result, "cv": config.cv_meta()}, cfg=cfg)
 
 
 @app.post("/set_lang")
