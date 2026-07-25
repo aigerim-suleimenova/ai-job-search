@@ -45,7 +45,6 @@ def conn():
             c.executescript(SCHEMA)
             for alter in ("ALTER TABLE runs ADD COLUMN coverage TEXT",
                           "ALTER TABLE jobs ADD COLUMN verified INTEGER DEFAULT 0",
-                          "ALTER TABLE jobs ADD COLUMN tailored_cv TEXT"):
                 try:
                     c.execute(alter)
                 except sqlite3.OperationalError:

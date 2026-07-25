@@ -145,11 +145,9 @@ def _greenhouse(slug: str) -> list:
 
 
 def _lever(slug: str) -> list:
-    # аккаунты бывают на глобальном и на EU-хосте (data residency)
     try:
         data = _get_json(f"https://api.lever.co/v0/postings/{slug}?mode=json")
     except requests.HTTPError:
-        data = _get_json(f"https://api.eu.lever.co/v0/postings/{slug}?mode=json")
     return [
         {
             "title": j.get("text", ""),

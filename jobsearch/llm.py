@@ -1,7 +1,9 @@
 """Вызовы Claude Code CLI в headless-режиме (claude -p)."""
 import concurrent.futures as _cf
+import contextvars
 import json
 import re
+import shutil
 import subprocess
 import time
 
@@ -14,7 +16,7 @@ class ClaudeError(RuntimeError):
 _TRANSIENT = (
     "connection closed", "api error", "overloaded", "rate limit", "429", "529",
     "timeout", "timed out", "closed mid-response", "internal server", "5xx",
-    "не ответил за",
+    "не ответил за", "без вывода",
 )
 
 
@@ -38,8 +40,10 @@ def pmap(fn, items: list, workers: int = 5) -> list:
             except Exception as e:  # noqa: BLE001
                 out.append(e)
         return out
+    # копируем contextvars в каждый воркер: без этого потоки теряют активный
+    # профиль (profiles._active) и пишут в базу профиля по умолчанию
     with _cf.ThreadPoolExecutor(max_workers=workers) as ex:
-        futures = [ex.submit(fn, it) for it in items]
+        futures = [ex.submit(contextvars.copy_context().run, fn, it) for it in items]
         out = []
         for f in futures:
             try:
@@ -50,19 +54,32 @@ def pmap(fn, items: list, workers: int = 5) -> list:
 
 
 def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_tools) -> str:
-    cmd = [claude_bin or "claude", "-p", "--output-format", "json"]
+    # Абсолютный путь + close_fds=False заставляют CPython использовать posix_spawn
+    # вместо fork+exec. Это критично на macOS: fork() из многопоточного процесса,
+    # уже трогавшего системные сетевые фреймворки, роняет ребёнка SIGSEGV в
+    # atfork-обработчиках (Network.framework) ещё до exec — claude «завершается
+    # с кодом -11 без вывода». posix_spawn обходит fork целиком.
+    exe = shutil.which(claude_bin or "claude") or (claude_bin or "claude")
+    cmd = [exe, "-p", "--output-format", "json"]
     if model:
         cmd += ["--model", model]
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
     try:
-        proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                              timeout=timeout, close_fds=False)
     except FileNotFoundError:
         raise ClaudeError(f"claude CLI не найден: {claude_bin!r}. Укажите путь в настройках LLM.")
     except subprocess.TimeoutExpired:
         raise ClaudeError(f"claude не ответил за {timeout} с")
     if proc.returncode != 0:
-        raise ClaudeError((proc.stderr or proc.stdout or "unknown error")[:800])
+        detail = (proc.stderr or proc.stdout or "").strip()
+        if not detail:
+            # пустой вывод при ненулевом коде; отрицательный код = убит сигналом
+            # (например, системой при нехватке памяти)
+            detail = (f"claude завершился с кодом {proc.returncode} без вывода"
+                      + (" (убит сигналом)" if proc.returncode < 0 else ""))
+        raise ClaudeError(detail[:800])
     try:
         data = json.loads(proc.stdout)
     except json.JSONDecodeError:
