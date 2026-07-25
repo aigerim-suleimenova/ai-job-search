@@ -93,8 +93,8 @@
 {% if jobs %}
 <section class="card">
   <div class="row">
-    <a href="/export/csv?min={{ min_score }}"><button type="button">{{ t('export_csv') }}</button></a>
-    <a href="/export/report?min={{ min_score }}"><button type="button">{{ t('export_report') }}</button></a>
+    <a href="/export/csv?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}"><button type="button">{{ t('export_csv') }}</button></a>
+    <a href="/export/report?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}"><button type="button">{{ t('export_report') }}</button></a>
   </div>
   <p class="hint" style="margin:8px 0 0">{{ t('export_hint') }}</p>
 </section>

@@ -357,17 +357,37 @@ async def set_lang(request: Request):
     return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
 
 
-def _export_jobs(min_score: int):
-    jobs = db.matched_jobs(limit=1000, min_score=min_score)
+def _export_jobs(min_score: int, sort: str = "default", viewed: str = "all",
+                 source: str = "all", run: int = 0):
+    """Та же выборка, что и на странице результатов — экспорт обязан совпадать с тем,
+    что человек видит на экране."""
+    jobs = db.matched_jobs(limit=1000, min_score=min_score, sort=sort,
+                           viewed=viewed, source=source, run_id=run)
     slug = profiles.active()
     name = profiles.name_of(slug)
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in slug)[:40]
     return jobs, name, safe
 
 
+def _filter_note(lang: str, min_score: int, sort: str, viewed: str, source: str, run: int) -> str:
+    """Подпись «что именно выгружено» — чтобы файл нельзя было принять за полный список."""
+    parts = [f"{i18n.t(lang, 'results_shown')} {min_score}%"]
+    if sort != "default":
+        parts.append(f"{i18n.t(lang, 'sort_by')}: {i18n.t(lang, 'sort_' + sort)}")
+    if viewed != "all":
+        parts.append(f"{i18n.t(lang, 'filter_viewed')}: {i18n.t(lang, 'viewed_' + viewed)}")
+    if source != "all":
+        key = {"direct": "badge_direct", "agency": "badge_agency", "aggregator": "badge_aggregator"}[source]
+        parts.append(f"{i18n.t(lang, 'filter_source')}: {i18n.t(lang, key)}")
+    if run:
+        parts.append(f"{i18n.t(lang, 'filter_run')}: #{run}")
+    return " · ".join(parts)
+
+
 @app.get("/export/csv")
-def export_csv(min: int = 0):
-    jobs, name, safe = _export_jobs(min)
+def export_csv(min: int = 0, sort: str = "default", viewed: str = "all",
+               source: str = "all", run: int = 0):
+    jobs, name, safe = _export_jobs(min, sort, viewed, source, run)
     data = export_mod.to_csv(jobs)
     return Response(
         content=data, media_type="text/csv; charset=utf-8",
@@ -376,9 +396,15 @@ def export_csv(min: int = 0):
 
 
 @app.get("/export/report")
-def export_report(min: int = 0):
-    jobs, name, safe = _export_jobs(min)
-    html_doc = export_mod.to_html(jobs, name, db.now(), min)
+def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
+                  source: str = "all", run: int = 0):
+    cfg = config.load()
+    lang = cfg.get("ui", {}).get("lang", "ru")
+    jobs, name, safe = _export_jobs(min, sort, viewed, source, run)
+    for j in jobs:
+        j["posted_label"] = _posted_label(j.get("posted_at") or "", lang)
+    html_doc = export_mod.to_html(jobs, name, db.now(), min,
+                                  note=_filter_note(lang, min, sort, viewed, source, run))
     return Response(
         content=html_doc, media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="report_{safe}.html"'},

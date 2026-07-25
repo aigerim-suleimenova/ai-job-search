@@ -39,7 +39,7 @@ def _e(s) -> str:
     return html.escape(str(s or ""))
 
 
-def to_html(jobs: list, candidate: str, when: str, min_score: int) -> str:
+def to_html(jobs: list, candidate: str, when: str, min_score: int, note: str = "") -> str:
     rows = []
     for j in jobs:
         a = _advice(j)
@@ -48,7 +48,7 @@ def to_html(jobs: list, candidate: str, when: str, min_score: int) -> str:
             f'<div class="head"><span class="score">{_e(j.get("score"))}%</span>'
             f'<div><h3><a href="{_e(j.get("url"))}">{_e(j.get("title"))}</a></h3>'
             f'<p class="meta">{_e(j.get("company"))} · {_e(j.get("location") or "—")}'
-            f'{" · 📅 " + _e(j["posted_at"]) if j.get("posted_at") else ""}'
+            f'{" · 📅 " + _e(j.get("posted_label") or j.get("posted_at")) if j.get("posted_at") else ""}'
             f'{" · ✓ verified" if j.get("verified") else " · preliminary"}</p></div></div>',
         ]
         if j.get("reason"):
@@ -83,7 +83,7 @@ def to_html(jobs: list, candidate: str, when: str, min_score: int) -> str:
   @media print {{ .job {{ border-color: #ccc; }} }}
 </style></head><body>
 <h1>Job matches — {_e(candidate)}</h1>
-<p class="sub">Generated {_e(when)} · {len(jobs)} jobs with score ≥ {min_score}% ·
+<p class="sub">Generated {_e(when)} · {len(jobs)} jobs{f" · {_e(note)}" if note else f" with score ≥ {min_score}%"} ·
 tip: use your browser's Print → Save as PDF</p>
 {"".join(rows) or "<p>No jobs to show.</p>"}
 </body></html>"""
@@ -139,5 +139,5 @@ def cv_html(cv: dict, job_title: str = "", company: str = "") -> str:
 </body></html>"""
 
 
-def report_html(jobs: list, candidate: str, when: str, min_score: int) -> str:
-    return to_html(jobs, candidate, when, min_score)
+def report_html(jobs: list, candidate: str, when: str, min_score: int, note: str = "") -> str:
+    return to_html(jobs, candidate, when, min_score, note)
