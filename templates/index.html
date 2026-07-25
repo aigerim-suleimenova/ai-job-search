@@ -23,6 +23,16 @@
       </select>
     </label>
   </form>
+  <form method="post" action="/set_lang" class="profile-switch">
+    <input type="hidden" name="back" value="{{ request.url.path }}">
+    <label>🌐
+      <select name="ui_lang" onchange="this.form.submit()">
+        {% for code, lname in ui_langs.items() %}
+        <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
 </header>
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}

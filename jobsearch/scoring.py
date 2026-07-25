@@ -45,6 +45,17 @@ _PRIORITY_NOTE = {
 }
 
 
+def _lang_banner(cfg: dict) -> str:
+    """Языковой баннер в НАЧАЛО промпта. Промпты написаны по-русски, поэтому при
+    другом языке результатов инструкцию в середине текста модель часто игнорирует —
+    явное требование первой строкой работает надёжно."""
+    code = cfg.get("ui", {}).get("output_lang", "ru")
+    if code == "ru":
+        return ""
+    return (f"ЯЗЫК ОТВЕТА (КРИТИЧНО): все текстовые значения в JSON пиши {i18n.out_lang(cfg)}. "
+            f"По-русски НЕ писать, независимо от языка этой инструкции.\n\n")
+
+
 def _profile_block(cfg: dict) -> str:
     p, s = cfg["profile"], cfg["search"]
     visa = "нужна виза/спонсорство" if p.get("visa_required") else "виза не нужна"
@@ -108,7 +119,7 @@ def triage(jobs: list, cfg: dict, log, cv: str = "") -> list:
             for i, j in enumerate(batch)
         )
         result = llm.ask_json(
-            TRIAGE_PROMPT.format(profile=profile, cv=cv_excerpt, jobs=listing, lang=lang),
+            _lang_banner(cfg) + TRIAGE_PROMPT.format(profile=profile, cv=cv_excerpt, jobs=listing, lang=lang),
             model=model, claude_bin=claude_bin, timeout=300,
         )
         for item in result if isinstance(result, list) else []:
@@ -118,7 +129,7 @@ def triage(jobs: list, cfg: dict, log, cv: str = "") -> list:
                 continue
             j["score"] = max(0, min(100, int(item.get("match", 0))))
             j["is_agency"] = bool(item.get("agency")) or j.get("is_agency", False)
-            j["reason"] = str(item.get("reason", ""))[:300]
+            j["reason"] = str(item.get("reason", ""))[:300 * (2 if "-" in cfg.get("ui", {}).get("output_lang", "ru") else 1)]
         done["n"] += 1
         log(f"триаж: {done['n']} из {len(batches)} пачек готово")
 
@@ -212,7 +223,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         if len(fetched) > len(description):
             description = fetched
     lang = i18n.out_lang(cfg)
-    prompt = DEEP_PROMPT.format(
+    prompt = _lang_banner(cfg) + DEEP_PROMPT.format(
         profile=_profile_block(cfg),
         cv=cv[:6000] or "(CV не загружено)",
         title=job.get("title", ""), company=job.get("company", ""),
@@ -238,15 +249,17 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
     job["verified"] = True  # балл подтверждён глубоким разбором (не только триаж)
     if isinstance(result.get("match"), (int, float)):
         job["score"] = max(0, min(100, int(result["match"])))
+    # двуязычный вывод («it-en») примерно вдвое длиннее — иначе текст обрывается на полуслове
+    k = 2 if "-" in cfg.get("ui", {}).get("output_lang", "ru") else 1
     if result.get("reason"):
-        job["reason"] = str(result["reason"])[:1000]
+        job["reason"] = str(result["reason"])[:1000 * k]
     job["advice"] = json.dumps(
         {
             "cv_changes": result.get("cv_changes", []),
             "linkedin_changes": result.get("linkedin_changes", []),
             "cover_hint": result.get("cover_hint", ""),
-            "salary_estimate": str(result.get("salary_estimate", ""))[:500],
-            "company_insights": [str(x)[:300] for x in (result.get("company_insights") or [])][:8],
+            "salary_estimate": str(result.get("salary_estimate", ""))[:500 * k],
+            "company_insights": [str(x)[:300 * k] for x in (result.get("company_insights") or [])][:8],
             "sources": [str(x)[:300] for x in (result.get("sources") or [])][:8],
         },
         ensure_ascii=False,

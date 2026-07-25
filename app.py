@@ -290,6 +290,17 @@ def results(request: Request, min: int = 50):
     )
 
 
+@app.post("/set_lang")
+async def set_lang(request: Request):
+    form = await request.form()
+    code = str(form.get("ui_lang", "ru"))
+    cfg = config.load()
+    cfg["ui"]["lang"] = code if code in i18n.UI_LANGS else "ru"
+    config.save(cfg)
+    back = str(form.get("back", "/"))
+    return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
+
+
 def _export_jobs(min_score: int):
     jobs = db.matched_jobs(limit=1000, min_score=min_score)
     slug = profiles.active()
