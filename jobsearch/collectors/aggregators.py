@@ -166,6 +166,168 @@ def hn_hiring(cfg: dict, log) -> list:
     return jobs
 
 
+def remoteok(cfg: dict, log) -> list:
+    """RemoteOK — общий фид ~100 свежих remote-вакансий (почти все IT)."""
+    jobs = []
+    try:
+        r = requests.get("https://remoteok.com/api", headers=UA, timeout=TIMEOUT)
+        r.raise_for_status()
+        for j in r.json()[1:]:  # нулевой элемент — legal notice, не вакансия
+            if not j.get("position"):
+                continue
+            jobs.append({
+                "title": j.get("position", ""),
+                "company": j.get("company", ""),
+                "location": j.get("location", "") or "Remote",
+                "url": j.get("url", ""),
+                "description": _strip_html(j.get("description", "")),
+                "posted_at": iso_date(j.get("date") or j.get("epoch")),
+                "source": "remoteok",
+                "is_direct": False,
+            })
+    except (requests.RequestException, ValueError) as e:
+        log(f"remoteok: {e}")
+    return jobs
+
+
+def jobicy(cfg: dict, log) -> list:
+    """Jobicy — remote-вакансии; параметр tag реально фильтрует на сервере."""
+    jobs, seen = [], set()
+    # общий фид + по одному тегу на поисковый термин
+    queries = [{}] + [{"tag": t} for t in _search_terms(cfg)[:2] if t]
+    for q in queries:
+        try:
+            r = requests.get("https://jobicy.com/api/v2/remote-jobs",
+                             params={"count": 50, **q}, headers=UA, timeout=TIMEOUT)
+            r.raise_for_status()
+            data = r.json()
+        except (requests.RequestException, ValueError) as e:
+            log(f"jobicy: {e}")
+            continue
+        for j in data.get("jobs", []):
+            if j.get("id") in seen:
+                continue
+            seen.add(j.get("id"))
+            jobs.append({
+                "title": j.get("jobTitle", ""),
+                "company": j.get("companyName", ""),
+                "location": (j.get("jobGeo", "") or "Remote") + ", Remote",
+                "url": j.get("url", ""),
+                "description": _strip_html(j.get("jobDescription") or j.get("jobExcerpt") or ""),
+                "posted_at": iso_date(j.get("pubDate")),
+                "source": "jobicy",
+                "is_direct": False,
+            })
+    return jobs
+
+
+def himalayas(cfg: dict, log) -> list:
+    """Himalayas — remote-вакансии, общий фид (серверного поиска нет).
+    API отдаёт максимум 20 за запрос — листаем offset'ом. Иногда вместо
+    companyName приходит плейсхолдер «name» (баг API) — берём companySlug."""
+    jobs = []
+    for offset in range(0, 100, 20):
+        try:
+            r = requests.get("https://himalayas.app/jobs/api",
+                             params={"limit": 20, "offset": offset},
+                             headers=UA, timeout=TIMEOUT)
+            r.raise_for_status()
+            batch = r.json().get("jobs", [])
+        except (requests.RequestException, ValueError) as e:
+            log(f"himalayas: {e}")
+            break
+        for j in batch:
+            locs = j.get("locationRestrictions") or []
+            company = j.get("companyName", "")
+            if company in ("", "name"):
+                company = (j.get("companySlug") or "").replace("-", " ").title()
+            jobs.append({
+                "title": j.get("title", ""),
+                "company": company,
+                "location": (", ".join(locs) + ", Remote") if locs else "Remote",
+                "url": j.get("applicationLink", ""),
+                "description": _strip_html(j.get("description") or j.get("excerpt") or ""),
+                "posted_at": iso_date(j.get("pubDate")),
+                "source": "himalayas",
+                "is_direct": False,
+            })
+        if len(batch) < 20:
+            break
+    return jobs
+
+
+def themuse(cfg: dict, log) -> list:
+    """The Muse — бесплатный API с фильтром по категориям (постят сами компании)."""
+    jobs = []
+    for page in (1, 2):
+        try:
+            r = requests.get(
+                "https://www.themuse.com/api/public/jobs",
+                params={"page": page,
+                        "category": ["Software Engineering", "IT", "Data Science"]},
+                headers=UA, timeout=TIMEOUT,
+            )
+            r.raise_for_status()
+            results = r.json().get("results", [])
+        except (requests.RequestException, ValueError) as e:
+            log(f"themuse: {e}")
+            break
+        for j in results:
+            jobs.append({
+                "title": j.get("name", ""),
+                "company": (j.get("company") or {}).get("name", ""),
+                "location": ", ".join(l.get("name", "") for l in j.get("locations", [])[:3]),
+                "url": (j.get("refs") or {}).get("landing_page", ""),
+                "description": _strip_html(j.get("contents", "")),
+                "posted_at": iso_date(j.get("publication_date")),
+                "source": "themuse",
+                "is_direct": True,  # вакансии размещают сами компании
+            })
+        if not results:
+            break
+    return jobs
+
+
+def arbeitsagentur(cfg: dict, log) -> list:
+    """Официальная биржа труда Германии — настоящий полнотекстовый поиск
+    (публичный ключ клиента, бесплатно). Список без описаний — этого достаточно
+    для лексики и триажа, глубокий разбор дотянет страницу вакансии."""
+    jobs, seen = [], set()
+    for term in _search_terms(cfg):
+        if not term:
+            continue
+        try:
+            r = requests.get(
+                "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs",
+                params={"was": term, "size": 100, "angebotsart": 1},
+                headers={**UA, "X-API-Key": "jobboerse-jobsuche"}, timeout=TIMEOUT,
+            )
+            r.raise_for_status()
+            data = r.json()
+        except (requests.RequestException, ValueError) as e:
+            log(f"arbeitsagentur: {e}")
+            continue
+        for j in data.get("stellenangebote", []):
+            ref = j.get("refnr", "")
+            if not ref or ref in seen:
+                continue
+            seen.add(ref)
+            ort = j.get("arbeitsort") or {}
+            place = ", ".join(x for x in (ort.get("ort"), ort.get("region")) if x)
+            jobs.append({
+                "title": j.get("titel", "") or j.get("beruf", ""),
+                "company": j.get("arbeitgeber", ""),
+                "location": (place + ", Germany") if place else "Germany",
+                "url": j.get("externeUrl")
+                       or f"https://www.arbeitsagentur.de/jobsuche/jobdetail/{ref}",
+                "description": "",
+                "posted_at": iso_date(j.get("aktuelleVeroeffentlichungsdatum")),
+                "source": "arbeitsagentur",
+                "is_direct": False,
+            })
+    return jobs
+
+
 def adzuna(cfg: dict, log) -> list:
     src = cfg["sources"]
     app_id, app_key = src.get("adzuna_app_id", ""), src.get("adzuna_app_key", "")
@@ -243,6 +405,11 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
     track(src.get("use_arbeitnow"), "Arbeitnow", "https://arbeitnow.com", arbeitnow)
     track(src.get("use_wwr", True), "WeWorkRemotely", "https://weworkremotely.com", wwr)
     track(src.get("use_hnhiring"), "HN Who is Hiring", "https://news.ycombinator.com", hn_hiring)
+    track(src.get("use_remoteok", True), "RemoteOK", "https://remoteok.com", remoteok)
+    track(src.get("use_jobicy", True), "Jobicy", "https://jobicy.com", jobicy)
+    track(src.get("use_himalayas", True), "Himalayas", "https://himalayas.app", himalayas)
+    track(src.get("use_themuse", True), "The Muse", "https://themuse.com", themuse)
+    track(src.get("use_arbeitsagentur", True), "Arbeitsagentur (DE)", "https://arbeitsagentur.de", arbeitsagentur)
     track(bool(src.get("adzuna_app_id")), "Adzuna", "https://adzuna.com", adzuna)
     track(bool(src.get("jooble_key")), "Jooble", "https://jooble.org", jooble)
     return jobs

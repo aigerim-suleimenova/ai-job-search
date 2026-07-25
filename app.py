@@ -167,6 +167,9 @@ async def save(request: Request, then: str = ""):
         companies=companies,
         use_remotive=flag("use_remotive"), use_arbeitnow=flag("use_arbeitnow"),
         use_wwr=flag("use_wwr"), use_hnhiring=flag("use_hnhiring"),
+        use_remoteok=flag("use_remoteok"), use_jobicy=flag("use_jobicy"),
+        use_himalayas=flag("use_himalayas"), use_themuse=flag("use_themuse"),
+        use_arbeitsagentur=flag("use_arbeitsagentur"),
         adzuna_app_id=val("adzuna_app_id"), adzuna_app_key=val("adzuna_app_key"),
         adzuna_countries=val("adzuna_countries"), jooble_key=val("jooble_key"),
     )
