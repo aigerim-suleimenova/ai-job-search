@@ -161,6 +161,22 @@ def _docx_text(path) -> str:
     return _html.unescape(text)
 
 
+def _fix_letter_spacing(text: str) -> str:
+    """Некоторые PDF (дизайнерские шаблоны, напр. Canva) отдают текст с пробелом
+    после каждой буквы: «E l i s a b e t t a». Детектируем по доле односимвольных
+    токенов и склеиваем: буквы внутри слова разделены одним пробелом,
+    слова — двумя и более."""
+    import re
+    tokens = text.split()
+    if not tokens or sum(1 for t in tokens if len(t) == 1) / len(tokens) < 0.6:
+        return text  # обычный текст — не трогаем
+    lines = []
+    for line in text.splitlines():
+        words = re.split(r"\s{2,}", line.strip())
+        lines.append(" ".join("".join(w.split()) for w in words if w))
+    return "\n".join(lines)
+
+
 def save_cv(filename: str, raw: bytes) -> str:
     """Сохраняет CV, извлекает текст. Возвращает извлечённый текст."""
     import re
@@ -174,6 +190,7 @@ def save_cv(filename: str, raw: bytes) -> str:
         from pypdf import PdfReader
         reader = PdfReader(str(stored))
         text = "\n".join((page.extract_text() or "") for page in reader.pages)
+        text = _fix_letter_spacing(text)
     elif ext == ".docx":
         text = _docx_text(stored)
     else:
