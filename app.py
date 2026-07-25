@@ -272,22 +272,46 @@ def status():
 
 
 @app.get("/results")
-def results(request: Request, min: int = 50):
-    jobs = db.matched_jobs(min_score=min)
+def results(request: Request, min: int = 50, sort: str = "default",
+            viewed: str = "all", source: str = "all", run: int = 0):
+    cfg = config.load()
+    jobs = db.matched_jobs(min_score=min, sort=sort, viewed=viewed, source=source, run_id=run)
     for j in jobs:
         try:
             j["advice_data"] = json.loads(j["advice"]) if j.get("advice") else None
         except (json.JSONDecodeError, TypeError):
             j["advice_data"] = None
-    cfg = config.load()
     threshold = int(cfg["search"].get("threshold", 70))
     suggest = db.suggest_threshold(threshold)
+    runs = db.recent_runs(10)
     return render(
         request, "results.html",
-        {"jobs": jobs, "runs": db.recent_runs(5), "min_score": min,
-         "threshold": threshold, "suggest_threshold": suggest},
+        {"jobs": jobs, "runs": runs, "min_score": min,
+         "threshold": threshold, "suggest_threshold": suggest,
+         "sort": sort, "viewed": viewed, "source": source, "run": run,
+         "counts": db.counts(min), "sorts": list(db.SORTS.keys())},
         cfg=cfg,
     )
+
+
+@app.post("/viewed/{job_id}")
+async def toggle_viewed(job_id: int, request: Request):
+    form = await request.form()
+    db.set_viewed(job_id, str(form.get("value", "1")) == "1")
+    back = str(form.get("back", "/results"))
+    return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
+
+
+@app.post("/viewed_all")
+async def viewed_all(request: Request):
+    form = await request.form()
+    try:
+        min_score = int(str(form.get("min", "0")))
+    except ValueError:
+        min_score = 0
+    db.mark_all_viewed(min_score)
+    back = str(form.get("back", "/results"))
+    return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
 
 
 @app.post("/set_lang")

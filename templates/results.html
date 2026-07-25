@@ -35,14 +35,58 @@
   </form>
 </header>
 
-<section class="card row" style="justify-content:space-between">
-  <span>{{ t('results_shown') }} <b>{{ min_score }}%</b> ({{ jobs|length }})</span>
-  <span>
-    <a href="/results?min=0">{{ t('filter_all') }}</a> ·
-    <a href="/results?min=50">≥50%</a> ·
-    <a href="/results?min=70">≥70%</a> ·
-    <a href="/results?min=80">≥80%</a>
-  </span>
+<section class="card">
+  <div class="row" style="justify-content:space-between">
+    <span>{{ t('results_shown') }} <b>{{ min_score }}%</b> ({{ jobs|length }})
+      {% if counts.unseen %}· <b class="badge new">{{ t('unseen_count').format(n=counts.unseen) }}</b>{% endif %}
+    </span>
+    <span>
+      <a href="/results?min=0&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">{{ t('filter_all') }}</a> ·
+      <a href="/results?min=50&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">≥50%</a> ·
+      <a href="/results?min=70&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">≥70%</a> ·
+      <a href="/results?min=80&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">≥80%</a>
+    </span>
+  </div>
+  <form method="get" action="/results" class="row" style="margin-top:12px; align-items:end; gap:12px; flex-wrap:wrap">
+    <input type="hidden" name="min" value="{{ min_score }}">
+    <label>{{ t('sort_by') }}
+      <select name="sort" onchange="this.form.submit()">
+        {% for s in sorts %}
+        <option value="{{ s }}" {% if sort == s %}selected{% endif %}>{{ t('sort_' + s) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t('filter_viewed') }}
+      <select name="viewed" onchange="this.form.submit()">
+        <option value="all" {% if viewed == 'all' %}selected{% endif %}>{{ t('viewed_all') }}</option>
+        <option value="new" {% if viewed == 'new' %}selected{% endif %}>{{ t('viewed_new') }}</option>
+        <option value="seen" {% if viewed == 'seen' %}selected{% endif %}>{{ t('viewed_seen') }}</option>
+      </select>
+    </label>
+    <label>{{ t('filter_source') }}
+      <select name="source" onchange="this.form.submit()">
+        <option value="all" {% if source == 'all' %}selected{% endif %}>{{ t('source_all') }}</option>
+        <option value="direct" {% if source == 'direct' %}selected{% endif %}>{{ t('badge_direct') }}</option>
+        <option value="aggregator" {% if source == 'aggregator' %}selected{% endif %}>{{ t('badge_aggregator') }}</option>
+        <option value="agency" {% if source == 'agency' %}selected{% endif %}>{{ t('badge_agency') }}</option>
+      </select>
+    </label>
+    <label>{{ t('filter_run') }}
+      <select name="run" onchange="this.form.submit()">
+        <option value="0" {% if not run %}selected{% endif %}>{{ t('run_all') }}</option>
+        {% for r in runs %}
+        <option value="{{ r.id }}" {% if run == r.id %}selected{% endif %}>#{{ r.id }} — {{ r.started[:16] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+  {% if counts.unseen %}
+  <form method="post" action="/viewed_all" style="margin-top:10px">
+    <input type="hidden" name="min" value="{{ min_score }}">
+    <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}">
+    <button type="submit">{{ t('mark_all_viewed') }}</button>
+  </form>
+  {% endif %}
 </section>
 
 {% if jobs %}
@@ -75,11 +119,14 @@
 {% endif %}
 
 {% for j in jobs %}
-<section class="card job {% if j.is_direct and not j.is_agency %}direct{% endif %}">
+<section class="card job {% if j.is_direct and not j.is_agency %}direct{% endif %} {% if not j.viewed %}unseen{% endif %}">
   <div class="job-head">
     <span class="score">{{ j.score }}%</span>
     <div>
-      <h3><a href="{{ j.url }}" target="_blank" rel="noopener">{{ j.title }}</a></h3>
+      <h3>
+        {% if not j.viewed %}<span class="badge new">{{ t('badge_new') }}</span>{% endif %}
+        <a href="{{ j.url }}" target="_blank" rel="noopener">{{ j.title }}</a>
+      </h3>
       <p class="meta">
         {{ j.company }} · {{ j.location or t('loc_unknown') }} · {{ t('source') }} {{ j.source }}
         {% if j.is_direct and not j.is_agency %}<span class="badge ok">{{ t('badge_direct') }}</span>
@@ -127,6 +174,11 @@
   {% if j.description %}
   <details><summary>{{ t('job_description') }}</summary><p class="desc">{{ j.description[:3000] }}</p></details>
   {% endif %}
+  <form method="post" action="/viewed/{{ j.id }}" style="margin-top:10px">
+    <input type="hidden" name="value" value="{% if j.viewed %}0{% else %}1{% endif %}">
+    <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}">
+    <button type="submit">{% if j.viewed %}{{ t('mark_unviewed') }}{% else %}{{ t('mark_viewed') }}{% endif %}</button>
+  </form>
 </section>
 {% endfor %}
 

@@ -45,6 +45,7 @@ def conn():
             c.executescript(SCHEMA)
             for alter in ("ALTER TABLE runs ADD COLUMN coverage TEXT",
                           "ALTER TABLE jobs ADD COLUMN verified INTEGER DEFAULT 0",
+                          "ALTER TABLE jobs ADD COLUMN viewed INTEGER DEFAULT 0"):
                 try:
                     c.execute(alter)
                 except sqlite3.OperationalError:
@@ -120,14 +121,67 @@ def save_tailored_cv(job_id: int, cv_json: str) -> None:
         c.execute("UPDATE jobs SET tailored_cv=? WHERE id=?", (cv_json, job_id))
 
 
-def matched_jobs(limit: int = 300, min_score: int = 0) -> list:
+SORTS = {
+    "default": "run_id DESC, is_direct DESC, score DESC",   # как было: свежий прогон → прямые → балл
+    "score": "score DESC, run_id DESC",
+    "posted": "CASE WHEN posted_at IS NULL OR posted_at='' THEN 1 ELSE 0 END, posted_at DESC, score DESC",
+    "found": "first_seen DESC, score DESC",
+    "company": "LOWER(company) ASC, score DESC",
+}
+
+
+def matched_jobs(limit: int = 300, min_score: int = 0, sort: str = "default",
+                 viewed: str = "all", source: str = "all", run_id: int = 0) -> list:
+    """Вакансии с оценкой. viewed: all|new|seen; source: all|direct|agency|aggregator;
+    run_id > 0 — только конкретный прогон."""
+    where = ["score IS NOT NULL", "score >= ?"]
+    params = [min_score]
+    if viewed == "new":
+        where.append("COALESCE(viewed, 0) = 0")
+    elif viewed == "seen":
+        where.append("COALESCE(viewed, 0) = 1")
+    if source == "direct":
+        where.append("is_direct = 1 AND COALESCE(is_agency, 0) = 0")
+    elif source == "agency":
+        where.append("is_agency = 1")
+    elif source == "aggregator":
+        where.append("COALESCE(is_direct, 0) = 0 AND COALESCE(is_agency, 0) = 0")
+    if run_id:
+        where.append("run_id = ?")
+        params.append(run_id)
+    order = SORTS.get(sort, SORTS["default"])
+    params.append(limit)
     with conn() as c:
         rows = c.execute(
-            """SELECT * FROM jobs WHERE score IS NOT NULL AND score >= ?
-               ORDER BY run_id DESC, is_direct DESC, score DESC LIMIT ?""",
-            (min_score, limit),
+            f"SELECT * FROM jobs WHERE {' AND '.join(where)} ORDER BY {order} LIMIT ?",
+            params,
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def set_viewed(job_id: int, viewed: bool = True) -> None:
+    with conn() as c:
+        c.execute("UPDATE jobs SET viewed=? WHERE id=?", (1 if viewed else 0, job_id))
+
+
+def mark_all_viewed(min_score: int = 0) -> int:
+    with conn() as c:
+        cur = c.execute(
+            "UPDATE jobs SET viewed=1 WHERE score IS NOT NULL AND score >= ? AND COALESCE(viewed,0)=0",
+            (min_score,),
+        )
+        return cur.rowcount
+
+
+def counts(min_score: int = 0) -> dict:
+    with conn() as c:
+        row = c.execute(
+            """SELECT COUNT(*) AS total,
+                      SUM(CASE WHEN COALESCE(viewed,0)=0 THEN 1 ELSE 0 END) AS unseen
+               FROM jobs WHERE score IS NOT NULL AND score >= ?""",
+            (min_score,),
+        ).fetchone()
+        return {"total": row["total"] or 0, "unseen": row["unseen"] or 0}
 
 
 def recent_runs(limit: int = 10) -> list:
