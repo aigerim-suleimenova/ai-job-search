@@ -7,6 +7,11 @@
 import sys
 from pathlib import Path
 
+# Консоль Windows по умолчанию не в UTF-8, и русский текст в выводе роняет скрипт
+# кодировочной ошибкой — при том что сама проверка уже прошла успешно.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 
