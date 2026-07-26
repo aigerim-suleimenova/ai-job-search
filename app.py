@@ -49,6 +49,11 @@ def _redirect(msg: str = "") -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
 
 
+def _redirect_to(path: str, msg: str = "") -> RedirectResponse:
+    url = f"{path}?msg={quote(msg)}" if msg else path
+    return RedirectResponse(url, status_code=303)
+
+
 @app.get("/")
 def index(request: Request, msg: str = ""):
     cfg = config.load()
@@ -238,6 +243,59 @@ async def save(request: Request, then: str = ""):
         config.save(cfg)
         return _redirect("Пустые поля профиля заполнены из CV — проверьте и поправьте")
     return _redirect("Настройки сохранены")
+
+
+@app.get("/simple")
+def simple(request: Request, msg: str = ""):
+    cfg = config.load()
+    mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
+    return render(request, "simple.html", {
+        "cfg": cfg, "msg": msg, "cv": config.cv_meta(),
+        "state": {"running": mine, "stage": pipeline.state["stage"] if mine else ""},
+    }, cfg=cfg)
+
+
+@app.post("/simple/start")
+async def simple_start(request: Request, file: UploadFile = None):
+    """Простой сценарий: имя, регион, CV, LinkedIn — остальное заполняется само."""
+    form = await request.form()
+    person = str(form.get("person", "")).strip()
+    # новое имя — заводим отдельного человека, чтобы не затирать чужие результаты
+    if person and person != profiles.name_of(profiles.active()):
+        slug = profiles.create(person)
+        profiles.set_active(slug)
+    else:
+        slug = profiles.active()
+
+    filled_from_cv = False
+    if file is not None and file.filename:
+        raw = await file.read()
+        try:
+            config.save_cv(file.filename, raw)
+        except Exception as e:  # noqa: BLE001
+            return _redirect_to("/simple", f"Не удалось прочитать CV: {e}")
+
+    cfg = config.load()
+    cfg["search"]["locations"] = str(form.get("locations", "")).strip() or cfg["search"]["locations"]
+    cfg["profile"]["linkedin"] = str(form.get("linkedin", "")).strip()
+    config.save(cfg)
+
+    cv = config.cv_text()
+    if cv and not (cfg["profile"].get("roles") or cfg["profile"].get("summary")):
+        try:
+            cfg = scoring.profile_from_cv(cfg, cv)
+            config.save(cfg)
+            filled_from_cv = True
+        except llm.ClaudeError as e:
+            return _redirect_to("/simple", f"Не удалось разобрать CV: {e}")
+    if not cv:
+        return _redirect_to("/simple", "Загрузите CV — по нему определяются роли и навыки")
+
+    started = pipeline.run_async("manual", profile=slug)
+    note = " Профиль заполнен из CV." if filled_from_cv else ""
+    resp = _redirect_to("/simple", ("Поиск запущен." if started else "Поиск уже идёт.") + note)
+    resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
+    return resp
 
 
 @app.post("/upload_cv")

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — {{ t('nav_simple') }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🔎 AI Job Search</h1>
+  <nav>
+    <a href="/simple">{{ t('nav_simple') }}</a>
+    <a href="/">{{ t('nav_settings') }}</a>
+    <a href="/results">{{ t('nav_results') }}</a>
+    <a href="/coverage">{{ t('nav_coverage') }}</a>
+    <a href="/cv/check">{{ t('nav_cvcheck') }}</a>
+  </nav>
+  <form method="post" action="/profile/switch" class="profile-switch">
+    <label>{{ t('person') }}
+      <select name="slug" onchange="this.form.submit()">
+        {% for p in profiles %}
+        <option value="{{ p.slug }}" {% if p.slug == active_profile %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+  <form method="post" action="/set_lang" class="profile-switch">
+    <input type="hidden" name="back" value="{{ request.url.path }}">
+    <label>🌐
+      <select name="ui_lang" onchange="this.form.submit()">
+        {% for code, lname in ui_langs.items() %}
+        <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+</header>
+
+{% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+
+{% if state.running %}
+<section class="card status">
+  <div><b>{{ t('status') }}</b> <span id="status-text">{{ t('status_running') }} {{ state.stage }}</span></div>
+</section>
+<pre id="live-log" class="log"></pre>
+{% endif %}
+
+<section class="card">
+  <h2>{{ t('simple_title') }}</h2>
+  <p class="hint">{{ t('simple_hint') }}</p>
+
+  <form method="post" action="/simple/start" enctype="multipart/form-data">
+    <label>{{ t('simple_person') }}
+      <input name="person" placeholder="{{ t('simple_person_ph') }}" value="{{ active_name }}">
+    </label>
+
+    <label>{{ t('simple_where') }}
+      <input name="locations" value="{{ cfg.search.locations }}" placeholder="EU, Italy, Berlin, remote">
+    </label>
+    <p class="hint" style="margin:-6px 0 14px">{{ t('simple_where_hint') }}</p>
+
+    <label>{{ t('simple_cv') }}
+      <input type="file" name="file" accept=".pdf,.docx,.txt,.md">
+    </label>
+    <p class="hint" style="margin:-6px 0 14px">
+      {% if cv.filename %}{{ t('simple_cv_current') }} {{ cv.filename }}{% else %}{{ t('simple_cv_none') }}{% endif %}
+    </p>
+
+    <label>LinkedIn
+      <input name="linkedin" value="{{ cfg.profile.linkedin }}" placeholder="https://linkedin.com/in/...">
+    </label>
+
+    <div class="row" style="margin-top:18px">
+      <button class="primary" {% if state.running %}disabled{% endif %}>{{ t('simple_go') }}</button>
+      <span class="hint">{{ t('simple_go_hint') }}</span>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <p class="hint" style="margin:0">
+    {{ t('simple_advanced') }} <a href="/">{{ t('nav_settings') }}</a>
+  </p>
+</section>
+
+{% if state.running %}
+<script>
+setInterval(async () => {
+  const r = await fetch('/status');
+  const d = await r.json();
+  const txt = document.getElementById('status-text');
+  const log = document.getElementById('live-log');
+  if (txt) txt.textContent = d.running ? d.stage : '';
+  if (log && d.log) log.textContent = d.log.slice(-40).join('\n');
+  if (!d.running) location.reload();
+}, 4000);
+</script>
+{% endif %}
+</body>
+</html>
