@@ -46,9 +46,16 @@
     <span id="status-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% else %}{{ t('status_idle') }}{% endif %}</span>
     {% if continuous %} · ♾️ {{ t('status_continuous') }}{% elif next_run %} · {{ t('next_run') }} {{ next_run }}{% endif %}
   </div>
-  <form method="post" action="/run" style="margin:0">
-    <button class="primary" {% if state.running %}disabled{% endif %}>{{ t('run_now') }}</button>
-  </form>
+  <div class="row" style="margin:0; gap:8px">
+    <form method="post" action="/run" style="margin:0">
+      <button class="primary" {% if state.running %}disabled{% endif %}>{{ t('run_now') }}</button>
+    </form>
+    {% if state.running %}
+    <form method="post" action="/stop" style="margin:0">
+      <button class="danger">{{ t('stop_now') }}</button>
+    </form>
+    {% endif %}
+  </div>
 </section>
 <pre id="live-log" class="log" {% if not state.running %}hidden{% endif %}></pre>
 

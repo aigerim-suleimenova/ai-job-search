@@ -317,13 +317,31 @@ def run_now():
     return _redirect("Поиск уже идёт")
 
 
+@app.post("/stop")
+def stop_now():
+    """Останавливаем только прогон этого человека: в приложении несколько профилей,
+    и один пайплайн — иначе кнопка на чужой странице обрывала бы чужой поиск."""
+    if not pipeline.state["running"]:
+        return _redirect("Поиск и так не идёт")
+    if pipeline.state.get("profile") != profiles.active():
+        who = profiles.name_of(pipeline.state.get("profile", ""))
+        return _redirect(f"Сейчас идёт поиск для «{who}» — переключитесь на этого человека, чтобы остановить")
+    pipeline.request_stop()
+    return _redirect("Останавливаем: текущие проверки договорят, новые не начнутся")
+
+
 @app.get("/status")
 def status():
     next_run = scheduler.next_run_time()
     # прогон идёт «здесь» только если он про активный профиль
     mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
+    busy_with = ""
+    if pipeline.state["running"] and not mine:
+        busy_with = profiles.name_of(pipeline.state.get("profile", ""))
     return JSONResponse({
         "running": mine,
+        "busy_with": busy_with,
+        "stopping": pipeline.stop_requested() and mine,
         "stage": pipeline.state["stage"] if mine else "",
         "log": pipeline.state["log"][-30:] if mine else [],
         "next_run": next_run.strftime("%Y-%m-%d %H:%M") if next_run else None,

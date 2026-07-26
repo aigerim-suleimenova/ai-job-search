@@ -6,3 +6,4 @@ requests>=2.32
 beautifulsoup4>=4.12
 pypdf>=5.0
 apscheduler>=3.10
+pywebview>=5.0

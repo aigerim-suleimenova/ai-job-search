@@ -2,6 +2,7 @@
 import concurrent.futures as _cf
 import contextvars
 import json
+import threading
 import re
 import shutil
 import subprocess
@@ -10,6 +11,28 @@ import time
 
 class ClaudeError(RuntimeError):
     pass
+
+
+class Cancelled(RuntimeError):
+    """Работа отменена пользователем."""
+
+
+# Останавливать длинный этап (триаж сотен вакансий) нужно быстро, поэтому pmap
+# сверяется с этим флагом перед каждой задачей. Уже идущие вызовы CLI доводим
+# до конца — обрывать их на полуслове смысла нет.
+_cancel = threading.Event()
+
+
+def set_cancel() -> None:
+    _cancel.set()
+
+
+def clear_cancel() -> None:
+    _cancel.clear()
+
+
+def cancelled() -> bool:
+    return _cancel.is_set()
 
 
 # временные ошибки, при которых имеет смысл повторить вызов
@@ -35,6 +58,9 @@ def pmap(fn, items: list, workers: int = 5) -> list:
     if workers == 1:
         out = []
         for it in items:
+            if _cancel.is_set():
+                out.append(Cancelled("отменено"))
+                continue
             try:
                 out.append(fn(it))
             except Exception as e:  # noqa: BLE001
@@ -42,8 +68,13 @@ def pmap(fn, items: list, workers: int = 5) -> list:
         return out
     # копируем contextvars в каждый воркер: без этого потоки теряют активный
     # профиль (profiles._active) и пишут в базу профиля по умолчанию
+    def _guarded(it):
+        if _cancel.is_set():
+            raise Cancelled("отменено")
+        return fn(it)
+
     with _cf.ThreadPoolExecutor(max_workers=workers) as ex:
-        futures = [ex.submit(contextvars.copy_context().run, fn, it) for it in items]
+        futures = [ex.submit(contextvars.copy_context().run, _guarded, it) for it in items]
         out = []
         for f in futures:
             try:
@@ -102,6 +133,10 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
 def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int = 600,
         allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli") -> str:
     """Вызов claude с повтором при временных ошибках (connection closed, overload, 429/5xx)."""
+    # Точка прерывания: этапы вроде discovery делают вызовы подряд в цикле, не через
+    # pmap, и без этой проверки «Стоп» ждал бы конца всего этапа.
+    if _cancel.is_set():
+        raise Cancelled("поиск остановлен")
     last = None
     for attempt in range(retries + 1):
         try:

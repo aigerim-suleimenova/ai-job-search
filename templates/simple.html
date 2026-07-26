@@ -43,6 +43,9 @@
 {% if state.running %}
 <section class="card status">
   <div><b>{{ t('status') }}</b> <span id="status-text">{{ t('status_running') }} {{ state.stage }}</span></div>
+  <form method="post" action="/stop" style="margin:0">
+    <button class="danger">{{ t('stop_now') }}</button>
+  </form>
 </section>
 <pre id="live-log" class="log"></pre>
 {% endif %}
@@ -92,7 +95,7 @@ setInterval(async () => {
   const d = await r.json();
   const txt = document.getElementById('status-text');
   const log = document.getElementById('live-log');
-  if (txt) txt.textContent = d.running ? d.stage : '';
+  if (txt) txt.textContent = d.stopping ? '{{ t('stopping') }}' : (d.running ? d.stage : '');
   if (log && d.log) log.textContent = d.log.slice(-40).join('\n');
   if (!d.running) location.reload();
 }, 4000);

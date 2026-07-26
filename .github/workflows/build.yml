@@ -1,0 +1,66 @@
+name: Build desktop apps
+
+# Собирать приложение нужно на той же ОС, под которую оно предназначено,
+# поэтому три параллельные джобы вместо кросс-компиляции.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: AI Job Search-macos
+          - os: windows-latest
+            artifact: AI Job Search-windows
+          - os: ubuntu-latest
+            artifact: AI Job Search-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # pywebview на Linux рисует окно через GTK/WebKit — их нет в чистом раннере
+      - name: Install Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 \
+            gir1.2-webkit2-4.1 libcairo2-dev libgirepository1.0-dev
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pywebview
+          if [ "${{ runner.os }}" = "Linux" ]; then pip install pygobject; fi
+        shell: bash
+
+      - name: Build
+        run: pyinstaller --clean --noconfirm packaging/aijobsearch.spec
+
+      - name: Package macOS disk image
+        if: runner.os == 'macOS'
+        run: |
+          hdiutil create -volname "AI Job Search" -srcfolder "dist/AI Job Search.app" \
+            -ov -format UDZO "dist/AI Job Search.dmg"
+
+      - name: Package Linux archive
+        if: runner.os == 'Linux'
+        run: tar -czf "dist/AI Job Search-linux.tar.gz" -C dist "AI Job Search"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.dmg
+            dist/*.tar.gz
+            dist/AI Job Search/
+          if-no-files-found: warn

@@ -8,7 +8,27 @@ from . import config, db, discovery, filters, llm, notify, profiles, providers, 
 from .collectors import aggregators, ats, crawler
 
 _run_lock = threading.Lock()
+_stop = threading.Event()
 state = {"running": False, "stage": "", "log": [], "profile": ""}
+
+
+class Stopped(RuntimeError):
+    """Прогон прерван пользователем."""
+
+
+def request_stop() -> None:
+    """Просит текущий прогон остановиться на ближайшей контрольной точке."""
+    _stop.set()
+    llm.set_cancel()   # длинные параллельные этапы прерываются, не дожидаясь конца
+
+
+def stop_requested() -> bool:
+    return _stop.is_set()
+
+
+def _check_stop() -> None:
+    if _stop.is_set():
+        raise Stopped()
 
 
 def _log(msg: str) -> None:
@@ -18,6 +38,7 @@ def _log(msg: str) -> None:
 
 
 def _stage(name: str) -> None:
+    _check_stop()          # между этапами — самое безопасное место, чтобы прерваться
     state["stage"] = name
     _log(f"— {name}")
 
@@ -37,6 +58,8 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         return
     if profile:
         profiles.set_active(profile)  # свой поток → задаём активный профиль явно
+    _stop.clear()
+    llm.clear_cancel()
     state.update(running=True, stage="старт", log=[], profile=profiles.active())
     cfg = config.load()
     cv = config.cv_text()
@@ -277,6 +300,9 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         else:
             _log("Telegram не настроен — дайджест только на странице результатов")
         _log("Готово")
+    except (Stopped, llm.Cancelled):
+        status = "stopped"
+        _log("Прогон остановлен пользователем — найденное сохранено")
     except Exception:  # noqa: BLE001
         status = "error"
         _log("ОШИБКА:\n" + traceback.format_exc(limit=6))
@@ -284,4 +310,6 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         db.finish_run(run_id, found, fresh, matched_count, status, "\n".join(state["log"]),
                       coverage=json.dumps(coverage, ensure_ascii=False))
         state.update(running=False, stage="")
+        _stop.clear()
+        llm.clear_cancel()
         _run_lock.release()

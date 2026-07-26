@@ -4,19 +4,41 @@
 CV и базой jobs.db. Активный профиль хранится в contextvar (задаётся на каждый
 веб-запрос из cookie и на каждый запуск пайплайна/расписания явно).
 
-Базовый каталог данных: переменная AIJS_DATA_DIR или <проект>/data — под ним
-лежат profiles/ и реестр profiles.json.
+Базовый каталог данных выбирается так: переменная AIJS_DATA_DIR, иначе data/
+рядом с исходниками (режим разработки), иначе — стандартный каталог приложения
+данной ОС (собранное приложение: рядом с ним писать нельзя).
 """
 import contextvars
 import json
 import os
+import platform
 import re
 import shutil
+import sys
 import threading
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("AIJS_DATA_DIR") or BASE_DIR / "data")
+
+
+def _os_data_dir() -> Path:
+    """Куда операционная система разрешает писать данные приложения."""
+    system = platform.system()
+    if system == "Darwin":
+        return Path.home() / "Library" / "Application Support" / "AI Job Search"
+    if system == "Windows":
+        base = os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming")
+        return Path(base) / "AI Job Search"
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "ai-job-search"
+
+
+def _default_data_root() -> Path:
+    if getattr(sys, "frozen", False):        # собранное приложение
+        return _os_data_dir()
+    return BASE_DIR / "data"                 # запуск из исходников
+
+
+DATA_ROOT = Path(os.environ.get("AIJS_DATA_DIR") or _default_data_root())
 PROFILES_DIR = DATA_ROOT / "profiles"
 REGISTRY_PATH = DATA_ROOT / "profiles.json"
 

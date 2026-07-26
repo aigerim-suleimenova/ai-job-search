@@ -65,6 +65,16 @@ def _continuous_loop() -> None:
             time.sleep(20)  # никого в непрерывном режиме — ждём
 
 
+def stop() -> None:
+    """Остановить расписание и непрерывный режим — вызывается при закрытии приложения."""
+    global _cont_stop
+    _cont_stop = True
+    try:
+        _scheduler.shutdown(wait=False)
+    except Exception:  # noqa: BLE001 — планировщик мог не запускаться
+        pass
+
+
 def reschedule_all() -> None:
     """Пересобирает интервальные задачи. Восстанавливает активный профиль."""
     saved = profiles.active()

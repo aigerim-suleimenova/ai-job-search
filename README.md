@@ -93,3 +93,30 @@
 `cv.*` и `cv.txt` (загруженное CV и извлечённый текст), `jobs.db` (SQLite: виденные
 вакансии и история прогонов). Наружу текст CV уходит только в Claude через
 ваш Claude Code CLI и ни в какие другие сервисы.
+
+## Приложение (без терминала)
+
+Собранное приложение открывается как обычная программа: своё окно, внутри —
+локальный сервер, никакого терминала. Запустили поиск, закрыли окно, вернулись
+позже, посмотрели результаты, остановили кнопкой «Остановить поиск».
+
+Данные (профили, CV, найденные вакансии) хранятся в стандартном каталоге ОС:
+- macOS — `~/Library/Application Support/AI Job Search`
+- Windows — `%APPDATA%\AI Job Search`
+- Linux — `~/.local/share/ai-job-search`
+
+Собрать под свою систему:
+
+```
+pip install -r requirements.txt pyinstaller
+pyinstaller --clean --noconfirm packaging/aijobsearch.spec
+```
+
+Результат: `dist/AI Job Search.app` (macOS), `dist/AI Job Search/` (Windows и
+Linux). Сборки под все три системы делает GitHub Actions по тегу `v*`
+(`.github/workflows/build.yml`).
+
+Важно: приложение обращается к модели. По умолчанию это Claude Code CLI — его
+нужно установить отдельно (claude.com/claude-code). На странице «Модель» можно
+выбрать Cursor CLI или локальную модель через Ollama; учтите, что веб-поиск
+новых компаний умеет только Claude Code.
