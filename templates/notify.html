@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — {{ t('nav_notify') }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🔎 AI Job Search</h1>
+  <nav>
+    <a href="/simple">{{ t('nav_simple') }}</a>
+    <a href="/">{{ t('nav_settings') }}</a>
+    <a href="/results">{{ t('nav_results') }}</a>
+    <a href="/coverage">{{ t('nav_coverage') }}</a>
+    <a href="/cv/check">{{ t('nav_cvcheck') }}</a>
+    <a href="/models">{{ t('nav_models') }}</a>
+    <a href="/notify">{{ t('nav_notify') }}</a>
+  </nav>
+  <form method="post" action="/profile/switch" class="profile-switch">
+    <label>{{ t('person') }}
+      <select name="slug" onchange="this.form.submit()">
+        {% for p in profiles %}
+        <option value="{{ p.slug }}" {% if p.slug == active_profile %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+  <form method="post" action="/set_lang" class="profile-switch">
+    <input type="hidden" name="back" value="{{ request.url.path }}">
+    <label>🌐
+      <select name="ui_lang" onchange="this.form.submit()">
+        {% for code, lname in ui_langs.items() %}
+        <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+</header>
+
+{% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+
+<section class="card">
+  <h2>{{ t('notify_title') }}</h2>
+  <p class="hint">{{ t('notify_hint') }}</p>
+</section>
+
+<section class="card">
+  <h2>💬 Telegram
+    {% if cfg.telegram.bot_token and cfg.telegram.chat_id %}
+    <span class="badge ok">{{ t('notify_connected') }}</span>
+    {% else %}<span class="badge">{{ t('notify_not_set') }}</span>{% endif %}
+  </h2>
+
+  <details {% if not (cfg.telegram.bot_token and cfg.telegram.chat_id) %}open{% endif %}>
+    <summary>{{ t('notify_tg_how') }}</summary>
+    <ol class="steps">
+      <li>{{ t('notify_tg_1') }}</li>
+      <li>{{ t('notify_tg_2') }}</li>
+      <li>{{ t('notify_tg_3') }}</li>
+      <li>{{ t('notify_tg_4') }}</li>
+      <li>{{ t('notify_tg_5') }}</li>
+    </ol>
+  </details>
+
+  <form method="post" action="/notify/telegram" style="margin-top:14px">
+    <div class="grid2">
+      <label>{{ t('notify_tg_token') }}
+        <input name="bot_token" value="{{ cfg.telegram.bot_token }}" placeholder="123456789:AA...">
+      </label>
+      <label>{{ t('notify_tg_chat') }}
+        <input name="chat_id" value="{{ cfg.telegram.chat_id }}" placeholder="{{ t('notify_tg_chat_ph') }}">
+      </label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary">{{ t('save') }}</button>
+      <button formaction="/notify/telegram?then=detect">{{ t('notify_tg_detect') }}</button>
+      <button formaction="/notify/telegram?then=test">{{ t('notify_test') }}</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>✉️ {{ t('notify_email') }}
+    {% if cfg.email.enabled and cfg.email.username %}
+    <span class="badge ok">{{ t('notify_connected') }}</span>
+    {% else %}<span class="badge">{{ t('notify_not_set') }}</span>{% endif %}
+  </h2>
+
+  <details {% if not cfg.email.enabled %}open{% endif %}>
+    <summary>{{ t('notify_mail_how') }}</summary>
+    <ol class="steps">
+      <li>{{ t('notify_mail_1') }}</li>
+      <li>{{ t('notify_mail_2') }}</li>
+      <li>{{ t('notify_mail_3') }}</li>
+    </ol>
+    <p class="hint">{{ t('notify_mail_apppass') }}</p>
+  </details>
+
+  <form method="post" action="/notify/email" style="margin-top:14px">
+    <label class="check"><input type="checkbox" name="enabled" {% if cfg.email.enabled %}checked{% endif %}>
+      {{ t('notify_mail_enable') }}</label>
+
+    <div class="grid2" style="margin-top:12px">
+      <label>{{ t('notify_mail_service') }}
+        <select name="preset" onchange="applyPreset(this.value)">
+          {% for key, p in presets.items() %}
+          <option value="{{ key }}" {% if cfg.email.preset == key %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>{{ t('notify_mail_address') }}
+        <input name="username" value="{{ cfg.email.username }}" placeholder="you@gmail.com">
+      </label>
+      <label>{{ t('notify_mail_password') }}
+        <input type="password" name="password" value="{{ cfg.email.password }}" placeholder="••••••••••••">
+      </label>
+      <label>{{ t('notify_mail_to') }}
+        <input name="to" value="{{ cfg.email.to }}" placeholder="{{ t('notify_mail_to_ph') }}">
+      </label>
+    </div>
+
+    <details style="margin-top:10px">
+      <summary>{{ t('notify_mail_advanced') }}</summary>
+      <div class="grid3">
+        <label>SMTP <input id="host" name="host" value="{{ cfg.email.host }}"></label>
+        <label>{{ t('notify_mail_port') }} <input id="port" name="port" type="number" value="{{ cfg.email.port }}"></label>
+        <label class="check" style="align-self:end">
+          <input id="tls" type="checkbox" name="tls" {% if cfg.email.tls %}checked{% endif %}> STARTTLS
+        </label>
+      </div>
+    </details>
+
+    <div class="row" style="margin-top:12px">
+      <button class="primary">{{ t('save') }}</button>
+      <button formaction="/notify/email?then=test">{{ t('notify_test') }}</button>
+    </div>
+  </form>
+</section>
+
+<script>
+const PRESETS = {{ presets_json|safe }};
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p || key === 'custom') return;
+  document.getElementById('host').value = p.host;
+  document.getElementById('port').value = p.port;
+  document.getElementById('tls').checked = p.tls;
+}
+</script>
+</body>
+</html>

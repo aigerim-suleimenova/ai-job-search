@@ -99,3 +99,7 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 1
 .desc { color: var(--muted); font-size: 13px; white-space: pre-wrap; }
 .job a { color: var(--text); }
 .job a:hover { color: var(--accent); }
+
+/* нумерованные инструкции: шаги должны читаться как шаги, а не как плотный список */
+.steps { margin: 10px 0 0; padding-left: 22px; }
+.steps li { margin: 8px 0; line-height: 1.5; }

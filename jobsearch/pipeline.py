@@ -4,7 +4,7 @@ import os
 import threading
 import traceback
 
-from . import config, db, discovery, filters, llm, notify, profiles, providers, scoring
+from . import config, db, discovery, filters, llm, mailer, notify, profiles, providers, scoring
 from .collectors import aggregators, ats, crawler
 
 _run_lock = threading.Lock()
@@ -299,6 +299,14 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 status = "warn"
         else:
             _log("Telegram не настроен — дайджест только на странице результатов")
+        if mailer.configured(cfg):
+            try:
+                mailer.send_digest(cfg, final, profiles.name_of(profiles.active()),
+                                   db.now(), threshold)
+                _log("Письмо с результатами отправлено")
+            except mailer.MailError as e:
+                _log(f"Почта: {e}")
+                status = "warn"
         _log("Готово")
     except (Stopped, llm.Cancelled):
         status = "stopped"

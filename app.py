@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from jobsearch import (config, coverage as coverage_check, cvcheck, db, discovery,
-                       export as export_mod, hardware, i18n, llm, notify, pipeline,
+                       export as export_mod, hardware, i18n, llm, mailer, notify, pipeline,
                        profiles, providers, scheduler, scoring)
 
 BASE = Path(__file__).resolve().parent
@@ -412,6 +412,70 @@ async def viewed_all(request: Request):
     db.mark_all_viewed(min_score)
     back = str(form.get("back", "/results"))
     return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
+
+
+@app.get("/notify")
+def notify_page(request: Request, msg: str = ""):
+    cfg = config.load()
+    return render(request, "notify.html", {
+        "cfg": cfg, "msg": msg, "presets": mailer.PRESETS,
+        "presets_json": json.dumps(mailer.PRESETS, ensure_ascii=False),
+    }, cfg=cfg)
+
+
+@app.post("/notify/telegram")
+async def notify_telegram(request: Request, then: str = ""):
+    form = await request.form()
+    cfg = config.load()
+    cfg["telegram"].update(bot_token=str(form.get("bot_token", "")).strip(),
+                           chat_id=str(form.get("chat_id", "")).strip())
+    config.save(cfg)
+    if then == "detect":
+        if not cfg["telegram"]["bot_token"]:
+            return _redirect_to("/notify", "Сначала вставьте токен бота")
+        try:
+            chat_id = notify.detect_chat_id(cfg["telegram"]["bot_token"])
+        except RuntimeError as e:
+            return _redirect_to("/notify", f"Telegram: {e}")
+        cfg["telegram"]["chat_id"] = chat_id
+        config.save(cfg)
+        return _redirect_to("/notify", f"Готово, ваш chat id: {chat_id}")
+    if then == "test":
+        try:
+            notify.send_message(cfg, "✅ AI Job Search: проверка связи. Уведомления настроены.")
+        except RuntimeError as e:
+            return _redirect_to("/notify", f"Telegram: {e}")
+        return _redirect_to("/notify", "Тестовое сообщение отправлено — проверьте Telegram")
+    return _redirect_to("/notify", "Сохранено")
+
+
+@app.post("/notify/email")
+async def notify_email(request: Request, then: str = ""):
+    form = await request.form()
+    cfg = config.load()
+    preset = str(form.get("preset", "gmail"))
+    try:
+        port = int(str(form.get("port", "587")) or 587)
+    except ValueError:
+        port = 587
+    cfg["email"].update(
+        enabled="enabled" in form, preset=preset,
+        host=str(form.get("host", "")).strip(), port=port, tls="tls" in form,
+        username=str(form.get("username", "")).strip(),
+        password=str(form.get("password", "")),
+        to=str(form.get("to", "")).strip(),
+    )
+    config.save(cfg)
+    if then == "test":
+        name = profiles.name_of(profiles.active())
+        html = f"<p>✅ AI Job Search: проверка связи.</p><p>Письма с вакансиями для «{name}» будут приходить сюда.</p>"
+        try:
+            mailer.send(cfg, "AI Job Search: проверка связи", html,
+                        "AI Job Search: проверка связи. Уведомления настроены.")
+        except mailer.MailError as e:
+            return _redirect_to("/notify", str(e))
+        return _redirect_to("/notify", "Письмо отправлено — проверьте почту")
+    return _redirect_to("/notify", "Сохранено")
 
 
 @app.get("/models")

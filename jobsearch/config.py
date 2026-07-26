@@ -83,6 +83,17 @@ DEFAULTS = {
         "bot_token": "",
         "chat_id": "",
     },
+    "email": {
+        "enabled": False,
+        "preset": "gmail",       # ключ из mailer.PRESETS
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "tls": True,
+        "username": "",          # адрес отправителя (он же логин)
+        "password": "",          # для Gmail/Яндекса/Mail.ru — «пароль приложения»
+        "from": "",              # пусто = username
+        "to": "",                # пусто = username (себе же)
+    },
     "schedule": {
         "mode": "off",               # off | interval | continuous
         "every_value": 1,
