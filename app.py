@@ -1,5 +1,6 @@
 """Веб-интерфейс: страница настроек, результаты, запуск поиска."""
 import json
+import sys
 from datetime import date
 from pathlib import Path
 from urllib.parse import quote
@@ -9,7 +10,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from jobsearch import (config, coverage as coverage_check, cvcheck, db, discovery,
+from jobsearch import (autostart, config, coverage as coverage_check, cvcheck, db, discovery,
                        export as export_mod, hardware, i18n, llm, mailer, notify, pipeline,
                        profiles, providers, scheduler, scoring)
 
@@ -75,6 +76,9 @@ def index(request: Request, msg: str = ""):
     return render(request, "index.html", {
         "cfg": cfg,
         "msg": msg,
+        "autostart_on": autostart.enabled(),
+        "autostart_supported": autostart.supported(),
+        "is_app": bool(getattr(sys, "frozen", False)),
         "cv": config.cv_meta(),
         "runs": db.recent_runs(8),
         "state": state_view,
@@ -547,6 +551,17 @@ def cv_check(request: Request, run: int = 0):
     result = cvcheck.analyze(cfg) if run else cvcheck.last_result()
     return render(request, "cvcheck.html",
                   {"result": result, "cv": config.cv_meta()}, cfg=cfg)
+
+
+@app.post("/app_settings")
+async def app_settings(request: Request):
+    """Поведение самой программы: автозапуск и работа в фоне."""
+    form = await request.form()
+    cfg = config.load()
+    cfg["ui"]["background"] = "background" in form
+    config.save(cfg)
+    err = autostart.set_enabled("autostart" in form)
+    return _redirect(err or "Настройки программы сохранены")
 
 
 @app.post("/set_lang")

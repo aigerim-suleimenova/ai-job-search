@@ -101,6 +101,7 @@ DEFAULTS = {
         "continuous_cooldown_min": 20,  # пауза между прогонами в непрерывном режиме
     },
     "ui": {
+        "background": False,         # продолжать поиск после закрытия окна
         "lang": "ru",                # язык интерфейса: ru | en
         "output_lang": "ru",         # язык результатов ИИ: ru | en | de
     },
