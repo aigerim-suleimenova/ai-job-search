@@ -40,11 +40,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller pywebview
-          if [ "${{ runner.os }}" = "Linux" ]; then pip install pygobject; fi
+          # PyGObject 3.52+ требует girepository-2.0, которого нет в Ubuntu 24.04:
+          # закрепляем последнюю версию, работающую с girepository-1.0.
+          if [ "${{ runner.os }}" = "Linux" ]; then pip install "pygobject<3.52"; fi
         shell: bash
 
       - name: Build
         run: pyinstaller --clean --noconfirm packaging/aijobsearch.spec
+
+      # Проверяем, что сборка не пустая и содержит то, без чего приложение не стартует.
+      - name: Verify build
+        run: python packaging/verify_build.py
+        shell: bash
 
       - name: Package macOS disk image
         if: runner.os == 'macOS'
