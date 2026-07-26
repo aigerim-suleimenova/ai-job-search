@@ -74,6 +74,7 @@ DEFAULTS = {
         "jooble_key": "",
     },
     "llm": {
+        "provider": "claude_cli",     # claude_cli | cursor_cli | ollama
         "claude_bin": "claude",
         "triage_model": "haiku",
         "deep_model": "",            # пусто = модель по умолчанию из настроек claude

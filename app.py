@@ -10,8 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from jobsearch import (config, coverage as coverage_check, cvcheck, db, discovery,
-                       export as export_mod, i18n, llm, notify, pipeline, profiles,
-                       scheduler, scoring)
+                       export as export_mod, hardware, i18n, llm, notify, pipeline,
+                       profiles, providers, scheduler, scoring)
 
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="AI Job Search")
@@ -394,6 +394,58 @@ async def viewed_all(request: Request):
     db.mark_all_viewed(min_score)
     back = str(form.get("back", "/results"))
     return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
+
+
+@app.get("/models")
+def models_page(request: Request, msg: str = ""):
+    cfg = config.load()
+    provider = cfg["llm"].get("provider", "claude_cli")
+    provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
+    current_model = cfg["llm"].get("triage_model", "haiku")
+    return render(request, "models.html", {
+        "cfg": cfg, "msg": msg, "provs": provs, "current_provider": provider,
+        "current_model": current_model, "models": providers.models_for(provider),
+        "specs": hardware.specs(),
+    }, cfg=cfg)
+
+
+@app.post("/models/provider")
+async def models_set_provider(request: Request):
+    form = await request.form()
+    key = str(form.get("provider", "claude_cli"))
+    cfg = config.load()
+    if key in providers.available(cfg["llm"].get("claude_bin", "claude")):
+        cfg["llm"]["provider"] = key
+        # модель прежнего провайдера бессмысленна для нового — берём самую сильную доступную
+        picks = [m for m in providers.models_for(key)
+                 if m.get("kind") != "local" or m.get("installed")]
+        if picks:
+            cfg["llm"]["triage_model"] = picks[0]["id"]
+            cfg["llm"]["deep_model"] = picks[0]["id"]
+        config.save(cfg)
+    return _redirect_to("/models", "Провайдер выбран")
+
+
+@app.post("/models/select")
+async def models_select(request: Request):
+    form = await request.form()
+    model = str(form.get("model", "")).strip()
+    cfg = config.load()
+    cfg["llm"]["triage_model"] = model
+    cfg["llm"]["deep_model"] = model
+    config.save(cfg)
+    return _redirect_to("/models", f"Модель выбрана: {model}")
+
+
+@app.post("/models/pull")
+async def models_pull(request: Request):
+    form = await request.form()
+    model = str(form.get("model", "")).strip()
+    try:
+        providers.pull(model, log=lambda m: None)
+    except providers.ProviderError as e:
+        return _redirect_to("/models", f"Не удалось скачать: {e}")
+    return _redirect_to("/models", f"Модель скачана: {model}")
 
 
 @app.get("/cv/check")

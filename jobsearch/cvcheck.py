@@ -182,6 +182,7 @@ def visual_review(pages: list, cfg: dict) -> dict:
         VISUAL_PROMPT.format(files=files, lang=i18n.out_lang(cfg)),
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
+        provider=cfg["llm"].get("provider", "claude_cli"),
         timeout=600,
         allowed_tools=["Read"],
     )
@@ -224,6 +225,7 @@ def keyword_check(cfg: dict, cv: str, jobs: list) -> dict:
         KEYWORDS_PROMPT.format(cv=cv[:6000], jobs=listing, lang=i18n.out_lang(cfg)),
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
+        provider=cfg["llm"].get("provider", "claude_cli"),
         timeout=600,
     )
     return data if isinstance(data, dict) else {}

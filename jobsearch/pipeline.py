@@ -4,7 +4,7 @@ import os
 import threading
 import traceback
 
-from . import config, db, discovery, filters, llm, notify, profiles, scoring
+from . import config, db, discovery, filters, llm, notify, profiles, providers, scoring
 from .collectors import aggregators, ats, crawler
 
 _run_lock = threading.Lock()
@@ -47,9 +47,15 @@ def run(trigger: str = "manual", profile: str = None) -> None:
     try:
         _log(f"Прогон #{run_id} ({trigger})")
 
-        # 0. Поиск новых компаний под профиль (веб-поиск через claude)
+        # 0. Поиск новых компаний под профиль (веб-поиск через claude).
+        # Веб-поиск умеет только Claude Code CLI: на других провайдерах этот шаг
+        # пропускается, иначе модель начнёт выдумывать компании и ссылки.
+        web_ok = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
         n_disc = int(cfg["search"].get("discover_per_run", 0))
-        if n_disc > 0:
+        if n_disc > 0 and not web_ok:
+            _log("поиск новых компаний пропущен: выбранная модель не умеет веб-поиск "
+                 "(его поддерживает только Claude Code CLI)")
+        if n_disc > 0 and web_ok:
             _stage("поиск новых компаний (веб-поиск)")
             fresh_companies = discovery.discover(cfg, _log, n=n_disc)
             if fresh_companies:
@@ -63,7 +69,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         # 0b. Поиск вакансий прямо на доменах ATS (site:boards.greenhouse.io ...) —
         # каждая находка даёт и вакансию, и новую компанию, чью доску забираем целиком.
         n_ats = int(cfg["search"].get("discover_ats_per_run", 0))
-        if n_ats > 0:
+        if n_ats > 0 and web_ok:
             _stage("поиск вакансий на доменах ATS (веб-поиск)")
             ats_companies = discovery.discover_ats_jobs(cfg, _log, n=n_ats)
             if ats_companies:

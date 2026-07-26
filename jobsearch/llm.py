@@ -53,7 +53,15 @@ def pmap(fn, items: list, workers: int = 5) -> list:
         return out
 
 
-def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_tools) -> str:
+def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_tools,
+              provider: str = "claude_cli") -> str:
+    from . import providers
+    if provider and provider != "claude_cli":
+        try:
+            return providers.call(prompt, provider, model, timeout, allowed_tools, claude_bin)
+        except providers.ProviderError as e:
+            raise ClaudeError(str(e)) from e
+
     # Абсолютный путь + close_fds=False заставляют CPython использовать posix_spawn
     # вместо fork+exec. Это критично на macOS: fork() из многопоточного процесса,
     # уже трогавшего системные сетевые фреймворки, роняет ребёнка SIGSEGV в
@@ -92,12 +100,12 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
 
 
 def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int = 600,
-        allowed_tools: list = None, retries: int = 2) -> str:
+        allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli") -> str:
     """Вызов claude с повтором при временных ошибках (connection closed, overload, 429/5xx)."""
     last = None
     for attempt in range(retries + 1):
         try:
-            return _ask_once(prompt, model, claude_bin, timeout, allowed_tools)
+            return _ask_once(prompt, model, claude_bin, timeout, allowed_tools, provider)
         except ClaudeError as e:
             last = e
             if attempt < retries and _is_transient(str(e)):
@@ -108,12 +116,12 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
 
 
 def ask_json(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int = 600,
-             allowed_tools: list = None, retries: int = 2):
+             allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli"):
     """Как ask, но требует JSON в ответе. Если модель вернула прозу — повторяет."""
     last = None
     for attempt in range(retries + 1):
         text = ask(prompt, model=model, claude_bin=claude_bin, timeout=timeout,
-                   allowed_tools=allowed_tools, retries=retries)
+                   allowed_tools=allowed_tools, retries=retries, provider=provider)
         try:
             return extract_json(text)
         except ClaudeError as e:

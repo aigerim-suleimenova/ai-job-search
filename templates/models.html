@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — {{ t('nav_models') }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🔎 AI Job Search</h1>
+  <nav>
+    <a href="/simple">{{ t('nav_simple') }}</a>
+    <a href="/">{{ t('nav_settings') }}</a>
+    <a href="/results">{{ t('nav_results') }}</a>
+    <a href="/coverage">{{ t('nav_coverage') }}</a>
+    <a href="/cv/check">{{ t('nav_cvcheck') }}</a>
+    <a href="/models">{{ t('nav_models') }}</a>
+  </nav>
+  <form method="post" action="/set_lang" class="profile-switch">
+    <input type="hidden" name="back" value="{{ request.url.path }}">
+    <label>🌐
+      <select name="ui_lang" onchange="this.form.submit()">
+        {% for code, lname in ui_langs.items() %}
+        <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+</header>
+
+{% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+
+<section class="card">
+  <h2>{{ t('models_provider') }}</h2>
+  <p class="hint">{{ t('models_provider_hint') }}</p>
+  <div class="grid3" style="margin-top:12px">
+    {% for key, p in provs.items() %}
+    <form method="post" action="/models/provider">
+      <input type="hidden" name="provider" value="{{ key }}">
+      <div class="card {% if current_provider == key %}direct{% endif %}" style="margin:0">
+        <b>{{ t('prov_' + key) }}</b>
+        <p class="meta" style="margin:6px 0">
+          {% if p.ready %}<span class="badge ok">{{ t('models_ready') }}</span>
+          {% else %}<span class="badge warn">{{ t('models_not_installed') }}</span>{% endif %}
+          {% if p.web_search %}<span class="badge ok">{{ t('models_websearch') }}</span>
+          {% else %}<span class="badge">{{ t('models_no_websearch') }}</span>{% endif %}
+        </p>
+        {% if not p.ready %}<p class="hint">{{ t('prov_' + key + '_hint') }}</p>{% endif %}
+        <button {% if current_provider == key %}class="primary"{% endif %} {% if not p.ready %}disabled{% endif %}>
+          {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
+        </button>
+      </div>
+    </form>
+    {% endfor %}
+  </div>
+  {% if not provs[current_provider].web_search %}
+  <p class="hint" style="margin-top:12px; color:var(--warn)">⚠️ {{ t('models_websearch_warning') }}</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>{{ t('models_your_device') }}</h2>
+  <p class="meta">{{ specs.cpu }} · {{ t('models_ram') }} {{ specs.ram_gb }} ГБ ·
+     {{ t('models_usable') }} ≈ {{ specs.usable_gb }} ГБ{% if specs.gpu %} · {{ specs.gpu }}{% endif %}</p>
+</section>
+
+<section class="card">
+  <h2>{{ t('models_choose') }} — {{ t('prov_' + current_provider) }}</h2>
+  <div class="row" style="gap:12px; flex-wrap:wrap; margin-bottom:14px">
+    <input id="q" placeholder="{{ t('models_search') }}" oninput="filterModels()" style="width:auto; min-width:220px">
+    <label class="check" style="margin:0">
+      <input type="checkbox" id="onlyfits" onchange="filterModels()"> {{ t('models_only_fits') }}
+    </label>
+    <span class="hint" id="count"></span>
+  </div>
+
+  <div id="list">
+    {% for m in models %}
+    <div class="card job model-row {% if m.id == current_model %}direct{% endif %}" style="margin-bottom:10px"
+         data-name="{{ m.name|lower }} {{ m.get('origin','')|lower }} {{ m.id|lower }}"
+         data-fits="{{ m.fits }}">
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:14px">
+        <div>
+          <b>{{ m.name }}</b>
+          {% if m.id == current_model %}<span class="badge ok">{{ t('models_current') }}</span>{% endif %}
+          {% if m.kind == 'local' %}
+            {% if m.fits == 'yes' %}<span class="badge ok">✅ {{ t('models_fits_yes') }}</span>
+            {% elif m.fits == 'tight' %}<span class="badge warn">⚠️ {{ t('models_fits_tight') }}</span>
+            {% else %}<span class="badge warn">❌ {{ t('models_fits_no') }}</span>{% endif %}
+            {% if m.installed %}<span class="badge ok">{{ t('models_installed') }}</span>{% endif %}
+          {% endif %}
+          <p class="meta" style="margin:6px 0 0">
+            {{ t('models_power') }} {{ m.power }}/100
+            {% if m.params %} · {{ m.params }} · {{ m.ram_gb }} ГБ {{ t('models_needs') }}{% endif %}
+            {% if m.origin %} · {{ m.origin }}{% endif %}
+            {% if m.note %} · {{ m.note }}{% endif %}
+          </p>
+        </div>
+        <div class="row" style="gap:8px">
+          {% if m.kind == 'local' and not m.installed %}
+          <form method="post" action="/models/pull" style="margin:0">
+            <input type="hidden" name="model" value="{{ m.id }}">
+            <button {% if m.fits == 'no' %}disabled{% endif %}>{{ t('models_download') }}</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/models/select" style="margin:0">
+            <input type="hidden" name="model" value="{{ m.id }}">
+            <button class="primary" {% if m.kind == 'local' and not m.installed %}disabled{% endif %}>
+              {{ t('models_use') }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+function filterModels() {
+  const q = document.getElementById('q').value.toLowerCase().trim();
+  const onlyFits = document.getElementById('onlyfits').checked;
+  let shown = 0;
+  document.querySelectorAll('.model-row').forEach(row => {
+    const matchQ = !q || row.dataset.name.includes(q);
+    const matchF = !onlyFits || ['yes', 'tight'].includes(row.dataset.fits);
+    const ok = matchQ && matchF;
+    row.style.display = ok ? '' : 'none';
+    if (ok) shown++;
+  });
+  document.getElementById('count').textContent = shown + ' / ' + document.querySelectorAll('.model-row').length;
+}
+filterModels();
+</script>
+</body>
+</html>

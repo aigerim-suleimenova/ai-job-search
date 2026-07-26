@@ -160,6 +160,7 @@ def profile_from_cv(cfg: dict, cv: str) -> dict:
         PROFILE_FROM_CV_PROMPT.format(cv=cv[:6000], lang=i18n.out_lang(cfg)),
         model=cfg["llm"].get("triage_model", "haiku"),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
+        provider=cfg["llm"].get("provider", "claude_cli"),
         timeout=300,
     )
     if isinstance(data, dict):
@@ -238,6 +239,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
             prompt,
             model=cfg["llm"].get("deep_model", ""),
             claude_bin=cfg["llm"].get("claude_bin", "claude"),
+            provider=cfg["llm"].get("provider", "claude_cli"),
             timeout=900 if research else 600,
             allowed_tools=["WebSearch", "WebFetch"] if research else None,
         )
@@ -322,6 +324,7 @@ def generate_cv(job: dict, cfg: dict, cv: str) -> dict:
         ),
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
+        provider=cfg["llm"].get("provider", "claude_cli"),
         timeout=600,
     )
     return data if isinstance(data, dict) else {}
