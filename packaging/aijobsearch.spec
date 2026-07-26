@@ -1,12 +1,19 @@
 # PyInstaller: сборка «AI Job Search» в одно приложение.
 # Собирается на той ОС, под которую нужен результат: macOS → .app, Windows → .exe,
 # Linux → каталог с бинарником (AppImage собирается отдельным шагом в CI).
+import os
 import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = Path(SPECPATH).parent
+
+# Подпись: без сертификата собирается ad-hoc (работает локально, но при скачивании
+# система предупредит). Свой сертификат задаётся переменной окружения, чтобы в
+# репозитории не хранить ничего личного.
+SIGN_IDENTITY = os.environ.get("AIJS_CODESIGN_IDENTITY") or None
+ENTITLEMENTS = str(ROOT / "packaging" / "entitlements.plist") if SIGN_IDENTITY else None
 
 # Шаблоны и стили лежат рядом с кодом и читаются во время работы — кладём внутрь сборки.
 datas = [
@@ -43,6 +50,8 @@ exe = EXE(
     upx=False,
     console=False,          # без окна терминала — это и есть «обычная программа»
     argv_emulation=sys.platform == "darwin",
+    codesign_identity=SIGN_IDENTITY,
+    entitlements_file=ENTITLEMENTS,
 )
 coll = COLLECT(
     exe, a.binaries, a.datas,

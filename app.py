@@ -27,10 +27,21 @@ async def _profile_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+def _provider_status(cfg: dict) -> dict:
+    """Готов ли выбранный «мозг» приложения. Без него поиск не заработает, и человек
+    должен узнать об этом сразу, а не из ошибки посреди прогона."""
+    key = cfg.get("llm", {}).get("provider", "claude_cli")
+    provs = providers.available(cfg.get("llm", {}).get("claude_bin", "claude"))
+    p = provs.get(key, {})
+    return {"key": key, "ready": bool(p.get("ready")), "name": p.get("name", key)}
+
+
 def render(request, template: str, ctx: dict, cfg: dict = None):
     """Рендер с языком интерфейса и данными о профилях."""
-    lang = (cfg or config.load()).get("ui", {}).get("lang", "ru")
-    ctx = {**ctx, "lang": lang, "t": lambda key: i18n.t(lang, key),
+    cfg_ = cfg or config.load()
+    lang = cfg_.get("ui", {}).get("lang", "ru")
+    ctx = {**ctx, "provider_status": _provider_status(cfg_),
+           "lang": lang, "t": lambda key: i18n.t(lang, key),
            "ui_langs": i18n.UI_LANGS, "output_langs": i18n.OUTPUT_LANGS,
            "profiles": profiles.list_profiles(), "active_profile": profiles.active(),
            "active_name": profiles.name_of(profiles.active())}
