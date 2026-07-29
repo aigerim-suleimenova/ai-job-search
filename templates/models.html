@@ -32,6 +32,16 @@
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
 
+<section class="card" id="pull-card" hidden>
+  <h2>⤓ <span id="pull-model"></span></h2>
+  <div style="background:var(--bg); border-radius:8px; height:10px; overflow:hidden; margin:10px 0">
+    <div id="pull-bar" style="background:var(--accent); height:100%; width:0; transition:width .4s"></div>
+  </div>
+  <p class="meta" id="pull-status"></p>
+  <p class="hint">{{ t('models_pull_hint') }}</p>
+</section>
+
+
 <section class="card">
   <h2>{{ t('models_provider') }}</h2>
   <p class="hint">{{ t('models_provider_hint') }}</p>
@@ -47,7 +57,10 @@
           {% if p.web_search %}<span class="badge ok">{{ t('models_websearch') }}</span>
           {% else %}<span class="badge">{{ t('models_no_websearch') }}</span>{% endif %}
         </p>
-        {% if not p.ready %}<p class="hint">{{ t('prov_' + key + '_hint') }}</p>{% endif %}
+        {% if not p.ready %}
+        <p class="hint">{{ t('prov_' + key + '_hint') }}</p>
+        {% if key == 'ollama' %}<p class="hint">{{ t('models_ollama_steps') }}</p>{% endif %}
+        {% endif %}
         <button {% if current_provider == key %}class="primary"{% endif %} {% if not p.ready %}disabled{% endif %}>
           {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
         </button>
@@ -133,6 +146,26 @@ function filterModels() {
   document.getElementById('count').textContent = shown + ' / ' + document.querySelectorAll('.model-row').length;
 }
 filterModels();
+
+// Скачивание модели идёт в фоне — показываем прогресс, пока оно не закончится.
+async function pollPull() {
+  try {
+    const d = await (await fetch('/models/pull_status')).json();
+    const card = document.getElementById('pull-card');
+    if (!d.model || (d.done && !d.error)) {
+      if (card.hidden === false && d.done) location.reload();
+      card.hidden = true;
+      return;
+    }
+    card.hidden = false;
+    document.getElementById('pull-model').textContent = d.model;
+    document.getElementById('pull-bar').style.width = (d.percent || 0) + '%';
+    document.getElementById('pull-status').textContent =
+      d.error ? d.error : (d.status || '') + (d.percent ? ' — ' + d.percent + '%' : '');
+  } catch (e) { /* сервер перезапускается — просто ждём */ }
+}
+setInterval(pollPull, 2000);
+pollPull();
 </script>
 </body>
 </html>

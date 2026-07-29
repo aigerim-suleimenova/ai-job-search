@@ -536,13 +536,18 @@ async def models_select(request: Request):
 
 @app.post("/models/pull")
 async def models_pull(request: Request):
+    """Скачивание идёт в фоне: модель весит гигабайты, ждать ответа страницы нельзя."""
     form = await request.form()
     model = str(form.get("model", "")).strip()
-    try:
-        providers.pull(model, log=lambda m: None)
-    except providers.ProviderError as e:
-        return _redirect_to("/models", f"Не удалось скачать: {e}")
-    return _redirect_to("/models", f"Модель скачана: {model}")
+    if providers.pull_in_progress():
+        return _redirect_to("/models", "Уже скачивается другая модель — дождитесь окончания")
+    providers.pull_async(model)
+    return _redirect_to("/models", f"Скачивание началось: {model}")
+
+
+@app.get("/models/pull_status")
+def models_pull_status():
+    return JSONResponse(providers.pull_status())
 
 
 @app.get("/cv/check")

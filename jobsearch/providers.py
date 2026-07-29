@@ -7,7 +7,7 @@ Claude Code CLI. Без него работают триаж и разбор в�
 import json
 import shutil
 import subprocess
-from functools import lru_cache
+import threading
 
 import requests
 
@@ -204,9 +204,25 @@ def supports_web_search(provider: str) -> bool:
     return provider in ("", "claude_cli")
 
 
-@lru_cache(maxsize=1)
-def _pull_state() -> dict:
-    return {}
+# Скачивание модели — это гигабайты и минуты, поэтому оно идёт в фоне, а страница
+# опрашивает прогресс. Иначе окно приложения просто замирало бы до конца загрузки.
+_pull_state = {"model": "", "percent": 0, "status": "", "error": "", "done": False}
+_pull_lock = threading.Lock()
+
+
+def pull_status() -> dict:
+    with _pull_lock:
+        return dict(_pull_state)
+
+
+def pull_in_progress() -> bool:
+    with _pull_lock:
+        return bool(_pull_state["model"]) and not _pull_state["done"]
+
+
+def _set_pull(**kw) -> None:
+    with _pull_lock:
+        _pull_state.update(kw)
 
 
 def pull(model: str, log=None) -> bool:
@@ -222,14 +238,36 @@ def pull(model: str, log=None) -> bool:
                     ev = json.loads(line)
                 except ValueError:
                     continue
-                if log and ev.get("status"):
+                if ev.get("status"):
                     total, done = ev.get("total"), ev.get("completed")
-                    if total and done:
-                        log(f"{ev['status']}: {done * 100 // total}%")
-                    else:
-                        log(str(ev["status"]))
+                    percent = (done * 100 // total) if (total and done) else None
+                    _set_pull(status=str(ev["status"]),
+                              **({"percent": percent} if percent is not None else {}))
+                    if log:
+                        log(f"{ev['status']}{f': {percent}%' if percent is not None else ''}")
                 if ev.get("error"):
                     raise ProviderError(str(ev["error"])[:300])
         return True
+    except requests.ConnectionError as e:
+        # самая частая причина: Ollama не установлена или не запущена,
+        # а технический текст исключения тут только пугает
+        raise ProviderError("Ollama не отвечает. Убедитесь, что программа Ollama "
+                            "установлена и запущена, затем попробуйте снова.") from e
     except requests.RequestException as e:
         raise ProviderError(f"Не удалось скачать модель: {e}") from e
+
+
+def pull_async(model: str) -> None:
+    """Запускает скачивание в фоне: страница опрашивает pull_status()."""
+    if pull_in_progress():
+        return
+    _set_pull(model=model, percent=0, status="начинаем", error="", done=False)
+
+    def worker():
+        try:
+            pull(model)
+            _set_pull(percent=100, status="готово", done=True)
+        except ProviderError as e:
+            _set_pull(error=str(e), done=True)
+
+    threading.Thread(target=worker, daemon=True).start()
