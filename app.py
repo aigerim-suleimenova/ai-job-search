@@ -302,7 +302,6 @@ async def simple_start(request: Request, file: UploadFile = None):
     else:
         slug = profiles.active()
 
-    filled_from_cv = False
     if file is not None and file.filename:
         raw = await file.read()
         try:
@@ -317,20 +316,19 @@ async def simple_start(request: Request, file: UploadFile = None):
     cfg["profile"]["linkedin"] = str(form.get("linkedin", "")).strip()
     config.save(cfg)
 
-    cv = config.cv_text()
-    if cv and not (cfg["profile"].get("roles") or cfg["profile"].get("summary")):
-        try:
-            cfg = scoring.profile_from_cv(cfg, cv)
-            config.save(cfg)
-            filled_from_cv = True
-        except llm.ClaudeError as e:
-            return _redirect_to("/simple", f"Не удалось разобрать CV: {e}")
-    if not cv:
+    if not config.cv_text():
         return _redirect_to("/simple", "Загрузите CV — по нему определяются роли и навыки")
 
-    started = pipeline.run_async("manual", profile=slug)
-    note = " Профиль заполнен из CV." if filled_from_cv else ""
-    resp = _redirect_to("/simple", ("Поиск запущен." if started else "Поиск уже идёт.") + note)
+    # Разбор резюме и сам поиск уходят в фон: страница возвращается сразу,
+    # а ход работы виден в строке статуса и в журнале.
+    started = pipeline.prepare_and_run(slug, trigger="manual")
+    if started:
+        note = "Поиск запущен"
+    else:
+        busy = pipeline.state.get("profile", "")
+        note = (f"Сейчас идёт поиск для «{profiles.name_of(busy)}» — ваш начнётся следом"
+                if busy and busy != slug else "Поиск уже идёт")
+    resp = _redirect_to("/simple", note)
     resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
     return resp
 

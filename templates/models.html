@@ -18,6 +18,7 @@
     <a href="/models">{{ t('nav_models') }}</a>
     <a href="/notify">{{ t('nav_notify') }}</a>
   </nav>
+  <div class="toolbar-right">
   <form method="post" action="/set_lang" class="profile-switch">
     <input type="hidden" name="back" value="{{ request.url.path }}">
     <label>
@@ -28,6 +29,7 @@
       </select>
     </label>
   </form>
+  </div>
 </header>
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}

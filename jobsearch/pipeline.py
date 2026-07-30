@@ -53,6 +53,34 @@ def run_async(trigger: str = "manual", profile: str = None) -> bool:
     return True
 
 
+def prepare_and_run(profile: str, trigger: str = "manual") -> bool:
+    """Разбор резюме моделью занимает до полутора минут. Раньше это делалось прямо
+    в обработчике формы, и человек всё это время смотрел на застывшую страницу без
+    единого признака жизни. Теперь подготовка — такая же видимая стадия прогона."""
+    if state["running"]:
+        return False
+
+    def worker():
+        profiles.set_active(profile)
+        state.update(running=True, stage="разбираем резюме", log=[], profile=profile)
+        _log("Готовим профиль по резюме — это занимает до полутора минут")
+        try:
+            cfg = config.load()
+            cv = config.cv_text()
+            if cv and not (cfg["profile"].get("roles") or cfg["profile"].get("summary")):
+                cfg = scoring.profile_from_cv(cfg, cv)
+                config.save(cfg)
+                _log(f"Из резюме определены роли: {cfg['profile'].get('roles', '')[:80]}")
+        except Exception as e:  # noqa: BLE001 — не смогли разобрать, ищем по тому, что есть
+            _log(f"Не удалось разобрать резюме автоматически: {e}")
+        finally:
+            state.update(running=False)
+        run(trigger, profile)
+
+    threading.Thread(target=worker, daemon=True).start()
+    return True
+
+
 def run(trigger: str = "manual", profile: str = None) -> None:
     if not _run_lock.acquire(blocking=False):
         return

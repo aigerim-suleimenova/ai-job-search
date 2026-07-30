@@ -18,6 +18,7 @@
     <a href="/models">{{ t('nav_models') }}</a>
     <a href="/notify">{{ t('nav_notify') }}</a>
   </nav>
+  <div class="toolbar-right">
   <form method="post" action="/profile/switch" class="profile-switch">
     <label>{{ t('person') }}
       <select name="slug" onchange="this.form.submit()">
@@ -37,6 +38,7 @@
       </select>
     </label>
   </form>
+  </div>
 </header>
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
@@ -73,7 +75,7 @@
   <h2>{{ t('simple_title') }}</h2>
   <p class="hint">{{ t('simple_hint') }}</p>
 
-  <form method="post" action="/simple/start" enctype="multipart/form-data">
+  <form method="post" action="/simple/start" enctype="multipart/form-data" id="start-form">
     <label>{{ t('simple_person') }}
       <input name="person" placeholder="{{ t('simple_person_ph') }}" value="{{ active_name }}">
     </label>
@@ -95,7 +97,8 @@
     </label>
 
     <div class="row" style="margin-top:18px">
-      <button class="primary" {% if state.running %}disabled{% endif %}>{{ t('simple_go') }}</button>
+      <button class="primary" id="start-btn" {% if state.running %}disabled{% endif %}
+              data-busy="{{ t('simple_starting') }}">{{ t('simple_go') }}</button>
       <span class="hint">{{ t('simple_go_hint') }}</span>
     </div>
   </form>
@@ -120,5 +123,14 @@ setInterval(async () => {
 }, 4000);
 </script>
 {% endif %}
+<script>
+// Форма уходит на сервер, дальше работа идёт в фоне — но нажатие должно
+// отзываться мгновенно, иначе кажется, что приложение зависло.
+const startForm = document.getElementById('start-form');
+if (startForm) startForm.addEventListener('submit', () => {
+  const b = document.getElementById('start-btn');
+  if (b) { b.textContent = b.dataset.busy; b.disabled = true; }
+});
+</script>
 </body>
 </html>

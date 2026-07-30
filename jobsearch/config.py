@@ -102,8 +102,8 @@ DEFAULTS = {
     },
     "ui": {
         "background": False,         # продолжать поиск после закрытия окна
-        "lang": "ru",                # язык интерфейса: ru | en
-        "output_lang": "ru",         # язык результатов ИИ: ru | en | de
+        "lang": "",                  # пусто = взять язык системы при первом запуске
+        "output_lang": "",           # пусто = как язык интерфейса
     },
 }
 
@@ -136,6 +136,12 @@ def load() -> dict:
     if "mode" not in sched and "enabled" in sched:
         cfg["schedule"]["mode"] = "interval" if sched.get("enabled") else "off"
     cfg["schedule"].pop("enabled", None)
+    # Язык не выбран (первый запуск) — берём системный, а не чужой по умолчанию.
+    if not cfg["ui"].get("lang"):
+        from . import i18n
+        cfg["ui"]["lang"] = i18n.system_lang()
+    if not cfg["ui"].get("output_lang"):
+        cfg["ui"]["output_lang"] = cfg["ui"]["lang"]
     return cfg
 
 

@@ -18,6 +18,7 @@
     <a href="/models">{{ t('nav_models') }}</a>
     <a href="/notify">{{ t('nav_notify') }}</a>
   </nav>
+  <div class="toolbar-right">
   <form method="post" action="/profile/switch" class="profile-switch">
     <label>{{ t('person') }}
       <select name="slug" onchange="this.form.submit()">
@@ -37,6 +38,7 @@
       </select>
     </label>
   </form>
+  </div>
 </header>
 
 <section class="card">

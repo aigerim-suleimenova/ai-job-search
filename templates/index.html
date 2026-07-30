@@ -18,6 +18,7 @@
     <a href="/models">{{ t('nav_models') }}</a>
     <a href="/notify">{{ t('nav_notify') }}</a>
   </nav>
+  <div class="toolbar-right">
   <form method="post" action="/profile/switch" class="profile-switch">
     <label>{{ t('person') }}
       <select name="slug" onchange="this.form.submit()">
@@ -37,6 +38,7 @@
       </select>
     </label>
   </form>
+  </div>
 </header>
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
@@ -67,7 +69,7 @@
     {% elif next_run %}<span class="state-mode">{{ t('next_run') }} {{ next_run }}</span>{% endif %}
   </div>
   <div class="row" style="margin:0; gap:8px">
-    <form method="post" action="/run" style="margin:0">
+    <form method="post" action="/run" style="margin:0" onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = '{{ t('simple_starting') }}'">
       <button class="primary" {% if state.running %}disabled{% endif %}>{{ t('run_now') }}</button>
     </form>
     {% if state.running %}

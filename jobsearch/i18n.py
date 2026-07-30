@@ -1,9 +1,43 @@
-"""Локализация: язык интерфейса (ru/en) и язык результатов ИИ (ru/en/de/it/it-en)."""
+"""Локализация: язык интерфейса (ru/en/it/de) и язык результатов ИИ."""
+import locale
+import os
+import platform
+import subprocess
 
-# Как называется язык в переключателях
-UI_LANGS = {"ru": "Русский", "en": "English", "it": "Italiano", "de": "Deutsch"}
-OUTPUT_LANGS = {"ru": "Русский", "en": "English", "de": "Deutsch",
-                "it": "Italiano", "it-en": "Italiano + English"}
+# Языки в переключателях — по алфавиту, как принято в системных списках.
+UI_LANGS = {"de": "Deutsch", "en": "English", "it": "Italiano", "ru": "Русский"}
+OUTPUT_LANGS = {"de": "Deutsch", "en": "English", "it": "Italiano",
+                "it-en": "Italiano + English", "ru": "Русский"}
+
+
+def system_lang(default: str = "en") -> str:
+    """Язык системы — чтобы при первом запуске не показывать чужой язык.
+
+    Приложение из Finder не получает LANG, поэтому на macOS спрашиваем систему
+    напрямую; на Windows — API языка интерфейса; иначе смотрим переменные среды.
+    """
+    code = ""
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            out = subprocess.run(["defaults", "read", "-g", "AppleLocale"],
+                                 capture_output=True, text=True, timeout=5).stdout.strip()
+            code = out.split("@")[0].split("_")[0]
+        elif system == "Windows":
+            import ctypes
+            lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+            code = locale.windows_locale.get(lcid, "").split("_")[0]
+    except Exception:  # noqa: BLE001 — определение языка не должно ронять запуск
+        code = ""
+    if not code:
+        env = os.environ.get("LANG") or os.environ.get("LC_ALL") or ""
+        code = env.split(".")[0].split("_")[0]
+    if not code:
+        try:
+            code = (locale.getdefaultlocale()[0] or "").split("_")[0]
+        except Exception:  # noqa: BLE001
+            code = ""
+    return code if code in UI_LANGS else default
 
 # Инструкция модели, на каком языке писать результаты (оценки, правки, дайджест)
 OUTPUT_INSTRUCTION = {
@@ -237,6 +271,9 @@ TR = {
                        "de": "Noch kein Lebenslauf — ohne ihn startet die Suche nicht."},
     "simple_go": {"ru": "Начать поиск", "en": "Start searching",
                   "it": "Avvia la ricerca", "de": "Suche starten"},
+    "simple_starting": {"ru": "Запускаем…", "en": "Starting…", "it": "Avvio…", "de": "Wird gestartet…"},
+    "stage_cv": {"ru": "разбираем резюме", "en": "reading the CV",
+                 "it": "analisi del CV", "de": "Lebenslauf wird gelesen"},
     "simple_go_hint": {"ru": "Первый прогон занимает 20–40 минут. Результаты появятся на странице «Результаты».",
                        "en": "The first run takes 20–40 minutes. Results appear on the Results page.",
                        "it": "La prima esecuzione richiede 20–40 minuti. I risultati compaiono nella pagina Risultati.",
