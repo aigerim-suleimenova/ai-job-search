@@ -38,7 +38,8 @@
         </p>
         {% if not p.ready %}
         <p class="hint">{{ t('prov_' + key + '_hint') }}</p>
-        {% if key == 'ollama' %}<p class="hint">{{ t('models_ollama_steps') }}</p>{% endif %}
+        {% elif current_provider == key %}
+        <p class="hint">{{ t('models_current') }}: {{ current_model_name }}</p>
         {% endif %}
         <button {% if current_provider == key %}class="primary"{% endif %} {% if not p.ready %}disabled{% endif %}>
           {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
@@ -70,7 +71,7 @@
 
   <div id="list">
     {% for m in models %}
-    <div class="card job model-row {% if m.id == current_model %}direct{% endif %}" style="margin-bottom:10px"
+    <div class="model-row {% if m.id == current_model %}current{% endif %}"
          data-name="{{ m.name|lower }} {{ m.get('origin','')|lower }} {{ m.id|lower }}"
          data-fits="{{ m.fits }}">
       <div class="row" style="justify-content:space-between; align-items:flex-start; gap:14px">

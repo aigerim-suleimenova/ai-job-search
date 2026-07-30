@@ -52,7 +52,7 @@
 </section>
 
 <section class="card">
-  <h2>✉️ {{ t('notify_email') }}
+  <h2>{{ t('notify_email') }}
     {% if cfg.email.enabled and cfg.email.username %}
     <span class="badge ok">{{ t('notify_connected') }}</span>
     {% else %}<span class="badge">{{ t('notify_not_set') }}</span>{% endif %}

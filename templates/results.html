@@ -70,6 +70,7 @@
     <a href="/export/report?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}"><button type="button">{{ t('export_report') }}</button></a>
   </div>
   <p class="hint" style="margin:8px 0 0">{{ t('export_hint') }}</p>
+  <p class="hint" style="margin:6px 0 0">{{ t('verified_hint') }}</p>
 </section>
 {% endif %}
 
@@ -85,8 +86,6 @@
   </div>
 </section>
 {% endif %}
-
-{% if jobs %}<p class="hint">{{ t('verified_hint') }}</p>{% endif %}
 
 {% if not jobs %}
 <section class="card"><p>{{ t('results_none') }}</p></section>

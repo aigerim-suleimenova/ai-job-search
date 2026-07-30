@@ -192,7 +192,16 @@ select {
   background-position: right 9px center;
 }
 input[type="file"] {
-  padding: 6px; background: transparent; border-style: dashed; font-size: 12.5px;
+  /* поле выбора файла стояло в строку с подписью, а все остальные — под ней */
+  display: block; margin-top: 5px;
+  padding: 5px 8px; background: var(--card-2); font-size: 12.5px;
+  height: 30px; line-height: 18px; width: auto; max-width: 340px;
+}
+input[type="file"]::file-selector-button {
+  height: 20px; margin: 0 10px 0 0; padding: 0 10px;
+  border: 1px solid var(--border-strong); border-radius: 5px;
+  background: var(--card); color: var(--text);
+  font: inherit; font-size: 12px; cursor: pointer;
 }
 
 label.check {
@@ -380,9 +389,13 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 .job-actions .open-link:hover { text-decoration: underline; }
 
 /* Панель фильтров результатов: подписи компактные, всё в одну линию */
-.filters { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; margin-top: 14px; }
-.filters label { margin: 0; font-size: 11.5px; }
-.filters select { min-width: 150px; }
+.filters {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px; align-items: end; margin-top: 14px;
+}
+@media (max-width: 780px) { .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.filters label { margin: 0; font-size: 11.5px; min-width: 0; }
+.filters select { min-width: 0; width: 100%; }
 
 /* --- Карточки провайдеров: одинаковая высота, кнопка прижата вниз --- */
 
@@ -401,3 +414,22 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 
 /* компактная строка со сведениями об устройстве */
 .device-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+
+/* Строка списка моделей: раньше это была .card внутри .card — вложенная тень и
+   своя ширина ломали ритм страницы. Теперь это строка списка, как в Настройках. */
+.model-row {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.model-row:last-child { margin-bottom: 0; }
+.model-row.current {
+  background: color-mix(in srgb, var(--accent) 5%, var(--card-2));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.model-row form { margin: 0; }
+
+/* Кнопка сохранения формы настроек: тот же ритм, что между карточками */
+.actions { display: flex; gap: 10px; margin: 0 0 14px; }

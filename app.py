@@ -527,9 +527,11 @@ def models_page(request: Request, msg: str = ""):
     provider = cfg["llm"].get("provider", "claude_cli")
     provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
     current_model = cfg["llm"].get("triage_model", "haiku")
+    catalog = providers.models_for(provider)
     return render(request, "models.html", {
         "cfg": cfg, "msg": msg, "provs": provs, "current_provider": provider,
-        "current_model": current_model, "models": providers.models_for(provider),
+        "current_model": current_model, "models": catalog,
+        "current_model_name": next((m["name"] for m in catalog if m["id"] == current_model), current_model),
         "specs": hardware.specs(),
     }, cfg=cfg)
 
