@@ -755,6 +755,11 @@ TR = {
         "en": "Scored: {n}. Going deep on {above} above the threshold + {near} near misses (≥{margin}%)",
         "it": "Valutate: {n}. Analisi approfondita per {above} sopra soglia + {near} vicine (≥{margin}%)",
         "de": "Bewertet: {n}. Tiefe Analyse für {above} über der Schwelle + {near} knappe (≥{margin}%)"},
+    "log_triage_done_nodeep": {
+        "ru": "Оценено: {n}, из них выше порога: {above}. Глубокий разбор выключен — оценки предварительные, разобрать вакансию можно кнопкой в списке.",
+        "en": "Scored: {n}, {above} above the threshold. Deep analysis is off — these scores are preliminary; analyse a job with the button on its card.",
+        "it": "Valutate: {n}, di cui {above} sopra soglia. L'analisi approfondita è disattivata — i punteggi sono provvisori; analizzate un'offerta col pulsante sulla sua scheda.",
+        "de": "Bewertet: {n}, davon {above} über der Schwelle. Die Tiefenanalyse ist aus — die Punktzahlen sind vorläufig; einzelne Stellen analysieren Sie mit der Schaltfläche auf der Karte."},
     "log_deep_item": {
         "ru": "разбор {i}/{total}: {title} @ {company}{tail}",
         "en": "analysing {i}/{total}: {title} @ {company}{tail}",
@@ -1007,6 +1012,41 @@ TR = {
     "drop_off_target": {"ru": "Отсеивать явно нерелевантные роли (продажи, HR, саппорт) до LLM-оценки", "en": "Filter out clearly non-matching roles (sales, HR, support) before LLM scoring", "it": "Filtrare i ruoli chiaramente non pertinenti (vendite, HR, supporto) prima della valutazione LLM", "de": "Eindeutig unpassende Rollen (Vertrieb, HR, Support) vor der LLM-Bewertung herausfiltern"},
     "triage_second_vote": {"ru": "Второе мнение для пограничных оценок — меньше пропущенных хороших вакансий (чуть дороже)", "en": "Second opinion for borderline scores — fewer missed good jobs (slightly more expensive)", "it": "Secondo parere per i punteggi al limite — meno offerte valide perse (leggermente più costoso)", "de": "Zweitmeinung für Grenzfälle — weniger übersehene gute Stellen (etwas teurer)"},
     "triage_limit": {"ru": "Предел вакансий на LLM-оценку за прогон", "en": "Max jobs for LLM scoring per run", "it": "Numero massimo di offerte per la valutazione LLM per esecuzione", "de": "Max. Stellen pro Lauf für die LLM-Bewertung"},
+    "deep_during_run": {
+        "ru": "Разбирать глубоко во время прогона",
+        "en": "Analyse deeply during the run",
+        "it": "Analisi approfondita durante l'esecuzione",
+        "de": "Tiefe Analyse während des Durchlaufs"},
+    "deep_during_run_hint": {
+        "ru": "Выключите — и прогон будет только оценивать вакансии, без советов по CV и без точных оценок. Это заметно дешевле и быстрее, а разобрать нужную можно потом кнопкой у неё в списке.",
+        "en": "Turn this off and a run only scores jobs — no CV advice, no precise scores. Noticeably cheaper and faster; you can then analyse any single job with the button on its card.",
+        "it": "Disattivatelo e l'esecuzione si limiterà a valutare le offerte, senza consigli sul CV né punteggi precisi. È molto più economico e veloce; poi potete analizzare la singola offerta col pulsante sulla sua scheda.",
+        "de": "Ausschalten, und ein Durchlauf bewertet nur — ohne CV-Tipps und ohne genaue Punktzahl. Deutlich billiger und schneller; einzelne Stellen analysieren Sie danach mit der Schaltfläche auf der Karte."},
+    "back_to_top": {
+        "ru": "Наверх",
+        "en": "Back to top",
+        "it": "Torna su",
+        "de": "Nach oben"},
+    "job_analyse": {
+        "ru": "Разобрать эту",
+        "en": "Analyse this one",
+        "it": "Analizza questa",
+        "de": "Diese analysieren"},
+    "job_analysing": {
+        "ru": "Разбираем… (до минуты)",
+        "en": "Analysing… (up to a minute)",
+        "it": "Analisi in corso… (fino a un minuto)",
+        "de": "Wird analysiert… (bis zu einer Minute)"},
+    "msg_analysed": {
+        "ru": "Разобрано: {title} — оценка {score}%",
+        "en": "Analysed: {title} — score {score}%",
+        "it": "Analizzata: {title} — punteggio {score}%",
+        "de": "Analysiert: {title} — Bewertung {score}%"},
+    "msg_analyse_failed": {
+        "ru": "Не удалось разобрать: {error}",
+        "en": "Could not analyse it: {error}",
+        "it": "Non è stato possibile analizzarla: {error}",
+        "de": "Analyse nicht möglich: {error}"},
     "deep_top_n": {"ru": "Глубокий разбор (правки CV) для топ-N", "en": "Deep analysis (CV edits) for top-N", "it": "Analisi approfondita (modifiche al CV) per le prime N", "de": "Tiefenanalyse (CV-Anpassungen) für die Top-N"},
     "parallelism": {"ru": "Параллельных LLM-вызовов (быстрее, но нагрузка выше)", "en": "Parallel LLM calls (faster, higher load)", "it": "Chiamate LLM parallele (più veloce, ma carico maggiore)", "de": "Parallele LLM-Aufrufe (schneller, aber höhere Last)"},
     "parallelism_hint": {"ru": "При параллельной оценке за один прогон успевают оцениться все новые вакансии, а не только первые несколько десятков — очередь не копится.", "en": "With parallel scoring, a single run evaluates all new jobs, not just the first few dozen — no backlog builds up.", "it": "Con la valutazione parallela, una singola esecuzione valuta tutte le nuove offerte, non solo le prime decine — non si accumula alcun arretrato.", "de": "Bei paralleler Bewertung wertet ein einzelner Lauf alle neuen Stellen aus, nicht nur die ersten paar Dutzend — es staut sich kein Rückstand an."},

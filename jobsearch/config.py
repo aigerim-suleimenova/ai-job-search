@@ -51,6 +51,7 @@ DEFAULTS = {
         "keywords_exclude": "",
         "include_remote": True,
         "triage_limit": 400,         # верхний предел вакансий на LLM-триаж за прогон
+        "deep_during_run": True,     # разбирать глубоко прямо в прогоне
         "deep_top_n": 15,            # для скольких лучших делать разбор CV
         "discover_per_run": 5,       # сколько новых компаний искать веб-поиском за прогон
         "discover_ats_per_run": 5,   # сколько вакансий искать веб-поиском прямо на доменах ATS

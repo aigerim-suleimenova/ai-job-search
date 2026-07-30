@@ -1,6 +1,7 @@
 """Веб-интерфейс: страница настроек, результаты, запуск поиска."""
 import json
 import sys
+import threading
 import webbrowser
 from datetime import date
 from pathlib import Path
@@ -272,6 +273,7 @@ async def save(request: Request, then: str = ""):
             discover_per_run=max(0, num("discover_per_run", 5)),
             discover_ats_per_run=max(0, num("discover_ats_per_run", 5)),
             parallelism=max(1, min(10, num("parallelism", 5))),
+            deep_during_run=flag("deep_during_run"),
             research_company=flag("research_company"),
         )
     if section_present("companies", "use_remotive", "adzuna_app_id"):
@@ -512,7 +514,7 @@ def _posted_label(posted: str, lang: str) -> str:
 @app.get("/results")
 def results(request: Request, min: int = 50, sort: str = "default",
             viewed: str = "all", source: str = "all", run: int = 0,
-            posted_from: str = "", posted_to: str = ""):
+            posted_from: str = "", posted_to: str = "", msg: str = ""):
     cfg = config.load()
     lang = cfg.get("ui", {}).get("lang", "ru")
     jobs = db.matched_jobs(min_score=min, sort=sort, viewed=viewed, source=source, run_id=run,
@@ -531,7 +533,9 @@ def results(request: Request, min: int = 50, sort: str = "default",
         {"jobs": jobs, "runs": runs, "min_score": min,
          "threshold": threshold, "suggest_threshold": suggest,
          "sort": sort, "viewed": viewed, "source": source, "run": run,
-         "posted_from": posted_from, "posted_to": posted_to,
+         "posted_from": posted_from, "posted_to": posted_to, "msg": msg,
+         "analysing": [int(k.split(":", 1)[1]) for k, v in _deep_state.items()
+                       if k.startswith(f"{profiles.active()}:") and v.get("running")],
          "counts": db.counts(min), "sorts": list(db.SORTS.keys()),
          "noauth": _last_run_noauth(),
          "state": {"running": mine_running(), "stage": _msg(pipeline.state["stage"])
@@ -559,6 +563,70 @@ async def viewed_all(request: Request):
     db.mark_all_viewed(min_score)
     back = str(form.get("back", "/results"))
     return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
+
+
+# Разбор одной вакансии по кнопке. Модель думает минуту-другую — держать
+# страницу всё это время нельзя (WebKit сам оборвёт запрос), поэтому разбор идёт
+# в фоне, а страница опрашивает /analyse/status и перерисовывается, когда готово.
+_deep_state: dict[str, dict] = {}   # «профиль:id вакансии» → что с ней сейчас
+
+
+def _deep_key(job_id: int) -> str:
+    return f"{profiles.active()}:{job_id}"
+
+
+@app.post("/analyse/{job_id}")
+async def analyse_job(job_id: int, request: Request):
+    form = await request.form()
+    back = str(form.get("back", "/results"))
+    if not back.startswith("/"):
+        back = "/results"
+    job = db.get_job(job_id)
+    if not job:
+        return RedirectResponse(back, status_code=303)
+    key = _deep_key(job_id)
+    if _deep_state.get(key, {}).get("running"):
+        return RedirectResponse(back, status_code=303)
+    cfg, cv, profile = config.load(), config.cv_text(), profiles.active()
+    _deep_state[key] = {"running": True, "error": ""}
+
+    def worker():
+        profiles.set_active(profile)
+        notes: list = []
+        try:
+            scoring.deep_analyze(job, cfg, cv, notes.append,
+                                 research=bool(cfg["search"].get("research_company", True)))
+            if not job.get("verified"):
+                # deep_analyze не бросает исключение, а пишет причину в журнал
+                raise RuntimeError(notes[-1] if notes else _msg("msg_analyse_failed",
+                                                                title=job.get("title", "")))
+            db.save_job(job, int(job.get("run_id") or 0))
+            _deep_state[key] = {"running": False, "error": "",
+                                "msg": _msg("msg_analysed", title=job.get("title", ""),
+                                            score=job.get("score", 0))}
+        except Exception as e:
+            _deep_state[key] = {"running": False, "error": str(e)}
+
+    threading.Thread(target=worker, daemon=True).start()
+    return RedirectResponse(back, status_code=303)
+
+
+@app.get("/analyse/status")
+def analyse_status():
+    """Какие вакансии этого человека сейчас разбираются, а какие уже готовы."""
+    prefix = f"{profiles.active()}:"
+    running, done, failed = [], {}, {}
+    for key, st in list(_deep_state.items()):
+        if not key.startswith(prefix):
+            continue
+        job_id = key.split(":", 1)[1]
+        if st.get("running"):
+            running.append(int(job_id))
+        elif st.get("error"):
+            failed[job_id] = st["error"]
+        else:
+            done[job_id] = st.get("msg", "")
+    return JSONResponse({"running": running, "done": done, "failed": failed})
 
 
 @app.get("/notify")

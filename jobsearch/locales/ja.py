@@ -483,4 +483,12 @@ STRINGS = {
 "error_hint": "ページが開きませんでした。これはプログラムの不具合で、データの問題ではありません。データは無事です。",
 "error_log": "詳細はこちらに記録されています：",
 "error_back": "検索に戻る",
+"deep_during_run": "実行中に深掘りする",
+"deep_during_run_hint": "오프にすると実行は採点だけになります — 履歴書の助言も正確な点数もありません。かなり安く速くなり、個別の求人は後からカードのボタンで深掘りできます。",
+"job_analyse": "これを深掘り",
+"job_analysing": "深掘り中…（最大 1 分）",
+"msg_analysed": "深掘り完了：{title} — 点数 {score}%",
+"msg_analyse_failed": "深掘りできませんでした：{error}",
+"back_to_top": "先頭へ戻る",
+"log_triage_done_nodeep": "評価：{n} 件、うち基準超えは {above} 件。深掘りはオフです — 点数は暫定で、個別の求人はカードのボタンから深掘りできます。",
 }

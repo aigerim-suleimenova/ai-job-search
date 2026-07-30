@@ -483,4 +483,12 @@ STRINGS = {
 "error_hint": "La página no se ha abierto. Es un fallo del programa, no de sus datos: están intactos.",
 "error_log": "Los detalles están en:",
 "error_back": "Volver a la búsqueda",
+"deep_during_run": "Analizar a fondo durante la ejecución",
+"deep_during_run_hint": "Desactívelo y la ejecución solo puntuará las ofertas, sin consejos para el CV ni puntuaciones precisas. Sale bastante más barato y rápido; luego puede analizar una oferta concreta con el botón de su tarjeta.",
+"job_analyse": "Analizar esta",
+"job_analysing": "Analizando… (hasta un minuto)",
+"msg_analysed": "Analizada: {title} — puntuación {score}%",
+"msg_analyse_failed": "No se ha podido analizar: {error}",
+"back_to_top": "Volver arriba",
+"log_triage_done_nodeep": "Puntuadas: {n}, de ellas {above} sobre el umbral. El análisis a fondo está desactivado: las puntuaciones son provisionales; analizad una oferta con el botón de su tarjeta.",
 }

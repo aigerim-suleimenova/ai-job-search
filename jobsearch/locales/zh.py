@@ -483,4 +483,12 @@ STRINGS = {
 "error_hint": "页面没能打开。这是程序的问题，不是你的数据——数据完好。",
 "error_log": "详细信息写入了：",
 "error_back": "回到搜索",
+"deep_during_run": "运行时进行深度分析",
+"deep_during_run_hint": "关掉它，运行就只做评分——没有简历建议，也没有精确分数。明显更便宜更快；之后可以用卡片上的按钮单独分析某一条。",
+"job_analyse": "分析这条",
+"job_analysing": "正在分析…（最多一分钟）",
+"msg_analysed": "已分析：{title} — 得分 {score}%",
+"msg_analyse_failed": "无法分析：{error}",
+"back_to_top": "回到顶部",
+"log_triage_done_nodeep": "已评分：{n}，其中 {above} 个超过阈值。深度分析已关闭——这些分数只是初步的，可用卡片上的按钮单独分析。",
 }

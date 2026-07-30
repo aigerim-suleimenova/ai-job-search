@@ -19,3 +19,21 @@
     {% endfor %}
   </span>
 </footer>
+
+{# Списки бывают в сотни экранов — «вверх» должно быть под рукой, а не в конце пути. #}
+<button type="button" id="to-top" class="to-top" hidden
+        title="{{ t('back_to_top') }}" aria-label="{{ t('back_to_top') }}">
+  <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none"
+       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 19V6M5 13l7-7 7 7"/>
+  </svg>
+</button>
+<script>
+(() => {
+  const btn = document.getElementById('to-top');
+  const toggle = () => { btn.hidden = scrollY < 500; };
+  addEventListener('scroll', toggle, { passive: true });
+  btn.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+  toggle();
+})();
+</script>

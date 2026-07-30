@@ -483,4 +483,12 @@ STRINGS = {
 "error_hint": "Strona się nie otworzyła. To błąd programu, nie twoich danych — te są całe.",
 "error_log": "Szczegóły zapisano w:",
 "error_back": "Wróć do szukania",
+"deep_during_run": "Głęboka analiza w trakcie przebiegu",
+"deep_during_run_hint": "Wyłącz, a przebieg tylko oceni oferty — bez porad do CV i bez dokładnych ocen. Wyraźnie taniej i szybciej; pojedynczą ofertę rozbierzesz potem przyciskiem na jej karcie.",
+"job_analyse": "Rozbierz tę",
+"job_analysing": "Analizujemy… (do minuty)",
+"msg_analysed": "Rozebrana: {title} — ocena {score}%",
+"msg_analyse_failed": "Nie udało się rozebrać: {error}",
+"back_to_top": "Do góry",
+"log_triage_done_nodeep": "Ocenione: {n}, w tym {above} powyżej progu. Głęboka analiza jest wyłączona — oceny są wstępne; pojedynczą ofertę rozbierzesz przyciskiem na jej karcie.",
 }

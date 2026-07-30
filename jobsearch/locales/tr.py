@@ -483,4 +483,12 @@ STRINGS = {
 "error_hint": "Sayfa açılmadı. Bu programın hatası, verilerinizin değil — onlar yerinde.",
 "error_log": "Ayrıntılar şuraya yazıldı:",
 "error_back": "Aramaya dön",
+"deep_during_run": "Çalıştırma sırasında derin inceleme yap",
+"deep_during_run_hint": "Kapatın, çalıştırma yalnızca puanlasın — CV önerisi ve kesin puan olmadan. Belirgin şekilde ucuz ve hızlı; tek bir ilanı sonra kartındaki düğmeyle inceletirsiniz.",
+"job_analyse": "Bunu incele",
+"job_analysing": "İnceleniyor… (bir dakikaya kadar)",
+"msg_analysed": "İncelendi: {title} — puan {score}%",
+"msg_analyse_failed": "İncelenemedi: {error}",
+"back_to_top": "Başa dön",
+"log_triage_done_nodeep": "Puanlanan: {n}, bunların {above} tanesi eşiğin üzerinde. Derin inceleme kapalı — puanlar ön puandır; tek bir ilanı kartındaki düğmeyle inceleyebilirsiniz.",
 }

@@ -309,12 +309,17 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                       key=lambda j: (not j.get("from_watchlist"), -j["score"]))
         top_n = int(cfg["search"].get("deep_top_n", 15))
         max_deep = max(top_n, len(above)) + 5  # мягкий потолок, чтобы не разориться
-        to_deep = (above + near[:top_n])[:max_deep]
+        # Разбор можно выключить: тогда прогон только оценивает, а разобрать
+        # конкретную вакансию человек попросит кнопкой у неё в списке.
+        to_deep = (above + near[:top_n])[:max_deep] if cfg["search"].get("deep_during_run", True) else []
         for j in scored:  # остальные сохраняем сразу с триажным баллом
             if j not in to_deep:
                 db.save_job(j, run_id)
-        _logk("log_triage_done", n=len(scored), above=len(above),
-              near=len(to_deep) - len(above), margin=threshold - keep_margin)
+        if to_deep:
+            _logk("log_triage_done", n=len(scored), above=len(above),
+                  near=len(to_deep) - len(above), margin=threshold - keep_margin)
+        else:
+            _logk("log_triage_done_nodeep", n=len(scored), above=len(above))
 
         # 7. Глубокий разбор (параллельно): точный %, правки CV и LinkedIn,
         # плюс, если включено, зарплата и факты о компании из веб-поиска

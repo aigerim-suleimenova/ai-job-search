@@ -203,6 +203,8 @@
     </label>
   </div>
   <p class="hint">{{ t('parallelism_hint') }}</p>
+  <label class="check"><input type="checkbox" name="deep_during_run" {% if cfg.search.deep_during_run %}checked{% endif %}> {{ t('deep_during_run') }}</label>
+  <p class="hint">{{ t('deep_during_run_hint') }}</p>
   <label class="check"><input type="checkbox" name="research_company" {% if cfg.search.research_company %}checked{% endif %}> {{ t('research_company') }}</label>
   <p class="hint">{{ t('research_hint') }}</p>
 </section>

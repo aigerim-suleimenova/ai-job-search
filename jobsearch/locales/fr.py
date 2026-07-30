@@ -483,4 +483,12 @@ STRINGS = {
 "error_hint": "La page ne s'est pas ouverte. C'est un défaut du programme, pas de vos données : elles sont intactes.",
 "error_log": "Les détails sont écrits dans :",
 "error_back": "Retour à la recherche",
+"deep_during_run": "Analyser en profondeur pendant l'exécution",
+"deep_during_run_hint": "Désactivez-le et l'exécution se contente de noter les offres, sans conseils CV ni notes précises. Nettement moins cher et plus rapide ; vous analyserez ensuite une offre précise avec le bouton de sa carte.",
+"job_analyse": "Analyser celle-ci",
+"job_analysing": "Analyse en cours… (jusqu'à une minute)",
+"msg_analysed": "Analysée : {title} — note {score}%",
+"msg_analyse_failed": "Analyse impossible : {error}",
+"back_to_top": "Revenir en haut",
+"log_triage_done_nodeep": "Évaluées : {n}, dont {above} au-dessus du seuil. L'analyse approfondie est désactivée — ces notes sont provisoires ; analysez une offre avec le bouton sur sa fiche.",
 }
