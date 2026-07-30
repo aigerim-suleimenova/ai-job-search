@@ -39,6 +39,17 @@ def _provider_status(cfg: dict) -> dict:
     return {"key": key, "ready": bool(p.get("ready")), "name": p.get("name", key)}
 
 
+def _last_run_noauth() -> str:
+    """Текст ошибки последнего прогона, если он встал из-за входа в модель."""
+    runs = db.recent_runs(1)
+    if not runs or runs[0]["status"] != "noauth":
+        return ""
+    for line in reversed((runs[0]["log"] or "").splitlines()):
+        if line.startswith("Модель не отвечает: "):
+            return line.split(": ", 1)[1][:200]
+    return "—"
+
+
 def _msg(key: str, **fmt) -> str:
     """Всплывающее сообщение на языке интерфейса, а не всегда по-русски."""
     lang = config.load().get("ui", {}).get("lang", "ru")
@@ -314,6 +325,7 @@ def simple(request: Request, msg: str = ""):
                   "steps": pipeline.STAGE_COUNT,
                   "stage": _msg(pipeline.state["stage"]) if mine and pipeline.state["stage"] else ""},
         "found": db.counts(int(cfg["search"].get("threshold") or 70))["total"],
+        "noauth": _last_run_noauth(),
     }, cfg=cfg)
 
 
@@ -467,7 +479,8 @@ def results(request: Request, min: int = 50, sort: str = "default",
         {"jobs": jobs, "runs": runs, "min_score": min,
          "threshold": threshold, "suggest_threshold": suggest,
          "sort": sort, "viewed": viewed, "source": source, "run": run,
-         "counts": db.counts(min), "sorts": list(db.SORTS.keys())},
+         "counts": db.counts(min), "sorts": list(db.SORTS.keys()),
+         "noauth": _last_run_noauth()},
         cfg=cfg,
     )
 

@@ -352,6 +352,12 @@ def run(trigger: str = "manual", profile: str = None) -> None:
     except (Stopped, llm.Cancelled):
         status = "stopped"
         _log("Прогон остановлен пользователем — найденное сохранено")
+    except llm.AuthError as e:
+        # Вакансии собрать можно и без модели, но оценить их — нельзя, поэтому
+        # прогон останавливается здесь, а не молча доходит до конца с нулём.
+        status = "noauth"
+        _log(f"Модель не отвечает: {e}")
+        _log("Оценивать вакансии нечем — прогон остановлен.")
     except Exception:  # noqa: BLE001
         status = "error"
         _log("ОШИБКА:\n" + traceback.format_exc(limit=6))

@@ -409,4 +409,6 @@ STRINGS = {
 "run_in_progress": "Szukanie w toku",
 "donate_hint": "Program jest darmowy i działa na twoim komputerze. Jeśli się przydał, możesz wesprzeć autora:",
 "donate_title": "Wesprzyj projekt",
+"noauth_title": "Model nie wpuszcza",
+"noauth_hint": "Ostatni przebieg zebrał oferty, ale nie było czym ich ocenić: {name} odpowiada „{error}”. Otwórz ten program, zaloguj się i uruchom szukanie ponownie. Albo wybierz co innego na stronie Model.",
 }

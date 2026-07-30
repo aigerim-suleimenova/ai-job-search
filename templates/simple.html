@@ -11,6 +11,16 @@
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
 
+{% if noauth %}
+<section class="card" style="border-inline-start:4px solid var(--danger)">
+  <h2>{{ t('noauth_title') }}</h2>
+  <p>{{ t('noauth_hint').format(name=provider_status.name, error=noauth) }}</p>
+  <div class="row" style="margin-top:12px">
+    <a href="/models"><button type="button" class="primary">{{ t('nav_models') }}</button></a>
+  </div>
+</section>
+{% endif %}
+
 {% if not provider_status.ready %}
 <section class="card" style="border-left:4px solid var(--warn)">
   <h2>{{ t('setup_needed') }}</h2>

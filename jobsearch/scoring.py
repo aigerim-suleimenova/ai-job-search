@@ -243,6 +243,8 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
             timeout=900 if research else 600,
             allowed_tools=["WebSearch", "WebFetch"] if research else None,
         )
+    except llm.AuthError:
+        raise      # без входа в модель прогон смысла не имеет
     except llm.ClaudeError as e:
         log(f"разбор «{job.get('title')}»: {e}")
         return

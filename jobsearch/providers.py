@@ -105,6 +105,30 @@ def work_dir() -> str:
     return str(d)
 
 
+@lru_cache(maxsize=1)
+def login_env() -> dict:
+    """Переменные окружения, как их видит терминал этого человека.
+
+    Запущенное из Finder приложение получает почти пустое окружение, и внешний
+    CLI ведёт себя не так, как в терминале: другой PATH, нет переменных из
+    ~/.zshrc. Спрашиваем их у входного shell один раз за запуск.
+    """
+    env = dict(os.environ)
+    shell = os.environ.get("SHELL") or "/bin/zsh"
+    if not os.path.exists(shell):
+        return env
+    try:
+        out = subprocess.run([shell, "-lc", "env -0"], capture_output=True,
+                             text=True, timeout=10, cwd=work_dir())
+    except (OSError, subprocess.SubprocessError):
+        return env
+    for pair in out.stdout.split("\0"):
+        key, sep, value = pair.partition("=")
+        if sep and key and not key.startswith(("BASH_FUNC", "_")):
+            env[key] = value
+    return env
+
+
 @lru_cache(maxsize=8)
 def resolve_bin(name: str) -> str:
     """Полный путь к программе или пустая строка. Учитывает, что GUI-приложение
@@ -212,7 +236,8 @@ def call_claude(prompt: str, model: str, timeout: int, allowed_tools, claude_bin
         cmd += ["--model", model]
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=work_dir(),
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                          cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip()
@@ -235,7 +260,8 @@ def call_cursor(prompt: str, model: str, timeout: int) -> str:
     cmd = [exe, "-p", "--output-format", "text"]
     if model and model != "auto":
         cmd += ["--model", model]
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=work_dir(),
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                          cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
         raise ProviderError((proc.stderr or proc.stdout or "").strip()[:800]

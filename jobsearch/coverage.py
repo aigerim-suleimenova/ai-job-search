@@ -46,6 +46,8 @@ def _resolve_url(name: str, cfg: dict) -> str:
             provider=cfg["llm"].get("provider", "claude_cli"),
             timeout=300, allowed_tools=["WebSearch", "WebFetch"],
         )
+    except llm.AuthError:
+        raise      # без входа в модель прогон смысла не имеет
     except llm.ClaudeError:
         return ""
     if isinstance(data, dict) and data.get("found") and str(data.get("careers_url", "")).startswith("http"):

@@ -112,6 +112,8 @@ def discover(cfg: dict, log, n: int = 5) -> list:
                 timeout=600,
                 allowed_tools=["WebSearch", "WebFetch"],
             )
+        except llm.AuthError:
+            raise      # без входа в модель прогон смысла не имеет
         except llm.ClaudeError as e:
             log(f"поиск компаний (заход {r + 1}): {e}")
             dry += 1
@@ -207,6 +209,8 @@ def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
             timeout=600,
             allowed_tools=["WebSearch", "WebFetch"],
         )
+    except llm.AuthError:
+        raise      # без входа в модель прогон смысла не имеет
     except llm.ClaudeError as e:
         log(f"поиск вакансий по ATS: {e}")
         return []

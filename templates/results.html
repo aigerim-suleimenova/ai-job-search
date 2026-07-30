@@ -9,6 +9,16 @@
 <body>
 {% include "_header.html" %}
 
+{% if noauth %}
+<section class="card" style="border-inline-start:4px solid var(--danger)">
+  <h2>{{ t('noauth_title') }}</h2>
+  <p>{{ t('noauth_hint').format(name=provider_status.name, error=noauth) }}</p>
+  <div class="row" style="margin-top:12px">
+    <a href="/models"><button type="button" class="primary">{{ t('nav_models') }}</button></a>
+  </div>
+</section>
+{% endif %}
+
 <section class="card">
   <div class="row" style="justify-content:space-between">
     <span>{{ t('results_shown') }} <b>{{ min_score }}%</b> ({{ jobs|length }})

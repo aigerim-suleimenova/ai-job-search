@@ -283,8 +283,8 @@ a:has(> button) { text-decoration: none; }
 .log {
   background: #1c1c1e; color: #9ecbff;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 11px 13px; font: 11.5px/1.55 ui-monospace, "SF Mono", Menlo, monospace;
-  max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  padding: 14px 16px; font: 11.5px/1.6 ui-monospace, "SF Mono", Menlo, monospace;
+  max-height: 280px; overflow: auto; white-space: pre-wrap; word-break: break-word;
 }
 
 /* --- Таблицы --- */

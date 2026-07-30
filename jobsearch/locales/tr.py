@@ -409,4 +409,6 @@ STRINGS = {
 "run_in_progress": "Arama sürüyor",
 "donate_hint": "Uygulama ücretsiz ve kendi bilgisayarınızda çalışıyor. İşinize yaradıysa yazara destek olabilirsiniz:",
 "donate_title": "Projeye destek ol",
+"noauth_title": "Model içeri almadı",
+"noauth_hint": "Son çalıştırma ilanları topladı ama puanlayacak bir şey yoktu: {name} «{error}» diyor. O programı açıp giriş yapın, sonra aramayı yeniden başlatın. Ya da Model sayfasından başka bir seçenek seçin.",
 }

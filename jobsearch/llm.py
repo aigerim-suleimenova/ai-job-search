@@ -13,6 +13,35 @@ class ClaudeError(RuntimeError):
     pass
 
 
+class AuthError(ClaudeError):
+    """Модель недоступна, пока человек не войдёт в неё. Повторять бессмысленно."""
+
+
+_AUTH_MARKERS = ("not logged in", "/login", "invalid api key", "authentication_error",
+                 "credit balance is too low", "please run /login")
+
+
+def _human_error(raw: str) -> str:
+    """Из ответа CLI — фраза для человека, а не весь JSON.
+
+    При ошибке claude печатает результат тем же JSON-ом, и в журнал прогона
+    улетала простыня на 800 символов, в которой сообщение терялось.
+    """
+    text = (raw or "").strip()
+    if text.startswith("{"):
+        try:
+            data = json.loads(text)
+            text = str(data.get("result") or data.get("error") or text)
+        except json.JSONDecodeError:
+            pass
+    return text[:300]
+
+
+def _classify(text: str) -> ClaudeError:
+    low = text.lower()
+    return AuthError(text) if any(m in low for m in _AUTH_MARKERS) else ClaudeError(text)
+
+
 class Cancelled(RuntimeError):
     """Работа отменена пользователем."""
 
@@ -121,14 +150,14 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
             # (например, системой при нехватке памяти)
             detail = (f"claude завершился с кодом {proc.returncode} без вывода"
                       + (" (убит сигналом)" if proc.returncode < 0 else ""))
-        raise ClaudeError(detail[:800])
+        raise _classify(_human_error(detail))
     try:
         data = json.loads(proc.stdout)
     except json.JSONDecodeError:
         return proc.stdout.strip()
     if isinstance(data, dict):
         if data.get("is_error"):
-            raise ClaudeError(str(data.get("result", ""))[:800])
+            raise _classify(_human_error(str(data.get("result", ""))))
         return str(data.get("result", "")).strip()
     return proc.stdout.strip()
 
@@ -144,6 +173,8 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
     for attempt in range(retries + 1):
         try:
             return _ask_once(prompt, model, claude_bin, timeout, allowed_tools, provider)
+        except AuthError:
+            raise          # войти за человека мы не можем — повторы только тратят время
         except ClaudeError as e:
             last = e
             if attempt < retries and _is_transient(str(e)):
