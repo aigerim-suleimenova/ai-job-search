@@ -459,4 +459,11 @@ STRINGS = {
 "results_live_new": "新找到 {n} 个 — 显示",
 "results_live_done": "搜索结束——刷新列表",
 "job_preliminary_hint": "这是快速评分。建议和「定制简历」要等深度分析之后——它在搜索末尾进行，只针对超过阈值的和差一点的职位。",
+"cov_st_notfound": "未找到（联网搜索没有给出招聘页面）",
+"cov_st_api": "通过 API 读取",
+"cov_st_ats_fail": "ATS 读不出来：{error}",
+"cov_st_ok": "职位可以读取",
+"cov_st_ok_guessed": "职位可以读取（按名称猜出 ATS）",
+"cov_st_zero": "0 个职位（脚本驱动且无 API，或当前没有空缺）",
+"cov_st_error": "错误：{error}",
 }

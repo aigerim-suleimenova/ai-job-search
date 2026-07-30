@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from . import llm
+from . import config, i18n, llm
 from .collectors import ats, crawler
 
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh) ai-job-search/1.0"}
@@ -55,6 +55,12 @@ def _resolve_url(name: str, cfg: dict) -> str:
     return ""
 
 
+def _st(key: str, **fmt) -> str:
+    """Статус проверки на языке интерфейса."""
+    text = i18n.t(config.load()["ui"]["lang"], key)
+    return text.format(**fmt) if fmt else text
+
+
 def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
     """entry — 'Название | URL', либо просто URL, либо просто название."""
     entry = entry.strip()
@@ -76,7 +82,7 @@ def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
               "status": "", "platform": "", "count": 0, "resolved_by_search": resolved}
 
     if not url:
-        result["status"] = "не найдено (веб-поиск не дал careers-страницу)"
+        result["status"] = _st("cov_st_notfound")
         return result
 
     result["monitored"] = _identity(url) in monitored_domains
@@ -86,10 +92,10 @@ def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
     if detected:
         try:
             jobs = ats.fetch(detected[0], detected[1])
-            result.update(status="читается через API", platform=detected[0], count=len(jobs))
+            result.update(status=_st("cov_st_api"), platform=detected[0], count=len(jobs))
             return result
         except Exception as e:  # noqa: BLE001
-            result.update(status=f"ATS не прочитался: {str(e)[:100]}", platform=detected[0])
+            result.update(status=_st("cov_st_ats_fail", error=str(e)[:100]), platform=detected[0])
             return result
 
     # 2. Встроенный ATS в HTML / переход на подстраницу — используем сам краулер
@@ -97,20 +103,20 @@ def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
         jobs = crawler.crawl_company(name or _domain(url), url, cfg, lambda m: None)
         if jobs:
             src = jobs[0].get("source", "crawl")
-            result.update(status="вакансии читаются", platform=src, count=len(jobs))
+            result.update(status=_st("cov_st_ok"), platform=src, count=len(jobs))
             return result
     except Exception as e:  # noqa: BLE001
-        result.update(status=f"ошибка: {str(e)[:120]}")
+        result.update(status=_st("cov_st_error", error=str(e)[:120]))
         return result
 
     # 3. Fallback: угадать ATS-борд по названию (careers-страница на JS без API)
     guess_name = name or _domain(url).split(".")[0]
     guessed = ats.guess_by_name(guess_name)
     if guessed:
-        result.update(status="вакансии читаются (ATS найден по названию)",
+        result.update(status=_st("cov_st_ok_guessed"),
                       platform=guessed[0], count=len(guessed[2]))
     else:
-        result.update(status="0 вакансий (JS-рендер без API, либо сейчас нет открытых позиций)")
+        result.update(status=_st("cov_st_zero"))
     return result
 
 
@@ -119,9 +125,10 @@ def check(entries: list, cfg: dict) -> list:
     workers = int(cfg["search"].get("parallelism", 5))
     results = llm.pmap(lambda e: check_one(e, cfg, monitored), entries, workers=workers)
     out = []
-    for r in results:
+    for i, r in enumerate(results):
         if isinstance(r, Exception):
-            out.append({"name": "?", "url": "", "status": f"ошибка: {r}", "count": 0})
+            out.append({"name": entries[i] if i < len(entries) else "?", "url": "",
+                        "status": _st("cov_st_error", error=str(r)[:120]), "count": 0})
         else:
             out.append(r)
     return out

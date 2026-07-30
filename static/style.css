@@ -443,6 +443,12 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 /* Кнопка сохранения формы настроек: тот же ритм, что между карточками */
 .actions { display: flex; gap: 10px; margin: 0 0 14px; }
 
+/* Ряд кнопок сразу под полями прилипал к ним вплотную: у полей нет нижнего
+   отступа, у ряда не было верхнего. Разделяем там, где это реально случается. */
+.grid2 + .row, .grid3 + .row, textarea + .row, input + .row,
+.grid2 + .actions, .grid3 + .actions, textarea + .actions, input + .actions,
+.card > form > .actions:not(:first-child) { margin-top: 14px; }
+
 /* Знакомство при первом запуске: шапка без разделов — уходить пока некуда */
 .header-plain { grid-template-areas: "title tools"; row-gap: 0; padding: 12px 0 11px; }
 .welcome-done { display: flex; flex-direction: column; align-items: flex-start; }

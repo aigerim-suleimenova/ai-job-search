@@ -459,4 +459,11 @@ STRINGS = {
 "results_live_new": "{n} yeni bulundu — göster",
 "results_live_done": "Arama bitti — listeyi yenile",
 "job_preliminary_hint": "Hızlı puan. Öneriler ve ilana özel CV, derin incelemeden sonra gelir — o da çalıştırmanın sonunda, eşiği geçenler ve ona yakın olanlar için yapılır.",
+"cov_st_notfound": "bulunamadı (web araması kariyer sayfası vermedi)",
+"cov_st_api": "API üzerinden okunuyor",
+"cov_st_ats_fail": "ATS okunamadı: {error}",
+"cov_st_ok": "ilanlar okunuyor",
+"cov_st_ok_guessed": "ilanlar okunuyor (ATS addan tahmin edildi)",
+"cov_st_zero": "0 ilan (API'siz betik sayfası ya da şu an açık pozisyon yok)",
+"cov_st_error": "hata: {error}",
 }

@@ -111,6 +111,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         profiles.set_active(profile)  # свой поток → задаём активный профиль явно
     _stop.clear()
     llm.clear_cancel()
+    llm.mark_run_thread()
     state.update(running=True, stage="stage_start", step=1, log=[], profile=profiles.active())
     cfg = config.load()
     cv = config.cv_text()

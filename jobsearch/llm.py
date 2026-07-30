@@ -50,6 +50,20 @@ class Cancelled(RuntimeError):
 # сверяется с этим флагом перед каждой задачей. Уже идущие вызовы CLI доводим
 # до конца — обрывать их на полуслове смысла нет.
 _cancel = threading.Event()
+# «Стоп» гасил вообще все обращения к модели в процессе: пока прогон
+# останавливался, проверка покрытия и генерация CV молча падали. Отмена
+# действует только на потоки самого прогона — их помечает пайплайн, а pmap
+# копирует контекст в рабочие потоки.
+_in_run = contextvars.ContextVar("in_pipeline_run", default=False)
+
+
+def mark_run_thread() -> None:
+    """Пометить текущий поток как принадлежащий прогону."""
+    _in_run.set(True)
+
+
+def _cancelled() -> bool:
+    return _cancel.is_set() and _in_run.get()
 
 
 def set_cancel() -> None:
@@ -87,7 +101,7 @@ def pmap(fn, items: list, workers: int = 5) -> list:
     if workers == 1:
         out = []
         for it in items:
-            if _cancel.is_set():
+            if _cancelled():
                 out.append(Cancelled("отменено"))
                 continue
             try:
@@ -98,7 +112,7 @@ def pmap(fn, items: list, workers: int = 5) -> list:
     # копируем contextvars в каждый воркер: без этого потоки теряют активный
     # профиль (profiles._active) и пишут в базу профиля по умолчанию
     def _guarded(it):
-        if _cancel.is_set():
+        if _cancelled():
             raise Cancelled("отменено")
         return fn(it)
 
@@ -167,7 +181,7 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
     """Вызов claude с повтором при временных ошибках (connection closed, overload, 429/5xx)."""
     # Точка прерывания: этапы вроде discovery делают вызовы подряд в цикле, не через
     # pmap, и без этой проверки «Стоп» ждал бы конца всего этапа.
-    if _cancel.is_set():
+    if _cancelled():
         raise Cancelled("поиск остановлен")
     last = None
     for attempt in range(retries + 1):

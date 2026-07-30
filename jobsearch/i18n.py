@@ -1100,6 +1100,41 @@ TR = {
     "cov_col_company": {"ru": "Компания", "en": "Company", "it": "Azienda", "de": "Unternehmen"},
     "cov_col_jobs": {"ru": "Вакансий", "en": "Jobs", "it": "Offerte", "de": "Stellen"},
     "cov_col_how": {"ru": "Как читается", "en": "How it's read", "it": "Come viene letta", "de": "Wie es gelesen wird"},
+    "cov_st_notfound": {
+        "ru": "не найдено (веб-поиск не дал careers-страницу)",
+        "en": "not found (the web search returned no careers page)",
+        "it": "non trovata (la ricerca web non ha dato una pagina careers)",
+        "de": "nicht gefunden (die Websuche lieferte keine Karriereseite)"},
+    "cov_st_api": {
+        "ru": "читается через API",
+        "en": "read through the API",
+        "it": "letta tramite API",
+        "de": "wird über die API gelesen"},
+    "cov_st_ats_fail": {
+        "ru": "ATS не прочитался: {error}",
+        "en": "the ATS would not read: {error}",
+        "it": "l'ATS non si è letto: {error}",
+        "de": "das ATS war nicht lesbar: {error}"},
+    "cov_st_ok": {
+        "ru": "вакансии читаются",
+        "en": "jobs are being read",
+        "it": "le offerte si leggono",
+        "de": "Stellen werden gelesen"},
+    "cov_st_ok_guessed": {
+        "ru": "вакансии читаются (ATS найден по названию)",
+        "en": "jobs are being read (ATS guessed from the name)",
+        "it": "le offerte si leggono (ATS indovinato dal nome)",
+        "de": "Stellen werden gelesen (ATS aus dem Namen erraten)"},
+    "cov_st_zero": {
+        "ru": "0 вакансий (страница на скриптах без API, либо сейчас нет открытых позиций)",
+        "en": "0 jobs (a script-driven page without an API, or no open positions right now)",
+        "it": "0 offerte (pagina a script senza API, oppure nessuna posizione aperta ora)",
+        "de": "0 Stellen (skriptgesteuerte Seite ohne API oder derzeit keine offenen Stellen)"},
+    "cov_st_error": {
+        "ru": "ошибка: {error}",
+        "en": "error: {error}",
+        "it": "errore: {error}",
+        "de": "Fehler: {error}"},
     "cov_visible": {"ru": "✓ видим", "en": "✓ visible", "it": "✓ visibile", "de": "✓ sichtbar"},
     "cov_notfound": {"ru": "✗ не найдено", "en": "✗ not found", "it": "✗ non trovata", "de": "✗ nicht gefunden"},
     "cov_zero": {"ru": "0 вакансий (JS-страница без API, либо нет открытых позиций)", "en": "0 jobs (JS page without API, or no open positions)", "it": "0 offerte (pagina JS senza API, oppure nessuna posizione aperta)", "de": "0 Stellen (JS-Seite ohne API oder keine offenen Positionen)"},

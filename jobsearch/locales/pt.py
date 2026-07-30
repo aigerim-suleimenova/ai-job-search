@@ -459,4 +459,11 @@ STRINGS = {
 "results_live_new": "Novas encontradas: {n} — mostrar",
 "results_live_done": "A busca terminou — atualizar a lista",
 "job_preliminary_hint": "Pontuação rápida. Os conselhos e o CV à medida chegam depois da análise profunda, feita no fim da execução para as que passam o limiar e as próximas dele.",
+"cov_st_notfound": "não encontrada (a pesquisa web não deu página de carreiras)",
+"cov_st_api": "lida pela API",
+"cov_st_ats_fail": "o ATS não se leu: {error}",
+"cov_st_ok": "as vagas são lidas",
+"cov_st_ok_guessed": "as vagas são lidas (ATS adivinhado pelo nome)",
+"cov_st_zero": "0 vagas (página por script sem API, ou nenhuma posição aberta agora)",
+"cov_st_error": "erro: {error}",
 }
