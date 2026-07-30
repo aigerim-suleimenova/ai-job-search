@@ -4,7 +4,8 @@ import os
 import threading
 import traceback
 
-from . import config, db, discovery, filters, llm, mailer, notify, profiles, providers, scoring
+from . import (config, db, discovery, filters, i18n, llm, mailer, notify, profiles,
+               providers, scoring)
 from .collectors import aggregators, ats, crawler
 
 _run_lock = threading.Lock()
@@ -333,7 +334,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                                    db.now(), threshold)
                 _log("Письмо с результатами отправлено")
             except mailer.MailError as e:
-                _log(f"Почта: {e}")
+                _log("Почта: " + i18n.t(cfg["ui"]["lang"], e.key).format(**e.fmt))
                 status = "warn"
         _log("Готово")
     except (Stopped, llm.Cancelled):

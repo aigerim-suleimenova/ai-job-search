@@ -232,6 +232,202 @@ TR = {
         "en": "The model runs on your own computer: nothing leaves it and there is nothing to pay. In exchange it needs memory and time — and there is no web search.",
         "it": "Il modello gira sul vostro computer: nulla esce e non c'è nulla da pagare. In cambio servono memoria e tempo — e non c'è ricerca web.",
         "de": "Das Modell läuft auf Ihrem Rechner: nichts verlässt ihn, nichts ist zu bezahlen. Dafür braucht es Speicher und Zeit — und es gibt keine Websuche."},
+    "msg_person_name_needed": {
+        "ru": "Укажите имя человека", "en": "Enter the person's name",
+        "it": "Indicate il nome della persona", "de": "Geben Sie den Namen der Person ein"},
+    "msg_person_created": {
+        "ru": "Профиль «{name}» создан — заполните CV и настройки",
+        "en": "Profile “{name}” created — add a CV and settings",
+        "it": "Profilo «{name}» creato — caricate un CV e le impostazioni",
+        "de": "Profil „{name}“ erstellt — Lebenslauf und Einstellungen ergänzen"},
+    "msg_person_renamed": {
+        "ru": "Имя профиля обновлено", "en": "Profile name updated",
+        "it": "Nome del profilo aggiornato", "de": "Profilname aktualisiert"},
+    "msg_person_last": {
+        "ru": "Нельзя удалить единственный профиль",
+        "en": "The only profile cannot be deleted",
+        "it": "Non si può eliminare l'unico profilo",
+        "de": "Das einzige Profil kann nicht gelöscht werden"},
+    "msg_saved": {"ru": "Сохранено", "en": "Saved", "it": "Salvato", "de": "Gespeichert"},
+    "msg_settings_saved": {
+        "ru": "Настройки сохранены", "en": "Settings saved",
+        "it": "Impostazioni salvate", "de": "Einstellungen gespeichert"},
+    "msg_app_settings_saved": {
+        "ru": "Настройки программы сохранены", "en": "App settings saved",
+        "it": "Impostazioni dell'app salvate", "de": "App-Einstellungen gespeichert"},
+    "msg_saved_need_token": {
+        "ru": "Сохранено. Вставьте bot token и попробуйте снова",
+        "en": "Saved. Paste the bot token and try again",
+        "it": "Salvato. Incollate il token del bot e riprovate",
+        "de": "Gespeichert. Fügen Sie den Bot-Token ein und versuchen Sie es erneut"},
+    "msg_saved_tg_error": {
+        "ru": "Сохранено. Telegram: {error}", "en": "Saved. Telegram: {error}",
+        "it": "Salvato. Telegram: {error}", "de": "Gespeichert. Telegram: {error}"},
+    "msg_saved_chat_found": {
+        "ru": "Сохранено. Найден chat id: {chat_id}",
+        "en": "Saved. Found chat id: {chat_id}",
+        "it": "Salvato. Trovato chat id: {chat_id}",
+        "de": "Gespeichert. Chat-ID gefunden: {chat_id}"},
+    "msg_saved_tg_sent": {
+        "ru": "Сохранено. Тестовое сообщение отправлено",
+        "en": "Saved. Test message sent",
+        "it": "Salvato. Messaggio di prova inviato",
+        "de": "Gespeichert. Testnachricht gesendet"},
+    "msg_saved_discover_error": {
+        "ru": "Сохранено. Поиск компаний: {error}",
+        "en": "Saved. Company search: {error}",
+        "it": "Salvato. Ricerca aziende: {error}",
+        "de": "Gespeichert. Unternehmenssuche: {error}"},
+    "msg_saved_discover_none": {
+        "ru": "Сохранено. Новых компаний не нашлось — попробуйте ещё раз",
+        "en": "Saved. No new companies found — try again",
+        "it": "Salvato. Nessuna nuova azienda trovata — riprovate",
+        "de": "Gespeichert. Keine neuen Unternehmen gefunden — versuchen Sie es erneut"},
+    "msg_companies_added": {
+        "ru": "Добавлены компании: {names}", "en": "Companies added: {names}",
+        "it": "Aziende aggiunte: {names}", "de": "Unternehmen hinzugefügt: {names}"},
+    "msg_saved_need_cv": {
+        "ru": "Сохранено. Сначала загрузите CV", "en": "Saved. Upload a CV first",
+        "it": "Salvato. Prima caricate un CV", "de": "Gespeichert. Laden Sie zuerst einen Lebenslauf hoch"},
+    "msg_saved_llm_error": {
+        "ru": "Сохранено. Модель: {error}", "en": "Saved. Model: {error}",
+        "it": "Salvato. Modello: {error}", "de": "Gespeichert. Modell: {error}"},
+    "msg_profile_from_cv": {
+        "ru": "Пустые поля профиля заполнены из CV — проверьте и поправьте",
+        "en": "Empty profile fields filled in from the CV — check and correct them",
+        "it": "I campi vuoti del profilo sono stati compilati dal CV — controllate e correggete",
+        "de": "Leere Profilfelder aus dem Lebenslauf ausgefüllt — bitte prüfen und korrigieren"},
+    "msg_cv_unreadable": {
+        "ru": "Не удалось прочитать CV: {error}", "en": "Could not read the CV: {error}",
+        "it": "Impossibile leggere il CV: {error}", "de": "Der Lebenslauf konnte nicht gelesen werden: {error}"},
+    "msg_cv_needed": {
+        "ru": "Загрузите CV — по нему определяются роли и навыки",
+        "en": "Upload a CV — roles and skills are taken from it",
+        "it": "Caricate un CV — da lì si ricavano ruoli e competenze",
+        "de": "Laden Sie einen Lebenslauf hoch — daraus ergeben sich Rollen und Fähigkeiten"},
+    "msg_no_file": {
+        "ru": "Файл не выбран", "en": "No file selected",
+        "it": "Nessun file selezionato", "de": "Keine Datei ausgewählt"},
+    "msg_cv_uploaded": {
+        "ru": "CV загружено: {name}, извлечено {chars} символов",
+        "en": "CV uploaded: {name}, {chars} characters extracted",
+        "it": "CV caricato: {name}, estratti {chars} caratteri",
+        "de": "Lebenslauf geladen: {name}, {chars} Zeichen ausgelesen"},
+    "msg_search_started": {
+        "ru": "Поиск запущен", "en": "Search started",
+        "it": "Ricerca avviata", "de": "Suche gestartet"},
+    "msg_search_already": {
+        "ru": "Поиск уже идёт", "en": "A search is already running",
+        "it": "Una ricerca è già in corso", "de": "Es läuft bereits eine Suche"},
+    "msg_busy_next": {
+        "ru": "Сейчас идёт поиск для «{name}» — ваш начнётся следом",
+        "en": "A search for “{name}” is running — yours starts next",
+        "it": "È in corso la ricerca per «{name}» — la vostra parte subito dopo",
+        "de": "Es läuft die Suche für „{name}“ — Ihre startet danach"},
+    "msg_busy_wait": {
+        "ru": "Сейчас идёт поиск для «{name}» — ваш начнётся, как только тот закончится",
+        "en": "A search for “{name}” is running — yours starts as soon as it finishes",
+        "it": "È in corso la ricerca per «{name}» — la vostra partirà appena finisce",
+        "de": "Es läuft die Suche für „{name}“ — Ihre startet, sobald diese fertig ist"},
+    "msg_busy_switch": {
+        "ru": "Сейчас идёт поиск для «{name}» — переключитесь на этого человека, чтобы остановить",
+        "en": "A search for “{name}” is running — switch to that person to stop it",
+        "it": "È in corso la ricerca per «{name}» — passate a quella persona per fermarla",
+        "de": "Es läuft die Suche für „{name}“ — wechseln Sie zu dieser Person, um sie zu stoppen"},
+    "msg_not_running": {
+        "ru": "Поиск и так не идёт", "en": "No search is running",
+        "it": "Nessuna ricerca in corso", "de": "Es läuft keine Suche"},
+    "msg_stopping": {
+        "ru": "Останавливаем: текущие проверки договорят, новые не начнутся",
+        "en": "Stopping: checks already under way will finish, no new ones will start",
+        "it": "Interruzione: i controlli già avviati finiranno, non ne partiranno di nuovi",
+        "de": "Wird gestoppt: laufende Prüfungen enden noch, neue starten nicht"},
+    "msg_need_token": {
+        "ru": "Сначала вставьте токен бота", "en": "Paste the bot token first",
+        "it": "Prima incollate il token del bot", "de": "Fügen Sie zuerst den Bot-Token ein"},
+    "msg_tg_error": {
+        "ru": "Telegram: {error}", "en": "Telegram: {error}",
+        "it": "Telegram: {error}", "de": "Telegram: {error}"},
+    "msg_chat_found": {
+        "ru": "Готово, ваш chat id: {chat_id}", "en": "Done, your chat id: {chat_id}",
+        "it": "Fatto, il vostro chat id: {chat_id}", "de": "Fertig, Ihre Chat-ID: {chat_id}"},
+    "msg_tg_sent": {
+        "ru": "Тестовое сообщение отправлено — проверьте Telegram",
+        "en": "Test message sent — check Telegram",
+        "it": "Messaggio di prova inviato — controllate Telegram",
+        "de": "Testnachricht gesendet — prüfen Sie Telegram"},
+    "msg_mail_sent": {
+        "ru": "Письмо отправлено — проверьте почту", "en": "Email sent — check your inbox",
+        "it": "Email inviata — controllate la posta", "de": "E-Mail gesendet — prüfen Sie Ihr Postfach"},
+    "msg_autostart_unsupported": {
+        "ru": "Автозапуск не поддерживается на этой системе",
+        "en": "Start at login is not supported on this system",
+        "it": "L'avvio all'accesso non è supportato su questo sistema",
+        "de": "Start bei der Anmeldung wird auf diesem System nicht unterstützt"},
+    "cv_err_pdf": {
+        "ru": "Не удалось открыть PDF — возможно, файл повреждён или это не настоящий PDF.",
+        "en": "Could not open the PDF — the file may be damaged, or it is not really a PDF.",
+        "it": "Impossibile aprire il PDF — il file potrebbe essere danneggiato o non essere un vero PDF.",
+        "de": "PDF konnte nicht geöffnet werden — die Datei ist womöglich beschädigt oder kein echtes PDF."},
+    "cv_err_docx": {
+        "ru": "Не удалось открыть DOCX — возможно, файл повреждён.",
+        "en": "Could not open the DOCX — the file may be damaged.",
+        "it": "Impossibile aprire il DOCX — il file potrebbe essere danneggiato.",
+        "de": "DOCX konnte nicht geöffnet werden — die Datei ist womöglich beschädigt."},
+    "cv_err_not_text": {
+        "ru": "Это не текстовый файл. Подойдут PDF, DOCX, TXT или MD.",
+        "en": "This is not a text file. PDF, DOCX, TXT or MD will work.",
+        "it": "Questo non è un file di testo. Vanno bene PDF, DOCX, TXT o MD.",
+        "de": "Das ist keine Textdatei. PDF, DOCX, TXT oder MD funktionieren."},
+    "cv_err_format": {
+        "ru": "Формат {ext} не поддерживается. Загрузите резюме в PDF, DOCX, TXT или MD.",
+        "en": "The {ext} format is not supported. Upload the CV as PDF, DOCX, TXT or MD.",
+        "it": "Il formato {ext} non è supportato. Caricate il CV in PDF, DOCX, TXT o MD.",
+        "de": "Das Format {ext} wird nicht unterstützt. Laden Sie den Lebenslauf als PDF, DOCX, TXT oder MD hoch."},
+    "cv_err_format_none": {
+        "ru": "У файла нет расширения. Загрузите резюме в PDF, DOCX, TXT или MD.",
+        "en": "The file has no extension. Upload the CV as PDF, DOCX, TXT or MD.",
+        "it": "Il file non ha estensione. Caricate il CV in PDF, DOCX, TXT o MD.",
+        "de": "Die Datei hat keine Endung. Laden Sie den Lebenslauf als PDF, DOCX, TXT oder MD hoch."},
+    "cv_err_empty": {
+        "ru": "Файл пустой.", "en": "The file is empty.",
+        "it": "Il file è vuoto.", "de": "Die Datei ist leer."},
+    "cv_err_no_text": {
+        "ru": "В файле почти нет текста. Если резюме — картинка или скан, сохраните его как PDF с текстовым слоем.",
+        "en": "There is almost no text in the file. If the CV is an image or a scan, save it as a PDF with a text layer.",
+        "it": "Nel file non c'è quasi testo. Se il CV è un'immagine o una scansione, salvatelo come PDF con livello di testo.",
+        "de": "In der Datei steht fast kein Text. Ist der Lebenslauf ein Bild oder Scan, speichern Sie ihn als PDF mit Textebene."},
+    "mail_err_incomplete": {
+        "ru": "Не заполнены сервер, логин или адрес получателя",
+        "en": "Server, login or recipient address is missing",
+        "it": "Mancano il server, il login o l'indirizzo del destinatario",
+        "de": "Server, Login oder Empfängeradresse fehlen"},
+    "mail_err_auth": {
+        "ru": "Почта не приняла логин или пароль. Для Gmail, Яндекса и Mail.ru нужен «пароль приложения», а не обычный пароль от ящика.",
+        "en": "The mail server rejected the login or password. Gmail, Yandex and Mail.ru need an “app password”, not your normal mailbox password.",
+        "it": "Il server di posta ha rifiutato login o password. Gmail, Yandex e Mail.ru richiedono una «password per app», non quella normale della casella.",
+        "de": "Der Mailserver hat Login oder Passwort abgelehnt. Gmail, Yandex und Mail.ru brauchen ein „App-Passwort“, nicht Ihr normales Postfach-Passwort."},
+    "mail_err_send": {
+        "ru": "Не удалось отправить письмо: {error}", "en": "Could not send the email: {error}",
+        "it": "Impossibile inviare l'email: {error}", "de": "E-Mail konnte nicht gesendet werden: {error}"},
+    "mail_body_fallback": {
+        "ru": "Откройте письмо в HTML-виде, чтобы увидеть вакансии.",
+        "en": "Open this email in HTML view to see the jobs.",
+        "it": "Aprite questa email in versione HTML per vedere le offerte.",
+        "de": "Öffnen Sie diese E-Mail in der HTML-Ansicht, um die Stellen zu sehen."},
+    "tg_test_message": {
+        "ru": "✅ AI Job Search: тестовое сообщение. Бот настроен.",
+        "en": "✅ AI Job Search: test message. The bot is set up.",
+        "it": "✅ AI Job Search: messaggio di prova. Il bot è configurato.",
+        "de": "✅ AI Job Search: Testnachricht. Der Bot ist eingerichtet."},
+    "mail_test_subject": {
+        "ru": "AI Job Search: проверка связи", "en": "AI Job Search: connection test",
+        "it": "AI Job Search: prova di collegamento", "de": "AI Job Search: Verbindungstest"},
+    "mail_test_body": {
+        "ru": "Письма с вакансиями для «{name}» будут приходить сюда.",
+        "en": "Emails with jobs for “{name}” will arrive here.",
+        "it": "Le email con le offerte per «{name}» arriveranno qui.",
+        "de": "E-Mails mit Stellen für „{name}“ kommen hier an."},
     "models_install": {
         "ru": "Скачать", "en": "Download", "it": "Scarica", "de": "Herunterladen"},
     "models_recheck": {

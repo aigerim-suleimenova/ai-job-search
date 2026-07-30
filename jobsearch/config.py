@@ -200,7 +200,15 @@ ALLOWED_CV_EXT = (".pdf", ".docx", ".txt", ".md", ".rtf")
 
 
 class CVError(ValueError):
-    """Файл не годится как резюме — с текстом, понятным человеку."""
+    """Файл не годится как резюме.
+
+    Несёт ключ перевода, а не готовый текст: модуль не знает языка интерфейса,
+    а сообщение показывается человеку — раньше оно всегда было русским.
+    """
+
+    def __init__(self, key: str, **fmt):
+        self.key, self.fmt = key, fmt
+        super().__init__(key)
 
 
 def _extract_cv_text(path, ext: str, raw: bytes) -> str:
@@ -210,18 +218,17 @@ def _extract_cv_text(path, ext: str, raw: bytes) -> str:
             reader = PdfReader(str(path))
             text = "\n".join((page.extract_text() or "") for page in reader.pages)
         except Exception as e:  # noqa: BLE001 — библиотека бросает разное
-            raise CVError("Не удалось открыть PDF — возможно, файл повреждён "
-                          "или это не настоящий PDF.") from e
+            raise CVError("cv_err_pdf") from e
         return _fix_letter_spacing(text)
     if ext == ".docx":
         try:
             return _docx_text(path)
         except Exception as e:  # noqa: BLE001
-            raise CVError("Не удалось открыть DOCX — возможно, файл повреждён.") from e
+            raise CVError("cv_err_docx") from e
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError as e:
-        raise CVError("Это не текстовый файл. Подойдут PDF, DOCX, TXT или MD.") from e
+        raise CVError("cv_err_not_text") from e
 
 
 def save_cv(filename: str, raw: bytes) -> str:
@@ -235,10 +242,9 @@ def save_cv(filename: str, raw: bytes) -> str:
 
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_CV_EXT:
-        raise CVError(f"Формат {ext or 'без расширения'} не поддерживается. "
-                      "Загрузите резюме в PDF, DOCX, TXT или MD.")
+        raise CVError("cv_err_format", ext=ext) if ext else CVError("cv_err_format_none")
     if not raw:
-        raise CVError("Файл пустой.")
+        raise CVError("cv_err_empty")
 
     d = _dir()
     tmp = d / f"cv_incoming{ext}"
@@ -246,8 +252,7 @@ def save_cv(filename: str, raw: bytes) -> str:
     try:
         text = re.sub(r"\n{3,}", "\n\n", _extract_cv_text(tmp, ext, raw).strip())
         if len(text) < 100:
-            raise CVError("В файле почти нет текста. Если резюме — картинка или скан, "
-                          "сохраните его как PDF с текстовым слоем.")
+            raise CVError("cv_err_no_text")
     except CVError:
         tmp.unlink(missing_ok=True)
         raise

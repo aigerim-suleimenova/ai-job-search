@@ -132,10 +132,10 @@ async def profile_create(request: Request):
     form = await request.form()
     name = str(form.get("name", "")).strip()
     if not name:
-        return _redirect("Укажите имя человека")
+        return _redirect(_msg("msg_person_name_needed"))
     slug = profiles.create(name)
     _seed_profile(slug)
-    resp = _redirect(f"Профиль «{name}» создан — заполните CV и настройки")
+    resp = _redirect(_msg("msg_person_created", name=name))
     resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
     return resp
 
@@ -146,7 +146,7 @@ async def profile_rename(request: Request):
     name = str(form.get("name", "")).strip()
     if name:
         profiles.rename(profiles.active(), name)
-    return _redirect("Имя профиля обновлено")
+    return _redirect(_msg("msg_person_renamed"))
 
 
 @app.post("/profile/delete")
@@ -160,7 +160,7 @@ async def profile_delete(request: Request):
         resp.set_cookie("profile", profiles.default_slug(), max_age=60 * 60 * 24 * 365,
                         httponly=True, samesite="lax")
         return resp
-    return _redirect("Нельзя удалить единственный профиль")
+    return _redirect(_msg("msg_person_last"))
 
 
 @app.post("/save")
@@ -263,42 +263,42 @@ async def save(request: Request, then: str = ""):
     if then == "tg_detect":
         token = cfg["telegram"].get("bot_token", "")
         if not token:
-            return _redirect("Сохранено. Вставьте bot token и попробуйте снова")
+            return _redirect(_msg("msg_saved_need_token"))
         try:
             chat_id = notify.detect_chat_id(token)
         except RuntimeError as e:
-            return _redirect(f"Сохранено. Telegram: {e}")
+            return _redirect(_msg("msg_saved_tg_error", error=e))
         cfg["telegram"]["chat_id"] = chat_id
         config.save(cfg)
-        return _redirect(f"Сохранено. Найден chat id: {chat_id}")
+        return _redirect(_msg("msg_saved_chat_found", chat_id=chat_id))
     if then == "tg_test":
         try:
-            notify.send_message(cfg, "✅ ai-job-search: тестовое сообщение. Бот настроен.")
+            notify.send_message(cfg, _msg("tg_test_message"))
         except RuntimeError as e:
-            return _redirect(f"Сохранено. Telegram: {e}")
-        return _redirect("Сохранено. Тестовое сообщение отправлено")
+            return _redirect(_msg("msg_saved_tg_error", error=e))
+        return _redirect(_msg("msg_saved_tg_sent"))
     if then == "discover":
         try:
             fresh = discovery.discover(cfg, lambda m: None, n=max(3, int(cfg["search"].get("discover_per_run") or 5)))
         except llm.ClaudeError as e:
-            return _redirect(f"Сохранено. Поиск компаний: {e}")
+            return _redirect(_msg("msg_saved_discover_error", error=e))
         if not fresh:
-            return _redirect("Сохранено. Новых компаний не нашлось — попробуйте ещё раз")
+            return _redirect(_msg("msg_saved_discover_none"))
         cfg["sources"]["companies"] = cfg["sources"].get("companies", []) + fresh
         config.save(cfg)
         names = ", ".join(f["name"] for f in fresh)
-        return _redirect(f"Добавлены компании: {names}")
+        return _redirect(_msg("msg_companies_added", names=names))
     if then == "profile_from_cv":
         cv = config.cv_text()
         if not cv:
-            return _redirect("Сохранено. Сначала загрузите CV")
+            return _redirect(_msg("msg_saved_need_cv"))
         try:
             cfg = scoring.profile_from_cv(cfg, cv)
         except llm.ClaudeError as e:
-            return _redirect(f"Сохранено. LLM: {e}")
+            return _redirect(_msg("msg_saved_llm_error", error=e))
         config.save(cfg)
-        return _redirect("Пустые поля профиля заполнены из CV — проверьте и поправьте")
-    return _redirect("Настройки сохранены")
+        return _redirect(_msg("msg_profile_from_cv"))
+    return _redirect(_msg("msg_settings_saved"))
 
 
 @app.get("/simple")
@@ -334,9 +334,9 @@ async def simple_start(request: Request, file: UploadFile = None):
         try:
             config.save_cv(file.filename, raw)
         except config.CVError as e:
-            return _redirect_to("/simple", str(e))
+            return _redirect_to("/simple", _msg(e.key, **e.fmt))
         except Exception as e:  # noqa: BLE001
-            return _redirect_to("/simple", f"Не удалось прочитать CV: {e}")
+            return _redirect_to("/simple", _msg("msg_cv_unreadable", error=e))
 
     cfg = config.load()
     cfg["search"]["locations"] = str(form.get("locations", "")).strip() or cfg["search"]["locations"]
@@ -344,17 +344,17 @@ async def simple_start(request: Request, file: UploadFile = None):
     config.save(cfg)
 
     if not config.cv_text():
-        return _redirect_to("/simple", "Загрузите CV — по нему определяются роли и навыки")
+        return _redirect_to("/simple", _msg("msg_cv_needed"))
 
     # Разбор резюме и сам поиск уходят в фон: страница возвращается сразу,
     # а ход работы виден в строке статуса и в журнале.
     started = pipeline.prepare_and_run(slug, trigger="manual")
     if started:
-        note = "Поиск запущен"
+        note = _msg("msg_search_started")
     else:
         busy = pipeline.state.get("profile", "")
-        note = (f"Сейчас идёт поиск для «{profiles.name_of(busy)}» — ваш начнётся следом"
-                if busy and busy != slug else "Поиск уже идёт")
+        note = (_msg("msg_busy_next", name=profiles.name_of(busy))
+                if busy and busy != slug else _msg("msg_search_already"))
     resp = _redirect_to("/simple", note)
     resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
     return resp
@@ -363,28 +363,27 @@ async def simple_start(request: Request, file: UploadFile = None):
 @app.post("/upload_cv")
 async def upload_cv(file: UploadFile):
     if not file.filename:
-        return _redirect("Файл не выбран")
+        return _redirect(_msg("msg_no_file"))
     raw = await file.read()
     try:
         text = config.save_cv(file.filename, raw)
     except config.CVError as e:
-        return _redirect(str(e))
+        return _redirect(_msg(e.key, **e.fmt))
     except Exception as e:  # noqa: BLE001
-        return _redirect(f"Не удалось прочитать CV: {e}")
-    return _redirect(f"CV загружено: {file.filename}, извлечено {len(text)} символов")
+        return _redirect(_msg("msg_cv_unreadable", error=e))
+    return _redirect(_msg("msg_cv_uploaded", name=file.filename, chars=len(text)))
 
 
 @app.post("/run")
 def run_now():
     if pipeline.run_async("manual", profile=profiles.active()):
-        return _redirect("Поиск запущен")
+        return _redirect(_msg("msg_search_started"))
     # Пайплайн один на всех: если занят чужим прогоном, человек должен понимать,
     # что ждёт не своих результатов, а очереди.
     busy = pipeline.state.get("profile", "")
     if busy and busy != profiles.active():
-        return _redirect(f"Сейчас идёт поиск для «{profiles.name_of(busy)}» — "
-                         "ваш начнётся, как только тот закончится")
-    return _redirect("Поиск уже идёт")
+        return _redirect(_msg("msg_busy_wait", name=profiles.name_of(busy)))
+    return _redirect(_msg("msg_search_already"))
 
 
 @app.post("/stop")
@@ -392,12 +391,12 @@ def stop_now():
     """Останавливаем только прогон этого человека: в приложении несколько профилей,
     и один пайплайн — иначе кнопка на чужой странице обрывала бы чужой поиск."""
     if not pipeline.state["running"]:
-        return _redirect("Поиск и так не идёт")
+        return _redirect(_msg("msg_not_running"))
     if pipeline.state.get("profile") != profiles.active():
         who = profiles.name_of(pipeline.state.get("profile", ""))
-        return _redirect(f"Сейчас идёт поиск для «{who}» — переключитесь на этого человека, чтобы остановить")
+        return _redirect(_msg("msg_busy_switch", name=who))
     pipeline.request_stop()
-    return _redirect("Останавливаем: текущие проверки договорят, новые не начнутся")
+    return _redirect(_msg("msg_stopping"))
 
 
 @app.get("/status")
@@ -502,21 +501,21 @@ async def notify_telegram(request: Request, then: str = ""):
     config.save(cfg)
     if then == "detect":
         if not cfg["telegram"]["bot_token"]:
-            return _redirect_to("/notify", "Сначала вставьте токен бота")
+            return _redirect_to("/notify", _msg("msg_need_token"))
         try:
             chat_id = notify.detect_chat_id(cfg["telegram"]["bot_token"])
         except RuntimeError as e:
-            return _redirect_to("/notify", f"Telegram: {e}")
+            return _redirect_to("/notify", _msg("msg_tg_error", error=e))
         cfg["telegram"]["chat_id"] = chat_id
         config.save(cfg)
-        return _redirect_to("/notify", f"Готово, ваш chat id: {chat_id}")
+        return _redirect_to("/notify", _msg("msg_chat_found", chat_id=chat_id))
     if then == "test":
         try:
-            notify.send_message(cfg, "✅ AI Job Search: проверка связи. Уведомления настроены.")
+            notify.send_message(cfg, _msg("tg_test_message"))
         except RuntimeError as e:
             return _redirect_to("/notify", f"Telegram: {e}")
-        return _redirect_to("/notify", "Тестовое сообщение отправлено — проверьте Telegram")
-    return _redirect_to("/notify", "Сохранено")
+        return _redirect_to("/notify", _msg("msg_tg_sent"))
+    return _redirect_to("/notify", _msg("msg_saved"))
 
 
 @app.post("/notify/email")
@@ -538,14 +537,14 @@ async def notify_email(request: Request, then: str = ""):
     config.save(cfg)
     if then == "test":
         name = profiles.name_of(profiles.active())
-        html = f"<p>✅ AI Job Search: проверка связи.</p><p>Письма с вакансиями для «{name}» будут приходить сюда.</p>"
+        html = f"<p>{_msg('mail_test_subject')}</p><p>{_msg('mail_test_body', name=name)}</p>"
         try:
-            mailer.send(cfg, "AI Job Search: проверка связи", html,
-                        "AI Job Search: проверка связи. Уведомления настроены.")
+            mailer.send(cfg, _msg("mail_test_subject"), html,
+                        _msg("mail_test_body", name=name))
         except mailer.MailError as e:
-            return _redirect_to("/notify", str(e))
-        return _redirect_to("/notify", "Письмо отправлено — проверьте почту")
-    return _redirect_to("/notify", "Сохранено")
+            return _redirect_to("/notify", _msg(e.key, **e.fmt))
+        return _redirect_to("/notify", _msg("msg_mail_sent"))
+    return _redirect_to("/notify", _msg("msg_saved"))
 
 
 @app.get("/models")
@@ -629,7 +628,7 @@ async def app_settings(request: Request):
     cfg["ui"]["background"] = "background" in form
     config.save(cfg)
     err = autostart.set_enabled("autostart" in form)
-    return _redirect(err or "Настройки программы сохранены")
+    return _redirect(_msg(err) if err else _msg("msg_app_settings_saved"))
 
 
 @app.post("/set_lang")

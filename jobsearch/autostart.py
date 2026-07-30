@@ -144,9 +144,12 @@ def enabled() -> bool:
 
 
 def set_enabled(on: bool) -> str:
-    """Включает или выключает автозапуск. Возвращает пустую строку или текст ошибки."""
+    """Включает или выключает автозапуск.
+
+    Возвращает пустую строку либо ключ перевода ошибки — язык подставит тот,
+    кто показывает сообщение."""
     if not supported():
-        return "Автозапуск не поддерживается на этой системе"
+        return "msg_autostart_unsupported"
     enable, disable, _ = _IMPL[platform.system()]
     try:
         enable() if on else disable()

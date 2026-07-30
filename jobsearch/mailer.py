@@ -7,6 +7,8 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 
+from . import i18n
+
 # Настройки популярных почтовых служб: человеку достаточно выбрать свою из списка.
 # Важно: у Gmail/Yandex/Mail.ru обычный пароль не подойдёт — нужен «пароль
 # приложения», который выдаётся в настройках безопасности почты.
@@ -27,6 +29,12 @@ PRESETS = {
 
 
 class MailError(RuntimeError):
+    """Ошибка отправки. Несёт ключ перевода: модуль не знает языка интерфейса."""
+
+    def __init__(self, key: str, **fmt):
+        self.key, self.fmt = key, fmt
+        super().__init__(key)
+
     pass
 
 
@@ -42,13 +50,13 @@ def send(cfg: dict, subject: str, html: str, text: str = "") -> None:
     user, password = e.get("username", ""), e.get("password", "")
     to_addr = e.get("to", "") or user
     if not (host and user and to_addr):
-        raise MailError("Не заполнены сервер, логин или адрес получателя")
+        raise MailError("mail_err_incomplete")
 
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = e.get("from") or user
     msg["To"] = to_addr
-    msg.set_content(text or "Откройте письмо в HTML-виде, чтобы увидеть вакансии.")
+    msg.set_content(text or i18n.t(cfg.get("ui", {}).get("lang", "ru"), "mail_body_fallback"))
     msg.add_alternative(html, subtype="html")
 
     context = ssl.create_default_context()
@@ -63,10 +71,9 @@ def send(cfg: dict, subject: str, html: str, text: str = "") -> None:
                 s.login(user, password)
                 s.send_message(msg)
     except smtplib.SMTPAuthenticationError as exc:
-        raise MailError("Почта не приняла логин или пароль. Для Gmail, Яндекса и Mail.ru "
-                        "нужен «пароль приложения», а не обычный пароль от ящика.") from exc
+        raise MailError("mail_err_auth") from exc
     except (smtplib.SMTPException, OSError) as exc:
-        raise MailError(f"Не удалось отправить письмо: {exc}") from exc
+        raise MailError("mail_err_send", error=exc) from exc
 
 
 def send_digest(cfg: dict, jobs: list, candidate: str, when: str, threshold: int) -> None:
