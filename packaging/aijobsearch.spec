@@ -22,9 +22,13 @@ datas = [
 ]
 
 # APScheduler и uvicorn грузят части динамически — PyInstaller их сам не находит.
+# Переводы тоже: язык выбирается во время работы, поэтому модули locales
+# приходится перечислить явно — иначе в собранном приложении все языки, кроме
+# первых четырёх, молча откатывались бы на английский.
 hiddenimports = (
     collect_submodules("uvicorn")
     + collect_submodules("apscheduler")
+    + collect_submodules("jobsearch.locales")
     + ["jobsearch", "app"]
 )
 
