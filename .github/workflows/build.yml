@@ -56,7 +56,10 @@ jobs:
       - name: Package macOS disk image
         if: runner.os == 'macOS'
         run: |
-          hdiutil create -volname "AI Job Search" -srcfolder "dist/AI Job Search.app" \
+          stage="$(mktemp -d)"
+          cp -R "dist/AI Job Search.app" "$stage/"
+          ln -s /Applications "$stage/Applications"
+          hdiutil create -volname "AI Job Search" -srcfolder "$stage" \
             -ov -format UDZO "dist/AI Job Search.dmg"
 
       - name: Package Linux archive

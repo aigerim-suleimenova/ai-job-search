@@ -40,7 +40,11 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 
 echo "→ Собираем образ диска"
 rm -f "$DMG"
-hdiutil create -volname "AI Job Search" -srcfolder "$APP" -ov -format UDZO "$DMG"
+STAGE="$(mktemp -d)"
+cp -R "$APP" "$STAGE/"
+ln -s /Applications "$STAGE/Applications"
+hdiutil create -volname "AI Job Search" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+rm -rf "$STAGE"
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 
 # Нотаризация нужна только для раздачи другим людям: Apple проверяет сборку и
