@@ -97,7 +97,9 @@ def index(request: Request, msg: str = ""):
     next_run = scheduler.next_run_time()
     # статус показываем как «идёт», только если текущий прогон про этот профиль
     mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
-    state_view = {"running": mine, "stage": pipeline.state["stage"] if mine else ""}
+    state_view = {"running": mine, "step": pipeline.state.get("step", 0),
+                  "steps": pipeline.STAGE_COUNT,
+                  "stage": _msg(pipeline.state["stage"]) if mine and pipeline.state["stage"] else ""}
     busy = pipeline.state.get("profile", "")
     return render(request, "index.html", {
         "busy_with": profiles.name_of(busy) if (pipeline.state["running"] and not mine) else "",
@@ -308,7 +310,10 @@ def simple(request: Request, msg: str = ""):
     mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
     return render(request, "simple.html", {
         "cfg": cfg, "msg": msg, "cv": config.cv_meta(),
-        "state": {"running": mine, "stage": pipeline.state["stage"] if mine else ""},
+        "state": {"running": mine, "step": pipeline.state.get("step", 0),
+                  "steps": pipeline.STAGE_COUNT,
+                  "stage": _msg(pipeline.state["stage"]) if mine and pipeline.state["stage"] else ""},
+        "found": db.counts(int(cfg["search"].get("threshold") or 70))["total"],
     }, cfg=cfg)
 
 
@@ -412,7 +417,10 @@ def status():
         "running": mine,
         "busy_with": busy_with,
         "stopping": pipeline.stop_requested() and mine,
-        "stage": pipeline.state["stage"] if mine else "",
+        "stage": _msg(pipeline.state["stage"]) if mine and pipeline.state["stage"] else "",
+        "step": pipeline.state.get("step", 0) if mine else 0,
+        "steps": pipeline.STAGE_COUNT,
+        "found": db.counts(int(config.load()["search"].get("threshold") or 70))["total"],
         "log": pipeline.state["log"][-30:] if mine else [],
         "next_run": next_run.strftime("%Y-%m-%d %H:%M") if next_run else None,
     })

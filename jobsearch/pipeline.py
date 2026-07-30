@@ -38,10 +38,22 @@ def _log(msg: str) -> None:
         del state["log"][:100]
 
 
-def _stage(name: str) -> None:
+
+# Порядок этапов прогона: по нему страница показывает «шаг N из M».
+# Часть этапов пропускается (веб-поиск выключен, модель не умеет искать),
+# поэтому номера могут перескакивать — это честнее, чем рисовать проценты.
+STAGE_ORDER = ["stage_cv", "stage_start", "stage_discover", "stage_discover_ats",
+               "stage_collect", "stage_dedupe", "stage_prepare", "stage_triage",
+               "stage_deep", "stage_deep_research", "stage_save"]
+STAGE_COUNT = len(STAGE_ORDER) - 1   # deep и deep_research — одно и то же место
+
+def _stage(key: str) -> None:
+    """Отмечает этап. В state лежит ключ перевода, а не готовая строка: язык
+    подставит страница, которая её показывает."""
     _check_stop()          # между этапами — самое безопасное место, чтобы прерваться
-    state["stage"] = name
-    _log(f"— {name}")
+    state["stage"] = key
+    state["step"] = STAGE_ORDER.index(key) + 1 if key in STAGE_ORDER else state.get("step", 1)
+    _log("— " + i18n.t(config.load()["ui"]["lang"], key))
 
 
 def run_async(trigger: str = "manual", profile: str = None) -> bool:
@@ -63,7 +75,7 @@ def prepare_and_run(profile: str, trigger: str = "manual") -> bool:
 
     def worker():
         profiles.set_active(profile)
-        state.update(running=True, stage="разбираем резюме", log=[], profile=profile)
+        state.update(running=True, stage="stage_cv", step=1, log=[], profile=profile)
         _log("Готовим профиль по резюме — это занимает до полутора минут")
         try:
             cfg = config.load()
@@ -89,7 +101,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         profiles.set_active(profile)  # свой поток → задаём активный профиль явно
     _stop.clear()
     llm.clear_cancel()
-    state.update(running=True, stage="старт", log=[], profile=profiles.active())
+    state.update(running=True, stage="stage_start", step=1, log=[], profile=profiles.active())
     cfg = config.load()
     cv = config.cv_text()
     run_id = db.start_run()
@@ -108,7 +120,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             _log("поиск новых компаний пропущен: выбранная модель не умеет веб-поиск "
                  "(его поддерживает только Claude Code CLI)")
         if n_disc > 0 and web_ok:
-            _stage("поиск новых компаний (веб-поиск)")
+            _stage("stage_discover")
             fresh_companies = discovery.discover(cfg, _log, n=n_disc)
             if fresh_companies:
                 cfg["sources"]["companies"] = cfg["sources"].get("companies", []) + fresh_companies
@@ -122,7 +134,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         # каждая находка даёт и вакансию, и новую компанию, чью доску забираем целиком.
         n_ats = int(cfg["search"].get("discover_ats_per_run", 0))
         if n_ats > 0 and web_ok:
-            _stage("поиск вакансий на доменах ATS (веб-поиск)")
+            _stage("stage_discover_ats")
             ats_companies = discovery.discover_ats_jobs(cfg, _log, n=n_ats)
             if ats_companies:
                 cfg["sources"]["companies"] = cfg["sources"].get("companies", []) + ats_companies
@@ -131,7 +143,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 _log("новых досок на ATS не найдено")
 
         # 1. Сбор
-        _stage("сбор вакансий")
+        _stage("stage_collect")
         jobs = []
         def _company(comp):
             name, url = comp.get("name", ""), comp.get("url", "")
@@ -168,7 +180,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         _log(f"Собрано всего: {found}")
 
         # 2. Нормализация и дедупликация (прямые вакансии приоритетнее)
-        _stage("дедупликация и фильтры")
+        _stage("stage_dedupe")
         by_key = {}
         for j in jobs:
             j["key"] = filters.job_key(j.get("company", ""), j.get("title", ""))
@@ -208,7 +220,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
 
         # 5. Порядок и верхний предел на триаж (при параллельном триаже успеваем оценить всё).
         # Приоритет — вакансиям компаний из списка мониторинга, затем по лексике.
-        _stage("подготовка к оценке")
+        _stage("stage_prepare")
         terms = scoring.profile_terms(cfg, cv)
 
         # 5a. Дешёвый пре-фильтр: отсекаем заведомо не ту профессию (продажи/HR/саппорт)
@@ -234,7 +246,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
              + (f", отложено до следующего прогона: {len(deferred)}" if deferred else ""))
 
         # 6. LLM-триаж (haiku, параллельно)
-        _stage("LLM-триаж")
+        _stage("stage_triage")
         if not (cfg["profile"].get("roles") or cfg["profile"].get("summary") or cv):
             _log("ВНИМАНИЕ: профиль пуст и CV не загружено — оценки будут случайными. "
                  "Заполните «Профиль» на странице настроек.")
@@ -283,7 +295,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         # 7. Глубокий разбор (параллельно): точный %, правки CV и LinkedIn,
         # плюс, если включено, зарплата и факты о компании из веб-поиска
         research = bool(cfg["search"].get("research_company", True))
-        _stage("глубокий разбор, зарплата и факты о компании" if research else "глубокий разбор и советы по CV")
+        _stage("stage_deep_research" if research else "stage_deep")
         deep_done = {"n": 0}
 
         def _deep(j):
@@ -313,7 +325,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         matched_count = len(final)
 
         # 8. Сохранение и уведомление
-        _stage("сохранение и отправка")
+        _stage("stage_save")
         for j in matched:
             db.save_job(j, run_id)
         base_url = os.environ.get("AIJS_BASE_URL", "http://127.0.0.1:8765")

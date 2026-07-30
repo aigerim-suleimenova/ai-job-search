@@ -455,3 +455,25 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 }
 [dir="rtl"] summary::before { content: "‹"; }
 [dir="rtl"] details[open] > summary::before { transform: rotate(-90deg); }
+
+/* Карточка идущего поиска: пока он идёт, это главное на странице */
+.running-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.running-head h2 { margin-bottom: 4px; }
+.running-stage { margin: 0; color: var(--muted); font-size: 13px; }
+.running-step {
+  margin-inline-start: 8px; font-size: 11.5px; color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+/* Полоса без процентов: сколько осталось — честно неизвестно */
+.running-bar {
+  height: 4px; margin-top: 14px; border-radius: 2px; overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.running-bar i {
+  display: block; height: 100%; width: 34%; border-radius: 2px;
+  background: var(--accent); animation: running-slide 1.7s ease-in-out infinite;
+}
+@keyframes running-slide {
+  0% { transform: translateX(-100%); } 100% { transform: translateX(320%); }
+}
+@media (prefers-reduced-motion: reduce) { .running-bar i { animation: none; width: 100%; } }

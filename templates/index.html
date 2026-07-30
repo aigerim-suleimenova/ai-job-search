@@ -32,7 +32,7 @@
 <section class="card status" id="status-card">
   <div class="state-line">
     <b>{{ t('status') }}</b>
-    <span id="status-text" class="state-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% elif busy_with %}{{ t('status_busy').format(name=busy_with) }}{% else %}{{ t('status_idle') }}{% endif %}</span>
+    <span id="status-text" class="state-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% if state.step %} · {{ t('run_step').format(n=state.step, m=state.steps) }}{% endif %}{% elif busy_with %}{{ t('status_busy').format(name=busy_with) }}{% else %}{{ t('status_idle') }}{% endif %}</span>
     {% if continuous %}<span class="state-mode">{{ t('status_continuous') }}</span>
     {% elif next_run %}<span class="state-mode">{{ t('next_run') }} {{ next_run }}</span>{% endif %}
   </div>
@@ -47,7 +47,12 @@
     {% endif %}
   </div>
 </section>
-<pre id="live-log" class="log" {% if not state.running %}hidden{% endif %}></pre>
+{% if state.running %}
+<details class="card" style="padding:12px 16px">
+  <summary>{{ t('run_journal') }}</summary>
+  <pre id="live-log" class="log" style="margin-top:8px"></pre>
+</details>
+{% endif %}
 
 <section class="card">
   <h2>{{ t('manage_people') }} — {{ active_name }}</h2>
