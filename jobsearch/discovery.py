@@ -6,8 +6,16 @@ Claude с веб-поиском ищет компании/стартапы, ко
 """
 from urllib.parse import urlparse
 
-from . import llm
+from . import config, i18n, llm
 from .collectors import ats
+
+
+
+def _lk(log, key: str, **fmt) -> None:
+    """Строка журнала на языке интерфейса (log приходит из пайплайна)."""
+    text = i18n.t(config.load()["ui"]["lang"], key)
+    log(text.format(**fmt) if fmt else text)
+
 
 PROMPT = """Найди через веб-поиск {n} работодателей, которые ПРЯМО СЕЙЧАС нанимают:
 {target}
@@ -115,7 +123,7 @@ def discover(cfg: dict, log, n: int = 5) -> list:
         except llm.AuthError:
             raise      # без входа в модель прогон смысла не имеет
         except llm.ClaudeError as e:
-            log(f"поиск компаний (заход {r + 1}): {e}")
+            _lk(log, "log_disc_err", r=r + 1, error=e)
             dry += 1
             continue
         added = 0
@@ -135,7 +143,7 @@ def discover(cfg: dict, log, n: int = 5) -> list:
                 break
         dry = dry + 1 if added == 0 else 0
         if n > _PER_CALL:
-            log(f"поиск компаний: заход {r + 1}, +{added}, всего {len(fresh)}/{n}")
+            _lk(log, "log_disc_pass", r=r + 1, added=added, found=len(fresh), want=n)
     return fresh[:n]
 
 
@@ -212,7 +220,7 @@ def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
     except llm.AuthError:
         raise      # без входа в модель прогон смысла не имеет
     except llm.ClaudeError as e:
-        log(f"поиск вакансий по ATS: {e}")
+        _lk(log, "log_ats_err", error=e)
         return []
 
     fresh = []
@@ -230,7 +238,7 @@ def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
         name = str(it.get("company", "")).strip() or slug
         title = str(it.get("title", "")).strip()
         fresh.append({"name": name, "url": board})
-        log(f"вакансия на ATS: {title} @ {name} → мониторим доску {board}")
+        _lk(log, "log_ats_found", title=title, name=name, board=board)
         if len(fresh) >= n:
             break
     return fresh

@@ -2,7 +2,15 @@
 import json
 import re
 
-from . import i18n, llm
+from . import config, i18n, llm
+
+
+
+def _lk(log, key: str, **fmt) -> None:
+    """Строка журнала на языке интерфейса (log приходит из пайплайна)."""
+    text = i18n.t(config.load()["ui"]["lang"], key)
+    log(text.format(**fmt) if fmt else text)
+
 
 STOPWORDS = {
     "and", "the", "for", "with", "you", "are", "our", "have", "will", "that", "this",
@@ -131,12 +139,12 @@ def triage(jobs: list, cfg: dict, log, cv: str = "") -> list:
             j["is_agency"] = bool(item.get("agency")) or j.get("is_agency", False)
             j["reason"] = str(item.get("reason", ""))[:300 * (2 if "-" in cfg.get("ui", {}).get("output_lang", "ru") else 1)]
         done["n"] += 1
-        log(f"триаж: {done['n']} из {len(batches)} пачек готово")
+        _lk(log, "log_triage_batch", done=done["n"], total=len(batches))
 
     for r in llm.pmap(process, batches, workers=workers):
         if isinstance(r, Exception):
             done["n"] += 1
-            log(f"триаж (пачка): {r}")
+            _lk(log, "log_triage_batch_err", error=r)
     return jobs
 
 
@@ -246,7 +254,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
     except llm.AuthError:
         raise      # без входа в модель прогон смысла не имеет
     except llm.ClaudeError as e:
-        log(f"разбор «{job.get('title')}»: {e}")
+        _lk(log, "log_deep_job_err", title=job.get("title"), error=e)
         return
     if not isinstance(result, dict):
         return

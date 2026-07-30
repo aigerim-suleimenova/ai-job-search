@@ -588,6 +588,223 @@ TR = {
                   "it": "Avvia la ricerca", "de": "Suche starten"},
     "simple_starting": {"ru": "Запускаем…", "en": "Starting…", "it": "Avvio…", "de": "Wird gestartet…"},
     "donate_hint": {"ru": "Программа бесплатная и работает у вас на компьютере. Если она пригодилась — можно поддержать автора:", "en": "This app is free and runs on your own computer. If it has been useful, you can support the author:", "it": "L'app è gratuita e gira sul vostro computer. Se vi è stata utile, potete sostenere l'autore:", "de": "Die App ist kostenlos und läuft auf Ihrem eigenen Rechner. Wenn sie nützlich war, können Sie den Autor unterstützen:"},
+    "log_discover_skipped_why": {"ru": " (его поддерживает только Claude Code CLI)", "en": " (only Claude Code CLI supports it)", "it": " (solo Claude Code CLI lo supporta)", "de": " (nur Claude Code CLI kann das)"},
+    "log_empty_profile_fix": {"ru": " Заполните «Профиль» на странице настроек поиска.", "en": " Fill in the Profile block on the Search settings page.", "it": " Compilate il blocco Profilo nella pagina Impostazioni ricerca.", "de": " Füllen Sie den Block Profil auf der Seite Sucheinstellungen aus."},
+    "log_triage_batch": {
+        "ru": "оценка: {done} из {total} пачек готово",
+        "en": "scoring: {done} of {total} batches done",
+        "it": "valutazione: {done} di {total} lotti fatti",
+        "de": "Bewertung: {done} von {total} Stapeln fertig"},
+    "log_triage_batch_err": {
+        "ru": "оценка (пачка): {error}",
+        "en": "scoring (batch): {error}",
+        "it": "valutazione (lotto): {error}",
+        "de": "Bewertung (Stapel): {error}"},
+    "log_deep_job_err": {
+        "ru": "разбор «{title}»: {error}",
+        "en": "analysis of “{title}”: {error}",
+        "it": "analisi di «{title}»: {error}",
+        "de": "Analyse von „{title}“: {error}"},
+    "log_disc_err": {
+        "ru": "поиск компаний (заход {r}): {error}",
+        "en": "company search (pass {r}): {error}",
+        "it": "ricerca aziende (giro {r}): {error}",
+        "de": "Unternehmenssuche (Durchgang {r}): {error}"},
+    "log_disc_pass": {
+        "ru": "поиск компаний: заход {r}, +{added}, всего {found}/{want}",
+        "en": "company search: pass {r}, +{added}, total {found}/{want}",
+        "it": "ricerca aziende: giro {r}, +{added}, totale {found}/{want}",
+        "de": "Unternehmenssuche: Durchgang {r}, +{added}, gesamt {found}/{want}"},
+    "log_ats_err": {
+        "ru": "поиск вакансий по ATS: {error}",
+        "en": "job search on ATS domains: {error}",
+        "it": "ricerca offerte sui domini ATS: {error}",
+        "de": "Stellensuche auf ATS-Domains: {error}"},
+    "log_ats_found": {
+        "ru": "вакансия на ATS: {title} @ {name} → берём доску {board} в мониторинг",
+        "en": "job on ATS: {title} @ {name} → adding board {board} to monitoring",
+        "it": "offerta su ATS: {title} @ {name} → aggiungiamo la bacheca {board} al monitoraggio",
+        "de": "Stelle auf ATS: {title} @ {name} → Board {board} wird überwacht"},
+    "log_crawl_ats": {
+        "ru": "обход {name}: найден встроенный ATS ({kind}/{id}) — {n}",
+        "en": "crawl {name}: embedded ATS found ({kind}/{id}) — {n}",
+        "it": "scansione {name}: trovato ATS incorporato ({kind}/{id}) — {n}",
+        "de": "Crawl {name}: eingebettetes ATS gefunden ({kind}/{id}) — {n}"},
+    "log_crawl_ats_fail": {
+        "ru": "обход {name}: встроенный ATS {found} не прочитался ({error}), пробую модель",
+        "en": "crawl {name}: embedded ATS {found} would not read ({error}), trying the model",
+        "it": "scansione {name}: l'ATS incorporato {found} non si è letto ({error}), provo col modello",
+        "de": "Crawl {name}: eingebettetes ATS {found} nicht lesbar ({error}), versuche es mit dem Modell"},
+    "log_crawl_empty": {
+        "ru": "обход {name}: страница почти пустая (скорее всего, содержимое рисуется скриптом)",
+        "en": "crawl {name}: the page is nearly empty (its content is most likely drawn by a script)",
+        "it": "scansione {name}: la pagina è quasi vuota (il contenuto è probabilmente disegnato da uno script)",
+        "de": "Crawl {name}: die Seite ist fast leer (der Inhalt wird vermutlich per Skript gezeichnet)"},
+    "log_crawl_subpage": {
+        "ru": "обход {name}: на {url} вакансий нет, пробую подстраницу {sub}",
+        "en": "crawl {name}: no jobs at {url}, trying the sub-page {sub}",
+        "it": "scansione {name}: nessuna offerta su {url}, provo la sotto-pagina {sub}",
+        "de": "Crawl {name}: keine Stellen unter {url}, versuche die Unterseite {sub}"},
+    "log_crawl_guessed": {
+        "ru": "обход {name}: careers на скриптах, ATS угадан по названию ({kind}/{id}) — {n}",
+        "en": "crawl {name}: careers page is script-driven, ATS guessed from the name ({kind}/{id}) — {n}",
+        "it": "scansione {name}: pagina careers a script, ATS indovinato dal nome ({kind}/{id}) — {n}",
+        "de": "Crawl {name}: Karriereseite ist skriptgesteuert, ATS aus dem Namen erraten ({kind}/{id}) — {n}"},
+    "log_cv_parse": {
+        "ru": "Готовим профиль по резюме — это занимает до полутора минут",
+        "en": "Reading the CV to build the profile — this takes up to a minute and a half",
+        "it": "Leggiamo il CV per costruire il profilo — ci vuole fino a un minuto e mezzo",
+        "de": "Lebenslauf wird für das Profil gelesen — das dauert bis zu anderthalb Minuten"},
+    "log_cv_roles": {
+        "ru": "Из резюме определены роли: {roles}",
+        "en": "Roles taken from the CV: {roles}",
+        "it": "Ruoli ricavati dal CV: {roles}",
+        "de": "Aus dem Lebenslauf ermittelte Rollen: {roles}"},
+    "log_cv_failed": {
+        "ru": "Не удалось разобрать резюме автоматически: {error}",
+        "en": "Could not read the CV automatically: {error}",
+        "it": "Non è stato possibile leggere il CV automaticamente: {error}",
+        "de": "Der Lebenslauf ließ sich nicht automatisch auswerten: {error}"},
+    "log_run": {
+        "ru": "Прогон #{n} ({trigger})",
+        "en": "Run #{n} ({trigger})",
+        "it": "Esecuzione #{n} ({trigger})",
+        "de": "Durchlauf #{n} ({trigger})"},
+    "log_discover_skipped": {
+        "ru": "поиск новых компаний пропущен: выбранная модель не умеет веб-поиск",
+        "en": "skipping the search for new companies: the chosen model cannot search the web",
+        "it": "ricerca di nuove aziende saltata: il modello scelto non sa cercare sul web",
+        "de": "Suche nach neuen Unternehmen übersprungen: das gewählte Modell kann nicht im Web suchen"},
+    "log_new_company": {
+        "ru": "новая компания: {name} — {url}",
+        "en": "new company: {name} — {url}",
+        "it": "nuova azienda: {name} — {url}",
+        "de": "neues Unternehmen: {name} — {url}"},
+    "log_no_new_companies": {
+        "ru": "новых компаний не найдено",
+        "en": "no new companies found",
+        "it": "nessuna nuova azienda trovata",
+        "de": "keine neuen Unternehmen gefunden"},
+    "log_no_new_boards": {
+        "ru": "новых досок на ATS не найдено",
+        "en": "no new ATS boards found",
+        "it": "nessuna nuova bacheca ATS trovata",
+        "de": "keine neuen ATS-Boards gefunden"},
+    "log_collected": {
+        "ru": "Собрано всего: {n}",
+        "en": "Collected in total: {n}",
+        "it": "Raccolte in totale: {n}",
+        "de": "Insgesamt gesammelt: {n}"},
+    "log_after_filters": {
+        "ru": "После фильтров локации/стоп-слов: {n} (отсеяно по локации: {loc}, по стоп-словам: {kw})",
+        "en": "After the location and stop-word filters: {n} (dropped by location: {loc}, by stop-word: {kw})",
+        "it": "Dopo i filtri di luogo e parole escluse: {n} (scartate per luogo: {loc}, per parola: {kw})",
+        "de": "Nach Orts- und Stoppwortfiltern: {n} (nach Ort verworfen: {loc}, nach Stoppwort: {kw})"},
+    "log_drop_location": {
+        "ru": "  пример отсева по локации: {title} — «{loc}»",
+        "en": "  example dropped by location: {title} — “{loc}”",
+        "it": "  esempio scartato per luogo: {title} — «{loc}»",
+        "de": "  Beispiel nach Ort verworfen: {title} — „{loc}“"},
+    "log_drop_keyword": {
+        "ru": "  пример отсева по стоп-слову: {title} @ {company}",
+        "en": "  example dropped by stop-word: {title} @ {company}",
+        "it": "  esempio scartato per parola esclusa: {title} @ {company}",
+        "de": "  Beispiel nach Stoppwort verworfen: {title} @ {company}"},
+    "log_fresh": {
+        "ru": "Новых (не виденных ранее): {n}",
+        "en": "New (not seen before): {n}",
+        "it": "Nuove (mai viste prima): {n}",
+        "de": "Neu (vorher nicht gesehen): {n}"},
+    "log_dropped_offtarget": {
+        "ru": "Отсеяно явно нерелевантных ролей (продажи/HR/саппорт и т.п.): {n}",
+        "en": "Dropped clearly unrelated roles (sales, HR, support and the like): {n}",
+        "it": "Scartati ruoli chiaramente estranei (vendite, HR, supporto e simili): {n}",
+        "de": "Klar fachfremde Rollen verworfen (Vertrieb, HR, Support und Ähnliches): {n}"},
+    "log_to_triage": {
+        "ru": "На оценку моделью: {n} (из них от ваших компаний: {own})",
+        "en": "Going to the model for scoring: {n} (of them from your companies: {own})",
+        "it": "Alla valutazione del modello: {n} (di cui dalle vostre aziende: {own})",
+        "de": "Zur Bewertung durch das Modell: {n} (davon von Ihren Unternehmen: {own})"},
+    "log_deferred": {
+        "ru": ", отложено до следующего прогона: {n}",
+        "en": ", held over to the next run: {n}",
+        "it": ", rinviate alla prossima esecuzione: {n}",
+        "de": ", auf den nächsten Durchlauf verschoben: {n}"},
+    "log_empty_profile": {
+        "ru": "ВНИМАНИЕ: профиль пуст и резюме не загружено — оценки будут случайными",
+        "en": "WARNING: the profile is empty and no CV is uploaded — the scores will be meaningless",
+        "it": "ATTENZIONE: il profilo è vuoto e non c'è alcun CV — le valutazioni saranno casuali",
+        "de": "ACHTUNG: das Profil ist leer und es ist kein Lebenslauf geladen — die Bewertungen sind zufällig"},
+    "log_second_vote": {
+        "ru": "второе мнение: {n} пограничных ({lo}–{hi}%)",
+        "en": "second opinion: {n} borderline ({lo}–{hi}%)",
+        "it": "secondo parere: {n} al limite ({lo}–{hi}%)",
+        "de": "zweite Meinung: {n} Grenzfälle ({lo}–{hi}%)"},
+    "log_second_vote_rescued": {
+        "ru": "второе мнение подняло выше порога: {n} — уйдут на глубокий разбор",
+        "en": "the second opinion lifted {n} above the threshold — they go to deep analysis",
+        "it": "il secondo parere ne ha portate sopra la soglia: {n} — vanno all'analisi approfondita",
+        "de": "die zweite Meinung hob {n} über die Schwelle — sie gehen in die tiefe Analyse"},
+    "log_triage_done": {
+        "ru": "Оценено: {n}. Глубоко проверяем: {above} прошедших порог + {near} близких (≥{margin}%)",
+        "en": "Scored: {n}. Going deep on {above} above the threshold + {near} near misses (≥{margin}%)",
+        "it": "Valutate: {n}. Analisi approfondita per {above} sopra soglia + {near} vicine (≥{margin}%)",
+        "de": "Bewertet: {n}. Tiefe Analyse für {above} über der Schwelle + {near} knappe (≥{margin}%)"},
+    "log_deep_item": {
+        "ru": "разбор {i}/{total}: {title} @ {company}{tail}",
+        "en": "analysing {i}/{total}: {title} @ {company}{tail}",
+        "it": "analisi {i}/{total}: {title} @ {company}{tail}",
+        "de": "Analyse {i}/{total}: {title} @ {company}{tail}"},
+    "log_deep_error": {
+        "ru": "разбор: {error}",
+        "en": "analysis: {error}",
+        "it": "analisi: {error}",
+        "de": "Analyse: {error}"},
+    "log_tg_sent": {
+        "ru": "Дайджест отправлен в Telegram",
+        "en": "Digest sent to Telegram",
+        "it": "Riepilogo inviato a Telegram",
+        "de": "Zusammenfassung an Telegram gesendet"},
+    "log_tg_not_set": {
+        "ru": "Telegram не настроен — дайджест только на странице результатов",
+        "en": "Telegram is not set up — the digest stays on the Results page",
+        "it": "Telegram non è configurato — il riepilogo resta nella pagina Risultati",
+        "de": "Telegram ist nicht eingerichtet — die Zusammenfassung bleibt auf der Ergebnisseite"},
+    "log_mail_sent": {
+        "ru": "Письмо с результатами отправлено",
+        "en": "Email with the results sent",
+        "it": "Email con i risultati inviata",
+        "de": "E-Mail mit den Ergebnissen gesendet"},
+    "log_mail_error": {
+        "ru": "Почта: {error}",
+        "en": "Email: {error}",
+        "it": "Email: {error}",
+        "de": "E-Mail: {error}"},
+    "log_done": {
+        "ru": "Готово",
+        "en": "Done",
+        "it": "Fatto",
+        "de": "Fertig"},
+    "log_stopped": {
+        "ru": "Прогон остановлен — найденное сохранено",
+        "en": "Run stopped — what was found is saved",
+        "it": "Esecuzione interrotta — quanto trovato è salvato",
+        "de": "Durchlauf gestoppt — das Gefundene ist gespeichert"},
+    "log_noauth": {
+        "ru": "Модель не отвечает: {error}",
+        "en": "The model is not answering: {error}",
+        "it": "Il modello non risponde: {error}",
+        "de": "Das Modell antwortet nicht: {error}"},
+    "log_noauth_stop": {
+        "ru": "Оценивать вакансии нечем — прогон остановлен.",
+        "en": "There is nothing to score the jobs with — the run has stopped.",
+        "it": "Non c'è con cosa valutare le offerte — l'esecuzione si è fermata.",
+        "de": "Es gibt nichts, womit die Stellen bewertet werden könnten — der Durchlauf ist gestoppt."},
+    "log_error": {
+        "ru": "ОШИБКА:",
+        "en": "ERROR:",
+        "it": "ERRORE:",
+        "de": "FEHLER:"},
     "noauth_title": {"ru": "Модель не пускает к себе", "en": "The model would not let us in", "it": "Il modello non ci fa entrare", "de": "Das Modell lässt uns nicht herein"},
     "noauth_hint": {"ru": "Прошлый прогон собрал вакансии, но оценить их было нечем: {name} отвечает «{error}». Откройте эту программу и войдите в неё, потом запустите поиск снова. Или выберите другой способ на странице «Модель».", "en": "The last run collected jobs but had nothing to score them with: {name} answers “{error}”. Open that program, sign in, then start the search again. Or pick another option on the Model page.", "it": "L'ultima esecuzione ha raccolto offerte ma non aveva con cosa valutarle: {name} risponde «{error}». Aprite quel programma, accedete e rilanciate la ricerca. Oppure scegliete un'altra opzione nella pagina Modello.", "de": "Der letzte Durchlauf hat Stellen gesammelt, konnte sie aber mit nichts bewerten: {name} antwortet „{error}“. Öffnen Sie dieses Programm, melden Sie sich an und starten Sie die Suche erneut. Oder wählen Sie auf der Seite Modell etwas anderes."},
     "donate_title": {"ru": "Поддержать проект", "en": "Support the project", "it": "Sostieni il progetto", "de": "Projekt unterstützen"},

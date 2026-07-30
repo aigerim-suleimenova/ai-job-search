@@ -47,6 +47,16 @@ STAGE_ORDER = ["stage_cv", "stage_start", "stage_discover", "stage_discover_ats"
                "stage_deep", "stage_deep_research", "stage_save"]
 STAGE_COUNT = len(STAGE_ORDER) - 1   # deep и deep_research — одно и то же место
 
+def _logk(key: str, **fmt) -> None:
+    """Строка журнала на языке интерфейса.
+
+    Журнал видит человек — значит, он не может быть всегда русским, как бы
+    удобно это ни было при написании кода.
+    """
+    text = i18n.t(config.load()["ui"]["lang"], key)
+    _log(text.format(**fmt) if fmt else text)
+
+
 def _stage(key: str) -> None:
     """Отмечает этап. В state лежит ключ перевода, а не готовая строка: язык
     подставит страница, которая её показывает."""
@@ -76,16 +86,16 @@ def prepare_and_run(profile: str, trigger: str = "manual") -> bool:
     def worker():
         profiles.set_active(profile)
         state.update(running=True, stage="stage_cv", step=1, log=[], profile=profile)
-        _log("Готовим профиль по резюме — это занимает до полутора минут")
+        _logk("log_cv_parse")
         try:
             cfg = config.load()
             cv = config.cv_text()
             if cv and not (cfg["profile"].get("roles") or cfg["profile"].get("summary")):
                 cfg = scoring.profile_from_cv(cfg, cv)
                 config.save(cfg)
-                _log(f"Из резюме определены роли: {cfg['profile'].get('roles', '')[:80]}")
+                _logk("log_cv_roles", roles=cfg["profile"].get("roles", "")[:80])
         except Exception as e:  # noqa: BLE001 — не смогли разобрать, ищем по тому, что есть
-            _log(f"Не удалось разобрать резюме автоматически: {e}")
+            _logk("log_cv_failed", error=e)
         finally:
             state.update(running=False)
         run(trigger, profile)
@@ -109,7 +119,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
     status = "ok"
     coverage = []
     try:
-        _log(f"Прогон #{run_id} ({trigger})")
+        _logk("log_run", n=run_id, trigger=trigger)
 
         # 0. Поиск новых компаний под профиль (веб-поиск через claude).
         # Веб-поиск умеет только Claude Code CLI: на других провайдерах этот шаг
@@ -117,8 +127,8 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         web_ok = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
         n_disc = int(cfg["search"].get("discover_per_run", 0))
         if n_disc > 0 and not web_ok:
-            _log("поиск новых компаний пропущен: выбранная модель не умеет веб-поиск "
-                 "(его поддерживает только Claude Code CLI)")
+            _logk("log_discover_skipped")
+            _logk("log_discover_skipped_why")
         if n_disc > 0 and web_ok:
             _stage("stage_discover")
             fresh_companies = discovery.discover(cfg, _log, n=n_disc)
@@ -126,9 +136,9 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 cfg["sources"]["companies"] = cfg["sources"].get("companies", []) + fresh_companies
                 config.save(cfg)
                 for f in fresh_companies:
-                    _log(f"новая компания: {f['name']} — {f['url']}")
+                    _logk("log_new_company", name=f["name"], url=f["url"])
             else:
-                _log("новых компаний не найдено")
+                _logk("log_no_new_companies")
 
         # 0b. Поиск вакансий прямо на доменах ATS (site:boards.greenhouse.io ...) —
         # каждая находка даёт и вакансию, и новую компанию, чью доску забираем целиком.
@@ -140,7 +150,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 cfg["sources"]["companies"] = cfg["sources"].get("companies", []) + ats_companies
                 config.save(cfg)
             else:
-                _log("новых досок на ATS не найдено")
+                _logk("log_no_new_boards")
 
         # 1. Сбор
         _stage("stage_collect")
@@ -177,7 +187,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             jobs += got
         jobs += aggregators.collect(cfg, _log, coverage)
         found = len(jobs)
-        _log(f"Собрано всего: {found}")
+        _logk("log_collected", n=found)
 
         # 2. Нормализация и дедупликация (прямые вакансии приоритетнее)
         _stage("stage_dedupe")
@@ -205,18 +215,17 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         for j in jobs:
             if filters.looks_like_agency(j.get("company", "")):
                 j["is_agency"] = True
-        _log(f"После фильтров локации/стоп-слов: {len(jobs)} "
-             f"(отсеяно по локации: {len(drop_loc)}, по стоп-словам: {len(drop_kw)})")
+        _logk("log_after_filters", n=len(jobs), loc=len(drop_loc), kw=len(drop_kw))
         for j in drop_loc[:5]:
-            _log(f"  пример отсева по локации: {j.get('title', '')[:60]} — «{j.get('location', '')[:60]}»")
+            _logk("log_drop_location", title=j.get("title", "")[:60], loc=j.get("location", "")[:60])
         for j in drop_kw[:5]:
-            _log(f"  пример отсева по стоп-слову: {j.get('title', '')[:60]} @ {j.get('company', '')[:40]}")
+            _logk("log_drop_keyword", title=j.get("title", "")[:60], company=j.get("company", "")[:40])
 
         # 4. Только новые
         seen = db.seen_keys()
         jobs = [j for j in jobs if j["key"] not in seen]
         fresh = len(jobs)
-        _log(f"Новых (не виденных ранее): {fresh}")
+        _logk("log_fresh", n=fresh)
 
         # 5. Порядок и верхний предел на триаж (при параллельном триаже успеваем оценить всё).
         # Приоритет — вакансиям компаний из списка мониторинга, затем по лексике.
@@ -233,7 +242,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             # и повторится в следующем прогоне, зато при смене ролей/навыков профиля
             # такие вакансии автоматически вернутся в рассмотрение.
             if dropped:
-                _log(f"Отсеяно явно нерелевантных ролей (продажи/HR/саппорт и т.п.): {dropped}")
+                _logk("log_dropped_offtarget", n=dropped)
 
         for j in jobs:
             j["_lex"] = scoring.lexical_score(j, terms)
@@ -242,14 +251,15 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         others = sorted((j for j in jobs if not j.get("from_watchlist")), key=lambda j: -j["_lex"])
         candidates = (watch + others)[:limit]
         deferred = (watch + others)[limit:]  # не помечаем виденными — дойдут в след. прогонах
-        _log(f"На LLM-триаж: {len(candidates)} (из них от ваших компаний: {min(len(watch), limit)})"
-             + (f", отложено до следующего прогона: {len(deferred)}" if deferred else ""))
+        _logk("log_to_triage", n=len(candidates), own=min(len(watch), limit))
+        if deferred:
+            _logk("log_deferred", n=len(deferred))
 
         # 6. LLM-триаж (haiku, параллельно)
         _stage("stage_triage")
         if not (cfg["profile"].get("roles") or cfg["profile"].get("summary") or cv):
-            _log("ВНИМАНИЕ: профиль пуст и CV не загружено — оценки будут случайными. "
-                 "Заполните «Профиль» на странице настроек.")
+            _logk("log_empty_profile")
+            _logk("log_empty_profile_fix")
         scoring.triage(candidates, cfg, _log, cv=cv)
         threshold = int(cfg["search"].get("threshold", 70))
         scored = [j for j in candidates if j.get("score") is not None]
@@ -261,7 +271,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         if cfg["search"].get("triage_second_vote", True):
             band = [j for j in scored if threshold - 40 <= (j["score"] or 0) < threshold]
             if band:
-                _log(f"второе мнение триажа: {len(band)} пограничных ({threshold - 40}–{threshold - 1}%)")
+                _logk("log_second_vote", n=len(band), lo=threshold - 40, hi=threshold - 1)
                 first = {j["key"]: (j["score"], j.get("reason", "")) for j in band}
                 scoring.triage(band, cfg, _log, cv=cv)
                 rescued = 0
@@ -272,7 +282,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                     if (j.get("score") or 0) >= threshold and (s1 or 0) < threshold:
                         rescued += 1
                 if rescued:
-                    _log(f"второе мнение подняло выше порога: {rescued} — уйдут на глубокую проверку")
+                    _logk("log_second_vote_rescued", n=rescued)
 
         # Триаж (haiku) систематически оптимистичен и шумит ±15-20 п.п.
         # ВСЕ вакансии, которые триаж поднял до порога, проверяем глубоко — именно они
@@ -289,8 +299,8 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         for j in scored:  # остальные сохраняем сразу с триажным баллом
             if j not in to_deep:
                 db.save_job(j, run_id)
-        _log(f"Оценено триажем: {len(scored)}. Глубоко проверяем: {len(above)} прошедших порог "
-             f"+ {len(to_deep) - len(above)} близких (near-miss ≥{threshold - keep_margin}%)")
+        _logk("log_triage_done", n=len(scored), above=len(above),
+              near=len(to_deep) - len(above), margin=threshold - keep_margin)
 
         # 7. Глубокий разбор (параллельно): точный %, правки CV и LinkedIn,
         # плюс, если включено, зарплата и факты о компании из веб-поиска
@@ -303,14 +313,15 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             scoring.deep_analyze(j, cfg, cv, _log, research=research)
             deep_done["n"] += 1
             tail = f" ({was}%→{j.get('score')}%)" if j.get("score") != was else ""
-            _log(f"разбор {deep_done['n']}/{len(to_deep)}: {j.get('title')} @ {j.get('company')}{tail}")
+            _logk("log_deep_item", i=deep_done["n"], total=len(to_deep),
+                  title=j.get("title"), company=j.get("company"), tail=tail)
 
         # глубокие вызовы тяжёлые (запрос страницы + длинный промпт) — параллелим осторожнее
         deep_workers = min(int(cfg["search"].get("parallelism", 5)), 3)
         for r in llm.pmap(_deep, to_deep, workers=deep_workers):
             if isinstance(r, Exception):
                 deep_done["n"] += 1
-                _log(f"разбор: {r}")
+                _logk("log_deep_error", error=r)
         for j in to_deep:
             db.save_job(j, run_id)
 
@@ -334,33 +345,33 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         if cfg["telegram"].get("bot_token") and cfg["telegram"].get("chat_id"):
             try:
                 notify.send_message(cfg, digest)
-                _log("Дайджест отправлен в Telegram")
+                _logk("log_tg_sent")
             except RuntimeError as e:
                 _log(f"Telegram: {e}")
                 status = "warn"
         else:
-            _log("Telegram не настроен — дайджест только на странице результатов")
+            _logk("log_tg_not_set")
         if mailer.configured(cfg):
             try:
                 mailer.send_digest(cfg, final, profiles.name_of(profiles.active()),
                                    db.now(), threshold)
-                _log("Письмо с результатами отправлено")
+                _logk("log_mail_sent")
             except mailer.MailError as e:
-                _log("Почта: " + i18n.t(cfg["ui"]["lang"], e.key).format(**e.fmt))
+                _logk("log_mail_error", error=i18n.t(cfg["ui"]["lang"], e.key).format(**e.fmt))
                 status = "warn"
-        _log("Готово")
+        _logk("log_done")
     except (Stopped, llm.Cancelled):
         status = "stopped"
-        _log("Прогон остановлен пользователем — найденное сохранено")
+        _logk("log_stopped")
     except llm.AuthError as e:
         # Вакансии собрать можно и без модели, но оценить их — нельзя, поэтому
         # прогон останавливается здесь, а не молча доходит до конца с нулём.
         status = "noauth"
-        _log(f"Модель не отвечает: {e}")
-        _log("Оценивать вакансии нечем — прогон остановлен.")
+        _logk("log_noauth", error=e)
+        _logk("log_noauth_stop")
     except Exception:  # noqa: BLE001
         status = "error"
-        _log("ОШИБКА:\n" + traceback.format_exc(limit=6))
+        _log(i18n.t(config.load()["ui"]["lang"], "log_error") + "\n" + traceback.format_exc(limit=6))
     finally:
         db.finish_run(run_id, found, fresh, matched_count, status, "\n".join(state["log"]),
                       coverage=json.dumps(coverage, ensure_ascii=False))

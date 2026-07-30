@@ -8,8 +8,16 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from .. import llm
+from .. import config, i18n, llm
 from . import ats
+
+
+
+def _lk(log, key: str, **fmt) -> None:
+    """Строка журнала на языке интерфейса (log приходит из пайплайна)."""
+    text = i18n.t(config.load()["ui"]["lang"], key)
+    log(text.format(**fmt) if fmt else text)
+
 
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 ai-job-search/1.0"}
 TIMEOUT = 30
@@ -90,10 +98,10 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
         try:
             jobs = ats.fetch(found[0], found[1], company_hint=name)
             if jobs:
-                log(f"crawl {name}: найден встроенный ATS ({found[0]}/{found[1]}) — {len(jobs)}")
+                _lk(log, "log_crawl_ats", name=name, kind=found[0], id=found[1], n=len(jobs))
                 return jobs
         except Exception as e:  # noqa: BLE001 — если не вышло, падаем на LLM-извлечение
-            log(f"crawl {name}: встроенный ATS {found} не прочитался ({e}), пробую LLM")
+            _lk(log, "log_crawl_ats_fail", name=name, found=found, error=e)
 
     # 2. Обычный краулинг: видимый текст + ссылки → LLM извлекает вакансии.
     soup = BeautifulSoup(raw_html, "html.parser")
@@ -107,7 +115,7 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
         if label and href.startswith("http"):
             links.append(f"{label} :: {href}")
     if len(text) < 100:
-        log(f"crawl {name}: страница почти пустая (вероятно, контент рендерится JS без встроенного ATS)")
+        _lk(log, "log_crawl_empty", name=name)
         return []
     prompt = EXTRACT_PROMPT.format(
         name=name, url=base_url, text=text[:12000], links="\n".join(links[:150]),
@@ -145,7 +153,7 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
     if not jobs and _depth == 0:
         board_url = _find_board_link(base_url, links)
         if board_url:
-            log(f"crawl {name}: на {base_url} вакансий не нашлось, пробую подстраницу {board_url}")
+            _lk(log, "log_crawl_subpage", name=name, url=base_url, sub=board_url)
             return crawl_company(name, board_url, cfg, log, _depth=1)
 
     # 4. Последний fallback: careers-страница целиком на JS без обнаружимого API —
@@ -153,7 +161,7 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
     if not jobs and name:
         guessed = ats.guess_by_name(name)
         if guessed:
-            log(f"crawl {name}: careers на JS, ATS угадан по названию ({guessed[0]}/{guessed[1]}) — {len(guessed[2])}")
+            _lk(log, "log_crawl_guessed", name=name, kind=guessed[0], id=guessed[1], n=len(guessed[2]))
             return guessed[2]
         return jobs
 
