@@ -74,3 +74,34 @@ jobs:
             dist/*.tar.gz
             dist/AI Job Search/
           if-no-files-found: warn
+
+  # Собранные приложения не должны оставаться артефактами сборки: те живут
+  # 90 дней и требуют входа в GitHub. По тегу складываем их в релиз.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Собрать список файлов
+        run: |
+          mkdir -p release
+          find artifacts -name "*.dmg" -o -name "*.tar.gz" -o -name "*.exe" | while read -r f; do
+            cp "$f" release/
+          done
+          # Windows собирается каталогом — упаковываем в zip
+          win="artifacts/AI Job Search-windows"
+          if [ -d "$win" ]; then
+            (cd "$win" && zip -qr "$GITHUB_WORKSPACE/release/AI Job Search-windows.zip" .)
+          fi
+          ls -lh release
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
