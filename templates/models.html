@@ -7,35 +7,12 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <h1>AI Job Search</h1>
-  <nav>
-    <a href="/simple">{{ t('nav_simple') }}</a>
-    <a href="/">{{ t('nav_settings') }}</a>
-    <a href="/results">{{ t('nav_results') }}</a>
-    <a href="/coverage">{{ t('nav_coverage') }}</a>
-    <a href="/cv/check">{{ t('nav_cvcheck') }}</a>
-    <a href="/models">{{ t('nav_models') }}</a>
-    <a href="/notify">{{ t('nav_notify') }}</a>
-  </nav>
-  <div class="toolbar-right">
-  <form method="post" action="/set_lang" class="profile-switch">
-    <input type="hidden" name="back" value="{{ request.url.path }}">
-    <label>
-      <select name="ui_lang" onchange="this.form.submit()" title="Язык / Language">
-        {% for code, lname in ui_langs.items() %}
-        <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
-        {% endfor %}
-      </select>
-    </label>
-  </form>
-  </div>
-</header>
+{% include "_header.html" %}
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
 
 <section class="card" id="pull-card" hidden>
-  <h2>⤓ <span id="pull-model"></span></h2>
+  <h2><span id="pull-model"></span></h2>
   <div style="background:var(--bg); border-radius:8px; height:10px; overflow:hidden; margin:10px 0">
     <div id="pull-bar" style="background:var(--accent); height:100%; width:0; transition:width .4s"></div>
   </div>

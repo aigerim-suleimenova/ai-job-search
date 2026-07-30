@@ -53,16 +53,21 @@ body {
 
 /* --- Панель заголовка: как toolbar в нативном окне --- */
 
-/* Три фиксированные зоны: название | навигация | переключатели. Раньше это была
-   одна flex-строка с переносом, и от длины подписей (разной в каждом языке)
-   переключатели перепрыгивали на вторую строку. */
+/* Две строки, как в нативном окне: сверху название и переключатели, под ними
+   вкладки разделов. Одной строкой они не помещались — в неё же упирались
+   переносы при смене языка, — а разделы уезжали за край и становились
+   недоступны. Зоны заданы явно, поэтому длина подписей ничего не двигает. */
 header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "title tools"
+    "nav   nav";
   align-items: center;
-  gap: 14px;
-  padding: 13px 0 11px;
-  margin-bottom: 18px;
+  column-gap: 16px;
+  row-gap: 4px;
+  padding: 12px 0 0;
+  margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -72,10 +77,12 @@ header {
   z-index: 10;
 }
 header > .toolbar-right {
+  grid-area: tools;
   display: flex; align-items: center; gap: 8px; justify-self: end;
 }
 
 h1 {
+  grid-area: title;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -84,7 +91,10 @@ h1 {
 }
 
 nav {
+  grid-area: nav;
   display: flex; gap: 2px; min-width: 0;
+  /* отрицательный отступ — чтобы фон активной вкладки не обрезался краем */
+  margin: 0 -8px; padding: 2px 8px 8px;
   overflow-x: auto; scrollbar-width: none;
 }
 nav::-webkit-scrollbar { display: none; }
@@ -100,6 +110,12 @@ nav a {
   transition: background .12s, color .12s;
 }
 nav a:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
+/* открытый раздел видно сразу — раньше подсветки не было вовсе */
+nav a[aria-current="page"] {
+  color: var(--text);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, .05);
+}
 
 /* переключатели человека и языка — вправо, компактно */
 .profile-switch { margin: 0; flex: none; }

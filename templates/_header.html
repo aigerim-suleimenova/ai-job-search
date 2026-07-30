@@ -1,0 +1,37 @@
+{# Шапка одна на все страницы: раньше она была скопирована в семь шаблонов
+   и успела разъехаться — на «Модели» пропал выбор человека. #}
+{% set path = request.url.path %}
+{% set nav_items = [
+  ('/simple', 'nav_simple'), ('/', 'nav_settings'), ('/results', 'nav_results'),
+  ('/coverage', 'nav_coverage'), ('/cv/check', 'nav_cvcheck'),
+  ('/models', 'nav_models'), ('/notify', 'nav_notify')] %}
+<header>
+  <h1>AI Job Search</h1>
+  <div class="toolbar-right">
+    <form method="post" action="/profile/switch" class="profile-switch">
+      <label>{{ t('person') }}
+        <select name="slug" onchange="this.form.submit()">
+          {% for p in profiles %}
+          <option value="{{ p.slug }}" {% if p.slug == active_profile %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </form>
+    <form method="post" action="/set_lang" class="profile-switch">
+      <input type="hidden" name="back" value="{{ path }}">
+      <label>
+        <select name="ui_lang" onchange="this.form.submit()" title="Язык / Language">
+          {% for code, lname in ui_langs.items() %}
+          <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </form>
+  </div>
+  <nav>
+    {% for href, key in nav_items %}
+    <a href="{{ href }}"
+       {% if path == href or (href != '/' and path.startswith(href)) %}aria-current="page"{% endif %}>{{ t(key) }}</a>
+    {% endfor %}
+  </nav>
+</header>
