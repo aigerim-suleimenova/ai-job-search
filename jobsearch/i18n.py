@@ -60,7 +60,8 @@ def out_lang(cfg: dict) -> str:
 # Строки интерфейса. Ключ → {ru, en}. Отсутствующий перевод падает на ru.
 TR = {
     "app_title": {"ru": "AI Job Search", "en": "AI Job Search", "it": "AI Job Search", "de": "AI Job Search"},
-    "nav_settings": {"ru": "Настройки", "en": "Settings", "it": "Impostazioni", "de": "Einstellungen"},
+    "nav_settings": {"ru": "Настройки поиска", "en": "Search settings",
+                     "it": "Impostazioni ricerca", "de": "Sucheinstellungen"},
     "nav_results": {"ru": "Результаты", "en": "Results", "it": "Risultati", "de": "Ergebnisse"},
     "nav_coverage": {"ru": "Покрытие", "en": "Coverage", "it": "Copertura", "de": "Abdeckung"},
     "nav_cvcheck": {"ru": "Проверка CV", "en": "CV check", "it": "Verifica CV", "de": "CV-Prüfung"},
