@@ -217,6 +217,52 @@ TR = {
     "models_selected": {"ru": "✓ Выбран", "en": "✓ Selected", "it": "✓ Selezionato", "de": "✓ Ausgewählt"},
     "models_your_device": {"ru": "Ваше устройство", "en": "Your device",
                            "it": "Il suo dispositivo", "de": "Ihr Gerät"},
+    "msg_provider_set": {
+        "ru": "Выбрано: {provider}", "en": "Chosen: {provider}",
+        "it": "Scelto: {provider}", "de": "Gewählt: {provider}"},
+    "msg_model_set": {
+        "ru": "Модель выбрана: {model}", "en": "Model chosen: {model}",
+        "it": "Modello scelto: {model}", "de": "Modell gewählt: {model}"},
+    "msg_pull_started": {
+        "ru": "Скачивание началось: {model}", "en": "Download started: {model}",
+        "it": "Download avviato: {model}", "de": "Download gestartet: {model}"},
+    "msg_pull_busy": {
+        "ru": "Уже скачивается другая модель — дождитесь окончания",
+        "en": "Another model is already downloading — wait for it to finish",
+        "it": "È già in corso il download di un altro modello — attendete la fine",
+        "de": "Ein anderes Modell wird bereits geladen — bitte abwarten"},
+    "welcome_title": {
+        "ru": "Настроим за минуту",
+        "en": "One minute of setup",
+        "it": "Un minuto di configurazione",
+        "de": "Eine Minute Einrichtung"},
+    "welcome_intro": {
+        "ru": "Программа не ищет вакансии сама — она поручает это модели: та читает ваше резюме, разбирает описания вакансий и объясняет, почему вакансия вам подходит. Выберите, чем считать. Потом это можно поменять в разделе «Модель».",
+        "en": "The app does not read job ads by itself — a model does that for it: it reads your CV, goes through the postings and explains why a job fits you. Choose what will do the thinking. You can change it later on the Model page.",
+        "it": "L'app non legge gli annunci da sola — lo fa un modello: legge il vostro CV, esamina le offerte e spiega perché una posizione fa per voi. Scegliete cosa farà il lavoro. Potrete cambiarlo più tardi nella pagina Modello.",
+        "de": "Die App liest Stellenanzeigen nicht selbst — das übernimmt ein Modell: Es liest Ihren Lebenslauf, geht die Anzeigen durch und erklärt, warum eine Stelle zu Ihnen passt. Wählen Sie, was rechnen soll. Später änderbar auf der Seite Modell."},
+    "welcome_step1": {
+        "ru": "Шаг 1. Через что работать",
+        "en": "Step 1. What to run it through",
+        "it": "Passo 1. Tramite cosa lavorare",
+        "de": "Schritt 1. Womit arbeiten"},
+    "welcome_step2": {
+        "ru": "Шаг 2. Какой моделью",
+        "en": "Step 2. Which model",
+        "it": "Passo 2. Quale modello",
+        "de": "Schritt 2. Welches Modell"},
+    "welcome_continue": {
+        "ru": "Продолжить", "en": "Continue", "it": "Continua", "de": "Weiter"},
+    "welcome_chosen": {
+        "ru": "Выбрано: {provider}, модель {model}",
+        "en": "Chosen: {provider}, model {model}",
+        "it": "Scelto: {provider}, modello {model}",
+        "de": "Gewählt: {provider}, Modell {model}"},
+    "welcome_blocked": {
+        "ru": "Выбранная программа ещё не установлена — без неё поиск не запустится. Установите её по подсказке выше или выберите другую.",
+        "en": "The tool you picked is not installed yet — the search cannot run without it. Install it using the hint above, or pick another one.",
+        "it": "Lo strumento scelto non è ancora installato — senza di esso la ricerca non parte. Installatelo seguendo il suggerimento sopra, oppure sceglietene un altro.",
+        "de": "Das gewählte Programm ist noch nicht installiert — ohne es startet die Suche nicht. Installieren Sie es nach dem Hinweis oben, oder wählen Sie ein anderes."},
     "src_crawl": {"ru": "краулинг", "en": "crawling", "it": "crawling", "de": "Crawling"},
     "unit_gb": {"ru": "ГБ", "en": "GB", "it": "GB", "de": "GB"},
     "models_ram": {"ru": "память:", "en": "memory:", "it": "memoria:", "de": "Speicher:"},

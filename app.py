@@ -38,6 +38,28 @@ def _provider_status(cfg: dict) -> dict:
     return {"key": key, "ready": bool(p.get("ready")), "name": p.get("name", key)}
 
 
+def _msg(key: str, **fmt) -> str:
+    """Всплывающее сообщение на языке интерфейса, а не всегда по-русски."""
+    lang = config.load().get("ui", {}).get("lang", "ru")
+    text = i18n.t(lang, key)
+    return text.format(**fmt) if fmt else text
+
+
+def _seed_profile(slug: str) -> None:
+    """Новому человеку — тот же CLI и модель, что выбраны при первом запуске."""
+    defaults = appstate.default_llm()
+    if not defaults:
+        return
+    prev = profiles.active()
+    try:
+        profiles.set_active(slug)
+        cfg = config.load()
+        cfg["llm"].update(defaults)
+        config.save(cfg)
+    finally:
+        profiles.set_active(prev)
+
+
 def render(request, template: str, ctx: dict, cfg: dict = None):
     """Рендер с языком интерфейса и данными о профилях."""
     cfg_ = cfg or config.load()
@@ -554,7 +576,9 @@ async def models_set_provider(request: Request):
             cfg["llm"]["triage_model"] = picks[0]["id"]
             cfg["llm"]["deep_model"] = picks[0]["id"]
         config.save(cfg)
-    return _redirect_to("/models", "Провайдер выбран")
+    return _redirect_to(str(form.get("back") or "/models"),
+                        _msg("msg_provider_set", provider=i18n.t(
+                            config.load().get("ui", {}).get("lang", "ru"), "prov_" + key)))
 
 
 @app.post("/models/select")
@@ -565,7 +589,7 @@ async def models_select(request: Request):
     cfg["llm"]["triage_model"] = model
     cfg["llm"]["deep_model"] = model
     config.save(cfg)
-    return _redirect_to("/models", f"Модель выбрана: {model}")
+    return _redirect_to(str(form.get("back") or "/models"), _msg("msg_model_set", model=model))
 
 
 @app.post("/models/pull")
@@ -574,9 +598,9 @@ async def models_pull(request: Request):
     form = await request.form()
     model = str(form.get("model", "")).strip()
     if providers.pull_in_progress():
-        return _redirect_to("/models", "Уже скачивается другая модель — дождитесь окончания")
+        return _redirect_to(str(form.get("back") or "/models"), _msg("msg_pull_busy"))
     providers.pull_async(model)
-    return _redirect_to("/models", f"Скачивание началось: {model}")
+    return _redirect_to(str(form.get("back") or "/models"), _msg("msg_pull_started", model=model))
 
 
 @app.get("/models/pull_status")
