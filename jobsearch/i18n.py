@@ -587,6 +587,11 @@ TR = {
     "simple_go": {"ru": "Начать поиск", "en": "Start searching",
                   "it": "Avvia la ricerca", "de": "Suche starten"},
     "simple_starting": {"ru": "Запускаем…", "en": "Starting…", "it": "Avvio…", "de": "Wird gestartet…"},
+    "more_projects": {
+        "ru": "Другие проекты автора",
+        "en": "More projects by the author",
+        "it": "Altri progetti dell'autore",
+        "de": "Weitere Projekte des Autors"},
     "donate_hint": {"ru": "Программа бесплатная и работает у вас на компьютере. Если она пригодилась — можно поддержать автора:", "en": "This app is free and runs on your own computer. If it has been useful, you can support the author:", "it": "L'app è gratuita e gira sul vostro computer. Se vi è stata utile, potete sostenere l'autore:", "de": "Die App ist kostenlos und läuft auf Ihrem eigenen Rechner. Wenn sie nützlich war, können Sie den Autor unterstützen:"},
     "log_discover_skipped_why": {"ru": " (его поддерживает только Claude Code CLI)", "en": " (only Claude Code CLI supports it)", "it": " (solo Claude Code CLI lo supporta)", "de": " (nur Claude Code CLI kann das)"},
     "log_empty_profile_fix": {"ru": " Заполните «Профиль» на странице настроек поиска.", "en": " Fill in the Profile block on the Search settings page.", "it": " Compilate il blocco Profilo nella pagina Impostazioni ricerca.", "de": " Füllen Sie den Block Profil auf der Seite Sucheinstellungen aus."},

@@ -473,4 +473,5 @@ STRINGS = {
 "filter_posted_from": "Opublikowane od",
 "filter_posted_to": "do",
 "filter_dates_hint": "Oferty bez daty publikacji nie wchodzą w okres — ich data jest nieznana.",
+"more_projects": "Inne projekty autora",
 }

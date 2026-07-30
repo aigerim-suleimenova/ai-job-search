@@ -473,4 +473,5 @@ STRINGS = {
 "filter_posted_from": "Опубліковано з",
 "filter_posted_to": "по",
 "filter_dates_hint": "Вакансії без дати публікації в період не потрапляють — їхня дата невідома.",
+"more_projects": "Інші проєкти автора",
 }

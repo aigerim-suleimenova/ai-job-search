@@ -110,6 +110,10 @@ NOTARY_PROFILE=aijobsearch packaging/sign_macos.sh
 [Ko-fi](https://ko-fi.com/ipupok) ·
 [PayPal](https://www.paypal.com/donate/?hosted_button_id=VBNDB5AHYLGCY)
 
+## Другие проекты
+
+[mrwd.github.io](https://mrwd.github.io/)
+
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE).

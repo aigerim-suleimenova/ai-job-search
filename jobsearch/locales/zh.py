@@ -473,4 +473,5 @@ STRINGS = {
 "filter_posted_from": "发布起始",
 "filter_posted_to": "发布截止",
 "filter_dates_hint": "没有发布日期的职位不计入这个时间段——它们的日期未知。",
+"more_projects": "作者的其他项目",
 }

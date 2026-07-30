@@ -473,4 +473,5 @@ STRINGS = {
 "filter_posted_from": "Yayım tarihi",
 "filter_posted_to": "bitiş",
 "filter_dates_hint": "Yayım tarihi olmayan ilanlar döneme girmez — tarihleri bilinmiyor.",
+"more_projects": "Yazarın diğer projeleri",
 }

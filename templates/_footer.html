@@ -2,7 +2,13 @@
    в собранном приложении окно — это webview, и внешняя страница в нём
    выглядела бы как «приложение сломалось и стало сайтом». #}
 <footer class="donate">
-  <span class="donate-text">{{ t('donate_hint') }}</span>
+  <span class="donate-text">{{ t('donate_hint') }}
+    <form method="post" action="/donate" class="donate-projects">
+      <input type="hidden" name="target" value="projects">
+      <input type="hidden" name="back" value="{{ request.url.path }}">
+      <button type="submit" class="linklike">{{ t('more_projects') }} ↗</button>
+    </form>
+  </span>
   <span class="donate-links">
     {% for key, label in [('bmc', 'Buy Me a Coffee'), ('kofi', 'Ko-fi'), ('paypal', 'PayPal')] %}
     <form method="post" action="/donate">

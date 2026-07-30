@@ -474,4 +474,5 @@ STRINGS = {
 "filter_posted_from": "منشورة من",
 "filter_posted_to": "إلى",
 "filter_dates_hint": "الوظائف بلا تاريخ نشر لا تدخل في المدة — تاريخها غير معروف.",
+"more_projects": "مشاريع أخرى للمؤلف",
 }

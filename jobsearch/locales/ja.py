@@ -473,4 +473,5 @@ STRINGS = {
 "filter_posted_from": "掲載日（開始）",
 "filter_posted_to": "掲載日（終了）",
 "filter_dates_hint": "掲載日のない求人は期間に入りません。日付が分からないからです。",
+"more_projects": "作者のほかのプロジェクト",
 }

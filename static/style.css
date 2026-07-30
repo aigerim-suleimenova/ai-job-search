@@ -530,3 +530,10 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 .live-more:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 .running-timing { margin: 6px 0 0; font-size: 12px; color: var(--faint); }
+/* Ссылка на другие проекты: это переход, а не действие — и выглядеть должна ссылкой */
+.donate-projects { display: inline; margin: 0; }
+button.linklike {
+  height: auto; padding: 0; border: 0; background: none; box-shadow: none;
+  color: var(--accent); font-size: inherit; font-weight: 500;
+}
+button.linklike:hover { background: none; text-decoration: underline; }

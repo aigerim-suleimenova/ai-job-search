@@ -473,4 +473,5 @@ STRINGS = {
 "filter_posted_from": "Publiées à partir du",
 "filter_posted_to": "jusqu'au",
 "filter_dates_hint": "Les offres sans date de publication restent hors de la période : leur date est inconnue.",
+"more_projects": "Autres projets de l'auteur",
 }

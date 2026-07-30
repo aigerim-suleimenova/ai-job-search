@@ -473,4 +473,5 @@ STRINGS = {
 "filter_posted_from": "Publicadas desde",
 "filter_posted_to": "até",
 "filter_dates_hint": "As vagas sem data de publicação ficam fora do período: a data delas é desconhecida.",
+"more_projects": "Outros projetos do autor",
 }
