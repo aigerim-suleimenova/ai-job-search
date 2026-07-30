@@ -39,6 +39,40 @@ def _provider_status(cfg: dict) -> dict:
     return {"key": key, "ready": bool(p.get("ready")), "name": p.get("name", key)}
 
 
+def _timing() -> dict:
+    """Сколько идёт прогон, сколько осталось до конца этапа и сколько он обычно длится.
+
+    Остаток считаем только внутри длинных этапов, где известно «сделано из
+    скольких», и по их собственному темпу. Проценты по всему прогону рисовать
+    честно нельзя: этапы разные по длине, и пропуск одного сдвинул бы всё.
+    """
+    import time as _t
+    out = {"elapsed_min": 0, "eta_min": 0, "typical_min": 0}
+    started = pipeline.state.get("started")
+    if started:
+        out["elapsed_min"] = max(1, round((_t.time() - started) / 60))
+    pr = pipeline.state.get("progress") or {}
+    stage_started = pipeline.state.get("stage_started")
+    if pr.get("done") and pr.get("total") and stage_started:
+        per_item = (_t.time() - stage_started) / pr["done"]
+        left = per_item * (pr["total"] - pr["done"])
+        if left > 30:
+            out["eta_min"] = max(1, round(left / 60))
+    done_runs = [r for r in db.recent_runs(6) if r["finished"] and r["status"] == "ok"]
+    if done_runs:
+        import datetime as _d
+        spans = []
+        for r in done_runs:
+            try:
+                a_ = _d.datetime.fromisoformat(r["started"]); b_ = _d.datetime.fromisoformat(r["finished"])
+                spans.append((b_ - a_).total_seconds())
+            except (TypeError, ValueError):
+                pass
+        if spans:
+            out["typical_min"] = max(1, round(sum(spans) / len(spans) / 60))
+    return out
+
+
 def mine_running() -> bool:
     """Идёт ли прогон именно этого человека."""
     return bool(pipeline.state["running"]
@@ -438,6 +472,7 @@ def status(min: int = -1):
         "stage": _msg(pipeline.state["stage"]) if mine and pipeline.state["stage"] else "",
         "step": pipeline.state.get("step", 0) if mine else 0,
         "steps": pipeline.STAGE_COUNT,
+        **(_timing() if mine else {"elapsed_min": 0, "eta_min": 0, "typical_min": 0}),
         "found": db.counts(min if min >= 0 else
                            int(config.load()["search"].get("threshold") or 70))["total"],
         "log": pipeline.state["log"][-30:] if mine else [],

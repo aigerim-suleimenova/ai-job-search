@@ -2,6 +2,7 @@
 import json
 import os
 import threading
+import time
 import traceback
 
 from . import (config, db, discovery, filters, i18n, llm, mailer, notify, profiles,
@@ -62,6 +63,8 @@ def _stage(key: str) -> None:
     подставит страница, которая её показывает."""
     _check_stop()          # между этапами — самое безопасное место, чтобы прерваться
     state["stage"] = key
+    state["stage_started"] = time.time()
+    state["progress"] = None      # счётчик внутри этапа — только у длинных
     state["step"] = STAGE_ORDER.index(key) + 1 if key in STAGE_ORDER else state.get("step", 1)
     _log("— " + i18n.t(config.load()["ui"]["lang"], key))
 
@@ -112,6 +115,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
     _stop.clear()
     llm.clear_cancel()
     llm.mark_run_thread()
+    state.update(started=time.time(), stage_started=time.time(), progress=None)
     state.update(running=True, stage="stage_start", step=1, log=[], profile=profiles.active())
     cfg = config.load()
     cv = config.cv_text()
@@ -263,10 +267,12 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             _logk("log_empty_profile_fix")
         # Кладём в базу по мере оценки: человек мог открыть «Результаты» сразу
         # после запуска, и ждать конца прогона, чтобы увидеть первую строку, — плохо.
-        def _save_batch(batch):
+        def _save_batch(batch, done=0, total=0):
             for j in batch:
                 if j.get("score") is not None:
                     db.save_job(j, run_id)
+            if total:
+                state["progress"] = {"done": done, "total": total}
 
         scoring.triage(candidates, cfg, _log, cv=cv, on_batch=_save_batch)
         threshold = int(cfg["search"].get("threshold", 70))
@@ -321,6 +327,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             scoring.deep_analyze(j, cfg, cv, _log, research=research)
             deep_done["n"] += 1
             tail = f" ({was}%→{j.get('score')}%)" if j.get("score") != was else ""
+            state["progress"] = {"done": deep_done["n"], "total": len(to_deep)}
             _logk("log_deep_item", i=deep_done["n"], total=len(to_deep),
                   title=j.get("title"), company=j.get("company"), tail=tail)
 

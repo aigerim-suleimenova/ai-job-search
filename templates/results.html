@@ -14,6 +14,7 @@
   <span class="live-dot"></span>
   <span id="live-stage">{{ state.stage }}</span>
   <span class="live-step" id="live-step">{% if state.step %}{{ t('run_step').format(n=state.step, m=state.steps) }}{% endif %}</span>
+  <span class="live-step" id="live-timing"></span>
   <a class="live-more" id="live-more" hidden href="">{{ t('results_live_new').format(n=0) }}</a>
 </div>
 {% endif %}
@@ -212,6 +213,12 @@
         d.running ? d.stage : '{{ t('results_live_done') }}';
       document.getElementById('live-step').textContent =
         d.running && d.step ? '{{ t('run_step') }}'.replace('{n}', d.step).replace('{m}', d.steps) : '';
+      const tm = document.getElementById('live-timing');
+      const parts = [];
+      if (d.elapsed_min) parts.push('{{ t('run_elapsed') }}'.replace('{mins}', d.elapsed_min));
+      if (d.eta_min) parts.push('{{ t('run_eta') }}'.replace('{mins}', d.eta_min));
+      else if (d.typical_min) parts.push('{{ t('run_typical') }}'.replace('{mins}', d.typical_min));
+      if (tm) tm.textContent = parts.join(' · ');
       const fresh = (d.found || 0) - shown;
       if (fresh > 0) {
         more.hidden = false;

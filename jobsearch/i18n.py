@@ -818,6 +818,21 @@ TR = {
     "stage_deep": {"ru": "глубокий разбор и советы по CV", "en": "deep analysis and CV advice", "it": "analisi approfondita e consigli sul CV", "de": "tiefe Analyse und CV-Tipps"},
     "stage_deep_research": {"ru": "глубокий разбор, зарплата и факты о компании", "en": "deep analysis, salary and company facts", "it": "analisi approfondita, stipendio e dati sull'azienda", "de": "tiefe Analyse, Gehalt und Unternehmensfakten"},
     "stage_save": {"ru": "сохраняем и отправляем", "en": "saving and sending", "it": "salviamo e inviamo", "de": "speichern und senden"},
+    "run_elapsed": {
+        "ru": "идёт {mins} мин",
+        "en": "running for {mins} min",
+        "it": "in corso da {mins} min",
+        "de": "läuft seit {mins} Min"},
+    "run_eta": {
+        "ru": "этап закончится примерно через {mins} мин",
+        "en": "about {mins} min left in this stage",
+        "it": "circa {mins} min alla fine di questo passo",
+        "de": "noch etwa {mins} Min in diesem Schritt"},
+    "run_typical": {
+        "ru": "обычно прогон занимает ~{mins} мин",
+        "en": "a run usually takes ~{mins} min",
+        "it": "di solito un'esecuzione dura ~{mins} min",
+        "de": "ein Durchlauf dauert meist ~{mins} Min"},
     "run_step": {"ru": "шаг {n} из {m}", "en": "step {n} of {m}", "it": "passo {n} di {m}", "de": "Schritt {n} von {m}"},
     "run_where_results": {"ru": "Найденные вакансии появляются на странице «Результаты» по мере оценки — можно открыть её прямо сейчас и смотреть, как они прибывают.", "en": "Jobs appear on the Results page as they are scored — you can open it right now and watch them arrive.", "it": "Le offerte compaiono nella pagina Risultati man mano che vengono valutate: potete aprirla subito e guardarle arrivare.", "de": "Gefundene Stellen erscheinen nach und nach auf der Seite Ergebnisse — Sie können sie jetzt öffnen und zusehen."},
     "run_can_close": {"ru": "Окно можно закрыть: если включён фоновый режим, поиск продолжится сам. Первый прогон занимает 20–40 минут.", "en": "You can close the window: with background mode on, the search carries on by itself. The first run takes 20–40 minutes.", "it": "Potete chiudere la finestra: con la modalità in background la ricerca prosegue da sola. La prima esecuzione richiede 20–40 minuti.", "de": "Sie können das Fenster schließen: mit Hintergrundmodus läuft die Suche allein weiter. Der erste Durchlauf dauert 20–40 Minuten."},

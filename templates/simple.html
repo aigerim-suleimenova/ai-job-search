@@ -51,6 +51,7 @@
         <span id="status-text">{{ state.stage }}</span>
         <span class="running-step" id="status-step">{% if state.step %}{{ t('run_step').format(n=state.step, m=state.steps) }}{% endif %}</span>
       </p>
+      <p class="running-timing"><span id="status-timing"></span></p>
     </div>
     <form method="post" action="/stop" style="margin:0">
       <button class="danger">{{ t('stop_now') }}</button>
@@ -120,6 +121,14 @@ setInterval(async () => {
   if (step) step.textContent = d.step ? '{{ t('run_step') }}'.replace('{n}', d.step).replace('{m}', d.steps) : '';
   const found = document.getElementById('found-count');
   if (found) found.textContent = d.found ? ' (' + d.found + ')' : '';
+  const timing = document.getElementById('status-timing');
+  if (timing) {
+    const parts = [];
+    if (d.elapsed_min) parts.push('{{ t('run_elapsed') }}'.replace('{mins}', d.elapsed_min));
+    if (d.eta_min) parts.push('{{ t('run_eta') }}'.replace('{mins}', d.eta_min));
+    else if (d.typical_min) parts.push('{{ t('run_typical') }}'.replace('{mins}', d.typical_min));
+    timing.textContent = parts.join(' · ');
+  }
   if (log && d.log) log.textContent = d.log.slice(-40).join('\n');
   if (!d.running) location.reload();
 }, 4000);

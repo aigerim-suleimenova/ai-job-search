@@ -145,7 +145,7 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
             j["reason"] = str(item.get("reason", ""))[:300 * (2 if "-" in cfg.get("ui", {}).get("output_lang", "ru") else 1)]
         done["n"] += 1
         if on_batch:
-            on_batch(batch)
+            on_batch(batch, done["n"], len(batches))
         _lk(log, "log_triage_batch", done=done["n"], total=len(batches))
 
     for r in llm.pmap(process, batches, workers=workers):
