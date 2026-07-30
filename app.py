@@ -872,6 +872,57 @@ async def coverage_add(request: Request):
     return RedirectResponse("/coverage", status_code=303)
 
 
+# --- Запись ошибок -------------------------------------------------------
+
+# Собранное приложение не писало лога никуда: при сбое в окне появлялась строка
+# «Internal Server Error», и узнать, что именно упало, было неоткуда. Пишем
+# в файл рядом с данными и показываем человеку, где он лежит.
+LOG_PATH = profiles.DATA_ROOT / "errors.log"
+
+
+def _log_error(request: Request, exc: BaseException) -> str:
+    import traceback as _tb
+    from datetime import datetime as _dt
+    text = "".join(_tb.format_exception(type(exc), exc, exc.__traceback__))
+    entry = f"\n{'=' * 70}\n{_dt.now().isoformat(timespec='seconds')}  {request.method} {request.url}\n{text}"
+    try:
+        profiles.DATA_ROOT.mkdir(parents=True, exist_ok=True)
+        with LOG_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(entry)
+        # файл не должен расти бесконечно
+        if LOG_PATH.stat().st_size > 512_000:
+            tail = LOG_PATH.read_text(encoding="utf-8", errors="ignore")[-256_000:]
+            LOG_PATH.write_text(tail, encoding="utf-8")
+    except OSError:
+        pass
+    print(entry, file=sys.stderr)
+    return text
+
+
+@app.exception_handler(Exception)
+async def on_error(request: Request, exc: Exception):
+    """Страница ошибки вместо голого «Internal Server Error»."""
+    text = _log_error(request, exc)
+    last = text.strip().splitlines()[-1][:300] if text.strip() else str(exc)[:300]
+    lang = "en"
+    try:
+        lang = config.load().get("ui", {}).get("lang", "en")
+    except Exception:  # noqa: BLE001 — на странице ошибки нельзя падать второй раз
+        pass
+    html = (
+        "<!doctype html><meta charset='utf-8'>"
+        "<style>body{font:14px/1.6 -apple-system,'Segoe UI',sans-serif;max-width:760px;"
+        "margin:0 auto;padding:48px 24px;color:#1d1d1f}code{background:#f2f2f7;padding:2px 6px;"
+        "border-radius:5px;font-size:12.5px}a{color:#007aff}</style>"
+        f"<h2>{i18n.t(lang, 'error_title')}</h2>"
+        f"<p>{i18n.t(lang, 'error_hint')}</p>"
+        f"<p><code>{last.replace('<', '&lt;')}</code></p>"
+        f"<p>{i18n.t(lang, 'error_log')} <code>{LOG_PATH}</code></p>"
+        f"<p><a href='/simple'>{i18n.t(lang, 'error_back')}</a></p>"
+    )
+    return Response(content=html, media_type="text/html", status_code=500)
+
+
 # --- Первый запуск ---------------------------------------------------------
 
 # Страницы, которые до выбора модели показывать бессмысленно: без неё ничего

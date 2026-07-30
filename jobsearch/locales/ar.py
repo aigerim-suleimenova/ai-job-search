@@ -476,4 +476,12 @@ STRINGS = {
 "filter_dates_hint": "الوظائف بلا تاريخ نشر لا تدخل في المدة — تاريخها غير معروف.",
 "more_projects": "مشاريع أخرى للمؤلف",
 "results_live_refresh": "حدِّث القائمة",
+"date_mask": "يوم.شهر.سنة",
+"filter_dates_clear": "إزالة التواريخ",
+"filter_reset": "مسح المرشِّحات",
+"filter_open_calendar": "افتح التقويم",
+"error_title": "حدث عطل",
+"error_hint": "لم تُفتح الصفحة. هذا خلل في البرنامج لا في بياناتك — فهي سليمة.",
+"error_log": "التفاصيل مكتوبة في:",
+"error_back": "العودة إلى البحث",
 }

@@ -1102,6 +1102,30 @@ TR = {
     "viewed_seen": {"ru": "только просмотренные", "en": "viewed only", "it": "solo viste", "de": "nur gesehene"},
     "filter_source": {"ru": "Тип источника", "en": "Source type", "it": "Tipo di fonte", "de": "Quellentyp"},
     "source_all": {"ru": "любой", "en": "any", "it": "qualsiasi", "de": "beliebig"},
+    "error_title": {
+        "ru": "Что-то сломалось",
+        "en": "Something broke",
+        "it": "Qualcosa si è rotto",
+        "de": "Etwas ist kaputtgegangen"},
+    "error_hint": {
+        "ru": "Страница не открылась. Это ошибка программы, а не ваших данных — они на месте.",
+        "en": "The page did not open. This is a fault in the program, not in your data — that is intact.",
+        "it": "La pagina non si è aperta. È un difetto del programma, non dei vostri dati: quelli sono intatti.",
+        "de": "Die Seite ließ sich nicht öffnen. Das ist ein Fehler im Programm, nicht in Ihren Daten — die sind unversehrt."},
+    "error_log": {
+        "ru": "Подробности записаны в файл:",
+        "en": "The details are written to:",
+        "it": "I dettagli sono scritti in:",
+        "de": "Die Einzelheiten stehen in:"},
+    "error_back": {
+        "ru": "Вернуться к поиску",
+        "en": "Back to the search",
+        "it": "Torna alla ricerca",
+        "de": "Zurück zur Suche"},
+    "date_mask": {"ru": "дд.мм.гггг", "en": "dd.mm.yyyy", "it": "gg.mm.aaaa", "de": "tt.mm.jjjj"},
+    "filter_dates_clear": {"ru": "убрать даты", "en": "clear dates", "it": "togli le date", "de": "Daten entfernen"},
+    "filter_reset": {"ru": "Сбросить фильтры", "en": "Clear filters", "it": "Azzera i filtri", "de": "Filter zurücksetzen"},
+    "filter_open_calendar": {"ru": "Открыть календарь", "en": "Open the calendar", "it": "Apri il calendario", "de": "Kalender öffnen"},
     "filter_posted_from": {
         "ru": "Опубликовано с",
         "en": "Posted from",

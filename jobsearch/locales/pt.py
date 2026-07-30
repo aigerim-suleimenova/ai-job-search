@@ -475,4 +475,12 @@ STRINGS = {
 "filter_dates_hint": "As vagas sem data de publicação ficam fora do período: a data delas é desconhecida.",
 "more_projects": "Outros projetos do autor",
 "results_live_refresh": "atualizar a lista",
+"date_mask": "dd.mm.aaaa",
+"filter_dates_clear": "remover datas",
+"filter_reset": "Limpar filtros",
+"filter_open_calendar": "Abrir o calendário",
+"error_title": "Alguma coisa quebrou",
+"error_hint": "A página não abriu. É uma falha do programa, não dos seus dados — esses estão intactos.",
+"error_log": "Os detalhes estão em:",
+"error_back": "Voltar à busca",
 }

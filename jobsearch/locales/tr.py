@@ -475,4 +475,12 @@ STRINGS = {
 "filter_dates_hint": "Yayım tarihi olmayan ilanlar döneme girmez — tarihleri bilinmiyor.",
 "more_projects": "Yazarın diğer projeleri",
 "results_live_refresh": "listeyi yenile",
+"date_mask": "gg.aa.yyyy",
+"filter_dates_clear": "tarihleri kaldır",
+"filter_reset": "Süzgeçleri temizle",
+"filter_open_calendar": "Takvimi aç",
+"error_title": "Bir şey bozuldu",
+"error_hint": "Sayfa açılmadı. Bu programın hatası, verilerinizin değil — onlar yerinde.",
+"error_log": "Ayrıntılar şuraya yazıldı:",
+"error_back": "Aramaya dön",
 }

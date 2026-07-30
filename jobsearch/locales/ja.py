@@ -475,4 +475,12 @@ STRINGS = {
 "filter_dates_hint": "掲載日のない求人は期間に入りません。日付が分からないからです。",
 "more_projects": "作者のほかのプロジェクト",
 "results_live_refresh": "一覧を更新",
+"date_mask": "日.月.年",
+"filter_dates_clear": "日付を外す",
+"filter_reset": "絞り込みを解除",
+"filter_open_calendar": "カレンダーを開く",
+"error_title": "何かが壊れました",
+"error_hint": "ページが開きませんでした。これはプログラムの不具合で、データの問題ではありません。データは無事です。",
+"error_log": "詳細はこちらに記録されています：",
+"error_back": "検索に戻る",
 }

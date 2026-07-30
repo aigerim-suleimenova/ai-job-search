@@ -475,4 +475,12 @@ STRINGS = {
 "filter_dates_hint": "Las ofertas sin fecha de publicación quedan fuera del periodo: su fecha se desconoce.",
 "more_projects": "Otros proyectos del autor",
 "results_live_refresh": "actualizar la lista",
+"date_mask": "dd.mm.aaaa",
+"filter_dates_clear": "quitar fechas",
+"filter_reset": "Quitar filtros",
+"filter_open_calendar": "Abrir el calendario",
+"error_title": "Algo se ha roto",
+"error_hint": "La página no se ha abierto. Es un fallo del programa, no de sus datos: están intactos.",
+"error_log": "Los detalles están en:",
+"error_back": "Volver a la búsqueda",
 }

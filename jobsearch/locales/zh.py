@@ -475,4 +475,12 @@ STRINGS = {
 "filter_dates_hint": "没有发布日期的职位不计入这个时间段——它们的日期未知。",
 "more_projects": "作者的其他项目",
 "results_live_refresh": "刷新列表",
+"date_mask": "日.月.年",
+"filter_dates_clear": "清除日期",
+"filter_reset": "清除筛选",
+"filter_open_calendar": "打开日历",
+"error_title": "出问题了",
+"error_hint": "页面没能打开。这是程序的问题，不是你的数据——数据完好。",
+"error_log": "详细信息写入了：",
+"error_back": "回到搜索",
 }

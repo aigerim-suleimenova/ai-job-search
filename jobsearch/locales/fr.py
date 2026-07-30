@@ -475,4 +475,12 @@ STRINGS = {
 "filter_dates_hint": "Les offres sans date de publication restent hors de la période : leur date est inconnue.",
 "more_projects": "Autres projets de l'auteur",
 "results_live_refresh": "actualiser la liste",
+"date_mask": "jj.mm.aaaa",
+"filter_dates_clear": "retirer les dates",
+"filter_reset": "Effacer les filtres",
+"filter_open_calendar": "Ouvrir le calendrier",
+"error_title": "Quelque chose a cassé",
+"error_hint": "La page ne s'est pas ouverte. C'est un défaut du programme, pas de vos données : elles sont intactes.",
+"error_log": "Les détails sont écrits dans :",
+"error_back": "Retour à la recherche",
 }

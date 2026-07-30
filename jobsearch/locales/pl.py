@@ -475,4 +475,12 @@ STRINGS = {
 "filter_dates_hint": "Oferty bez daty publikacji nie wchodzą w okres — ich data jest nieznana.",
 "more_projects": "Inne projekty autora",
 "results_live_refresh": "odśwież listę",
+"date_mask": "dd.mm.rrrr",
+"filter_dates_clear": "usuń daty",
+"filter_reset": "Wyczyść filtry",
+"filter_open_calendar": "Otwórz kalendarz",
+"error_title": "Coś się zepsuło",
+"error_hint": "Strona się nie otworzyła. To błąd programu, nie twoich danych — te są całe.",
+"error_log": "Szczegóły zapisano w:",
+"error_back": "Wróć do szukania",
 }
