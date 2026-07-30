@@ -1,0 +1,53 @@
+{# Список моделей с поиском, сортировкой по мощности и отметкой «пойдёт ли на
+   этом устройстве». Общий для страницы «Модель» и знакомства. #}
+{% set back = back|default('/models') %}
+<div class="row" style="gap:12px; flex-wrap:wrap; margin-bottom:14px">
+  <input id="q" placeholder="{{ t('models_search') }}" oninput="filterModels()" style="width:auto; min-width:220px">
+  <label class="check" style="margin:0">
+    <input type="checkbox" id="onlyfits" onchange="filterModels()"> {{ t('models_only_fits') }}
+  </label>
+  <span class="hint" id="count"></span>
+</div>
+
+<div id="list">
+  {% for m in models %}
+  <div class="model-row {% if m.id == current_model %}current{% endif %}"
+       data-name="{{ m.name|lower }} {{ m.get('origin','')|lower }} {{ m.id|lower }}"
+       data-fits="{{ m.fits }}">
+    <div class="row" style="justify-content:space-between; align-items:flex-start; gap:14px">
+      <div>
+        <b>{{ m.name }}</b>
+        {% if m.id == current_model %}<span class="badge ok">{{ t('models_current') }}</span>{% endif %}
+        {% if m.kind == 'local' %}
+          {% if m.fits == 'yes' %}<span class="badge ok">{{ t('models_fits_yes') }}</span>
+          {% elif m.fits == 'tight' %}<span class="badge warn">{{ t('models_fits_tight') }}</span>
+          {% else %}<span class="badge warn">{{ t('models_fits_no') }}</span>{% endif %}
+          {% if m.installed %}<span class="badge ok">{{ t('models_installed') }}</span>{% endif %}
+        {% endif %}
+        <p class="meta" style="margin:6px 0 0">
+          {{ t('models_power') }} {{ m.power }}/100
+          {% if m.params %} · {{ m.params }} · {{ m.ram_gb }} {{ t('unit_gb') }} {{ t('models_needs') }}{% endif %}
+          {% if m.origin %} · {{ m.origin }}{% endif %}
+          {% if m.note %} · {{ m.note }}{% endif %}
+        </p>
+      </div>
+      <div class="row" style="gap:8px">
+        {% if m.kind == 'local' and not m.installed %}
+        <form method="post" action="/models/pull" style="margin:0">
+          <input type="hidden" name="model" value="{{ m.id }}">
+          <input type="hidden" name="back" value="{{ back }}">
+          <button {% if m.fits == 'no' %}disabled{% endif %}>{{ t('models_download') }}</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/models/select" style="margin:0">
+          <input type="hidden" name="model" value="{{ m.id }}">
+          <input type="hidden" name="back" value="{{ back }}">
+          <button class="primary" {% if m.kind == 'local' and not m.installed %}disabled{% endif %}>
+            {{ t('models_use') }}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>

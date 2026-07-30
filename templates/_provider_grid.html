@@ -1,0 +1,34 @@
+{# Выбор CLI. Один и тот же блок на странице «Модель» и в знакомстве при первом
+   запуске — отличается только тем, куда возвращается форма. #}
+{% set back = back|default('/models') %}
+<div class="provider-grid" style="margin-top:12px">
+  {% for key, p in provs.items() %}
+  <form method="post" action="/models/provider">
+    <input type="hidden" name="provider" value="{{ key }}">
+    <input type="hidden" name="back" value="{{ back }}">
+    <div class="provider-card {% if current_provider == key %}on{% endif %}">
+      <b>{{ t('prov_' + key) }}</b>
+      <p class="meta" style="margin:6px 0">
+        {% if p.ready %}<span class="badge ok">{{ t('models_ready') }}</span>
+        {% else %}<span class="badge warn">{{ t('models_not_installed') }}</span>{% endif %}
+        {% if p.web_search %}<span class="badge ok">{{ t('models_websearch') }}</span>
+        {% else %}<span class="badge">{{ t('models_no_websearch') }}</span>{% endif %}
+      </p>
+      {% if not p.ready %}
+      <p class="hint">{{ t('prov_' + key + '_hint') }}</p>
+      {% elif current_provider == key %}
+      <p class="hint">{{ t('models_current') }}: {{ current_model_name }}</p>
+      {% endif %}
+      <button {% if current_provider == key %}class="primary"{% endif %} {% if not p.ready %}disabled{% endif %}>
+        {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
+      </button>
+    </div>
+  </form>
+  {% endfor %}
+</div>
+{% if not provs['ollama'].ready %}
+<p class="hint" style="margin-top:12px">{{ t('models_ollama_steps') }}</p>
+{% endif %}
+{% if not provs[current_provider].web_search %}
+<p class="hint" style="margin-top:12px; color:var(--warn)">{{ t('models_websearch_warning') }}</p>
+{% endif %}

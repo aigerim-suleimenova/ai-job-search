@@ -433,3 +433,7 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 
 /* Кнопка сохранения формы настроек: тот же ритм, что между карточками */
 .actions { display: flex; gap: 10px; margin: 0 0 14px; }
+
+/* Знакомство при первом запуске: шапка без разделов — уходить пока некуда */
+.header-plain { grid-template-areas: "title tools"; row-gap: 0; padding: 12px 0 11px; }
+.welcome-done { display: flex; flex-direction: column; align-items: flex-start; }

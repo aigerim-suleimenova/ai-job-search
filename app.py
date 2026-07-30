@@ -10,9 +10,10 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from jobsearch import (autostart, config, coverage as coverage_check, cvcheck, db, discovery,
-                       export as export_mod, hardware, i18n, llm, mailer, notify, pipeline,
-                       profiles, providers, scheduler, scoring)
+from jobsearch import (appstate, autostart, config, coverage as coverage_check,
+                       cvcheck, db, discovery, export as export_mod, hardware, i18n,
+                       llm, mailer, notify, pipeline, profiles, providers, scheduler,
+                       scoring)
 
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="AI Job Search")
@@ -110,6 +111,7 @@ async def profile_create(request: Request):
     if not name:
         return _redirect("Укажите имя человека")
     slug = profiles.create(name)
+    _seed_profile(slug)
     resp = _redirect(f"Профиль «{name}» создан — заполните CV и настройки")
     resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
     return resp
@@ -298,6 +300,8 @@ async def simple_start(request: Request, file: UploadFile = None):
         existing = next((p["slug"] for p in profiles.list_profiles()
                          if p["name"].strip().casefold() == person.casefold()), "")
         slug = existing or profiles.create(person)
+        if not existing:
+            _seed_profile(slug)
         profiles.set_active(slug)
     else:
         slug = profiles.active()
@@ -753,6 +757,48 @@ async def coverage_add(request: Request):
             cfg["sources"]["companies"] = companies
             config.save(cfg)
     return RedirectResponse("/coverage", status_code=303)
+
+
+# --- Первый запуск ---------------------------------------------------------
+
+# Страницы, которые до выбора модели показывать бессмысленно: без неё ничего
+# не работает. Всё остальное (статика, статус скачивания, смена языка) должно
+# оставаться доступным, иначе само знакомство не сможет работать.
+_PAGES = {"/", "/simple", "/results", "/coverage", "/cv/check", "/notify", "/models"}
+
+
+@app.middleware("http")
+async def first_run_gate(request: Request, call_next):
+    if (request.method == "GET" and request.url.path in _PAGES
+            and not appstate.setup_done()):
+        return RedirectResponse("/welcome", status_code=303)
+    return await call_next(request)
+
+
+@app.get("/welcome")
+def welcome(request: Request, msg: str = ""):
+    cfg = config.load()
+    provider = cfg["llm"].get("provider", "claude_cli")
+    provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
+    catalog = providers.models_for(provider)
+    current_model = cfg["llm"].get("triage_model", "haiku")
+    chosen = next((m for m in catalog if m["id"] == current_model), None)
+    return render(request, "welcome.html", {
+        "msg": msg, "provs": provs, "current_provider": provider,
+        "current_model": current_model, "models": catalog,
+        "current_model_name": chosen["name"] if chosen else current_model,
+        "specs": hardware.specs(),
+        # продолжать есть смысл, только если выбранным способом реально можно считать
+        "ready": bool(provs.get(provider, {}).get("ready")
+                      and (not chosen or chosen.get("kind") != "local" or chosen.get("installed"))),
+    }, cfg=cfg)
+
+
+@app.post("/welcome/done")
+def welcome_done():
+    cfg = config.load()
+    appstate.mark_setup_done(cfg["llm"])
+    return RedirectResponse("/simple", status_code=303)
 
 
 if __name__ == "__main__":
