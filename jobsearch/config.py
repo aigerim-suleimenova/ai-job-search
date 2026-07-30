@@ -190,26 +190,67 @@ def _fix_letter_spacing(text: str) -> str:
     return "\n".join(lines)
 
 
-def save_cv(filename: str, raw: bytes) -> str:
-    """Сохраняет CV, извлекает текст. Возвращает извлечённый текст."""
-    import re
-    from pathlib import Path
-    d = _dir()
-    ext = Path(filename).suffix.lower()
-    stored = d / f"cv{ext}"
-    stored.write_bytes(raw)
+ALLOWED_CV_EXT = (".pdf", ".docx", ".txt", ".md", ".rtf")
 
+
+class CVError(ValueError):
+    """Файл не годится как резюме — с текстом, понятным человеку."""
+
+
+def _extract_cv_text(path, ext: str, raw: bytes) -> str:
     if ext == ".pdf":
         from pypdf import PdfReader
-        reader = PdfReader(str(stored))
-        text = "\n".join((page.extract_text() or "") for page in reader.pages)
-        text = _fix_letter_spacing(text)
-    elif ext == ".docx":
-        text = _docx_text(stored)
-    else:
-        text = raw.decode("utf-8", errors="ignore")
+        try:
+            reader = PdfReader(str(path))
+            text = "\n".join((page.extract_text() or "") for page in reader.pages)
+        except Exception as e:  # noqa: BLE001 — библиотека бросает разное
+            raise CVError("Не удалось открыть PDF — возможно, файл повреждён "
+                          "или это не настоящий PDF.") from e
+        return _fix_letter_spacing(text)
+    if ext == ".docx":
+        try:
+            return _docx_text(path)
+        except Exception as e:  # noqa: BLE001
+            raise CVError("Не удалось открыть DOCX — возможно, файл повреждён.") from e
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise CVError("Это не текстовый файл. Подойдут PDF, DOCX, TXT или MD.") from e
 
-    text = re.sub(r"\n{3,}", "\n\n", text.strip())
+
+def save_cv(filename: str, raw: bytes) -> str:
+    """Сохраняет CV, извлекает текст. Возвращает извлечённый текст.
+
+    Прежнее CV перезаписывается только после того, как новый файл разобран
+    успешно: иначе одна неудачная загрузка стирала бы уже работающее резюме.
+    """
+    import re
+    from pathlib import Path
+
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_CV_EXT:
+        raise CVError(f"Формат {ext or 'без расширения'} не поддерживается. "
+                      "Загрузите резюме в PDF, DOCX, TXT или MD.")
+    if not raw:
+        raise CVError("Файл пустой.")
+
+    d = _dir()
+    tmp = d / f"cv_incoming{ext}"
+    tmp.write_bytes(raw)
+    try:
+        text = re.sub(r"\n{3,}", "\n\n", _extract_cv_text(tmp, ext, raw).strip())
+        if len(text) < 100:
+            raise CVError("В файле почти нет текста. Если резюме — картинка или скан, "
+                          "сохраните его как PDF с текстовым слоем.")
+    except CVError:
+        tmp.unlink(missing_ok=True)
+        raise
+
+    # разбор удался — заменяем прежнее резюме
+    for old in d.glob("cv.*"):
+        if old.suffix.lower() != ".txt" or old.name != "cv.txt":
+            old.unlink(missing_ok=True)
+    tmp.rename(d / f"cv{ext}")
     cv_text_path().write_text(text)
     cv_meta_path().write_text(json.dumps({"filename": filename, "chars": len(text)}, ensure_ascii=False))
     return text

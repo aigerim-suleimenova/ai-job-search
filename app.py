@@ -73,7 +73,9 @@ def index(request: Request, msg: str = ""):
     # статус показываем как «идёт», только если текущий прогон про этот профиль
     mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
     state_view = {"running": mine, "stage": pipeline.state["stage"] if mine else ""}
+    busy = pipeline.state.get("profile", "")
     return render(request, "index.html", {
+        "busy_with": profiles.name_of(busy) if (pipeline.state["running"] and not mine) else "",
         "cfg": cfg,
         "msg": msg,
         "autostart_on": autostart.enabled(),
@@ -153,69 +155,83 @@ async def save(request: Request, then: str = ""):
         except ValueError:
             return default
 
-    cfg["profile"].update(
-        summary=val("summary"), roles=val("roles"), skills=val("skills"),
-        seniority=val("seniority"),
-        salary=val("salary"), work_format=val("work_format", "any"),
-        languages=val("languages"), visa_required=flag("visa_required"),
-        visa_note=val("visa_note"), email=val("email"),
-        telegram=val("telegram_user"), linkedin=val("linkedin"),
-    )
+    # Форма настроек раньше перезаписывала конфиг целиком, поэтому любая частичная
+    # отправка стирала остальное — включая компании, которые прямо сейчас мог
+    # добавить идущий прогон. Теперь каждая секция обновляется, только если её
+    # поля действительно пришли.
+    def section_present(*fields):
+        return any(f in form for f in fields)
+
+    if section_present("roles", "summary", "skills"):
+        cfg["profile"].update(
+            summary=val("summary"), roles=val("roles"), skills=val("skills"),
+            seniority=val("seniority"),
+            salary=val("salary"), work_format=val("work_format", "any"),
+            languages=val("languages"), visa_required=flag("visa_required"),
+            visa_note=val("visa_note"), email=val("email"),
+            telegram=val("telegram_user"), linkedin=val("linkedin"),
+        )
     prio = val("match_priority", "both")
-    cfg["search"].update(
-        locations=val("locations"), threshold=max(0, min(100, num("threshold", 70))),
-        match_priority=prio if prio in ("role", "skills", "both") else "both",
-        drop_off_target=flag("drop_off_target"),
-        triage_second_vote=flag("triage_second_vote"),
-        keywords_include=val("keywords_include"), keywords_exclude=val("keywords_exclude"),
-        include_remote=flag("include_remote"),
-        triage_limit=max(5, num("triage_limit", 400)),
-        deep_top_n=max(0, num("deep_top_n", 15)),
-        discover_per_run=max(0, num("discover_per_run", 5)),
-        discover_ats_per_run=max(0, num("discover_ats_per_run", 5)),
-        parallelism=max(1, min(10, num("parallelism", 5))),
-        research_company=flag("research_company"),
-    )
-    companies = []
-    for line in val("companies").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if "|" in line:
-            name, _, url = line.partition("|")
-        else:
-            name, url = "", line
-        companies.append({"name": name.strip(), "url": url.strip()})
-    cfg["sources"].update(
-        companies=companies,
-        use_remotive=flag("use_remotive"), use_arbeitnow=flag("use_arbeitnow"),
-        use_wwr=flag("use_wwr"), use_hnhiring=flag("use_hnhiring"),
-        use_remoteok=flag("use_remoteok"), use_jobicy=flag("use_jobicy"),
-        use_himalayas=flag("use_himalayas"), use_themuse=flag("use_themuse"),
-        use_arbeitsagentur=flag("use_arbeitsagentur"),
-        adzuna_app_id=val("adzuna_app_id"), adzuna_app_key=val("adzuna_app_key"),
-        adzuna_countries=val("adzuna_countries"), jooble_key=val("jooble_key"),
-    )
-    cfg["llm"].update(
-        claude_bin=val("claude_bin", "claude") or "claude",
-        triage_model=val("triage_model", "haiku"),
-        deep_model=val("deep_model"),
-    )
-    cfg["telegram"].update(bot_token=val("bot_token"), chat_id=val("chat_id"))
-    mode = val("schedule_mode", "off")
-    cfg["schedule"].update(
-        mode=mode if mode in ("off", "interval", "continuous") else "off",
-        every_value=max(1, num("every_value", 1)),
-        every_unit=val("every_unit", "days"),
-        continuous_cooldown_min=max(1, num("continuous_cooldown_min", 20)),
-    )
+    if section_present("locations", "threshold", "match_priority"):
+        cfg["search"].update(
+            locations=val("locations"), threshold=max(0, min(100, num("threshold", 70))),
+            match_priority=prio if prio in ("role", "skills", "both") else "both",
+            drop_off_target=flag("drop_off_target"),
+            triage_second_vote=flag("triage_second_vote"),
+            keywords_include=val("keywords_include"), keywords_exclude=val("keywords_exclude"),
+            include_remote=flag("include_remote"),
+            triage_limit=max(5, num("triage_limit", 400)),
+            deep_top_n=max(0, num("deep_top_n", 15)),
+            discover_per_run=max(0, num("discover_per_run", 5)),
+            discover_ats_per_run=max(0, num("discover_ats_per_run", 5)),
+            parallelism=max(1, min(10, num("parallelism", 5))),
+            research_company=flag("research_company"),
+        )
+    if section_present("companies", "use_remotive", "adzuna_app_id"):
+        companies = []
+        for line in val("companies").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if "|" in line:
+                name, _, url = line.partition("|")
+            else:
+                name, url = "", line
+            companies.append({"name": name.strip(), "url": url.strip()})
+        cfg["sources"].update(
+            companies=companies,
+            use_remotive=flag("use_remotive"), use_arbeitnow=flag("use_arbeitnow"),
+            use_wwr=flag("use_wwr"), use_hnhiring=flag("use_hnhiring"),
+            use_remoteok=flag("use_remoteok"), use_jobicy=flag("use_jobicy"),
+            use_himalayas=flag("use_himalayas"), use_themuse=flag("use_themuse"),
+            use_arbeitsagentur=flag("use_arbeitsagentur"),
+            adzuna_app_id=val("adzuna_app_id"), adzuna_app_key=val("adzuna_app_key"),
+            adzuna_countries=val("adzuna_countries"), jooble_key=val("jooble_key"),
+        )
+    if section_present("claude_bin", "triage_model", "deep_model"):
+        cfg["llm"].update(
+            claude_bin=val("claude_bin", "claude") or "claude",
+            triage_model=val("triage_model", "haiku"),
+            deep_model=val("deep_model"),
+        )
+    if section_present("bot_token", "chat_id"):
+        cfg["telegram"].update(bot_token=val("bot_token"), chat_id=val("chat_id"))
+    if section_present("schedule_mode", "every_value", "continuous_cooldown_min"):
+        mode = val("schedule_mode", "off")
+        cfg["schedule"].update(
+            mode=mode if mode in ("off", "interval", "continuous") else "off",
+            every_value=max(1, num("every_value", 1)),
+            every_unit=val("every_unit", "days"),
+            continuous_cooldown_min=max(1, num("continuous_cooldown_min", 20)),
+        )
     cfg["schedule"].pop("enabled", None)
-    ui_lang = val("ui_lang", "ru")
-    out_lang = val("output_lang", "ru")
-    cfg["ui"].update(
-        lang=ui_lang if ui_lang in i18n.UI_LANGS else "ru",
-        output_lang=out_lang if out_lang in i18n.OUTPUT_LANGS else "ru",
-    )
+    if section_present("ui_lang", "output_lang"):
+        ui_lang = val("ui_lang", "ru")
+        out_lang = val("output_lang", "ru")
+        cfg["ui"].update(
+            lang=ui_lang if ui_lang in i18n.UI_LANGS else "ru",
+            output_lang=out_lang if out_lang in i18n.OUTPUT_LANGS else "ru",
+        )
     config.save(cfg)
     scheduler.reschedule(cfg)
 
@@ -275,9 +291,13 @@ async def simple_start(request: Request, file: UploadFile = None):
     """Простой сценарий: имя, регион, CV, LinkedIn — остальное заполняется само."""
     form = await request.form()
     person = str(form.get("person", "")).strip()
-    # новое имя — заводим отдельного человека, чтобы не затирать чужие результаты
+    # Имя нового человека — заводим отдельный профиль. Но если человек с таким
+    # именем уже есть, переключаемся на него: иначе повторный ввод плодил бы
+    # «Друг», «Друг-2», «Друг-3» с раздельными результатами.
     if person and person != profiles.name_of(profiles.active()):
-        slug = profiles.create(person)
+        existing = next((p["slug"] for p in profiles.list_profiles()
+                         if p["name"].strip().casefold() == person.casefold()), "")
+        slug = existing or profiles.create(person)
         profiles.set_active(slug)
     else:
         slug = profiles.active()
@@ -287,6 +307,8 @@ async def simple_start(request: Request, file: UploadFile = None):
         raw = await file.read()
         try:
             config.save_cv(file.filename, raw)
+        except config.CVError as e:
+            return _redirect_to("/simple", str(e))
         except Exception as e:  # noqa: BLE001
             return _redirect_to("/simple", f"Не удалось прочитать CV: {e}")
 
@@ -320,6 +342,8 @@ async def upload_cv(file: UploadFile):
     raw = await file.read()
     try:
         text = config.save_cv(file.filename, raw)
+    except config.CVError as e:
+        return _redirect(str(e))
     except Exception as e:  # noqa: BLE001
         return _redirect(f"Не удалось прочитать CV: {e}")
     return _redirect(f"CV загружено: {file.filename}, извлечено {len(text)} символов")
@@ -329,6 +353,12 @@ async def upload_cv(file: UploadFile):
 def run_now():
     if pipeline.run_async("manual", profile=profiles.active()):
         return _redirect("Поиск запущен")
+    # Пайплайн один на всех: если занят чужим прогоном, человек должен понимать,
+    # что ждёт не своих результатов, а очереди.
+    busy = pipeline.state.get("profile", "")
+    if busy and busy != profiles.active():
+        return _redirect(f"Сейчас идёт поиск для «{profiles.name_of(busy)}» — "
+                         "ваш начнётся, как только тот закончится")
     return _redirect("Поиск уже идёт")
 
 

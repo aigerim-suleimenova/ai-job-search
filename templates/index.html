@@ -62,7 +62,7 @@
 <section class="card status" id="status-card">
   <div>
     <b>{{ t('status') }}</b>
-    <span id="status-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% else %}{{ t('status_idle') }}{% endif %}</span>
+    <span id="status-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% elif busy_with %}{{ t('status_busy').format(name=busy_with) }}{% else %}{{ t('status_idle') }}{% endif %}</span>
     {% if continuous %} · ♾️ {{ t('status_continuous') }}{% elif next_run %} · {{ t('next_run') }} {{ next_run }}{% endif %}
   </div>
   <div class="row" style="margin:0; gap:8px">
