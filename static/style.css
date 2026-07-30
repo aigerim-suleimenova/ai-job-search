@@ -489,3 +489,23 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 .donate-links { display: flex; gap: 8px; flex-wrap: wrap; }
 .donate-links form { margin: 0; }
 .donate-links button { height: 28px; font-size: 12.5px; }
+
+/* Полоса «идёт поиск» над списком результатов */
+.live-strip {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 14px; padding: 9px 14px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  border-radius: var(--radius-sm);
+  font-size: 12.5px; color: var(--muted);
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+  animation: live-pulse 1.4s ease-in-out infinite; flex: none;
+}
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.live-strip.done .live-dot { animation: none; background: var(--ok); }
+.live-step { color: var(--faint); font-variant-numeric: tabular-nums; }
+.live-more { margin-inline-start: auto; color: var(--accent); font-weight: 500; text-decoration: none; }
+.live-more:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }

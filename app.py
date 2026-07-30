@@ -39,6 +39,12 @@ def _provider_status(cfg: dict) -> dict:
     return {"key": key, "ready": bool(p.get("ready")), "name": p.get("name", key)}
 
 
+def mine_running() -> bool:
+    """Идёт ли прогон именно этого человека."""
+    return bool(pipeline.state["running"]
+                and pipeline.state.get("profile") == profiles.active())
+
+
 def _last_run_noauth() -> str:
     """Текст ошибки последнего прогона, если он встал из-за входа в модель."""
     runs = db.recent_runs(1)
@@ -418,7 +424,7 @@ def stop_now():
 
 
 @app.get("/status")
-def status():
+def status(min: int = -1):
     next_run = scheduler.next_run_time()
     # прогон идёт «здесь» только если он про активный профиль
     mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
@@ -432,7 +438,8 @@ def status():
         "stage": _msg(pipeline.state["stage"]) if mine and pipeline.state["stage"] else "",
         "step": pipeline.state.get("step", 0) if mine else 0,
         "steps": pipeline.STAGE_COUNT,
-        "found": db.counts(int(config.load()["search"].get("threshold") or 70))["total"],
+        "found": db.counts(min if min >= 0 else
+                           int(config.load()["search"].get("threshold") or 70))["total"],
         "log": pipeline.state["log"][-30:] if mine else [],
         "next_run": next_run.strftime("%Y-%m-%d %H:%M") if next_run else None,
     })
@@ -480,7 +487,10 @@ def results(request: Request, min: int = 50, sort: str = "default",
          "threshold": threshold, "suggest_threshold": suggest,
          "sort": sort, "viewed": viewed, "source": source, "run": run,
          "counts": db.counts(min), "sorts": list(db.SORTS.keys()),
-         "noauth": _last_run_noauth()},
+         "noauth": _last_run_noauth(),
+         "state": {"running": mine_running(), "stage": _msg(pipeline.state["stage"])
+                   if mine_running() and pipeline.state["stage"] else "",
+                   "step": pipeline.state.get("step", 0), "steps": pipeline.STAGE_COUNT}},
         cfg=cfg,
     )
 

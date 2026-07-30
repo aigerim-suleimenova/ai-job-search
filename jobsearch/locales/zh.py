@@ -456,4 +456,6 @@ STRINGS = {
 "log_crawl_empty": "抓取 {name}：页面几乎是空的（内容多半由脚本绘制）",
 "log_crawl_subpage": "抓取 {name}：{url} 上没有职位，改试子页面 {sub}",
 "log_crawl_guessed": "抓取 {name}：招聘页由脚本驱动，按名称猜出 ATS（{kind}/{id}）— {n}",
+"results_live_new": "新找到 {n} 个 — 显示",
+"results_live_done": "搜索结束——刷新列表",
 }

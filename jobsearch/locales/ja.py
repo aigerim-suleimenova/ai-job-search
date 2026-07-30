@@ -456,4 +456,6 @@ STRINGS = {
 "log_crawl_empty": "巡回 {name}：ページがほぼ空です（中身はスクリプトが描いている可能性大）",
 "log_crawl_subpage": "巡回 {name}：{url} に求人なし。サブページ {sub} を試します",
 "log_crawl_guessed": "巡回 {name}：採用ページはスクリプト製。名前から ATS を推測（{kind}/{id}）— {n}",
+"results_live_new": "新たに {n} 件 — 表示",
+"results_live_done": "検索が終わりました — 一覧を更新",
 }

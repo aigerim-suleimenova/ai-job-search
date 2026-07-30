@@ -108,8 +108,13 @@ TRIAGE_PROMPT = """Ты — ассистент по поиску работы. �
 {jobs}"""
 
 
-def triage(jobs: list, cfg: dict, log, cv: str = "") -> list:
-    """Проставляет job['score'], job['is_agency'], job['reason'] — пачками параллельно."""
+def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
+    """Проставляет job['score'], job['is_agency'], job['reason'] — пачками параллельно.
+
+    on_batch(batch) вызывается сразу после оценки каждой пачки: пайплайн кладёт
+    её в базу, и вакансии появляются на странице результатов по ходу прогона,
+    а не одним куском в конце.
+    """
     model = cfg["llm"].get("triage_model", "haiku")
     claude_bin = cfg["llm"].get("claude_bin", "claude")
     workers = int(cfg["search"].get("parallelism", 5))
@@ -139,6 +144,8 @@ def triage(jobs: list, cfg: dict, log, cv: str = "") -> list:
             j["is_agency"] = bool(item.get("agency")) or j.get("is_agency", False)
             j["reason"] = str(item.get("reason", ""))[:300 * (2 if "-" in cfg.get("ui", {}).get("output_lang", "ru") else 1)]
         done["n"] += 1
+        if on_batch:
+            on_batch(batch)
         _lk(log, "log_triage_batch", done=done["n"], total=len(batches))
 
     for r in llm.pmap(process, batches, workers=workers):

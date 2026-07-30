@@ -9,6 +9,15 @@
 <body>
 {% include "_header.html" %}
 
+{% if state and state.running %}
+<div class="live-strip" id="live-strip">
+  <span class="live-dot"></span>
+  <span id="live-stage">{{ state.stage }}</span>
+  <span class="live-step" id="live-step">{% if state.step %}{{ t('run_step').format(n=state.step, m=state.steps) }}{% endif %}</span>
+  <a class="live-more" id="live-more" hidden href="">{{ t('results_live_new').format(n=0) }}</a>
+</div>
+{% endif %}
+
 {% if noauth %}
 <section class="card" style="border-inline-start:4px solid var(--danger)">
   <h2>{{ t('noauth_title') }}</h2>
@@ -175,6 +184,37 @@
   <pre class="log">{{ runs[0].log }}</pre>
 </section>
 {% endif %}
+
+<script>
+// Пока идёт прогон, спрашиваем состояние и число находок по тому же порогу,
+// что показан на странице. Список не перезагружаем сами — предлагаем кнопкой.
+(() => {
+  const strip = document.getElementById('live-strip');
+  if (!strip) return;
+  const shown = {{ jobs|length }};
+  const url = location.pathname + location.search;
+  const more = document.getElementById('live-more');
+  const tick = async () => {
+    try {
+      const d = await (await fetch('/status?min={{ min_score }}')).json();
+      document.getElementById('live-stage').textContent =
+        d.running ? d.stage : '{{ t('results_live_done') }}';
+      document.getElementById('live-step').textContent =
+        d.running && d.step ? '{{ t('run_step') }}'.replace('{n}', d.step).replace('{m}', d.steps) : '';
+      const fresh = (d.found || 0) - shown;
+      if (fresh > 0) {
+        more.hidden = false;
+        more.textContent = '{{ t('results_live_new') }}'.replace('{n}', fresh);
+        more.href = url;
+      }
+      if (!d.running) { strip.classList.add('done'); clearInterval(timer); }
+    } catch (e) { /* сервер перезапускается — подождём */ }
+  };
+  const timer = setInterval(tick, 5000);
+  tick();
+})();
+</script>
+
 {% include "_footer.html" %}
 </body>
 </html>

@@ -456,4 +456,6 @@ STRINGS = {
 "log_crawl_empty": "exploration {name} : la page est presque vide (le contenu est probablement dessiné par un script)",
 "log_crawl_subpage": "exploration {name} : aucune offre sur {url}, j'essaie la sous-page {sub}",
 "log_crawl_guessed": "exploration {name} : page carrières en script, ATS deviné d'après le nom ({kind}/{id}) — {n}",
+"results_live_new": "{n} nouvelles trouvées — afficher",
+"results_live_done": "La recherche est terminée — actualiser la liste",
 }

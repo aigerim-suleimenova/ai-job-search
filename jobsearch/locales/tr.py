@@ -456,4 +456,6 @@ STRINGS = {
 "log_crawl_empty": "tarama {name}: sayfa neredeyse boş (içeriği büyük olasılıkla bir betik çiziyor)",
 "log_crawl_subpage": "tarama {name}: {url} adresinde ilan yok, alt sayfa {sub} deneniyor",
 "log_crawl_guessed": "tarama {name}: kariyer sayfası betikle çalışıyor, ATS addan tahmin edildi ({kind}/{id}) — {n}",
+"results_live_new": "{n} yeni bulundu — göster",
+"results_live_done": "Arama bitti — listeyi yenile",
 }

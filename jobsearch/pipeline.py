@@ -260,7 +260,14 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         if not (cfg["profile"].get("roles") or cfg["profile"].get("summary") or cv):
             _logk("log_empty_profile")
             _logk("log_empty_profile_fix")
-        scoring.triage(candidates, cfg, _log, cv=cv)
+        # Кладём в базу по мере оценки: человек мог открыть «Результаты» сразу
+        # после запуска, и ждать конца прогона, чтобы увидеть первую строку, — плохо.
+        def _save_batch(batch):
+            for j in batch:
+                if j.get("score") is not None:
+                    db.save_job(j, run_id)
+
+        scoring.triage(candidates, cfg, _log, cv=cv, on_batch=_save_batch)
         threshold = int(cfg["search"].get("threshold", 70))
         scored = [j for j in candidates if j.get("score") is not None]
 

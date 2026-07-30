@@ -457,4 +457,6 @@ STRINGS = {
 "log_crawl_empty": "تصفح {name}: الصفحة شبه فارغة (المحتوى على الأرجح يرسمه سكربت)",
 "log_crawl_subpage": "تصفح {name}: لا وظائف في {url}، أجرّب الصفحة الفرعية {sub}",
 "log_crawl_guessed": "تصفح {name}: صفحة الوظائف بالسكربت، خُمِّن ATS من الاسم ({kind}/{id}) — {n}",
+"results_live_new": "وُجدت {n} جديدة — اعرضها",
+"results_live_done": "انتهى البحث — حدِّث القائمة",
 }

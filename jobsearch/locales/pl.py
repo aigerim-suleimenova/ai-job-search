@@ -456,4 +456,6 @@ STRINGS = {
 "log_crawl_empty": "przeglądanie {name}: strona jest prawie pusta (treść najpewniej rysuje skrypt)",
 "log_crawl_subpage": "przeglądanie {name}: brak ofert na {url}, próbuję podstrony {sub}",
 "log_crawl_guessed": "przeglądanie {name}: strona kariery na skryptach, ATS zgadnięty z nazwy ({kind}/{id}) — {n}",
+"results_live_new": "Nowych znalezionych: {n} — pokaż",
+"results_live_done": "Szukanie skończone — odśwież listę",
 }

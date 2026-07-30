@@ -456,4 +456,6 @@ STRINGS = {
 "log_crawl_empty": "rastreo {name}: la página está casi vacía (el contenido lo dibuja seguramente un script)",
 "log_crawl_subpage": "rastreo {name}: no hay ofertas en {url}, pruebo la subpágina {sub}",
 "log_crawl_guessed": "rastreo {name}: página de empleo por script, ATS adivinado por el nombre ({kind}/{id}) — {n}",
+"results_live_new": "Nuevas encontradas: {n} — mostrar",
+"results_live_done": "La búsqueda ha terminado: actualizar la lista",
 }
