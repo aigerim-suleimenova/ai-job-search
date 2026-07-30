@@ -217,6 +217,50 @@ TR = {
     "models_selected": {"ru": "✓ Выбран", "en": "✓ Selected", "it": "✓ Selezionato", "de": "✓ Ausgewählt"},
     "models_your_device": {"ru": "Ваше устройство", "en": "Your device",
                            "it": "Il suo dispositivo", "de": "Ihr Gerät"},
+    "prov_claude_cli_about": {
+        "ru": "Официальная командная строка Anthropic. Считает в облаке, умеет искать в интернете — так находятся новые компании.",
+        "en": "Anthropic's official command line. Runs in the cloud and can search the web — that is how new companies are found.",
+        "it": "La riga di comando ufficiale di Anthropic. Lavora nel cloud e sa cercare sul web — così si trovano nuove aziende.",
+        "de": "Die offizielle Kommandozeile von Anthropic. Rechnet in der Cloud und kann im Web suchen — so werden neue Unternehmen gefunden."},
+    "prov_cursor_cli_about": {
+        "ru": "Командная строка редактора Cursor. Считает в облаке по вашей подписке Cursor.",
+        "en": "The command line of the Cursor editor. Runs in the cloud on your Cursor subscription.",
+        "it": "La riga di comando dell'editor Cursor. Lavora nel cloud con il vostro abbonamento Cursor.",
+        "de": "Die Kommandozeile des Cursor-Editors. Rechnet in der Cloud über Ihr Cursor-Abo."},
+    "prov_ollama_about": {
+        "ru": "Модель работает на вашем компьютере: ничего не уходит наружу и платить не нужно. Взамен нужна память и время — и нет веб-поиска.",
+        "en": "The model runs on your own computer: nothing leaves it and there is nothing to pay. In exchange it needs memory and time — and there is no web search.",
+        "it": "Il modello gira sul vostro computer: nulla esce e non c'è nulla da pagare. In cambio servono memoria e tempo — e non c'è ricerca web.",
+        "de": "Das Modell läuft auf Ihrem Rechner: nichts verlässt ihn, nichts ist zu bezahlen. Dafür braucht es Speicher und Zeit — und es gibt keine Websuche."},
+    "models_install": {
+        "ru": "Скачать", "en": "Download", "it": "Scarica", "de": "Herunterladen"},
+    "models_recheck": {
+        "ru": "Проверить снова", "en": "Check again", "it": "Verifica di nuovo", "de": "Erneut prüfen"},
+    "msg_install_opened": {
+        "ru": "Страница загрузки {name} открыта в браузере. Установите, запустите — и нажмите «Проверить снова».",
+        "en": "The {name} download page is open in your browser. Install it, start it, then press “Check again”.",
+        "it": "La pagina di download di {name} è aperta nel browser. Installatelo, avviatelo e premete «Verifica di nuovo».",
+        "de": "Die Download-Seite von {name} ist im Browser geöffnet. Installieren, starten — dann „Erneut prüfen“ drücken."},
+    "msg_install_unknown": {
+        "ru": "Для этого способа нет страницы загрузки",
+        "en": "There is no download page for this option",
+        "it": "Per questa opzione non c'è una pagina di download",
+        "de": "Für diese Option gibt es keine Download-Seite"},
+    "msg_recheck_found": {
+        "ru": "{name} найден — можно продолжать",
+        "en": "{name} found — you can continue",
+        "it": "{name} trovato — potete continuare",
+        "de": "{name} gefunden — Sie können fortfahren"},
+    "msg_recheck_none": {
+        "ru": "{name} пока не видно. Если только что установили — запустите программу и нажмите ещё раз.",
+        "en": "{name} is still not visible. If you have just installed it, start it and press again.",
+        "it": "{name} non è ancora visibile. Se l'avete appena installato, avviatelo e premete di nuovo.",
+        "de": "{name} ist noch nicht sichtbar. Falls gerade installiert — starten Sie es und drücken Sie erneut."},
+    "models_needs_provider": {
+        "ru": "Сначала установите и запустите Ollama — тогда модели можно будет скачать отсюда",
+        "en": "Install and start Ollama first — then models can be downloaded from here",
+        "it": "Prima installate e avviate Ollama — poi i modelli si potranno scaricare da qui",
+        "de": "Installieren und starten Sie zuerst Ollama — dann lassen sich Modelle von hier laden"},
     "msg_provider_set": {
         "ru": "Выбрано: {provider}", "en": "Chosen: {provider}",
         "it": "Scelto: {provider}", "de": "Gewählt: {provider}"},

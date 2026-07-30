@@ -416,7 +416,10 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 .provider-card.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
 .provider-card .meta { margin: 0; display: flex; gap: 5px; flex-wrap: wrap; }
 .provider-card .hint { flex: 1 1 auto; }
-.provider-card button { margin-top: auto; align-self: flex-start; }
+.provider-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 4px;
+}
+.provider-actions form { margin: 0; }
 
 /* компактная строка со сведениями об устройстве */
 .device-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }

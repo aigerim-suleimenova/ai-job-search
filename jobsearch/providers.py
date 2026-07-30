@@ -140,6 +140,11 @@ def ollama_installed_models() -> set:
         return set()
 
 
+def forget_binaries() -> None:
+    """Забыть найденные пути: человек мог поставить программу только что."""
+    resolve_bin.cache_clear()
+
+
 def available(claude_bin: str = "claude") -> dict:
     """Какие провайдеры реально готовы к работе на этой машине."""
     return {
@@ -147,16 +152,19 @@ def available(claude_bin: str = "claude") -> dict:
             "name": "Claude Code CLI", "ready": _bin_exists(claude_bin or "claude"),
             "web_search": True, "kind": "cloud",
             "hint": "Установите с claude.com/claude-code",
+            "install_url": "https://claude.com/claude-code",
         },
         "cursor_cli": {
             "name": "Cursor CLI", "ready": _bin_exists("cursor-agent"),
             "web_search": False, "kind": "cloud",
             "hint": "Установите Cursor и его CLI (cursor-agent)",
+            "install_url": "https://cursor.com/cli",
         },
         "ollama": {
             "name": "Локальная модель (Ollama)", "ready": ollama_running(),
             "web_search": False, "kind": "local",
             "hint": "Скачайте с ollama.com и запустите",
+            "install_url": "https://ollama.com/download",
         },
     }
 

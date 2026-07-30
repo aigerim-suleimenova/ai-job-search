@@ -1,6 +1,7 @@
 """Веб-интерфейс: страница настроек, результаты, запуск поиска."""
 import json
 import sys
+import webbrowser
 from datetime import date
 from pathlib import Path
 from urllib.parse import quote
@@ -559,6 +560,7 @@ def models_page(request: Request, msg: str = ""):
         "current_model": current_model, "models": catalog,
         "current_model_name": next((m["name"] for m in catalog if m["id"] == current_model), current_model),
         "specs": hardware.specs(),
+        "provider_ready": bool(provs.get(provider, {}).get("ready")),
     }, cfg=cfg)
 
 
@@ -570,8 +572,11 @@ async def models_set_provider(request: Request):
     if key in providers.available(cfg["llm"].get("claude_bin", "claude")):
         cfg["llm"]["provider"] = key
         # модель прежнего провайдера бессмысленна для нового — берём самую сильную доступную
-        picks = [m for m in providers.models_for(key)
-                 if m.get("kind") != "local" or m.get("installed")]
+        catalog = providers.models_for(key)
+        picks = [m for m in catalog if m.get("kind") != "local" or m.get("installed")]
+        # ничего не установлено — намечаем самую сильную модель, которая влезет
+        # в память: иначе в настройках осталась бы модель прежнего способа
+        picks = picks or [m for m in catalog if m.get("fits") in ("yes", "tight")] or catalog
         if picks:
             cfg["llm"]["triage_model"] = picks[0]["id"]
             cfg["llm"]["deep_model"] = picks[0]["id"]
@@ -799,6 +804,39 @@ async def first_run_gate(request: Request, call_next):
     return await call_next(request)
 
 
+@app.post("/provider/install")
+async def provider_install(request: Request):
+    """Открывает страницу загрузки в браузере.
+
+    Поставить программу за человека нельзя — это установщик с правами
+    администратора. Но и пересказывать словами «скачайте с сайта» плохо:
+    открываем нужную страницу сами, ровно ту, что записана в коде.
+    """
+    form = await request.form()
+    key = str(form.get("provider", ""))
+    back = str(form.get("back") or "/models")
+    provs = providers.available(config.load()["llm"].get("claude_bin", "claude"))
+    url = provs.get(key, {}).get("install_url", "")
+    if not url:
+        return _redirect_to(back, _msg("msg_install_unknown"))
+    webbrowser.open(url)
+    return _redirect_to(back, _msg("msg_install_opened", name=_msg("prov_" + key)))
+
+
+@app.post("/provider/recheck")
+async def provider_recheck(request: Request):
+    """Перепроверить, появилась ли программа — без перезапуска приложения."""
+    form = await request.form()
+    back = str(form.get("back") or "/models")
+    providers.forget_binaries()
+    cfg = config.load()
+    provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
+    key = str(form.get("provider") or cfg["llm"].get("provider", "claude_cli"))
+    ready = bool(provs.get(key, {}).get("ready"))
+    name = _msg("prov_" + key)
+    return _redirect_to(back, _msg("msg_recheck_found" if ready else "msg_recheck_none", name=name))
+
+
 @app.get("/welcome")
 def welcome(request: Request, msg: str = ""):
     cfg = config.load()
@@ -812,6 +850,7 @@ def welcome(request: Request, msg: str = ""):
         "current_model": current_model, "models": catalog,
         "current_model_name": chosen["name"] if chosen else current_model,
         "specs": hardware.specs(),
+        "provider_ready": bool(provs.get(provider, {}).get("ready")),
         # продолжать есть смысл, только если выбранным способом реально можно считать
         "ready": bool(provs.get(provider, {}).get("ready")
                       and (not chosen or chosen.get("kind") != "local" or chosen.get("installed"))),

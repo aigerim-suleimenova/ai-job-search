@@ -9,6 +9,10 @@
   <span class="hint" id="count"></span>
 </div>
 
+{% if not provider_ready %}
+<p class="hint" style="margin:-4px 0 14px; color:var(--warn)">{{ t('models_needs_provider') }}</p>
+{% endif %}
+
 <div id="list">
   {% for m in models %}
   <div class="model-row {% if m.id == current_model %}current{% endif %}"
@@ -36,7 +40,7 @@
         <form method="post" action="/models/pull" style="margin:0">
           <input type="hidden" name="model" value="{{ m.id }}">
           <input type="hidden" name="back" value="{{ back }}">
-          <button {% if m.fits == 'no' %}disabled{% endif %}>{{ t('models_download') }}</button>
+          <button {% if m.fits == 'no' or not provider_ready %}disabled{% endif %}>{{ t('models_download') }}</button>
         </form>
         {% endif %}
         <form method="post" action="/models/select" style="margin:0">
