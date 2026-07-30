@@ -126,7 +126,7 @@ def render(request, template: str, ctx: dict, cfg: dict = None):
     cfg_ = cfg or config.load()
     lang = cfg_.get("ui", {}).get("lang", "ru")
     ctx = {**ctx, "provider_status": _provider_status(cfg_), "asset_v": _asset_version(),
-           "lang": lang, "t": lambda key: i18n.t(lang, key),
+           "lang": lang, "t": lambda key: i18n.t(lang, key), "theme": appstate.theme(),
            "rtl": lang in i18n.RTL_LANGS,
            "ui_langs": i18n.UI_LANGS, "output_langs": i18n.OUTPUT_LANGS,
            "profiles": profiles.list_profiles(), "active_profile": profiles.active(),
@@ -784,6 +784,15 @@ async def set_lang(request: Request):
     cfg = config.load()
     cfg["ui"]["lang"] = code if code in i18n.UI_LANGS else "ru"
     config.save(cfg)
+    back = str(form.get("back", "/"))
+    return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
+
+
+@app.post("/set_theme")
+async def set_theme(request: Request):
+    """Оформление общее на всё приложение: это про экран, а не про человека."""
+    form = await request.form()
+    appstate.set_theme(str(form.get("theme", "auto")))
     back = str(form.get("back", "/"))
     return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
 

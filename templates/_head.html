@@ -1,0 +1,12 @@
+{# «Голова» одна на все страницы — раньше она была скопирована в восемь шаблонов,
+   и любая правка (метка стилей, оформление) требовала восьми одинаковых правок.
+   Страница задаёт заголовок так: {% set page_title = t('nav_results') %} #}
+<!doctype html>
+<html lang="{{ lang }}"{% if rtl %} dir="rtl"{% endif %} data-theme="{{ theme }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — {{ page_title }}</title>
+<link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
+</head>
+<body>

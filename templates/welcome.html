@@ -1,12 +1,4 @@
-<!doctype html>
-<html lang="{{ lang }}"{% if rtl %} dir="rtl"{% endif %}>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Job Search — {{ t('welcome_title') }}</title>
-<link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
-</head>
-<body>
+{% set page_title = t('welcome_title') %}{% include "_head.html" %}
 {# Шапка здесь своя, без разделов: в первый запуск человеку некуда уходить,
    пока он не выбрал, чем считать. Язык переключить можно сразу. #}
 <header class="header-plain">

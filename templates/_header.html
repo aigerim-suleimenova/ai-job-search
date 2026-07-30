@@ -17,6 +17,23 @@
         </select>
       </label>
     </form>
+    {# Переключатель оформления. Что нажатие включит — решает скрипт внизу: пока
+       выбрано «как в системе», это зависит от самой системы, а сервер её не видит. #}
+    <form method="post" action="/set_theme" class="theme-switch">
+      <input type="hidden" name="back" value="{{ path }}">
+      <input type="hidden" name="theme" value="dark" id="theme-next">
+      <button type="submit" id="theme-btn" title="{{ t('theme_toggle') }}" aria-label="{{ t('theme_toggle') }}">
+        <svg class="theme-icon" id="theme-moon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"
+             fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
+        </svg>
+        <svg class="theme-icon" id="theme-sun" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" hidden
+             fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2"/>
+          <path d="M12 2v2.6M12 19.4V22M2 12h2.6M19.4 12H22M4.9 4.9l1.9 1.9M17.2 17.2l1.9 1.9M19.1 4.9l-1.9 1.9M6.8 17.2l-1.9 1.9"/>
+        </svg>
+      </button>
+    </form>
     <form method="post" action="/set_lang" class="profile-switch">
       <input type="hidden" name="back" value="{{ path }}">
       <label>
@@ -35,4 +52,15 @@
     {% endfor %}
   </nav>
 </header>
+<script>
+// Кнопка показывает то, что включит: солнце — «сделать светлой», луна — «тёмной».
+(() => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme === 'dark'
+    || (root.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.getElementById('theme-next').value = dark ? 'light' : 'dark';
+  document.getElementById('theme-moon').hidden = dark;
+  document.getElementById('theme-sun').hidden = !dark;
+})();
+</script>
 {% include "_support.html" %}

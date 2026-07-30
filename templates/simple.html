@@ -1,12 +1,4 @@
-<!doctype html>
-<html lang="{{ lang }}"{% if rtl %} dir="rtl"{% endif %}>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Job Search — {{ t('nav_simple') }}</title>
-<link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
-</head>
-<body>
+{% set page_title = t('nav_simple') %}{% include "_head.html" %}
 {% include "_header.html" %}
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}

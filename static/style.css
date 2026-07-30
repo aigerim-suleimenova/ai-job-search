@@ -8,8 +8,16 @@
   --text: #1d1d1f;
   --muted: #6e6e73;
   --faint: #8e8e93;
-  --accent: #007aff;           /* системный синий */
+  --accent: #007aff;           /* системный синий — заливки и рамки */
   --accent-press: #0062cc;
+  --link: #0a66cc;             /* тот же синий, но читаемый мелким текстом */
+  --accent-fill: #0067d6;      /* заливка под белым текстом: значок «новое» */
+  /* «зелёный» и «красный» мелким текстом: сами цвета слишком светлые и на
+     своём же фоне читаются плохо — тексту нужны более плотные варианты */
+  --ok-text: #146c2e;
+  --warn-text: #9a5b00;
+  --danger-text: #d70015;
+  --select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath fill='%236e6e73' d='M5 1.5 8 5H2zM5 12.5 2 9h6z'/%3E%3C/svg%3E");
   --border: rgba(0, 0, 0, .09);
   --border-strong: rgba(0, 0, 0, .16);
   --ok: #34c759;
@@ -20,8 +28,14 @@
   --radius-sm: 7px;
 }
 
+/* Тёмное оформление описано дважды намеренно: сверху — «как в системе» (кроме
+   случая, когда человек кнопкой выбрал светлое), ниже — выбранное кнопкой.
+   Объединить их в одно правило CSS не позволяет: медиазапрос не складывается
+   с селектором. color-scheme нужен, чтобы системные календарь, полосы прокрутки
+   и выпадающие списки не остались светлыми внутри тёмного окна. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #1c1c1e;
     --card: #2c2c2e;
     --card-2: #333336;
@@ -30,6 +44,12 @@
     --faint: #8e8e93;
     --accent: #0a84ff;
     --accent-press: #409cff;
+    --link: #5aabff;
+    --accent-fill: #0a6fd8;
+    --ok-text: #48d96a;
+    --warn-text: #ffb340;
+    --danger-text: #ff6b61;
+    --select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath fill='%23a1a1a6' d='M5 1.5 8 5H2zM5 12.5 2 9h6z'/%3E%3C/svg%3E");
     --border: rgba(255, 255, 255, .10);
     --border-strong: rgba(255, 255, 255, .18);
     --ok: #30d158;
@@ -39,7 +59,38 @@
   }
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1c1c1e;
+  --card: #2c2c2e;
+  --card-2: #333336;
+  --text: #f5f5f7;
+  --muted: #a1a1a6;
+  --faint: #8e8e93;
+  --accent: #0a84ff;
+  --accent-press: #409cff;
+  --link: #5aabff;
+  --accent-fill: #0a6fd8;
+  --ok-text: #48d96a;
+  --warn-text: #ffb340;
+  --danger-text: #ff6b61;
+  --select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath fill='%23a1a1a6' d='M5 1.5 8 5H2zM5 12.5 2 9h6z'/%3E%3C/svg%3E");
+  --border: rgba(255, 255, 255, .10);
+  --border-strong: rgba(255, 255, 255, .18);
+  --ok: #30d158;
+  --warn: #ff9f0a;
+  --danger: #ff453a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .22);
+}
+:root[data-theme="light"] { color-scheme: light; }
+
 * { box-sizing: border-box; }
+
+/* Ссылка без своего цвета досталась бы браузерной — тёмно-синей, а на тёмном
+   фоне её просто не видно. Правило общее, поэтому новая ссылка где угодно
+   в приложении сразу читается. */
+a { color: var(--link); }
+a:visited { color: var(--link); }
 
 body {
   margin: 0 auto;
@@ -130,6 +181,16 @@ nav a[aria-current="page"] {
 }
 .profile-switch select:hover { background-color: var(--card); }
 
+/* Кнопка смены оформления — размером с соседние переключатели, только квадратная */
+.theme-switch { margin: 0; flex: none; }
+.theme-switch button {
+  width: 26px; height: 26px; padding: 0;
+  color: var(--muted); background: transparent; border-color: var(--border);
+  box-shadow: none;
+}
+.theme-switch button:hover { color: var(--text); background: var(--card); }
+.theme-icon[hidden] { display: none; }
+
 /* --- Карточки --- */
 
 .card {
@@ -187,7 +248,7 @@ textarea { resize: vertical; line-height: 1.45; }
 select {
   appearance: none;
   padding-inline-end: 28px;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath fill='%236e6e73' d='M5 1.5 8 5H2zM5 12.5 2 9h6z'/%3E%3C/svg%3E");
+  background-image: var(--select-arrow);
   background-repeat: no-repeat;
   background-position: right 9px center;
 }
@@ -246,7 +307,9 @@ button:hover { background: color-mix(in srgb, var(--text) 4%, var(--card)); }
 button:active { transform: scale(.985); }
 
 button.primary {
-  background: var(--accent); border-color: var(--accent); color: #fff;
+  /* Заливка чуть плотнее системного синего: белый текст на нём читается,
+     а на самом #007aff/#0a84ff — уже нет, особенно в тёмном окне. */
+  background: var(--accent-fill); border-color: var(--accent-fill); color: #fff;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 button.primary:hover { background: var(--accent-press); border-color: var(--accent-press); }
@@ -293,11 +356,11 @@ table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 th, td { text-align: start; padding: 7px 8px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 500; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
 tr:last-child td { border-bottom: none; }
-.st-ok { color: var(--ok); } .st-error { color: var(--danger); } .st-warn { color: var(--warn); }
+.st-ok { color: var(--ok-text); } .st-error { color: var(--danger-text); } .st-warn { color: var(--warn-text); }
 
 details { margin: 8px 0; }
 summary {
-  cursor: pointer; color: var(--accent); font-weight: 500; font-size: 13px;
+  cursor: pointer; color: var(--link); font-weight: 500; font-size: 13px;
   list-style: none; padding: 2px 0;
 }
 summary::-webkit-details-marker { display: none; }
@@ -309,7 +372,7 @@ details.research {
   border: 1px solid color-mix(in srgb, var(--ok) 22%, transparent);
   border-radius: var(--radius-sm); padding: 10px 14px;
 }
-details.research summary { color: var(--ok); }
+details.research summary { color: var(--ok-text); }
 
 code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
@@ -333,15 +396,15 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
   display: inline-block; padding: 1px 7px; border-radius: 5px;
   font-size: 11px; font-weight: 500; line-height: 1.5;
   background: color-mix(in srgb, var(--text) 7%, transparent);
-  border: none; color: var(--muted);
+  border: none; color: color-mix(in srgb, var(--text) 72%, transparent);
 }
-.badge.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
-.badge.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
-.badge.new { color: #fff; background: var(--accent); font-weight: 600; letter-spacing: .02em; }
+.badge.ok { color: var(--ok-text); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.badge.warn { color: var(--warn-text); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.badge.new { color: #fff; background: var(--accent-fill); font-weight: 600; letter-spacing: .02em; }
 
 .desc { color: var(--muted); font-size: 12.5px; white-space: pre-wrap; line-height: 1.5; }
 .job a { color: var(--text); text-decoration: none; }
-.job a:hover { color: var(--accent); text-decoration: underline; }
+.job a:hover { color: var(--link); text-decoration: underline; }
 .job h3 a { font-weight: 600; }
 
 /* --- Пошаговые инструкции --- */
@@ -389,7 +452,7 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 }
 .job-actions form { margin: 0; }
 .job-actions .open-link {
-  margin-inline-start: auto; color: var(--accent); text-decoration: none;
+  margin-inline-start: auto; color: var(--link); text-decoration: none;
   font-size: 12.5px; font-weight: 500; white-space: nowrap;
 }
 .job-actions .open-link:hover { text-decoration: underline; }
@@ -528,7 +591,7 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 .live-strip.done .live-dot { animation: none; background: var(--ok); }
 .live-step { color: var(--faint); font-variant-numeric: tabular-nums; }
-.live-more { margin-inline-start: auto; color: var(--accent); font-weight: 500; text-decoration: none; }
+.live-more { margin-inline-start: auto; color: var(--link); font-weight: 500; text-decoration: none; }
 .live-more:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 .running-timing { margin: 6px 0 0; font-size: 12px; color: var(--faint); }
@@ -556,7 +619,7 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 /* Ссылка на другие проекты: это переход, а не действие — и выглядеть должна ссылкой */
 button.linklike {
   height: auto; padding: 0; border: 0; background: none; box-shadow: none;
-  color: var(--accent); font-size: inherit; font-weight: 500;
+  color: var(--link); font-size: inherit; font-weight: 500;
 }
 button.linklike:hover { background: none; text-decoration: underline; }
 
@@ -576,5 +639,5 @@ button.linklike:hover { background: none; text-decoration: underline; }
   pointer-events: none;
 }
 .date-field:hover .date-icon { stroke: var(--muted); }
-.clear-dates { color: var(--accent); font-size: 12.5px; text-decoration: none; align-self: center; }
+.clear-dates { color: var(--link); font-size: 12.5px; text-decoration: none; align-self: center; }
 .clear-dates:hover { text-decoration: underline; }

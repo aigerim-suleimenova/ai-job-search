@@ -492,4 +492,5 @@ STRINGS = {
 "back_to_top": "Volver arriba",
 "log_triage_done_nodeep": "Puntuadas: {n}, de ellas {above} sobre el umbral. El análisis a fondo está desactivado: las puntuaciones son provisionales; analizad una oferta con el botón de su tarjeta.",
 "donate_short": "La aplicación es gratuita: podéis apoyar al autor:",
+"theme_toggle": "Aspecto claro u oscuro",
 }

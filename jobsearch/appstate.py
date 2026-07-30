@@ -52,6 +52,21 @@ def mark_setup_done(llm: dict) -> None:
     save(state)
 
 
+THEMES = ("auto", "light", "dark")
+
+
+def theme() -> str:
+    """Оформление — свойство компьютера, а не человека: одно на всё приложение."""
+    value = load().get("theme", "auto")
+    return value if value in THEMES else "auto"
+
+
+def set_theme(value: str) -> None:
+    state = load()
+    state["theme"] = value if value in THEMES else "auto"
+    save(state)
+
+
 def default_llm() -> dict:
     """Чем считать у нового профиля — тем же, что выбрано при первом запуске."""
     return {k: v for k, v in (load().get("llm") or {}).items() if v}

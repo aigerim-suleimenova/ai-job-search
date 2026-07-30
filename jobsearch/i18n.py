@@ -1027,6 +1027,11 @@ TR = {
         "en": "Turn this off and a run only scores jobs — no CV advice, no precise scores. Noticeably cheaper and faster; you can then analyse any single job with the button on its card.",
         "it": "Disattivatelo e l'esecuzione si limiterà a valutare le offerte, senza consigli sul CV né punteggi precisi. È molto più economico e veloce; poi potete analizzare la singola offerta col pulsante sulla sua scheda.",
         "de": "Ausschalten, und ein Durchlauf bewertet nur — ohne CV-Tipps und ohne genaue Punktzahl. Deutlich billiger und schneller; einzelne Stellen analysieren Sie danach mit der Schaltfläche auf der Karte."},
+    "theme_toggle": {
+        "ru": "Светлое или тёмное оформление",
+        "en": "Light or dark appearance",
+        "it": "Aspetto chiaro o scuro",
+        "de": "Helles oder dunkles Aussehen"},
     "back_to_top": {
         "ru": "Наверх",
         "en": "Back to top",

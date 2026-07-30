@@ -492,4 +492,5 @@ STRINGS = {
 "back_to_top": "Voltar ao topo",
 "log_triage_done_nodeep": "Avaliadas: {n}, das quais {above} acima do limiar. A análise a fundo está desligada — as pontuações são provisórias; analise uma vaga com o botão no seu cartão.",
 "donate_short": "O aplicativo é gratuito — pode apoiar o autor:",
+"theme_toggle": "Aparência clara ou escura",
 }

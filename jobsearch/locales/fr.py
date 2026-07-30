@@ -492,4 +492,5 @@ STRINGS = {
 "back_to_top": "Revenir en haut",
 "log_triage_done_nodeep": "Évaluées : {n}, dont {above} au-dessus du seuil. L'analyse approfondie est désactivée — ces notes sont provisoires ; analysez une offre avec le bouton sur sa fiche.",
 "donate_short": "L'application est gratuite — vous pouvez soutenir l'auteur :",
+"theme_toggle": "Apparence claire ou sombre",
 }
