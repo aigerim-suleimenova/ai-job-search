@@ -1094,8 +1094,28 @@ TR = {
     "viewed_seen": {"ru": "только просмотренные", "en": "viewed only", "it": "solo viste", "de": "nur gesehene"},
     "filter_source": {"ru": "Тип источника", "en": "Source type", "it": "Tipo di fonte", "de": "Quellentyp"},
     "source_all": {"ru": "любой", "en": "any", "it": "qualsiasi", "de": "beliebig"},
+    "filter_posted_from": {
+        "ru": "Опубликовано с",
+        "en": "Posted from",
+        "it": "Pubblicate dal",
+        "de": "Veröffentlicht ab"},
+    "filter_posted_to": {
+        "ru": "по",
+        "en": "to",
+        "it": "al",
+        "de": "bis"},
+    "filter_dates_hint": {
+        "ru": "Вакансии без даты публикации в период не попадают — у них дата неизвестна.",
+        "en": "Jobs with no posting date are left out of the period — their date is unknown.",
+        "it": "Le offerte senza data di pubblicazione restano fuori dal periodo: la loro data è ignota.",
+        "de": "Stellen ohne Veröffentlichungsdatum fallen aus dem Zeitraum — ihr Datum ist unbekannt."},
     "filter_run": {"ru": "Прогон", "en": "Run", "it": "Esecuzione", "de": "Lauf"},
     "run_all": {"ru": "все прогоны", "en": "all runs", "it": "tutte le esecuzioni", "de": "alle Läufe"},
+    "cv_no_source": {
+        "ru": "Резюме не загружено — подгонять под вакансию нечего. Загрузите его на странице «Быстрый поиск» или в настройках поиска.",
+        "en": "No CV uploaded — there is nothing to tailor. Upload one on the Quick search page or in the search settings.",
+        "it": "Nessun CV caricato — non c'è nulla da adattare. Caricatelo nella pagina Ricerca rapida o nelle impostazioni.",
+        "de": "Kein Lebenslauf geladen — es gibt nichts zuzuschneiden. Laden Sie ihn auf der Seite Schnellsuche oder in den Sucheinstellungen hoch."},
     "cv_button": {"ru": "CV под вакансию", "en": "Tailored CV", "it": "CV su misura", "de": "Maßgeschneiderter CV"},
     "cv_button_hint": {"ru": "Сгенерировать адаптированное резюме под эту вакансию (откроется в новой вкладке, печатается в PDF). Первый раз занимает 1–2 минуты.", "en": "Generate a CV tailored to this job (opens in a new tab, printable to PDF). First time takes 1–2 minutes.", "it": "Genera un CV adattato a questa posizione (si apre in una nuova scheda, stampabile in PDF). La prima volta richiede 1–2 minuti.", "de": "Erstellen Sie einen auf diese Stelle zugeschnittenen CV (öffnet sich in einem neuen Tab, als PDF druckbar). Das erste Mal dauert 1–2 Minuten."},
     "run_journal": {"ru": "Журнал последнего прогона", "en": "Last run log", "it": "Registro dell'ultima esecuzione", "de": "Protokoll des letzten Durchlaufs"},

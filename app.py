@@ -788,7 +788,13 @@ def tailored_cv(job_id: int):
             cv_data = None
     if not cv_data:
         cfg = config.load()
-        cv_data = scoring.generate_cv(job, cfg, config.cv_text())
+        source = config.cv_text()
+        if not source.strip():
+            # без исходного резюме модель сочиняла документ с «<MISSING>» вместо отказа
+            return Response(content=f"<p style='font:15px -apple-system;padding:32px'>"
+                                    f"{_msg('cv_no_source')}</p>",
+                            media_type="text/html", status_code=200)
+        cv_data = scoring.generate_cv(job, cfg, source)
         if cv_data:
             db.save_tailored_cv(job_id, json.dumps(cv_data, ensure_ascii=False))
     if not cv_data:
