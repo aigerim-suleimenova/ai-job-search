@@ -8,7 +8,7 @@
 </head>
 <body>
 <header>
-  <h1>🔎 AI Job Search</h1>
+  <h1>AI Job Search</h1>
   <nav>
     <a href="/simple">{{ t('nav_simple') }}</a>
     <a href="/">{{ t('nav_settings') }}</a>
@@ -29,8 +29,8 @@
   </form>
   <form method="post" action="/set_lang" class="profile-switch">
     <input type="hidden" name="back" value="{{ request.url.path }}">
-    <label>🌐
-      <select name="ui_lang" onchange="this.form.submit()">
+    <label>
+      <select name="ui_lang" onchange="this.form.submit()" title="Язык / Language">
         {% for code, lname in ui_langs.items() %}
         <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
         {% endfor %}
@@ -60,10 +60,11 @@
 {% endif %}
 
 <section class="card status" id="status-card">
-  <div>
+  <div class="state-line">
     <b>{{ t('status') }}</b>
-    <span id="status-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% elif busy_with %}{{ t('status_busy').format(name=busy_with) }}{% else %}{{ t('status_idle') }}{% endif %}</span>
-    {% if continuous %} · ♾️ {{ t('status_continuous') }}{% elif next_run %} · {{ t('next_run') }} {{ next_run }}{% endif %}
+    <span id="status-text" class="state-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% elif busy_with %}{{ t('status_busy').format(name=busy_with) }}{% else %}{{ t('status_idle') }}{% endif %}</span>
+    {% if continuous %}<span class="state-mode">{{ t('status_continuous') }}</span>
+    {% elif next_run %}<span class="state-mode">{{ t('next_run') }} {{ next_run }}</span>{% endif %}
   </div>
   <div class="row" style="margin:0; gap:8px">
     <form method="post" action="/run" style="margin:0">
@@ -81,17 +82,17 @@
 <section class="card">
   <h2>{{ t('manage_people') }} — {{ active_name }}</h2>
   <p class="hint">{{ t('manage_hint') }}</p>
-  <div class="row" style="flex-wrap:wrap; gap:10px">
-    <form method="post" action="/profile/create" class="row" style="margin:0">
-      <input name="name" placeholder="{{ t('new_person_name') }}" style="width:auto">
+  <div class="people-actions">
+    <form method="post" action="/profile/create" class="row">
+      <input name="name" placeholder="{{ t('new_person_name') }}">
       <button>{{ t('add_person') }}</button>
     </form>
-    <form method="post" action="/profile/rename" class="row" style="margin:0">
-      <input name="name" value="{{ active_name }}" style="width:auto">
+    <form method="post" action="/profile/rename" class="row">
+      <input name="name" value="{{ active_name }}">
       <button>{{ t('rename_person') }}</button>
     </form>
     {% if profiles|length > 1 %}
-    <form method="post" action="/profile/delete" style="margin:0"
+    <form method="post" action="/profile/delete"
           onsubmit="return confirm('{{ t('delete_confirm') }}')">
       <input type="hidden" name="slug" value="{{ active_profile }}">
       <button class="danger">{{ t('delete_person') }}</button>

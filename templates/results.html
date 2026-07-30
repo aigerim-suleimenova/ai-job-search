@@ -8,7 +8,7 @@
 </head>
 <body>
 <header>
-  <h1>🔎 AI Job Search</h1>
+  <h1>AI Job Search</h1>
   <nav>
     <a href="/simple">{{ t('nav_simple') }}</a>
     <a href="/">{{ t('nav_settings') }}</a>
@@ -29,8 +29,8 @@
   </form>
   <form method="post" action="/set_lang" class="profile-switch">
     <input type="hidden" name="back" value="{{ request.url.path }}">
-    <label>🌐
-      <select name="ui_lang" onchange="this.form.submit()">
+    <label>
+      <select name="ui_lang" onchange="this.form.submit()" title="Язык / Language">
         {% for code, lname in ui_langs.items() %}
         <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
         {% endfor %}
@@ -44,14 +44,14 @@
     <span>{{ t('results_shown') }} <b>{{ min_score }}%</b> ({{ jobs|length }})
       {% if counts.unseen %}· <b class="badge new">{{ t('unseen_count').format(n=counts.unseen) }}</b>{% endif %}
     </span>
-    <span>
-      <a href="/results?min=0&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">{{ t('filter_all') }}</a> ·
-      <a href="/results?min=50&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">≥50%</a> ·
-      <a href="/results?min=70&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">≥70%</a> ·
-      <a href="/results?min=80&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}">≥80%</a>
+    <span class="segmented">
+      {% for v, lbl in [(0, t('filter_all')), (50, '≥50%'), (70, '≥70%'), (80, '≥80%')] %}
+      <a href="/results?min={{ v }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}"
+         class="{% if min_score == v %}on{% endif %}">{{ lbl }}</a>
+      {% endfor %}
     </span>
   </div>
-  <form method="get" action="/results" class="row" style="margin-top:12px; align-items:end; gap:12px; flex-wrap:wrap">
+  <form method="get" action="/results" class="filters">
     <input type="hidden" name="min" value="{{ min_score }}">
     <label>{{ t('sort_by') }}
       <select name="sort" onchange="this.form.submit()">
@@ -138,12 +138,12 @@
         {% else %}<span class="badge">{{ t('badge_aggregator') }}</span>{% endif %}
         {% if j.verified %}<span class="badge ok">✓ {{ t('badge_verified') }}</span>
         {% else %}<span class="badge warn">{{ t('badge_preliminary') }}</span>{% endif %}
-        {% if j.posted_label %} · 📅 {{ t('posted_label') }} {{ j.posted_label }}{% endif %}
+        {% if j.posted_label %} · {{ t('posted_label') }} {{ j.posted_label }}{% endif %}
         · {{ t('run') }} #{{ j.run_id }} · {{ j.first_seen }}
       </p>
     </div>
   </div>
-  {% if j.reason %}<p>💬 {{ j.reason }}</p>{% endif %}
+  {% if j.reason %}<p class="reason">{{ j.reason }}</p>{% endif %}
   {% if j.advice_data and (j.advice_data.salary_estimate or j.advice_data.company_insights) %}
   <details open class="research">
     <summary>{{ t('salary_block') }}</summary>
@@ -171,19 +171,22 @@
     {% endif %}
     {% if j.advice_data.cover_hint %}<p><b>{{ t('cover_hint_label') }}</b> {{ j.advice_data.cover_hint }}</p>{% endif %}
   </details>
-  <p style="margin:8px 0 0">
-    <a href="/cv/{{ j.id }}" target="_blank" rel="noopener"><button type="button">{{ t('cv_button') }}</button></a>
-  </p>
-  <p class="hint" style="margin:4px 0 0">{{ t('cv_button_hint') }}</p>
+  <p class="hint" style="margin:6px 0 0">{{ t('cv_button_hint') }}</p>
   {% endif %}
   {% if j.description %}
   <details><summary>{{ t('job_description') }}</summary><p class="desc">{{ j.description[:3000] }}</p></details>
   {% endif %}
-  <form method="post" action="/viewed/{{ j.id }}" style="margin-top:10px">
-    <input type="hidden" name="value" value="{% if j.viewed %}0{% else %}1{% endif %}">
-    <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}">
-    <button type="submit">{% if j.viewed %}{{ t('mark_unviewed') }}{% else %}{{ t('mark_viewed') }}{% endif %}</button>
-  </form>
+  <div class="job-actions">
+    {% if j.advice_data %}
+    <a href="/cv/{{ j.id }}" target="_blank" rel="noopener"><button type="button">{{ t('cv_button') }}</button></a>
+    {% endif %}
+    <form method="post" action="/viewed/{{ j.id }}">
+      <input type="hidden" name="value" value="{% if j.viewed %}0{% else %}1{% endif %}">
+      <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}">
+      <button type="submit">{% if j.viewed %}{{ t('mark_unviewed') }}{% else %}{{ t('mark_viewed') }}{% endif %}</button>
+    </form>
+    <a href="{{ j.url }}" target="_blank" rel="noopener" class="open-link">{{ t('open_job') }} ↗</a>
+  </div>
 </section>
 {% endfor %}
 

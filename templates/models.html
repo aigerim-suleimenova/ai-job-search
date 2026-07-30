@@ -8,7 +8,7 @@
 </head>
 <body>
 <header>
-  <h1>🔎 AI Job Search</h1>
+  <h1>AI Job Search</h1>
   <nav>
     <a href="/simple">{{ t('nav_simple') }}</a>
     <a href="/">{{ t('nav_settings') }}</a>
@@ -20,8 +20,8 @@
   </nav>
   <form method="post" action="/set_lang" class="profile-switch">
     <input type="hidden" name="back" value="{{ request.url.path }}">
-    <label>🌐
-      <select name="ui_lang" onchange="this.form.submit()">
+    <label>
+      <select name="ui_lang" onchange="this.form.submit()" title="Язык / Language">
         {% for code, lname in ui_langs.items() %}
         <option value="{{ code }}" {% if lang == code %}selected{% endif %}>{{ lname }}</option>
         {% endfor %}
@@ -45,11 +45,11 @@
 <section class="card">
   <h2>{{ t('models_provider') }}</h2>
   <p class="hint">{{ t('models_provider_hint') }}</p>
-  <div class="grid3" style="margin-top:12px">
+  <div class="provider-grid" style="margin-top:12px">
     {% for key, p in provs.items() %}
     <form method="post" action="/models/provider">
       <input type="hidden" name="provider" value="{{ key }}">
-      <div class="card {% if current_provider == key %}direct{% endif %}" style="margin:0">
+      <div class="provider-card {% if current_provider == key %}on{% endif %}">
         <b>{{ t('prov_' + key) }}</b>
         <p class="meta" style="margin:6px 0">
           {% if p.ready %}<span class="badge ok">{{ t('models_ready') }}</span>
