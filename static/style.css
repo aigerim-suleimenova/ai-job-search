@@ -186,7 +186,7 @@ textarea { resize: vertical; line-height: 1.45; }
 
 select {
   appearance: none;
-  padding-right: 28px;
+  padding-inline-end: 28px;
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath fill='%236e6e73' d='M5 1.5 8 5H2zM5 12.5 2 9h6z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 9px center;
@@ -198,7 +198,7 @@ input[type="file"] {
   height: 30px; line-height: 18px; width: auto; max-width: 340px;
 }
 input[type="file"]::file-selector-button {
-  height: 20px; margin: 0 10px 0 0; padding: 0 10px;
+  height: 20px; margin-inline-end: 10px; padding: 0 10px;
   border: 1px solid var(--border-strong); border-radius: 5px;
   background: var(--card); color: var(--text);
   font: inherit; font-size: 12px; cursor: pointer;
@@ -290,7 +290,7 @@ a:has(> button) { text-decoration: none; }
 /* --- Таблицы --- */
 
 table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
+th, td { text-align: start; padding: 7px 8px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 500; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
 tr:last-child td { border-bottom: none; }
 .st-ok { color: var(--ok); } .st-error { color: var(--danger); } .st-warn { color: var(--warn); }
@@ -301,7 +301,7 @@ summary {
   list-style: none; padding: 2px 0;
 }
 summary::-webkit-details-marker { display: none; }
-summary::before { content: "›"; display: inline-block; margin-right: 6px; transition: transform .15s; }
+summary::before { content: "›"; display: inline-block; margin-inline-end: 6px; transition: transform .15s; }
 details[open] > summary::before { transform: rotate(90deg); }
 
 details.research {
@@ -316,7 +316,7 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 /* --- Вакансии --- */
 
 .job { padding: 16px 20px; }
-.job.direct { border-left: 3px solid var(--ok); }
+.job.direct { border-inline-start: 3px solid var(--ok); }
 .job.unseen { background: color-mix(in srgb, var(--accent) 3%, var(--card)); }
 .job-head { display: flex; gap: 14px; align-items: flex-start; }
 
@@ -346,7 +346,7 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 
 /* --- Пошаговые инструкции --- */
 
-.steps { margin: 10px 0 0; padding-left: 20px; }
+.steps { margin: 10px 0 0; padding-inline-start: 20px; }
 .steps li { margin: 7px 0; line-height: 1.5; font-size: 13px; }
 
 /* --- Управление людьми: три действия в одну аккуратную строку --- */
@@ -389,7 +389,7 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 }
 .job-actions form { margin: 0; }
 .job-actions .open-link {
-  margin-left: auto; color: var(--accent); text-decoration: none;
+  margin-inline-start: auto; color: var(--accent); text-decoration: none;
   font-size: 12.5px; font-weight: 500; white-space: nowrap;
 }
 .job-actions .open-link:hover { text-decoration: underline; }
@@ -446,3 +446,12 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 /* Знакомство при первом запуске: шапка без разделов — уходить пока некуда */
 .header-plain { grid-template-areas: "title tools"; row-gap: 0; padding: 12px 0 11px; }
 .welcome-done { display: flex; flex-direction: column; align-items: flex-start; }
+
+/* Арабский пишется справа налево: стрелка списка и «птичка» раскрытия
+   должны смотреть в ту же сторону, что и текст. */
+[dir="rtl"] select {
+  background-position: left 9px center;
+  padding-inline-end: 10px; padding-inline-start: 28px;
+}
+[dir="rtl"] summary::before { content: "‹"; }
+[dir="rtl"] details[open] > summary::before { transform: rotate(-90deg); }

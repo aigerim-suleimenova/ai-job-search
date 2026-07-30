@@ -1,13 +1,29 @@
-"""Локализация: язык интерфейса (ru/en/it/de) и язык результатов ИИ."""
+"""Локализация: язык интерфейса и язык, на котором ИИ пишет результаты.
+
+Четыре языка живут в словаре TR ниже, остальные — в jobsearch/locales/<код>.py.
+"""
+import importlib
 import locale
 import os
 import platform
 import subprocess
+from functools import lru_cache
 
 # Языки в переключателях — по алфавиту, как принято в системных списках.
-UI_LANGS = {"de": "Deutsch", "en": "English", "it": "Italiano", "ru": "Русский"}
-OUTPUT_LANGS = {"de": "Deutsch", "en": "English", "it": "Italiano",
-                "it-en": "Italiano + English", "ru": "Русский"}
+UI_LANGS = {
+    "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
+    "fr": "Français", "hi": "हिन्दी", "it": "Italiano", "ja": "日本語",
+    "pl": "Polski", "pt": "Português", "ru": "Русский", "tr": "Türkçe",
+    "uk": "Українська", "zh": "中文",
+}
+# языки, которые пишутся справа налево — шаблоны ставят им dir="rtl"
+RTL_LANGS = {"ar"}
+OUTPUT_LANGS = {
+    "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
+    "fr": "Français", "hi": "हिन्दी", "it": "Italiano", "it-en": "Italiano + English",
+    "ja": "日本語", "pl": "Polski", "pt": "Português", "ru": "Русский",
+    "tr": "Türkçe", "uk": "Українська", "zh": "中文",
+}
 
 
 def system_lang(default: str = "en") -> str:
@@ -45,6 +61,16 @@ OUTPUT_INSTRUCTION = {
     "en": "in English",
     "de": "auf Deutsch",
     "it": "in italiano",
+    "es": "en español",
+    "fr": "en français",
+    "pt": "em português",
+    "pl": "po polsku",
+    "uk": "українською мовою",
+    "tr": "Türkçe",
+    "zh": "用简体中文",
+    "ja": "日本語で",
+    "ar": "بالعربية",
+    "hi": "हिन्दी में",
     "it-en": ("in italiano E POI in inglese — ogni testo prima in italiano, poi la "
               "stessa frase in inglese, separati da « / ». Esempio: «Ottima "
               "corrispondenza con il profilo / Great match for the profile». "
@@ -867,9 +893,29 @@ TR = {
 }
 
 
+@lru_cache(maxsize=32)
+def _locale(lang: str) -> dict:
+    """Переводы отдельного языка из jobsearch/locales/<код>.py.
+
+    Языков стало четырнадцать: держать их все в одном словаре — значит сделать
+    его нечитаемым. Четыре первых остались здесь, остальные лежат по файлам.
+    """
+    try:
+        module = importlib.import_module(f"{__package__}.locales.{lang}")
+    except ModuleNotFoundError:
+        return {}
+    return getattr(module, "STRINGS", {})
+
+
 def t(lang: str, key: str) -> str:
-    lang = (lang or "ru").split("-")[0]  # "it-en" → заголовки по-итальянски
+    lang = (lang or "en").split("-")[0]  # "it-en" → заголовки по-итальянски
     entry = TR.get(key)
-    if not entry:
-        return key
-    return entry.get(lang) or entry.get("ru") or key
+    if entry and entry.get(lang):
+        return entry[lang]
+    text = _locale(lang).get(key)
+    if text:
+        return text
+    # Запасной вариант — английский: русский понятен меньшинству пользователей.
+    if entry:
+        return entry.get("en") or entry.get("ru") or key
+    return key
