@@ -78,8 +78,7 @@ def _write_registry(reg: dict) -> None:
 
 
 def ensure_migrated() -> None:
-    """Однократная миграция: старый плоский data/ → data/profiles/<slug>/.
-    Также подхватывает соседний каталог data_mokhov как отдельный профиль."""
+    """Однократная миграция: старый плоский data/ → data/profiles/<slug>/."""
     with _lock:
         reg = _read_registry()
         if reg.get("profiles"):
@@ -87,7 +86,7 @@ def ensure_migrated() -> None:
         PROFILES_DIR.mkdir(parents=True, exist_ok=True)
         profiles, taken = [], set()
 
-        # 1. существующие плоские данные → профиль «Я»
+        # существующие плоские данные → профиль «Я»
         legacy_files = ["config.json", "cv.txt", "cv_meta.json"] + \
                        [p.name for p in DATA_ROOT.glob("cv.*")] + \
                        (["jobs.db"] if (DATA_ROOT / "jobs.db").exists() else [])
@@ -102,17 +101,7 @@ def ensure_migrated() -> None:
                     shutil.move(str(src), str(dst / fn))
             profiles.append({"slug": slug, "name": "Я"})
 
-        # 2. соседний data_mokhov → профиль (одноразовый импорт)
-        mokhov = BASE_DIR / "data_mokhov"
-        if mokhov.exists() and (mokhov / "config.json").exists():
-            slug = _slugify("aleksandr", taken)
-            taken.add(slug)
-            dst = PROFILES_DIR / slug
-            if not dst.exists():
-                shutil.copytree(str(mokhov), str(dst))
-                profiles.append({"slug": slug, "name": "Александр"})
-
-        # 3. если ничего не было — создаём пустой профиль
+        # если ничего не было — создаём пустой профиль
         if not profiles:
             slug = _slugify("me", taken)
             (PROFILES_DIR / slug).mkdir(parents=True, exist_ok=True)
