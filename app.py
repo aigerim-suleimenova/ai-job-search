@@ -112,11 +112,19 @@ def _seed_profile(slug: str) -> None:
         profiles.set_active(prev)
 
 
+def _asset_version() -> str:
+    """Метка стилей для адресной строки: меняется, когда меняется файл."""
+    try:
+        return str(int((BASE / "static" / "style.css").stat().st_mtime))
+    except OSError:
+        return "1"
+
+
 def render(request, template: str, ctx: dict, cfg: dict = None):
     """Рендер с языком интерфейса и данными о профилях."""
     cfg_ = cfg or config.load()
     lang = cfg_.get("ui", {}).get("lang", "ru")
-    ctx = {**ctx, "provider_status": _provider_status(cfg_),
+    ctx = {**ctx, "provider_status": _provider_status(cfg_), "asset_v": _asset_version(),
            "lang": lang, "t": lambda key: i18n.t(lang, key),
            "rtl": lang in i18n.RTL_LANGS,
            "ui_langs": i18n.UI_LANGS, "output_langs": i18n.OUTPUT_LANGS,
