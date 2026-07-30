@@ -458,4 +458,5 @@ STRINGS = {
 "log_crawl_guessed": "przeglądanie {name}: strona kariery na skryptach, ATS zgadnięty z nazwy ({kind}/{id}) — {n}",
 "results_live_new": "Nowych znalezionych: {n} — pokaż",
 "results_live_done": "Szukanie skończone — odśwież listę",
+"job_preliminary_hint": "Szybka ocena. Porady i CV pod ofertę pojawią się po głębokiej analizie — robi się ją na końcu przebiegu dla tych powyżej progu i tych blisko niego.",
 }

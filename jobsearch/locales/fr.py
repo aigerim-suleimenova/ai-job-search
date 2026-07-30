@@ -458,4 +458,5 @@ STRINGS = {
 "log_crawl_guessed": "exploration {name} : page carrières en script, ATS deviné d'après le nom ({kind}/{id}) — {n}",
 "results_live_new": "{n} nouvelles trouvées — afficher",
 "results_live_done": "La recherche est terminée — actualiser la liste",
+"job_preliminary_hint": "Note rapide. Les conseils et le CV sur mesure arrivent après l'analyse approfondie, qui a lieu en fin d'exécution pour les offres au-dessus du seuil et celles qui en sont proches.",
 }

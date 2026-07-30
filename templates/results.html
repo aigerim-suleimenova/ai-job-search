@@ -160,6 +160,8 @@
     {% if j.advice_data.cover_hint %}<p><b>{{ t('cover_hint_label') }}</b> {{ j.advice_data.cover_hint }}</p>{% endif %}
   </details>
   <p class="hint" style="margin:6px 0 0">{{ t('cv_button_hint') }}</p>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0">{{ t('job_preliminary_hint') }}</p>
   {% endif %}
   {% if j.description %}
   <details><summary>{{ t('job_description') }}</summary><p class="desc">{{ j.description[:3000] }}</p></details>

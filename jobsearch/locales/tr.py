@@ -458,4 +458,5 @@ STRINGS = {
 "log_crawl_guessed": "tarama {name}: kariyer sayfası betikle çalışıyor, ATS addan tahmin edildi ({kind}/{id}) — {n}",
 "results_live_new": "{n} yeni bulundu — göster",
 "results_live_done": "Arama bitti — listeyi yenile",
+"job_preliminary_hint": "Hızlı puan. Öneriler ve ilana özel CV, derin incelemeden sonra gelir — o da çalıştırmanın sonunda, eşiği geçenler ve ona yakın olanlar için yapılır.",
 }

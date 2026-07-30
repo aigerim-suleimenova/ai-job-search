@@ -458,4 +458,5 @@ STRINGS = {
 "log_crawl_guessed": "巡回 {name}：採用ページはスクリプト製。名前から ATS を推測（{kind}/{id}）— {n}",
 "results_live_new": "新たに {n} 件 — 表示",
 "results_live_done": "検索が終わりました — 一覧を更新",
+"job_preliminary_hint": "これは一次採点です。助言と「この求人向けの履歴書」は深掘りのあとに出ます。深掘りは検索の最後に、しきい値を超えた求人と惜しかった求人に対して行われます。",
 }

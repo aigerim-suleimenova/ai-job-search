@@ -458,4 +458,5 @@ STRINGS = {
 "log_crawl_guessed": "rastreo {name}: página de empleo por script, ATS adivinado por el nombre ({kind}/{id}) — {n}",
 "results_live_new": "Nuevas encontradas: {n} — mostrar",
 "results_live_done": "La búsqueda ha terminado: actualizar la lista",
+"job_preliminary_hint": "Puntuación rápida. Los consejos y el CV a medida llegan tras el análisis a fondo, que se hace al final de la ejecución para las que superan el umbral y las cercanas.",
 }
