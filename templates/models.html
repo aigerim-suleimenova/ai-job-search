@@ -48,15 +48,18 @@
     </form>
     {% endfor %}
   </div>
+  {% if not provs['ollama'].ready %}
+  <p class="hint" style="margin-top:12px">{{ t('models_ollama_steps') }}</p>
+  {% endif %}
   {% if not provs[current_provider].web_search %}
-  <p class="hint" style="margin-top:12px; color:var(--warn)">⚠️ {{ t('models_websearch_warning') }}</p>
+  <p class="hint" style="margin-top:12px; color:var(--warn)">{{ t('models_websearch_warning') }}</p>
   {% endif %}
 </section>
 
 <section class="card">
   <h2>{{ t('models_your_device') }}</h2>
-  <p class="meta">{{ specs.cpu }} · {{ t('models_ram') }} {{ specs.ram_gb }} ГБ ·
-     {{ t('models_usable') }} ≈ {{ specs.usable_gb }} ГБ{% if specs.gpu %} · {{ specs.gpu }}{% endif %}</p>
+  <p class="meta">{{ specs.cpu }} · {{ t('models_ram') }} {{ specs.ram_gb }} {{ t('unit_gb') }} ·
+     {{ t('models_usable') }} ≈ {{ specs.usable_gb }} {{ t('unit_gb') }}{% if specs.gpu %} · {{ specs.gpu }}{% endif %}</p>
 </section>
 
 <section class="card">
@@ -79,14 +82,14 @@
           <b>{{ m.name }}</b>
           {% if m.id == current_model %}<span class="badge ok">{{ t('models_current') }}</span>{% endif %}
           {% if m.kind == 'local' %}
-            {% if m.fits == 'yes' %}<span class="badge ok">✅ {{ t('models_fits_yes') }}</span>
-            {% elif m.fits == 'tight' %}<span class="badge warn">⚠️ {{ t('models_fits_tight') }}</span>
-            {% else %}<span class="badge warn">❌ {{ t('models_fits_no') }}</span>{% endif %}
+            {% if m.fits == 'yes' %}<span class="badge ok">{{ t('models_fits_yes') }}</span>
+            {% elif m.fits == 'tight' %}<span class="badge warn">{{ t('models_fits_tight') }}</span>
+            {% else %}<span class="badge warn">{{ t('models_fits_no') }}</span>{% endif %}
             {% if m.installed %}<span class="badge ok">{{ t('models_installed') }}</span>{% endif %}
           {% endif %}
           <p class="meta" style="margin:6px 0 0">
             {{ t('models_power') }} {{ m.power }}/100
-            {% if m.params %} · {{ m.params }} · {{ m.ram_gb }} ГБ {{ t('models_needs') }}{% endif %}
+            {% if m.params %} · {{ m.params }} · {{ m.ram_gb }} {{ t('unit_gb') }} {{ t('models_needs') }}{% endif %}
             {% if m.origin %} · {{ m.origin }}{% endif %}
             {% if m.note %} · {{ m.note }}{% endif %}
           </p>

@@ -59,7 +59,7 @@ https://www.mycompany.com/careers">{{ checked_input }}</textarea>
     {% for e in entries %}
     <tr>
       <td><a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.name }}</a></td>
-      <td>{{ e.kind }}</td>
+      <td>{% if e.kind in ('crawl', 'краулинг') %}{{ t('src_crawl') }}{% else %}{{ e.kind }}{% endif %}</td>
       <td>{{ e.count }}</td>
       <td>{% if e.error %}<span class="st-error">{{ e.error }}</span>
           {% elif e.count == 0 %}<span class="st-warn">{{ t('cov_empty') }}</span>

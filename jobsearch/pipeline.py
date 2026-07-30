@@ -138,7 +138,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 return None
             detected = ats.detect(url)
             entry = {"name": name or url, "url": url,
-                     "kind": f"ATS: {detected[0]}" if detected else "краулинг",
+                     "kind": f"ATS: {detected[0]}" if detected else "crawl",
                      "count": 0, "error": None}
             try:
                 if detected:
