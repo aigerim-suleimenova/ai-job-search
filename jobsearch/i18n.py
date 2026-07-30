@@ -587,6 +587,8 @@ TR = {
     "simple_go": {"ru": "Начать поиск", "en": "Start searching",
                   "it": "Avvia la ricerca", "de": "Suche starten"},
     "simple_starting": {"ru": "Запускаем…", "en": "Starting…", "it": "Avvio…", "de": "Wird gestartet…"},
+    "donate_hint": {"ru": "Программа бесплатная и работает у вас на компьютере. Если она пригодилась — можно поддержать автора:", "en": "This app is free and runs on your own computer. If it has been useful, you can support the author:", "it": "L'app è gratuita e gira sul vostro computer. Se vi è stata utile, potete sostenere l'autore:", "de": "Die App ist kostenlos und läuft auf Ihrem eigenen Rechner. Wenn sie nützlich war, können Sie den Autor unterstützen:"},
+    "donate_title": {"ru": "Поддержать проект", "en": "Support the project", "it": "Sostieni il progetto", "de": "Projekt unterstützen"},
     "stage_start": {"ru": "начинаем", "en": "starting", "it": "avvio", "de": "Start"},
     "stage_discover": {"ru": "ищем новые компании (веб-поиск)", "en": "finding new companies (web search)", "it": "cerchiamo nuove aziende (ricerca web)", "de": "neue Unternehmen suchen (Websuche)"},
     "stage_discover_ats": {"ru": "ищем вакансии на доменах ATS", "en": "searching job boards (ATS domains)", "it": "cerchiamo offerte sui domini ATS", "de": "Stellen auf ATS-Domains suchen"},

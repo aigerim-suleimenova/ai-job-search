@@ -845,6 +845,25 @@ async def provider_recheck(request: Request):
     return _redirect_to(back, _msg("msg_recheck_found" if ready else "msg_recheck_none", name=name))
 
 
+# Адреса поддержки заданы здесь списком: страница передаёт только ключ, чтобы
+# кнопкой нельзя было открыть произвольный адрес.
+DONATE_URLS = {
+    "bmc": "https://buymeacoffee.com/ipupok",
+    "kofi": "https://ko-fi.com/ipupok",
+    "paypal": "https://www.paypal.com/donate/?hosted_button_id=VBNDB5AHYLGCY",
+}
+
+
+@app.post("/donate")
+async def donate(request: Request):
+    form = await request.form()
+    url = DONATE_URLS.get(str(form.get("target", "")))
+    back = str(form.get("back") or "/simple")
+    if url:
+        webbrowser.open(url)
+    return RedirectResponse(back, status_code=303)
+
+
 @app.get("/welcome")
 def welcome(request: Request, msg: str = ""):
     cfg = config.load()

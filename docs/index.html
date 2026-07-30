@@ -55,6 +55,10 @@
   .req b { flex: none; }
   footer { padding: 34px 0 60px; color: var(--muted); font-size: 14px; text-align: center; }
   footer a { color: var(--accent); }
+  footer .donate { display: flex; justify-content: center; align-items: center;
+                   gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+  footer .donate a { padding: 5px 12px; border: 1px solid var(--border, rgba(0,0,0,.12));
+                     border-radius: 8px; text-decoration: none; }
   [data-i18n-hide] { display: none; }
 </style>
 </head>
@@ -149,6 +153,12 @@
 
 <footer>
   <p data-t="footer_open"></p>
+  <p class="donate">
+    <span data-t="donate"></span>
+    <a href="https://buymeacoffee.com/ipupok" target="_blank" rel="noopener">Buy Me a Coffee</a>
+    <a href="https://ko-fi.com/ipupok" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://www.paypal.com/donate/?hosted_button_id=VBNDB5AHYLGCY" target="_blank" rel="noopener">PayPal</a>
+  </p>
   <p><a href="https://github.com/mrWD/ai-job-search">github.com/mrWD/ai-job-search</a></p>
 </footer>
 
@@ -193,6 +203,7 @@ const T = {
     p1_t: "Всё хранится у вас", p1_d: "Резюме, настройки и найденные вакансии лежат на вашем компьютере. Своего сервера у программы нет.",
     p2_t: "Наружу уходит только запрос к модели", p2_d: "И то лишь к той, которую вы выбрали. С локальной моделью не уходит ничего.",
     footer_open: "Открытый исходный код. Пользуйтесь, изучайте, предлагайте улучшения.",
+    donate: "Программа бесплатная. Если пригодилась — можно поддержать автора:",
   },
   en: {
     hero_title: "A job search that runs itself",
@@ -231,6 +242,7 @@ const T = {
     p1_t: "Everything stays with you", p1_d: "Your CV, settings and found jobs live on your computer. The app has no server of its own.",
     p2_t: "Only the model request leaves", p2_d: "And only to the model you picked. With a local model, nothing leaves at all.",
     footer_open: "Open source. Use it, read it, suggest improvements.",
+    donate: "The app is free. If it has been useful, you can support the author:",
   },
   it: {
     hero_title: "Una ricerca di lavoro che va avanti da sola",
@@ -269,6 +281,7 @@ const T = {
     p1_t: "Tutto resta da lei", p1_d: "CV, impostazioni e offerte trovate restano sul suo computer. Il programma non ha un proprio server.",
     p2_t: "Esce solo la richiesta al modello", p2_d: "E solo verso quello scelto da lei. Con un modello locale non esce nulla.",
     footer_open: "Codice aperto. Lo usi, lo esamini, proponga miglioramenti.",
+    donate: "L'app è gratuita. Se vi è stata utile, potete sostenere l'autore:",
   },
   de: {
     hero_title: "Eine Jobsuche, die von allein läuft",
@@ -307,6 +320,7 @@ const T = {
     p1_t: "Alles bleibt bei Ihnen", p1_d: "Lebenslauf, Einstellungen und gefundene Stellen liegen auf Ihrem Rechner. Das Programm hat keinen eigenen Server.",
     p2_t: "Nach außen geht nur die Modellanfrage", p2_d: "Und nur an das von Ihnen gewählte Modell. Mit einem lokalen Modell verlässt nichts das Gerät.",
     footer_open: "Quelloffen. Nutzen, nachlesen, Verbesserungen vorschlagen.",
+    donate: "Die App ist kostenlos. Wenn sie nützlich war, können Sie den Autor unterstützen:",
   },
 };
 

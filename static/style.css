@@ -477,3 +477,15 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
   0% { transform: translateX(-100%); } 100% { transform: translateX(320%); }
 }
 @media (prefers-reduced-motion: reduce) { .running-bar i { animation: none; width: 100%; } }
+
+/* Подвал с поддержкой: негромкая строка, а не баннер */
+.donate {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 28px 0 8px; padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px; color: var(--muted);
+}
+.donate-text { flex: 1 1 260px; }
+.donate-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.donate-links form { margin: 0; }
+.donate-links button { height: 28px; font-size: 12.5px; }

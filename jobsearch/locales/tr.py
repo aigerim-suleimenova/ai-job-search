@@ -407,4 +407,6 @@ STRINGS = {
 "run_can_close": "Pencereyi kapatabilirsiniz: arka plan kipi açıksa arama kendi başına sürer. İlk çalıştırma 20–40 dakika alır.",
 "run_open_results": "Sonuçları aç",
 "run_in_progress": "Arama sürüyor",
+"donate_hint": "Uygulama ücretsiz ve kendi bilgisayarınızda çalışıyor. İşinize yaradıysa yazara destek olabilirsiniz:",
+"donate_title": "Projeye destek ol",
 }

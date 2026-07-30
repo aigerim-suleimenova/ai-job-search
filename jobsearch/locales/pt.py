@@ -407,4 +407,6 @@ STRINGS = {
 "run_can_close": "Pode fechar a janela: com o modo em segundo plano a busca continua sozinha. A primeira execução demora 20–40 minutos.",
 "run_open_results": "Abrir resultados",
 "run_in_progress": "Busca em curso",
+"donate_hint": "A aplicação é gratuita e corre no seu próprio computador. Se lhe foi útil, pode apoiar o autor:",
+"donate_title": "Apoiar o projeto",
 }

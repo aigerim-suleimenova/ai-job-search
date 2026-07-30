@@ -407,4 +407,6 @@ STRINGS = {
 "run_can_close": "可以关掉窗口：开启后台模式后，搜索会自己继续。第一次运行需要 20–40 分钟。",
 "run_open_results": "打开结果",
 "run_in_progress": "搜索进行中",
+"donate_hint": "这个程序是免费的，而且跑在你自己的电脑上。如果它帮到了你，可以支持一下作者：",
+"donate_title": "支持这个项目",
 }

@@ -407,4 +407,6 @@ STRINGS = {
 "run_can_close": "Vous pouvez fermer la fenêtre : avec le mode arrière-plan, la recherche continue seule. La première exécution prend 20 à 40 minutes.",
 "run_open_results": "Ouvrir les résultats",
 "run_in_progress": "Recherche en cours",
+"donate_hint": "L'application est gratuite et tourne sur votre propre ordinateur. Si elle vous a servi, vous pouvez soutenir l'auteur :",
+"donate_title": "Soutenir le projet",
 }

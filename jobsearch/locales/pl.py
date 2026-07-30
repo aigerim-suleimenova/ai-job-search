@@ -407,4 +407,6 @@ STRINGS = {
 "run_can_close": "Okno można zamknąć: przy włączonym trybie w tle szukanie idzie dalej samo. Pierwszy przebieg zajmuje 20–40 minut.",
 "run_open_results": "Otwórz wyniki",
 "run_in_progress": "Szukanie w toku",
+"donate_hint": "Program jest darmowy i działa na twoim komputerze. Jeśli się przydał, możesz wesprzeć autora:",
+"donate_title": "Wesprzyj projekt",
 }

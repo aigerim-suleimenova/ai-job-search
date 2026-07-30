@@ -1,0 +1,15 @@
+{# Поддержать автора. Ссылки открываются в браузере, а не внутри окна:
+   в собранном приложении окно — это webview, и внешняя страница в нём
+   выглядела бы как «приложение сломалось и стало сайтом». #}
+<footer class="donate">
+  <span class="donate-text">{{ t('donate_hint') }}</span>
+  <span class="donate-links">
+    {% for key, label in [('bmc', 'Buy Me a Coffee'), ('kofi', 'Ko-fi'), ('paypal', 'PayPal')] %}
+    <form method="post" action="/donate">
+      <input type="hidden" name="target" value="{{ key }}">
+      <input type="hidden" name="back" value="{{ request.url.path }}">
+      <button type="submit">{{ label }}</button>
+    </form>
+    {% endfor %}
+  </span>
+</footer>
