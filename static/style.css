@@ -163,7 +163,7 @@ label {
 }
 
 input[type="text"], input[type="password"], input[type="number"],
-input:not([type]), textarea, select {
+input[type="date"], input:not([type]), textarea, select {
   display: block;
   width: 100%;
   margin-top: 5px;
@@ -401,6 +401,19 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 }
 @media (max-width: 780px) { .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .filters input[type="date"] { width: 100%; }
+/* Календарь у поля даты рисует система: приглушаем значок, чтобы он не спорил
+   со стрелками выпадающих списков рядом. */
+/* Внутренняя часть поля даты выше обычной строки — без этого поле на два
+   пиксела выше соседних списков, и ряд фильтров едва заметно «пляшет». */
+input[type="date"] { padding-block: 6px; }
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: .45; cursor: pointer; transition: opacity .12s;
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .9; }
+input[type="date"]::-webkit-datetime-edit { color: var(--text); }
+input[type="date"]:invalid::-webkit-datetime-edit,
+input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color: var(--faint); }
 .filters label { margin: 0; font-size: 11.5px; min-width: 0; }
 .filters select { min-width: 0; width: 100%; }
 

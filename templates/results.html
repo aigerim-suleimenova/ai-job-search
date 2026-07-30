@@ -190,7 +190,7 @@
 </section>
 {% endfor %}
 
-{% if runs %}
+{% if runs and runs[0].log %}
 <section class="card">
   <h2>{{ t('run_journal') }}</h2>
   <pre class="log">{{ runs[0].log }}</pre>
