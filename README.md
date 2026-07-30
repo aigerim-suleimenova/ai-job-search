@@ -81,8 +81,27 @@ pip install pyinstaller
 pyinstaller --clean --noconfirm packaging/aijobsearch.spec
 ```
 
-Подпись и нотаризация для macOS — `packaging/sign_macos.sh` (нужен сертификат
-Developer ID). Сборка под все три системы происходит на CI по тегу `v*`.
+Сборка под все три системы происходит на CI по тегу `v*`.
+
+### Подпись для macOS
+
+Без подписи Gatekeeper говорит «разработчик не может быть проверен», и
+приложение приходится открывать правой кнопкой. Чтобы этого не было, нужен
+сертификат **Developer ID Application** — он входит в Apple Developer Program.
+Сертификат для App Store здесь не подойдёт: программа запускает внешние
+командные строки (Claude Code, Cursor, Ollama), а песочница App Store этого
+не позволяет — раздавать её можно только образом.
+
+```bash
+xcrun notarytool store-credentials aijobsearch \
+  --apple-id <email> --team-id <TEAMID> --password <app-specific-password>
+NOTARY_PROFILE=aijobsearch packaging/sign_macos.sh
+```
+
+Скрипт сам найдёт сертификат в связке ключей, подпишет приложение, соберёт
+образ, отправит на нотаризацию и поставит штамп. Без `NOTARY_PROFILE`
+нотаризация пропускается — подпись будет, но при скачивании из интернета
+система всё равно спросит.
 
 ## Поддержать
 

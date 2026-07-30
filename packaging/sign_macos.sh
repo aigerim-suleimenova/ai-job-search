@@ -16,13 +16,31 @@ APP="dist/AI Job Search.app"
 DMG="dist/AI Job Search.dmg"
 IDENTITY="${1:-}"
 
+# Раздавать приложение можно только сертификатом Developer ID Application.
+# Apple Development подписывает для своих устройств: у другого человека
+# Gatekeeper всё равно скажет «разработчик не может быть проверен».
 if [ -z "$IDENTITY" ]; then
-  echo "Доступные сертификаты:"
-  security find-identity -v -p codesigning
+  IDENTITY="$(security find-identity -v -p codesigning |
+              sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
+fi
+
+if [ -z "$IDENTITY" ]; then
+  echo "Не найден сертификат Developer ID Application."
   echo
-  echo "Запустите: $0 \"<название сертификата>\""
+  echo "Что есть в системе:"
+  security find-identity -v -p codesigning | sed 's/^/  /'
+  echo
+  echo "Создать нужный: developer.apple.com → Certificates → + →"
+  echo "Developer ID Application (или Xcode → Settings → Accounts →"
+  echo "Manage Certificates → + → Developer ID Application), скачать и"
+  echo "открыть файл — он встанет в связку ключей."
+  echo
+  echo "Затем: $0                       (сертификат подхватится сам)"
+  echo "   или: $0 \"<название сертификата>\""
   exit 1
 fi
+
+echo "→ Подписываем как: $IDENTITY"
 
 [ -d "$APP" ] || { echo "Нет $APP — сначала соберите: pyinstaller --clean --noconfirm packaging/aijobsearch.spec"; exit 1; }
 
