@@ -457,7 +457,7 @@ STRINGS = {
 "log_crawl_subpage": "rastreo {name}: no hay ofertas en {url}, pruebo la subpágina {sub}",
 "log_crawl_guessed": "rastreo {name}: página de empleo por script, ATS adivinado por el nombre ({kind}/{id}) — {n}",
 "results_live_new": "Nuevas encontradas: {n} — mostrar",
-"results_live_done": "La búsqueda ha terminado: actualizar la lista",
+"results_live_done": "La búsqueda ha terminado",
 "job_preliminary_hint": "Puntuación rápida. Los consejos y el CV a medida llegan tras el análisis a fondo, que se hace al final de la ejecución para las que superan el umbral y las cercanas.",
 "cov_st_notfound": "no encontrada (la búsqueda web no dio página de empleo)",
 "cov_st_api": "se lee por la API",
@@ -474,4 +474,5 @@ STRINGS = {
 "filter_posted_to": "hasta",
 "filter_dates_hint": "Las ofertas sin fecha de publicación quedan fuera del periodo: su fecha se desconoce.",
 "more_projects": "Otros proyectos del autor",
+"results_live_refresh": "actualizar la lista",
 }

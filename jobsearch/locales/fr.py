@@ -457,7 +457,7 @@ STRINGS = {
 "log_crawl_subpage": "exploration {name} : aucune offre sur {url}, j'essaie la sous-page {sub}",
 "log_crawl_guessed": "exploration {name} : page carrières en script, ATS deviné d'après le nom ({kind}/{id}) — {n}",
 "results_live_new": "{n} nouvelles trouvées — afficher",
-"results_live_done": "La recherche est terminée — actualiser la liste",
+"results_live_done": "La recherche est terminée",
 "job_preliminary_hint": "Note rapide. Les conseils et le CV sur mesure arrivent après l'analyse approfondie, qui a lieu en fin d'exécution pour les offres au-dessus du seuil et celles qui en sont proches.",
 "cov_st_notfound": "introuvable (la recherche web n'a donné aucune page carrières)",
 "cov_st_api": "lue via l'API",
@@ -474,4 +474,5 @@ STRINGS = {
 "filter_posted_to": "jusqu'au",
 "filter_dates_hint": "Les offres sans date de publication restent hors de la période : leur date est inconnue.",
 "more_projects": "Autres projets de l'auteur",
+"results_live_refresh": "actualiser la liste",
 }

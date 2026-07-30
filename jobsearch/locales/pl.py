@@ -457,7 +457,7 @@ STRINGS = {
 "log_crawl_subpage": "przeglądanie {name}: brak ofert na {url}, próbuję podstrony {sub}",
 "log_crawl_guessed": "przeglądanie {name}: strona kariery na skryptach, ATS zgadnięty z nazwy ({kind}/{id}) — {n}",
 "results_live_new": "Nowych znalezionych: {n} — pokaż",
-"results_live_done": "Szukanie skończone — odśwież listę",
+"results_live_done": "Szukanie skończone",
 "job_preliminary_hint": "Szybka ocena. Porady i CV pod ofertę pojawią się po głębokiej analizie — robi się ją na końcu przebiegu dla tych powyżej progu i tych blisko niego.",
 "cov_st_notfound": "nie znaleziono (wyszukiwanie w sieci nie dało strony kariery)",
 "cov_st_api": "czytana przez API",
@@ -474,4 +474,5 @@ STRINGS = {
 "filter_posted_to": "do",
 "filter_dates_hint": "Oferty bez daty publikacji nie wchodzą w okres — ich data jest nieznana.",
 "more_projects": "Inne projekty autora",
+"results_live_refresh": "odśwież listę",
 }

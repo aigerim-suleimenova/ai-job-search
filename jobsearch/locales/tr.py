@@ -457,7 +457,7 @@ STRINGS = {
 "log_crawl_subpage": "tarama {name}: {url} adresinde ilan yok, alt sayfa {sub} deneniyor",
 "log_crawl_guessed": "tarama {name}: kariyer sayfası betikle çalışıyor, ATS addan tahmin edildi ({kind}/{id}) — {n}",
 "results_live_new": "{n} yeni bulundu — göster",
-"results_live_done": "Arama bitti — listeyi yenile",
+"results_live_done": "Arama bitti",
 "job_preliminary_hint": "Hızlı puan. Öneriler ve ilana özel CV, derin incelemeden sonra gelir — o da çalıştırmanın sonunda, eşiği geçenler ve ona yakın olanlar için yapılır.",
 "cov_st_notfound": "bulunamadı (web araması kariyer sayfası vermedi)",
 "cov_st_api": "API üzerinden okunuyor",
@@ -474,4 +474,5 @@ STRINGS = {
 "filter_posted_to": "bitiş",
 "filter_dates_hint": "Yayım tarihi olmayan ilanlar döneme girmez — tarihleri bilinmiyor.",
 "more_projects": "Yazarın diğer projeleri",
+"results_live_refresh": "listeyi yenile",
 }

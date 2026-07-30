@@ -457,7 +457,7 @@ STRINGS = {
 "log_crawl_subpage": "抓取 {name}：{url} 上没有职位，改试子页面 {sub}",
 "log_crawl_guessed": "抓取 {name}：招聘页由脚本驱动，按名称猜出 ATS（{kind}/{id}）— {n}",
 "results_live_new": "新找到 {n} 个 — 显示",
-"results_live_done": "搜索结束——刷新列表",
+"results_live_done": "搜索结束",
 "job_preliminary_hint": "这是快速评分。建议和「定制简历」要等深度分析之后——它在搜索末尾进行，只针对超过阈值的和差一点的职位。",
 "cov_st_notfound": "未找到（联网搜索没有给出招聘页面）",
 "cov_st_api": "通过 API 读取",
@@ -474,4 +474,5 @@ STRINGS = {
 "filter_posted_to": "发布截止",
 "filter_dates_hint": "没有发布日期的职位不计入这个时间段——它们的日期未知。",
 "more_projects": "作者的其他项目",
+"results_live_refresh": "刷新列表",
 }

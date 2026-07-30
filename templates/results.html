@@ -219,11 +219,16 @@
       if (d.eta_min) parts.push('{{ t('run_eta') }}'.replace('{mins}', d.eta_min));
       else if (d.typical_min) parts.push('{{ t('run_typical') }}'.replace('{mins}', d.typical_min));
       if (tm) tm.textContent = parts.join(' · ');
+      // Полоса не только сообщает, но и даёт нажать: раньше она писала
+      // «обновите список» и не предлагала ничем это сделать.
       const fresh = (d.found || 0) - shown;
+      more.href = url;
       if (fresh > 0) {
         more.hidden = false;
         more.textContent = '{{ t('results_live_new') }}'.replace('{n}', fresh);
-        more.href = url;
+      } else if (!d.running) {
+        more.hidden = false;
+        more.textContent = '{{ t('results_live_refresh') }}';
       }
       if (!d.running) { strip.classList.add('done'); clearInterval(timer); }
     } catch (e) { /* сервер перезапускается — подождём */ }

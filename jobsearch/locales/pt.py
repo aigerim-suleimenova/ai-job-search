@@ -457,7 +457,7 @@ STRINGS = {
 "log_crawl_subpage": "rastreio {name}: sem vagas em {url}, tento a subpágina {sub}",
 "log_crawl_guessed": "rastreio {name}: página de carreiras por script, ATS adivinhado pelo nome ({kind}/{id}) — {n}",
 "results_live_new": "Novas encontradas: {n} — mostrar",
-"results_live_done": "A busca terminou — atualizar a lista",
+"results_live_done": "A busca terminou",
 "job_preliminary_hint": "Pontuação rápida. Os conselhos e o CV à medida chegam depois da análise profunda, feita no fim da execução para as que passam o limiar e as próximas dele.",
 "cov_st_notfound": "não encontrada (a pesquisa web não deu página de carreiras)",
 "cov_st_api": "lida pela API",
@@ -474,4 +474,5 @@ STRINGS = {
 "filter_posted_to": "até",
 "filter_dates_hint": "As vagas sem data de publicação ficam fora do período: a data delas é desconhecida.",
 "more_projects": "Outros projetos do autor",
+"results_live_refresh": "atualizar a lista",
 }
