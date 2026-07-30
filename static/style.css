@@ -206,9 +206,15 @@ input[type="file"]::file-selector-button {
 
 label.check {
   display: flex; align-items: flex-start; gap: 8px;
-  color: var(--text); font-size: 13px; font-weight: 400; margin-bottom: 10px;
+  color: var(--text); font-size: 13px; line-height: 1.5; font-weight: 400;
+  margin-bottom: 10px;
 }
-label.check input { width: auto; margin: 1px 0 0; flex: none; }
+/* Отступ сверху = половина разницы между строкой текста и самим квадратиком:
+   так он оказывается по центру первой строки, а не над ней. */
+label.check input {
+  width: auto; flex: none;
+  height: 14px; margin: calc((1.5em - 14px) / 2) 0 0;
+}
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 18px; }
