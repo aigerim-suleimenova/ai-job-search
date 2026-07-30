@@ -86,11 +86,28 @@ def finish_run(run_id: int, found: int, fresh: int, matched: int, status: str, l
 
 def save_job(job: dict, run_id: int) -> None:
     with conn() as c:
+        # Раньше здесь было INSERT OR IGNORE: строка писалась один раз и больше не
+        # менялась. Пока вакансии сохранялись только в конце, это работало. Как
+        # только они стали сохраняться по ходу триажа, результат глубокого
+        # разбора той же вакансии переставал доходить до базы — вставка молча
+        # игнорировалась. Обновляем то, что стало известно точнее, и не трогаем
+        # отметку «просмотрено» и дату первой встречи.
         c.execute(
-            """INSERT OR IGNORE INTO jobs
+            """INSERT INTO jobs
                (key, title, company, location, url, source, is_direct, is_agency,
                 description, score, reason, advice, verified, posted_at, first_seen, run_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(key) DO UPDATE SET
+                 score    = CASE WHEN excluded.verified = 1 OR jobs.score IS NULL
+                                 THEN excluded.score ELSE jobs.score END,
+                 reason   = CASE WHEN excluded.verified = 1 OR jobs.reason = ''
+                                 THEN excluded.reason ELSE jobs.reason END,
+                 advice   = CASE WHEN excluded.advice != '' THEN excluded.advice
+                                 ELSE jobs.advice END,
+                 verified = MAX(jobs.verified, excluded.verified),
+                 posted_at = CASE WHEN excluded.posted_at != '' THEN excluded.posted_at
+                                  ELSE jobs.posted_at END,
+                 run_id   = excluded.run_id""",
             (
                 job["key"], job.get("title", ""), job.get("company", ""),
                 job.get("location", ""), job.get("url", ""), job.get("source", ""),
