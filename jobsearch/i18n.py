@@ -587,6 +587,11 @@ TR = {
     "simple_go": {"ru": "Начать поиск", "en": "Start searching",
                   "it": "Avvia la ricerca", "de": "Suche starten"},
     "simple_starting": {"ru": "Запускаем…", "en": "Starting…", "it": "Avvio…", "de": "Wird gestartet…"},
+    "donate_short": {
+        "ru": "Программа бесплатная — можно поддержать автора:",
+        "en": "The app is free — you can support the author:",
+        "it": "L'app è gratuita — potete sostenere l'autore:",
+        "de": "Die App ist kostenlos — Sie können den Autor unterstützen:"},
     "more_projects": {
         "ru": "Другие проекты автора",
         "en": "More projects by the author",

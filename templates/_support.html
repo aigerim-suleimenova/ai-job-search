@@ -1,0 +1,22 @@
+{# Раньше эта строка стояла в самом низу — под списком из трёхсот вакансий её
+   не видел никто. Теперь она сразу под шапкой: негромкая полоска в одну строку,
+   а не баннер. Ссылки открываются в браузере, а не внутри окна: в собранном
+   приложении окно — это webview, и внешняя страница в нём выглядела бы так,
+   будто программа сломалась и стала сайтом. #}
+<div class="support">
+  <span class="support-text">{{ t('donate_short') }}</span>
+  <span class="support-links">
+    {% for key, label in [('bmc', 'Buy Me a Coffee'), ('kofi', 'Ko-fi'), ('paypal', 'PayPal')] %}
+    <form method="post" action="/donate">
+      <input type="hidden" name="target" value="{{ key }}">
+      <input type="hidden" name="back" value="{{ request.url.path }}">
+      <button type="submit">{{ label }}</button>
+    </form>
+    {% endfor %}
+  </span>
+  <form method="post" action="/donate" class="support-projects">
+    <input type="hidden" name="target" value="projects">
+    <input type="hidden" name="back" value="{{ request.url.path }}">
+    <button type="submit" class="linklike">{{ t('more_projects') }} ↗</button>
+  </form>
+</div>

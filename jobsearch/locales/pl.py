@@ -491,4 +491,5 @@ STRINGS = {
 "msg_analyse_failed": "Nie udało się rozebrać: {error}",
 "back_to_top": "Do góry",
 "log_triage_done_nodeep": "Ocenione: {n}, w tym {above} powyżej progu. Głęboka analiza jest wyłączona — oceny są wstępne; pojedynczą ofertę rozbierzesz przyciskiem na jej karcie.",
+"donate_short": "Program jest bezpłatny — możesz wesprzeć autora:",
 }

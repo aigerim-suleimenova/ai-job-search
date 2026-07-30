@@ -491,4 +491,5 @@ STRINGS = {
 "msg_analyse_failed": "深掘りできませんでした：{error}",
 "back_to_top": "先頭へ戻る",
 "log_triage_done_nodeep": "評価：{n} 件、うち基準超えは {above} 件。深掘りはオフです — 点数は暫定で、個別の求人はカードのボタンから深掘りできます。",
+"donate_short": "このアプリは無料です — 作者を支援できます：",
 }
