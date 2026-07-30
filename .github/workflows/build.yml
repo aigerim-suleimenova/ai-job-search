@@ -91,7 +91,10 @@ jobs:
       - name: Собрать список файлов
         run: |
           mkdir -p release
-          find artifacts -name "*.dmg" -o -name "*.tar.gz" -o -name "*.exe" | while read -r f; do
+          # Только готовые к раздаче файлы. Отдельный .exe сюда не берём: сборка
+          # под Windows — каталог, и запущенный без соседней папки _internal
+          # загрузчик просто падает. А скачивают, конечно, именно .exe.
+          find artifacts \( -name "*.dmg" -o -name "*.tar.gz" \) | while read -r f; do
             cp "$f" release/
           done
           # Windows собирается каталогом — упаковываем в zip
