@@ -98,7 +98,8 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
     # уже трогавшего системные сетевые фреймворки, роняет ребёнка SIGSEGV в
     # atfork-обработчиках (Network.framework) ещё до exec — claude «завершается
     # с кодом -11 без вывода». posix_spawn обходит fork целиком.
-    exe = shutil.which(claude_bin or "claude") or (claude_bin or "claude")
+    from . import providers as _p
+    exe = _p.resolve_bin(claude_bin or "claude") or (claude_bin or "claude")
     cmd = [exe, "-p", "--output-format", "json"]
     if model:
         cmd += ["--model", model]

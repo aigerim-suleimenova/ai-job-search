@@ -5,9 +5,12 @@ Claude Code CLI. Без него работают триаж и разбор в�
 переданный текст), но поиск новых компаний в интернете — нет.
 """
 import json
+import os
 import shutil
 import subprocess
 import threading
+from functools import lru_cache
+from pathlib import Path
 
 import requests
 
@@ -75,8 +78,49 @@ LOCAL_MODELS = [
 
 # --- Доступность провайдеров ----------------------------------------------
 
+# Приложение, запущенное из Finder или Launchpad, наследует не пользовательский
+# PATH, а минимальный системный (/usr/bin:/bin:/usr/sbin:/sbin). Поэтому claude из
+# ~/.local/bin или Homebrew «не находится», хотя в терминале работает. Ищем шире.
+_EXTRA_DIRS = [
+    Path.home() / ".local" / "bin",
+    Path.home() / "bin",
+    Path.home() / ".claude" / "local",
+    Path("/usr/local/bin"),
+    Path("/opt/homebrew/bin"),
+    Path("/opt/local/bin"),
+]
+
+
+@lru_cache(maxsize=8)
+def resolve_bin(name: str) -> str:
+    """Полный путь к программе или пустая строка. Учитывает, что GUI-приложение
+    не видит пользовательский PATH."""
+    if not name:
+        return ""
+    if os.path.sep in name:                      # уже путь — проверяем как есть
+        return name if os.access(name, os.X_OK) else ""
+    found = shutil.which(name)
+    if found:
+        return found
+    for d in _EXTRA_DIRS:
+        candidate = d / name
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    # последний шанс: спросить login shell — он прочитает .zshrc/.bash_profile
+    shell = os.environ.get("SHELL") or "/bin/zsh"
+    try:
+        out = subprocess.run([shell, "-lc", f"command -v {name}"],
+                             capture_output=True, text=True, timeout=10)
+        path = out.stdout.strip().splitlines()[-1] if out.stdout.strip() else ""
+        if path and os.access(path, os.X_OK):
+            return path
+    except (OSError, subprocess.SubprocessError, IndexError):
+        pass
+    return ""
+
+
 def _bin_exists(name: str) -> bool:
-    return bool(shutil.which(name))
+    return bool(resolve_bin(name))
 
 
 def ollama_running() -> bool:
@@ -140,7 +184,7 @@ class ProviderError(RuntimeError):
 
 
 def call_claude(prompt: str, model: str, timeout: int, allowed_tools, claude_bin: str) -> str:
-    exe = shutil.which(claude_bin or "claude") or (claude_bin or "claude")
+    exe = resolve_bin(claude_bin or "claude") or (claude_bin or "claude")
     cmd = [exe, "-p", "--output-format", "json"]
     if model:
         cmd += ["--model", model]
@@ -163,7 +207,7 @@ def call_claude(prompt: str, model: str, timeout: int, allowed_tools, claude_bin
 
 
 def call_cursor(prompt: str, model: str, timeout: int) -> str:
-    exe = shutil.which("cursor-agent")
+    exe = resolve_bin("cursor-agent")
     if not exe:
         raise ProviderError("Cursor CLI не найден: установите cursor-agent")
     cmd = [exe, "-p", "--output-format", "text"]
