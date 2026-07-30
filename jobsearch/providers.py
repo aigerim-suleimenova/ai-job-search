@@ -14,7 +14,7 @@ from pathlib import Path
 
 import requests
 
-from . import hardware
+from . import hardware, profiles
 
 OLLAMA_URL = "http://127.0.0.1:11434"
 
@@ -91,6 +91,20 @@ _EXTRA_DIRS = [
 ]
 
 
+def work_dir() -> str:
+    """Пустой каталог, из которого запускаются внешние CLI.
+
+    Дочерний процесс наследует от приложения и рабочий каталог, и права. У
+    запущенного из Finder приложения рабочий каталог — «/», и CLI, осматриваясь
+    вокруг себя, добирался до Документов, Загрузок, Фото и Музыки: macOS
+    спрашивал разрешение, причём от имени «AI Job Search». Здесь смотреть не на
+    что, и спрашивать не о чем.
+    """
+    d = profiles.DATA_ROOT / "cli-work"
+    d.mkdir(parents=True, exist_ok=True)
+    return str(d)
+
+
 @lru_cache(maxsize=8)
 def resolve_bin(name: str) -> str:
     """Полный путь к программе или пустая строка. Учитывает, что GUI-приложение
@@ -109,7 +123,7 @@ def resolve_bin(name: str) -> str:
     # последний шанс: спросить login shell — он прочитает .zshrc/.bash_profile
     shell = os.environ.get("SHELL") or "/bin/zsh"
     try:
-        out = subprocess.run([shell, "-lc", f"command -v {name}"],
+        out = subprocess.run([shell, "-lc", f"command -v {name}"], cwd=work_dir(),
                              capture_output=True, text=True, timeout=10)
         path = out.stdout.strip().splitlines()[-1] if out.stdout.strip() else ""
         if path and os.access(path, os.X_OK):
@@ -198,7 +212,7 @@ def call_claude(prompt: str, model: str, timeout: int, allowed_tools, claude_bin
         cmd += ["--model", model]
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=work_dir(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip()
@@ -221,7 +235,7 @@ def call_cursor(prompt: str, model: str, timeout: int) -> str:
     cmd = [exe, "-p", "--output-format", "text"]
     if model and model != "auto":
         cmd += ["--model", model]
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=work_dir(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
         raise ProviderError((proc.stderr or proc.stdout or "").strip()[:800]

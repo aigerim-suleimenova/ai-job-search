@@ -106,8 +106,10 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
     try:
+        # cwd — пустой служебный каталог: иначе CLI осматривает то место, где
+        # его запустили, и macOS начинает спрашивать доступ к папкам человека
         proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                              timeout=timeout, close_fds=False)
+                              timeout=timeout, close_fds=False, cwd=_p.work_dir())
     except FileNotFoundError:
         raise ClaudeError(f"claude CLI не найден: {claude_bin!r}. Укажите путь в настройках LLM.")
     except subprocess.TimeoutExpired:
