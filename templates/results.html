@@ -65,12 +65,23 @@
         <option value="agency" {% if source == 'agency' %}selected{% endif %}>{{ t('badge_agency') }}</option>
       </select>
     </label>
-    <label>{{ t('filter_posted_from') }}
-      <input type="date" name="posted_from" value="{{ posted_from }}" onchange="this.form.submit()">
+    {# Поле даты своё: системное показывает дату в порядке из настроек ОС
+       (у кого-то месяц первым), а порядок должен быть один и понятный. Календарь
+       остаётся системным — прозрачное поле лежит поверх значка. #}
+    {% for key, label, value in [('posted_from', t('filter_posted_from'), posted_from),
+                                 ('posted_to', t('filter_posted_to'), posted_to)] %}
+    <label>{{ label }}
+      <span class="date-field">
+        <input type="text" class="date-text" inputmode="numeric" maxlength="10"
+               placeholder="{{ t('date_mask') }}" autocomplete="off">
+        <input type="date" class="date-native" name="{{ key }}" value="{{ value }}"
+               aria-label="{{ t('filter_open_calendar') }}">
+        <svg class="date-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+        </svg>
+      </span>
     </label>
-    <label>{{ t('filter_posted_to') }}
-      <input type="date" name="posted_to" value="{{ posted_to }}" onchange="this.form.submit()">
-    </label>
+    {% endfor %}
     <label>{{ t('filter_run') }}
       <select name="run" onchange="this.form.submit()">
         <option value="0" {% if not run %}selected{% endif %}>{{ t('run_all') }}</option>
@@ -80,6 +91,15 @@
       </select>
     </label>
   </form>
+  {% set filtered = sort != 'default' or viewed != 'all' or source != 'all' or run or posted_from or posted_to %}
+  {% if filtered %}
+  <div class="row" style="margin-top:12px">
+    <a href="/results?min={{ min_score }}"><button type="button">{{ t('filter_reset') }}</button></a>
+    {% if posted_from or posted_to %}
+    <a class="clear-dates" href="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}">{{ t('filter_dates_clear') }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
   {% if posted_from or posted_to %}
   <p class="hint" style="margin:10px 0 0">{{ t('filter_dates_hint') }}</p>
   {% endif %}
@@ -235,6 +255,40 @@
   };
   const timer = setInterval(tick, 5000);
   tick();
+})();
+</script>
+
+
+<script>
+// Текстом человек вводит дд.мм.гггг, а форма отправляет то, что понимает сервер.
+// Календарь системный: прозрачное поле type=date лежит поверх значка справа.
+(() => {
+  const toText = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '';
+  const toIso = text => {
+    const m = text.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!m) return '';
+    const [, d, mo, y] = m;
+    const dt = new Date(+y, +mo - 1, +d);
+    const real = dt.getFullYear() === +y && dt.getMonth() === +mo - 1 && dt.getDate() === +d;
+    return real ? y + '-' + mo + '-' + d : '';
+  };
+  document.querySelectorAll('.date-field').forEach(field => {
+    const text = field.querySelector('.date-text');
+    const native = field.querySelector('.date-native');
+    text.value = toText(native.value);
+    text.addEventListener('input', () => {
+      const digits = text.value.replace(/\D/g, '').slice(0, 8);
+      let out = digits.slice(0, 2);
+      if (digits.length > 2) out += '.' + digits.slice(2, 4);
+      if (digits.length > 4) out += '.' + digits.slice(4, 8);
+      text.value = out;
+      const iso = toIso(out);
+      // отправляем только когда дата дописана целиком или стёрта совсем
+      if (iso) { native.value = iso; text.form.submit(); }
+      else if (!digits.length && native.value) { native.value = ''; text.form.submit(); }
+    });
+    native.addEventListener('change', () => { text.value = toText(native.value); native.form.submit(); });
+  });
 })();
 </script>
 

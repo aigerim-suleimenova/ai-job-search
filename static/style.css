@@ -400,7 +400,7 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
   gap: 12px 14px; align-items: end; margin-top: 14px;
 }
 @media (max-width: 780px) { .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.filters input[type="date"] { width: 100%; }
+.filters .date-field { width: 100%; }
 /* Календарь у поля даты рисует система: приглушаем значок, чтобы он не спорил
    со стрелками выпадающих списков рядом. */
 /* Внутренняя часть поля даты выше обычной строки — без этого поле на два
@@ -537,3 +537,22 @@ button.linklike {
   color: var(--accent); font-size: inherit; font-weight: 500;
 }
 button.linklike:hover { background: none; text-decoration: underline; }
+
+/* Поле даты: видно текстовое в порядке день-месяц-год, а системное лежит
+   поверх значка справа прозрачным — нажатие по нему открывает родной календарь. */
+.date-field { position: relative; display: block; margin-top: 5px; }
+.date-field .date-text { margin-top: 0; padding-inline-end: 36px; }
+.date-field .date-native,
+.filters .date-field .date-native {
+  position: absolute; top: 0; inset-inline-end: 0; width: 40px; height: 100%;
+  margin: 0; padding: 0; border: 0; background: none; opacity: 0; cursor: pointer;
+  min-height: 0;
+}
+.date-field .date-icon {
+  position: absolute; inset-inline-end: 12px; top: 50%; transform: translateY(-50%);
+  fill: none; stroke: var(--faint); stroke-width: 1.6; stroke-linecap: round;
+  pointer-events: none;
+}
+.date-field:hover .date-icon { stroke: var(--muted); }
+.clear-dates { color: var(--accent); font-size: 12.5px; text-decoration: none; align-self: center; }
+.clear-dates:hover { text-decoration: underline; }
