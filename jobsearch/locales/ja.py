@@ -466,4 +466,11 @@ STRINGS = {
 "cov_st_ok_guessed": "求人を読み取れています（名前から ATS を推測）",
 "cov_st_zero": "求人 0 件（API のないスクリプト製ページ、または現在募集なし）",
 "cov_st_error": "エラー：{error}",
+"cv_no_source": "履歴書がアップロードされていません — 合わせる対象がありません。「かんたん検索」ページか検索の設定からアップロードしてください。",
+"run_elapsed": "経過 {mins} 分",
+"run_eta": "この段階はあと約 {mins} 分",
+"run_typical": "1 回の実行はふつう約 {mins} 分",
+"filter_posted_from": "掲載日（開始）",
+"filter_posted_to": "掲載日（終了）",
+"filter_dates_hint": "掲載日のない求人は期間に入りません。日付が分からないからです。",
 }

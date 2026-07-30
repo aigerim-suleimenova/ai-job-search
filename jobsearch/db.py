@@ -151,9 +151,12 @@ SORTS = {
 
 
 def matched_jobs(limit: int = 300, min_score: int = 0, sort: str = "default",
-                 viewed: str = "all", source: str = "all", run_id: int = 0) -> list:
+                 viewed: str = "all", source: str = "all", run_id: int = 0,
+                 posted_from: str = "", posted_to: str = "") -> list:
     """Вакансии с оценкой. viewed: all|new|seen; source: all|direct|agency|aggregator;
-    run_id > 0 — только конкретный прогон."""
+    run_id > 0 — только конкретный прогон; posted_from/posted_to — период публикации
+    в виде ГГГГ-ММ-ДД. Вакансии без даты в период не попадают: дата у них неизвестна,
+    и молча выдавать их за подходящие нельзя."""
     where = ["score IS NOT NULL", "score >= ?"]
     params = [min_score]
     if viewed == "new":
@@ -169,6 +172,12 @@ def matched_jobs(limit: int = 300, min_score: int = 0, sort: str = "default",
     if run_id:
         where.append("run_id = ?")
         params.append(run_id)
+    if posted_from:
+        where.append("posted_at != '' AND posted_at >= ?")
+        params.append(posted_from)
+    if posted_to:
+        where.append("posted_at != '' AND posted_at <= ?")
+        params.append(posted_to)
     order = SORTS.get(sort, SORTS["default"])
     params.append(limit)
     with conn() as c:

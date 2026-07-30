@@ -35,7 +35,7 @@
     </span>
     <span class="segmented">
       {% for v, lbl in [(0, t('filter_all')), (50, '≥50%'), (70, '≥70%'), (80, '≥80%')] %}
-      <a href="/results?min={{ v }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}"
+      <a href="/results?min={{ v }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}"
          class="{% if min_score == v %}on{% endif %}">{{ lbl }}</a>
       {% endfor %}
     </span>
@@ -64,6 +64,12 @@
         <option value="agency" {% if source == 'agency' %}selected{% endif %}>{{ t('badge_agency') }}</option>
       </select>
     </label>
+    <label>{{ t('filter_posted_from') }}
+      <input type="date" name="posted_from" value="{{ posted_from }}" onchange="this.form.submit()">
+    </label>
+    <label>{{ t('filter_posted_to') }}
+      <input type="date" name="posted_to" value="{{ posted_to }}" onchange="this.form.submit()">
+    </label>
     <label>{{ t('filter_run') }}
       <select name="run" onchange="this.form.submit()">
         <option value="0" {% if not run %}selected{% endif %}>{{ t('run_all') }}</option>
@@ -73,10 +79,13 @@
       </select>
     </label>
   </form>
+  {% if posted_from or posted_to %}
+  <p class="hint" style="margin:10px 0 0">{{ t('filter_dates_hint') }}</p>
+  {% endif %}
   {% if counts.unseen %}
   <form method="post" action="/viewed_all" style="margin-top:10px">
     <input type="hidden" name="min" value="{{ min_score }}">
-    <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}">
+    <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}">
     <button type="submit">{{ t('mark_all_viewed') }}</button>
   </form>
   {% endif %}
@@ -85,8 +94,8 @@
 {% if jobs %}
 <section class="card">
   <div class="row">
-    <a href="/export/csv?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}"><button type="button">{{ t('export_csv') }}</button></a>
-    <a href="/export/report?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}"><button type="button">{{ t('export_report') }}</button></a>
+    <a href="/export/csv?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}"><button type="button">{{ t('export_csv') }}</button></a>
+    <a href="/export/report?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}"><button type="button">{{ t('export_report') }}</button></a>
   </div>
   <p class="hint" style="margin:8px 0 0">{{ t('export_hint') }}</p>
   <p class="hint" style="margin:6px 0 0">{{ t('verified_hint') }}</p>
@@ -172,7 +181,7 @@
     {% endif %}
     <form method="post" action="/viewed/{{ j.id }}">
       <input type="hidden" name="value" value="{% if j.viewed %}0{% else %}1{% endif %}">
-      <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}">
+      <input type="hidden" name="back" value="/results?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}">
       <button type="submit">{% if j.viewed %}{{ t('mark_unviewed') }}{% else %}{{ t('mark_viewed') }}{% endif %}</button>
     </form>
     <a href="{{ j.url }}" target="_blank" rel="noopener" class="open-link">{{ t('open_job') }} ↗</a>

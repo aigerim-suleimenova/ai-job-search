@@ -466,4 +466,11 @@ STRINGS = {
 "cov_st_ok_guessed": "les offres sont lues (ATS deviné d'après le nom)",
 "cov_st_zero": "0 offre (page en script sans API, ou aucun poste ouvert actuellement)",
 "cov_st_error": "erreur : {error}",
+"cv_no_source": "Aucun CV chargé — il n'y a rien à adapter. Chargez-le sur la page Recherche rapide ou dans les réglages.",
+"run_elapsed": "en cours depuis {mins} min",
+"run_eta": "environ {mins} min restantes à cette étape",
+"run_typical": "une exécution dure d'ordinaire ~{mins} min",
+"filter_posted_from": "Publiées à partir du",
+"filter_posted_to": "jusqu'au",
+"filter_dates_hint": "Les offres sans date de publication restent hors de la période : leur date est inconnue.",
 }

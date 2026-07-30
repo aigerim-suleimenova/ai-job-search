@@ -468,10 +468,12 @@ def _posted_label(posted: str, lang: str) -> str:
 
 @app.get("/results")
 def results(request: Request, min: int = 50, sort: str = "default",
-            viewed: str = "all", source: str = "all", run: int = 0):
+            viewed: str = "all", source: str = "all", run: int = 0,
+            posted_from: str = "", posted_to: str = ""):
     cfg = config.load()
     lang = cfg.get("ui", {}).get("lang", "ru")
-    jobs = db.matched_jobs(min_score=min, sort=sort, viewed=viewed, source=source, run_id=run)
+    jobs = db.matched_jobs(min_score=min, sort=sort, viewed=viewed, source=source, run_id=run,
+                           posted_from=posted_from, posted_to=posted_to)
     for j in jobs:
         try:
             j["advice_data"] = json.loads(j["advice"]) if j.get("advice") else None
@@ -486,6 +488,7 @@ def results(request: Request, min: int = 50, sort: str = "default",
         {"jobs": jobs, "runs": runs, "min_score": min,
          "threshold": threshold, "suggest_threshold": suggest,
          "sort": sort, "viewed": viewed, "source": source, "run": run,
+         "posted_from": posted_from, "posted_to": posted_to,
          "counts": db.counts(min), "sorts": list(db.SORTS.keys()),
          "noauth": _last_run_noauth(),
          "state": {"running": mine_running(), "stage": _msg(pipeline.state["stage"])
@@ -675,24 +678,30 @@ async def set_lang(request: Request):
 
 
 def _export_jobs(min_score: int, sort: str = "default", viewed: str = "all",
-                 source: str = "all", run: int = 0):
+                 source: str = "all", run: int = 0,
+                 posted_from: str = "", posted_to: str = ""):
     """Та же выборка, что и на странице результатов — экспорт обязан совпадать с тем,
     что человек видит на экране."""
     jobs = db.matched_jobs(limit=1000, min_score=min_score, sort=sort,
-                           viewed=viewed, source=source, run_id=run)
+                           viewed=viewed, source=source, run_id=run,
+                           posted_from=posted_from, posted_to=posted_to)
     slug = profiles.active()
     name = profiles.name_of(slug)
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in slug)[:40]
     return jobs, name, safe
 
 
-def _filter_note(lang: str, min_score: int, sort: str, viewed: str, source: str, run: int) -> str:
+def _filter_note(lang: str, min_score: int, sort: str, viewed: str, source: str, run: int,
+                 posted_from: str = "", posted_to: str = "") -> str:
     """Подпись «что именно выгружено» — чтобы файл нельзя было принять за полный список."""
     parts = [f"{i18n.t(lang, 'results_shown')} {min_score}%"]
     if sort != "default":
         parts.append(f"{i18n.t(lang, 'sort_by')}: {i18n.t(lang, 'sort_' + sort)}")
     if viewed != "all":
         parts.append(f"{i18n.t(lang, 'filter_viewed')}: {i18n.t(lang, 'viewed_' + viewed)}")
+    if posted_from or posted_to:
+        parts.append(f"{i18n.t(lang, 'filter_posted_from')} {posted_from or '…'} "
+                     f"{i18n.t(lang, 'filter_posted_to')} {posted_to or '…'}")
     if source != "all":
         key = {"direct": "badge_direct", "agency": "badge_agency", "aggregator": "badge_aggregator"}[source]
         parts.append(f"{i18n.t(lang, 'filter_source')}: {i18n.t(lang, key)}")
@@ -703,8 +712,9 @@ def _filter_note(lang: str, min_score: int, sort: str, viewed: str, source: str,
 
 @app.get("/export/csv")
 def export_csv(min: int = 0, sort: str = "default", viewed: str = "all",
-               source: str = "all", run: int = 0):
-    jobs, name, safe = _export_jobs(min, sort, viewed, source, run)
+               source: str = "all", run: int = 0,
+               posted_from: str = "", posted_to: str = ""):
+    jobs, name, safe = _export_jobs(min, sort, viewed, source, run, posted_from, posted_to)
     data = export_mod.to_csv(jobs)
     return Response(
         content=data, media_type="text/csv; charset=utf-8",
@@ -714,14 +724,16 @@ def export_csv(min: int = 0, sort: str = "default", viewed: str = "all",
 
 @app.get("/export/report")
 def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
-                  source: str = "all", run: int = 0):
+                  source: str = "all", run: int = 0,
+                  posted_from: str = "", posted_to: str = ""):
     cfg = config.load()
     lang = cfg.get("ui", {}).get("lang", "ru")
-    jobs, name, safe = _export_jobs(min, sort, viewed, source, run)
+    jobs, name, safe = _export_jobs(min, sort, viewed, source, run, posted_from, posted_to)
     for j in jobs:
         j["posted_label"] = _posted_label(j.get("posted_at") or "", lang)
     html_doc = export_mod.to_html(jobs, name, db.now(), min,
-                                  note=_filter_note(lang, min, sort, viewed, source, run))
+                                  note=_filter_note(lang, min, sort, viewed, source, run,
+                                                    posted_from, posted_to))
     return Response(
         content=html_doc, media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="report_{safe}.html"'},

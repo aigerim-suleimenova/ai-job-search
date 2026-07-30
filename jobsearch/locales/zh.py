@@ -466,4 +466,11 @@ STRINGS = {
 "cov_st_ok_guessed": "职位可以读取（按名称猜出 ATS）",
 "cov_st_zero": "0 个职位（脚本驱动且无 API，或当前没有空缺）",
 "cov_st_error": "错误：{error}",
+"cv_no_source": "没有上传简历——没有可定制的内容。请在「快速搜索」页面或搜索设置里上传。",
+"run_elapsed": "已运行 {mins} 分钟",
+"run_eta": "本阶段还需约 {mins} 分钟",
+"run_typical": "一次运行通常需要约 {mins} 分钟",
+"filter_posted_from": "发布起始",
+"filter_posted_to": "发布截止",
+"filter_dates_hint": "没有发布日期的职位不计入这个时间段——它们的日期未知。",
 }

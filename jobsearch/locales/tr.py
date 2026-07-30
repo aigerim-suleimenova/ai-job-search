@@ -466,4 +466,11 @@ STRINGS = {
 "cov_st_ok_guessed": "ilanlar okunuyor (ATS addan tahmin edildi)",
 "cov_st_zero": "0 ilan (API'siz betik sayfası ya da şu an açık pozisyon yok)",
 "cov_st_error": "hata: {error}",
+"cv_no_source": "Yüklü CV yok — uyarlanacak bir şey yok. Hızlı arama sayfasından ya da ayarlardan yükleyin.",
+"run_elapsed": "{mins} dk sürüyor",
+"run_eta": "bu adımda yaklaşık {mins} dk kaldı",
+"run_typical": "bir çalıştırma genelde ~{mins} dk sürer",
+"filter_posted_from": "Yayım tarihi",
+"filter_posted_to": "bitiş",
+"filter_dates_hint": "Yayım tarihi olmayan ilanlar döneme girmez — tarihleri bilinmiyor.",
 }

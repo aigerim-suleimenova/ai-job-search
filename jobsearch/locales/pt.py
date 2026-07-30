@@ -466,4 +466,11 @@ STRINGS = {
 "cov_st_ok_guessed": "as vagas são lidas (ATS adivinhado pelo nome)",
 "cov_st_zero": "0 vagas (página por script sem API, ou nenhuma posição aberta agora)",
 "cov_st_error": "erro: {error}",
+"cv_no_source": "Não há CV carregado — não há nada para adaptar. Carregue-o na página Busca rápida ou nas definições.",
+"run_elapsed": "a correr há {mins} min",
+"run_eta": "faltam cerca de {mins} min neste passo",
+"run_typical": "uma execução costuma durar ~{mins} min",
+"filter_posted_from": "Publicadas desde",
+"filter_posted_to": "até",
+"filter_dates_hint": "As vagas sem data de publicação ficam fora do período: a data delas é desconhecida.",
 }
