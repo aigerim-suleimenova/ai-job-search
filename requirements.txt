@@ -1,11 +1,11 @@
-# Нижние границы, а не точные версии: приложение живёт долго, и запрещать
-# обновления безопасности ради воспроизводимости — плохой размен.
+# Lower bounds rather than exact versions: the app lives a long time, and blocking
+# security updates for the sake of reproducibility is a bad trade.
 #
-# Исключение — uvicorn. Он закреплён точно, и вот почему: в 0.49 упавшая
-# инициализация приложения просто ставила флаг, а в 0.52 стала завершать
-# процесс с кодом 3. Локально стояла 0.49, в сборку CI клал 0.52 — и на
-# Windows программа не запускалась, а воспроизвести это на своей машине было
-# невозможно. Выпускать надо ровно то, на чём прогоняются тесты.
+# The exception is uvicorn. It is pinned exactly, and here is why: in 0.49 a failed
+# application startup simply set a flag, while in 0.52 it began terminating the
+# process with exit code 3. Locally 0.49 was installed while CI put 0.52 into the
+# build — and on Windows the program would not start, which was impossible to
+# reproduce on our own machine. Ship exactly what the tests ran against.
 fastapi>=0.115
 uvicorn==0.52.0
 jinja2>=3.1

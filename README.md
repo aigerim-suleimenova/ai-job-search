@@ -1,148 +1,155 @@
 # AI Job Search
 
-Поиск работы, который идёт сам. Программа читает ваше резюме, обходит сайты
-компаний, ATS-платформы и агрегаторы вакансий, оценивает каждую находку моделью
-и объясняет, почему вакансия подходит, а что в CV стоит поправить под конкретную
-позицию. Результаты можно смотреть в окне или получать в Telegram и на почту.
+A job search that runs itself. The program reads your CV, crawls company sites,
+ATS platforms and job aggregators, scores every find with a model, and explains
+why a vacancy fits and what in the CV is worth adjusting for that particular
+position. Results can be viewed in the window or delivered to Telegram and email.
 
-Всё работает на вашем компьютере: вакансии, резюме и оценки никуда не уходят,
-кроме самой модели.
+Everything runs on your own computer: the vacancies, the CV and the scores go
+nowhere except the model itself.
 
-<!-- Снимки парные: GitHub показывает тот, что подходит теме читателя.
-     Данные на них выдуманные — ни людей, ни компаний, ни вакансий. -->
+<!-- The screenshots come in pairs: GitHub shows whichever suits the reader's theme.
+     The data in them is invented — no real people, companies or vacancies. -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/results-dark.png">
-  <img src="docs/img/results.png" alt="Страница результатов: фильтры и карточки вакансий с оценкой совпадения, пояснением и бейджами «напрямую от компании» и «проверено»." width="900">
+  <img src="docs/img/results.png" alt="The results page: filters and vacancy cards with a match score, an explanation and the 'direct from the company' and 'verified' badges." width="900">
 </picture>
 
-Каждая находка получает оценку и объяснение, а не просто попадает в список.
-Для тех, что прошли порог, — что поправить в резюме и в профиле LinkedIn, с чего
-начать отклик и кнопка «CV под эту вакансию».
+Every find gets a score and an explanation rather than just landing in a list.
+For the ones that clear the threshold: what to fix in the CV and the LinkedIn
+profile, how to open the application, and a "CV for this vacancy" button.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/advice-dark.png">
-  <img src="docs/img/advice.png" alt="Раскрытая карточка: зарплатная вилка и факты о компании со ссылками, список правок в CV и LinkedIn, кнопка генерации адаптированного резюме." width="900">
+  <img src="docs/img/advice.png" alt="An expanded card: the salary range and facts about the company with links, a list of CV and LinkedIn edits, and a button to generate a tailored CV." width="900">
 </picture>
 
-Начать нужно с трёх полей. Остальные настройки есть, но лежат отдельно и ждут,
-пока понадобятся.
+Three fields are enough to start. The other settings exist, but they live
+elsewhere and wait until they are needed.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/quick-search-dark.png">
-  <img src="docs/img/quick-search.png" alt="Страница быстрого поиска: для кого ищем, где искать, файл резюме и кнопка «Начать поиск»." width="900">
+  <img src="docs/img/quick-search.png" alt="The quick search page: who we are searching for, where to search, the CV file and a 'Start search' button." width="900">
 </picture>
 
-Считает не сама программа, а модель на ваш выбор: Claude Code, Cursor CLI или
-локальная через Ollama. Программа показывает, что из этого уже установлено и
-хватит ли памяти вашей машине.
+The thinking is done not by the program but by a model of your choice: Claude
+Code, Cursor CLI or a local one through Ollama. The program shows which of them
+are already installed and whether your machine has enough memory.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/models-dark.png">
-  <img src="docs/img/models.png" alt="Страница выбора модели: три карточки провайдеров с отметками об установке и веб-поиске, строка про память компьютера." width="900">
+  <img src="docs/img/models.png" alt="The model selection page: three provider cards with installation and web-search markers, and a line about the computer's memory." width="900">
 </picture>
 
-Снимки сделаны на выдуманном профиле: людей, компаний и вакансий на них
-не существует.
+The screenshots were taken on an invented profile: the people, companies and
+vacancies in them do not exist.
 
-## Установка
+## Installation
 
-Приложение открывается как обычная программа — окно, никакого терминала.
+The app opens like an ordinary program — a window, no terminal.
 
-- **macOS** — открыть `AI Job Search.dmg`, перетащить приложение на ярлык
-  Applications, запустить из Launchpad. Сборка подписана Developer ID и
-  нотаризована у Apple, поэтому открывается сразу, без предупреждений.
-- **Windows** — запустить `AI Job Search Setup.exe`. Ставится только в профиль
-  пользователя (`%LOCALAPPDATA%\Programs\AI Job Search`), пароль администратора
-  не нужен; программа появится в меню «Пуск». Сборка пока не подписана, поэтому SmartScreen скажет «Windows
-  защитила ваш компьютер»: «Подробнее» → «Выполнить в любом случае». Кому
-  установщик не нужен — есть `AI Job Search-windows-portable.zip`: распаковать
-  и запустить `AI Job Search.exe` из папки.
-- **Linux** — распаковать `AI Job Search-linux.tar.gz`, запустить `AI Job Search`.
+- **macOS** — open `AI Job Search.dmg`, drag the app onto the Applications
+  shortcut and launch it from Launchpad. The build is signed with a Developer ID
+  and notarised by Apple, so it opens straight away with no warnings.
+- **Windows** — run `AI Job Search Setup.exe`. It installs into the user profile
+  only (`%LOCALAPPDATA%\Programs\AI Job Search`), needs no administrator
+  password, and appears in the Start menu. The build is not signed yet, so
+  SmartScreen will say "Windows protected your PC": "More info" → "Run anyway".
+  If you would rather not use an installer, there is
+  `AI Job Search-windows-portable.zip`: unpack it and run `AI Job Search.exe`
+  from the folder.
+- **Linux** — unpack `AI Job Search-linux.tar.gz` and run `AI Job Search`.
 
-При первом запуске программа спросит, чем считать: Claude Code, Cursor CLI или
-локальная модель через Ollama. Кнопка «Скачать» открывает страницу нужной
-программы, «Проверить снова» находит её без перезапуска.
+On first launch the program asks what to think with: Claude Code, Cursor CLI or a
+local model through Ollama. The "Download" button opens the relevant program's
+page, and "Check again" finds it without a restart.
 
-## Как этим пользоваться
+## How to use it
 
-1. **Быстрый поиск** — имя, регион, резюме. Роли, навыки и уровень берутся из CV.
-2. Пока идёт прогон, страница показывает, что происходит сейчас и какой это шаг.
-   Окно можно закрыть — с фоновым режимом поиск продолжится сам.
-3. **Результаты** — вакансии с оценкой совпадения, пояснением и правками CV под
-   каждую. Фильтры, сортировка, выгрузка в CSV и отчёт для печати.
-4. **Настройки поиска** — то же самое, но со всеми ручками: порог совпадения,
-   источники, список компаний, расписание, Telegram и почта.
-5. **Проверка CV** — пройдёт ли резюме через ATS-робота и что увидит человек.
-6. **Охват** — что именно было просмотрено и видит ли программа конкретную компанию.
+1. **Quick search** — name, region, CV. Roles, skills and seniority are taken
+   from the CV.
+2. While a run is in progress, the page shows what is happening right now and
+   which step it is. The window can be closed — with background mode the search
+   carries on by itself.
+3. **Results** — vacancies with a match score, an explanation and CV edits for
+   each one. Filters, sorting, CSV export and a printable report.
+4. **Search settings** — the same thing, but with every knob: match threshold,
+   sources, the company list, the schedule, Telegram and email.
+5. **CV check** — whether the CV will get through an ATS robot and what a human
+   will see.
+6. **Coverage** — what exactly was looked at, and whether the program can see a
+   particular company.
 
-## Расписание
+## Scheduling
 
-Три режима: вручную, по интервалу и непрерывно (следующий прогон начинается
-через паузу после предыдущего — охват растёт сам). Расписание работает, пока
-программа запущена; «Продолжать поиск после закрытия окна» и «Запускать при
-входе в систему» — в настройках, галочками, без launchd вручную.
+Three modes: manual, on an interval, and continuous (the next run starts after a
+pause following the previous one — coverage grows on its own). The schedule works
+while the program is running; "Keep searching after the window is closed" and
+"Start at login" are checkboxes in the settings, with no hand-written launchd
+jobs.
 
-## Несколько людей
+## Several people
 
-Один экземпляр ведёт несколько профилей: переключатель «Человек» в шапке.
-У каждого своё резюме, настройки, список компаний, результаты, расписание и бот.
+One instance handles several profiles: the "Person" switcher in the header. Each
+has their own CV, settings, company list, results, schedule and bot.
 
-## Язык
+## Language
 
-Четырнадцать языков интерфейса. Отдельно выбирается язык результатов — на нём
-модель пишет оценки, правки CV/LinkedIn и дайджест. Интерфейс может быть на
-одном языке, а правки к резюме приходить на другом.
+Fourteen interface languages. The results language is chosen separately — it is
+the language the model writes the scores, the CV/LinkedIn edits and the digest
+in. The interface can be in one language while the CV edits arrive in another.
 
-## Где лежат данные
+## Where the data lives
 
 - macOS — `~/Library/Application Support/AI Job Search`
 - Windows — `%APPDATA%\AI Job Search`
 - Linux — `~/.local/share/ai-job-search`
 
-Внутри, отдельно на каждого человека: `config.json` (настройки, включая токены),
-`cv.*` и `cv.txt` (резюме и извлечённый текст), `jobs.db` (найденные вакансии и
-история прогонов). Текст резюме уходит только в выбранную вами модель.
+Inside, separately per person: `config.json` (settings, including tokens),
+`cv.*` and `cv.txt` (the CV and the extracted text), and `jobs.db` (the vacancies
+found and the run history). The CV text only ever goes to the model you chose.
 
-## Запуск из исходников
+## Running from source
 
 ```bash
 pip install -r requirements.txt
 ./run.sh
 ```
 
-Откроется http://127.0.0.1:8765. Нужен Python 3.10+ и установленный
-[Claude Code CLI](https://claude.com/claude-code) (либо Cursor CLI, либо Ollama).
-Данные при запуске из исходников лежат в `data/` рядом с кодом.
+This opens http://127.0.0.1:8765. It needs Python 3.10+ and an installed
+[Claude Code CLI](https://claude.com/claude-code) (or Cursor CLI, or Ollama).
+When run from source, the data lives in `data/` next to the code.
 
-Тесты:
+Tests:
 
 ```bash
 pip install -r requirements-dev.txt
 pytest
 ```
 
-Сети и модели они не требуют — проверяют базу, переводы, настройки, поведение
-на чужих сайтах и то, что все страницы открываются. На CI сборка не начнётся,
-пока тесты не пройдут: конвейер выкладывает релиз сам, и поломка иначе уехала
-бы прямо к людям.
+They require neither network nor a model — they check the database, the
+translations, the settings, the behaviour on other people's sites, and that every
+page opens. On CI the build does not start until the tests pass: the pipeline
+publishes the release by itself, and otherwise a breakage would go straight out
+to people.
 
-Собрать приложение под свою систему:
+Building the app for your own system:
 
 ```bash
 pip install pyinstaller
 pyinstaller --clean --noconfirm packaging/aijobsearch.spec
 ```
 
-Сборка под все три системы происходит на CI по тегу `v*`.
+Builds for all three systems happen on CI on a `v*` tag.
 
-### Подпись для macOS
+### Signing for macOS
 
-Без подписи Gatekeeper говорит «разработчик не может быть проверен», и
-приложение приходится открывать правой кнопкой. Чтобы этого не было, нужен
-сертификат **Developer ID Application** — он входит в Apple Developer Program.
-Сертификат для App Store здесь не подойдёт: программа запускает внешние
-командные строки (Claude Code, Cursor, Ollama), а песочница App Store этого
-не позволяет — раздавать её можно только образом.
+Without a signature, Gatekeeper says "the developer cannot be verified" and the
+app has to be opened with a right-click. To avoid that you need a **Developer ID
+Application** certificate, which comes with the Apple Developer Program. An App
+Store certificate will not do here: the program launches external command-line
+tools (Claude Code, Cursor, Ollama) and the App Store sandbox does not allow
+that — it can only be distributed as a disk image.
 
 ```bash
 xcrun notarytool store-credentials aijobsearch \
@@ -150,35 +157,35 @@ xcrun notarytool store-credentials aijobsearch \
 NOTARY_PROFILE=aijobsearch packaging/sign_macos.sh
 ```
 
-Скрипт сам найдёт сертификат в связке ключей, подпишет приложение, соберёт
-образ, отправит на нотаризацию и поставит штамп. Без `NOTARY_PROFILE`
-нотаризация пропускается — подпись будет, но при скачивании из интернета
-система всё равно спросит.
+The script finds the certificate in the keychain, signs the app, builds the disk
+image, submits it for notarisation and staples the ticket. Without
+`NOTARY_PROFILE` notarisation is skipped — the signature will be there, but the
+system will still ask when the app is downloaded from the internet.
 
-## Поддержать
+## Support
 
-Программа бесплатная. Если пригодилась:
+The program is free. If it was useful:
 [Buy Me a Coffee](https://buymeacoffee.com/ipupok) ·
 [Ko-fi](https://ko-fi.com/ipupok) ·
 [PayPal](https://www.paypal.com/donate/?hosted_button_id=VBNDB5AHYLGCY)
 
-## Другие проекты
+## Other projects
 
 [mrwd.github.io](https://mrwd.github.io/)
 
-## Лицензия
+## Licence
 
-MIT — см. [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
-Внутрь собранного приложения попадают сторонние библиотеки — каждая под своей
-лицензией. Их список и полные тексты собираются при сборке в
-`THIRD-PARTY-LICENSES.txt` и лежат рядом с программой.
+Third-party libraries end up inside the built app, each under its own licence.
+Their list and full texts are collected at build time into
+`THIRD-PARTY-LICENSES.txt` and shipped alongside the program.
 
-## Как программа ведёт себя на чужих сайтах
+## How the program behaves on other people's sites
 
-Представляется честно — `ai-job-search/1.0 (+ссылка на репозиторий)`, — держит
-паузу между запросами к одному хосту и уважает `robots.txt`: если сайт просит
-роботов не читать страницу, программа её пропускает и пишет об этом в журнал.
-К документированным API площадок (Greenhouse, Lever, Adzuna и прочим) правило
-про `robots.txt` не применяется — они существуют для программ, — но пауза и
-честное имя действуют и там.
+It identifies itself honestly — `ai-job-search/1.0 (+a link to the repository)` —
+keeps a pause between requests to the same host, and respects `robots.txt`: if a
+site asks robots not to read a page, the program skips it and notes that in the
+log. The `robots.txt` rule does not apply to the platforms' documented APIs
+(Greenhouse, Lever, Adzuna and others) — those exist for programs — but the pause
+and the honest name apply there too.
