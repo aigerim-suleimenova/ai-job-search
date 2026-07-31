@@ -20,7 +20,7 @@ from urllib.robotparser import RobotFileParser
 
 import requests
 
-VERSION = "1.0"
+VERSION = "0.8"
 PROJECT_URL = "https://github.com/mrWD/ai-job-search"
 UA_STRING = f"ai-job-search/{VERSION} (+{PROJECT_URL})"
 UA = {"User-Agent": UA_STRING}

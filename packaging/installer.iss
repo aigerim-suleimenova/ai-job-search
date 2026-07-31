@@ -11,7 +11,7 @@
 #define AppURL "https://mrwd.github.io/products/ai-job-search/"
 #define AppExe "AI Job Search.exe"
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "0.8.0"
 #endif
 
 [Setup]
