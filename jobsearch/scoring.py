@@ -117,6 +117,7 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
     """
     model = cfg["llm"].get("triage_model", "haiku")
     claude_bin = cfg["llm"].get("claude_bin", "claude")
+    provider = cfg["llm"].get("provider", "claude_cli")
     workers = int(cfg["search"].get("parallelism", 5))
     lang = i18n.out_lang(cfg)
     profile = _profile_block(cfg)
@@ -133,7 +134,7 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
         )
         result = llm.ask_json(
             _lang_banner(cfg) + TRIAGE_PROMPT.format(profile=profile, cv=cv_excerpt, jobs=listing, lang=lang),
-            model=model, claude_bin=claude_bin, timeout=300,
+            model=model, claude_bin=claude_bin, provider=provider, timeout=300,
         )
         for item in result if isinstance(result, list) else []:
             try:

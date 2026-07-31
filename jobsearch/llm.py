@@ -150,8 +150,12 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
         cmd += ["--allowedTools", ",".join(allowed_tools)]
     try:
         # cwd — пустой служебный каталог: иначе CLI осматривает то место, где
-        # его запустили, и macOS начинает спрашивать доступ к папкам человека
+        # его запустили, и macOS начинает спрашивать доступ к папкам человека.
+        # encoding задаём явно: без него text=True берёт кодировку системы, а на
+        # Windows это cp1252, и русский промпт не переживает даже первых двух букв
+        # («Ты — ассистент…» → charmap can't encode position 0-1).
         proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace",
                               timeout=timeout, close_fds=False, cwd=_p.work_dir())
     except FileNotFoundError:
         raise ClaudeError(f"claude CLI не найден: {claude_bin!r}. Укажите путь в настройках LLM.")

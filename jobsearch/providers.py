@@ -237,6 +237,7 @@ def call_claude(prompt: str, model: str, timeout: int, allowed_tools, claude_bin
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
     proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace",
                           cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
@@ -261,6 +262,7 @@ def call_cursor(prompt: str, model: str, timeout: int) -> str:
     if model and model != "auto":
         cmd += ["--model", model]
     proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace",
                           cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:

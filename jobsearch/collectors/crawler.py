@@ -129,6 +129,7 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
             prompt,
             model=cfg["llm"].get("triage_model", "haiku"),
             claude_bin=cfg["llm"].get("claude_bin", "claude"),
+            provider=cfg["llm"].get("provider", "claude_cli"),
             timeout=300,
         )
     except llm.ClaudeError as e:
