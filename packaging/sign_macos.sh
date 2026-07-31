@@ -56,6 +56,22 @@ codesign --force --deep --timestamp --options runtime \
 echo "→ Проверяем подпись"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
+# Нотаризация нужна только для раздачи другим людям: Apple проверяет сборку и
+# ставит «штамп», после которого Gatekeeper пускает её молча.
+#
+# Порядок важен. Штамп приложения нужно поставить ДО сборки образа, иначе внутри
+# образа окажется приложение без штампа: пока у человека есть интернет, Gatekeeper
+# спросит Apple и пустит, а без сети — откажет. Поэтому две отправки: сначала
+# приложение (архивом — notarytool не принимает каталог), потом готовый образ.
+if [ -n "${NOTARY_PROFILE:-}" ]; then
+  echo "→ Отправляем приложение на нотаризацию (несколько минут)"
+  ZIP="$(mktemp -d)/app.zip"
+  ditto -c -k --keepParent "$APP" "$ZIP"
+  xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+  xcrun stapler staple "$APP"
+  rm -rf "$(dirname "$ZIP")"
+fi
+
 echo "→ Собираем образ диска"
 rm -f "$DMG"
 STAGE="$(mktemp -d)"
@@ -65,14 +81,11 @@ hdiutil create -volname "AI Job Search" -srcfolder "$STAGE" -ov -format UDZO "$D
 rm -rf "$STAGE"
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 
-# Нотаризация нужна только для раздачи другим людям: Apple проверяет сборку и
-# ставит «штамп», после которого Gatekeeper пускает её молча.
 if [ -n "${NOTARY_PROFILE:-}" ]; then
-  echo "→ Отправляем на нотаризацию (это занимает несколько минут)"
+  echo "→ Отправляем образ на нотаризацию"
   xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
   xcrun stapler staple "$DMG"
-  xcrun stapler staple "$APP"
-  echo "→ Нотаризовано"
+  echo "→ Нотаризовано: штамп и на приложении, и на образе"
 else
   echo "→ Нотаризацию пропустили (не задан NOTARY_PROFILE)."
   echo "  Профиль создаётся один раз:"
