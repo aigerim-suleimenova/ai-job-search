@@ -54,5 +54,14 @@ try {
 } catch (e) { /* приватный режим */ }
 
 filterModels();
+
+// Браузер прыгает к якорю сразу после разбора страницы, а список фильтруется
+// уже потом: строки прячутся, высота меняется, и нужное место уезжает из виду.
+// Поэтому возвращаемся к нему сами, когда список принял окончательный вид.
+if (location.hash) {
+  const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  if (target) target.scrollIntoView({ block: 'center' });
+}
+
 setInterval(pollPull, 2000);
 pollPull();

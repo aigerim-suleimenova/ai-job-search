@@ -168,8 +168,12 @@ def _redirect(msg: str = "") -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
 
 
-def _redirect_to(path: str, msg: str = "") -> RedirectResponse:
+def _redirect_to(path: str, msg: str = "", anchor: str = "") -> RedirectResponse:
+    """anchor — якорь на странице: после действия человек должен оказаться там,
+    где нажимал, а не в начале длинного списка."""
     url = f"{path}?msg={quote(msg)}" if msg else path
+    if anchor:
+        url += "#" + anchor
     return RedirectResponse(url, status_code=303)
 
 
@@ -761,7 +765,9 @@ async def models_select(request: Request):
     cfg["llm"]["triage_model"] = model
     cfg["llm"]["deep_model"] = model
     config.save(cfg)
-    return _redirect_to(str(form.get("back") or "/models"), _msg("msg_model_set", model=model))
+    return _redirect_to(str(form.get("back") or "/models"),
+                        _msg("msg_model_set", model=model),
+                        anchor=str(form.get("anchor", "")))
 
 
 @app.post("/models/pull")

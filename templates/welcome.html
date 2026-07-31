@@ -2,7 +2,7 @@
 {# Шапка здесь своя, без разделов: в первый запуск человеку некуда уходить,
    пока он не выбрал, чем считать. Язык переключить можно сразу. #}
 <header class="header-plain">
-  <h1>AI Job Search</h1>
+  <h1>AI Job Search <span class="app-version">{{ app_version }}</span></h1>
   <div class="toolbar-right">
     <form method="post" action="/set_lang" class="profile-switch">
       <input type="hidden" name="back" value="/welcome">
@@ -42,7 +42,7 @@
   {% include "_model_list.html" %}
 </section>
 
-<section class="card welcome-done">
+<section class="card welcome-done" id="welcome-continue">
   {% if ready %}
   <form method="post" action="/welcome/done" style="margin:0">
     <button class="primary">{{ t('welcome_continue') }}</button>

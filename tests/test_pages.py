@@ -67,3 +67,26 @@ def test_все_языки_рисуют_страницы(client, profile):
 
 def test_несуществующая_вакансия_не_роняет(client, profile):
     assert client.get("/cv/999999").status_code in (404, 502)
+
+
+def test_выбор_модели_возвращает_к_месту_нажатия(client, profile):
+    """После «Использовать» страница перезагружается — и раньше человек
+    оказывался в начале длинного списка, а не там, где нажимал."""
+    r = client.post("/models/select",
+                    data={"model": "claude-haiku-4-5", "back": "/models", "anchor": "model-claude-haiku-4-5"},
+                    follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"].endswith("#model-claude-haiku-4-5"), r.headers["location"]
+
+
+def test_на_знакомстве_ведёт_к_кнопке_продолжить(client, profile):
+    r = client.post("/models/select",
+                    data={"model": "claude-haiku-4-5", "back": "/welcome", "anchor": "welcome-continue"},
+                    follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"].endswith("#welcome-continue")
+
+
+def test_без_якоря_перенаправление_прежнее(client, profile):
+    r = client.post("/models/select", data={"model": "x", "back": "/models"}, follow_redirects=False)
+    assert r.status_code == 303 and "#" not in r.headers["location"]

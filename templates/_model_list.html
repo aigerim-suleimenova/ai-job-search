@@ -20,7 +20,12 @@
 
 <div id="list">
   {% for m in models %}
+  {# Якорь на строку: после «Использовать» страница перезагружается, и без него
+     человека выбрасывало в самое начало списка — искать, куда он только что
+     нажал. На знакомстве возвращаем ниже, к кнопке «Продолжить». #}
+  {% set anchor = 'model-' ~ m.id|replace(':', '-')|replace('/', '-')|replace('.', '-') %}
   <div class="model-row {% if m.id == current_model %}current{% endif %}"
+       id="{{ anchor }}"
        data-name="{{ m.name|lower }} {{ m.get('origin','')|lower }} {{ m.id|lower }}"
        data-fits="{{ m.fits }}">
     <div class="row" style="justify-content:space-between; align-items:flex-start; gap:14px">
@@ -51,6 +56,8 @@
         <form method="post" action="/models/select" style="margin:0">
           <input type="hidden" name="model" value="{{ m.id }}">
           <input type="hidden" name="back" value="{{ back }}">
+          <input type="hidden" name="anchor"
+                 value="{{ 'welcome-continue' if back == '/welcome' else anchor }}">
           <button class="primary" {% if m.kind == 'local' and not m.installed %}disabled{% endif %}>
             {{ t('models_use') }}
           </button>
