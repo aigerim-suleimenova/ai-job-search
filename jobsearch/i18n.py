@@ -781,6 +781,26 @@ TR = {
         "en": "Scored: {n}, {above} above the threshold. Deep analysis is off — these scores are preliminary; analyse a job with the button on its card.",
         "it": "Valutate: {n}, di cui {above} sopra soglia. L'analisi approfondita è disattivata — i punteggi sono provvisori; analizzate un'offerta col pulsante sulla sua scheda.",
         "de": "Bewertet: {n}, davon {above} über der Schwelle. Die Tiefenanalyse ist aus — die Punktzahlen sind vorläufig; einzelne Stellen analysieren Sie mit der Schaltfläche auf der Karte."},
+    "harvest_boards": {
+        "ru": "Запоминать работодателей из найденных вакансий",
+        "en": "Remember employers found in job links",
+        "it": "Ricordare i datori di lavoro trovati negli annunci",
+        "de": "Arbeitgeber aus gefundenen Stellen merken"},
+    "harvest_boards_hint": {
+        "ru": "Большая часть вакансий с агрегаторов ссылается прямо на доску компании. Программа запоминает такие доски и со следующего прогона читает их целиком — агрегатор показывает одну-две вакансии, а доска все. Веб-поиск и модель для этого не нужны, так что охват растёт и с локальной моделью. Список компаний при этом пополняется сам — его видно в настройках ниже.",
+        "en": "Most jobs from aggregators link straight to the company's own board. The app remembers those boards and from the next run reads them in full — an aggregator shows one or two openings, the board shows all of them. No web search and no model needed, so coverage grows with a local model too. Your company list fills up on its own; it is right below.",
+        "it": "La maggior parte delle offerte dagli aggregatori rimanda direttamente alla bacheca dell'azienda. L'app le memorizza e dalla prossima esecuzione le legge per intero: l'aggregatore mostra una o due offerte, la bacheca tutte. Non servono né ricerca web né modello, quindi la copertura cresce anche con un modello locale. L'elenco delle aziende si riempie da solo, qui sotto.",
+        "de": "Die meisten Stellen von Aggregatoren verlinken direkt auf das Board des Unternehmens. Die App merkt sich diese Boards und liest sie ab dem nächsten Lauf vollständig — der Aggregator zeigt ein bis zwei Stellen, das Board alle. Weder Websuche noch Modell nötig, die Abdeckung wächst also auch mit einem lokalen Modell. Ihre Firmenliste füllt sich von selbst; sie steht direkt darunter."},
+    "log_harvest_board": {
+        "ru": "работодатель из ссылки: {name} → {url} (добавлен в наблюдение)",
+        "en": "employer found in a link: {name} → {url} (added to monitoring)",
+        "it": "datore di lavoro trovato in un link: {name} → {url} (aggiunto al monitoraggio)",
+        "de": "Arbeitgeber aus einem Link: {name} → {url} (zur Beobachtung hinzugefügt)"},
+    "log_harvest_total": {
+        "ru": "новых работодателей из ссылок: {n} — их доски прочитаем целиком со следующего прогона",
+        "en": "new employers from links: {n} — their boards will be read in full from the next run",
+        "it": "nuovi datori di lavoro dai link: {n} — le loro bacheche saranno lette per intero dalla prossima esecuzione",
+        "de": "neue Arbeitgeber aus Links: {n} — ihre Boards werden ab dem nächsten Lauf vollständig gelesen"},
     "log_robots_skip": {
         "ru": "{name}: сайт просит роботов не читать эту страницу (robots.txt) — пропускаем",
         "en": "{name}: the site asks robots not to read this page (robots.txt) — skipping",

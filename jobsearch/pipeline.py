@@ -5,7 +5,7 @@ import threading
 import time
 import traceback
 
-from . import (config, db, discovery, filters, i18n, llm, mailer, notify, profiles,
+from . import (config, db, discovery, filters, harvest, i18n, llm, mailer, notify, profiles,
                providers, scoring)
 from .collectors import aggregators, ats, crawler
 
@@ -225,6 +225,19 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             _logk("log_drop_location", title=j.get("title", "")[:60], loc=j.get("location", "")[:60])
         for j in drop_kw[:5]:
             _logk("log_drop_keyword", title=j.get("title", "")[:60], company=j.get("company", "")[:40])
+
+        # 3a. Работодатели из ссылок: их адреса уже у нас, лишних запросов нет.
+        # Делается до отсева «только новых» — доска ценна и тогда, когда сама
+        # вакансия уже была: агрегатор показал одну, а на доске их двадцать.
+        if cfg["sources"].get("harvest_boards", True):
+            найдено = harvest.find_new(jobs, cfg["sources"].get("companies", []),
+                                       limit=int(cfg["sources"].get("harvest_per_run", 10)))
+            if найдено:
+                cfg["sources"]["companies"] = list(cfg["sources"].get("companies", [])) + найдено
+                config.save(cfg)
+                for c in найдено:
+                    _logk("log_harvest_board", name=c["name"], url=c["url"])
+                _logk("log_harvest_total", n=len(найдено))
 
         # 4. Только новые
         seen = db.seen_keys()

@@ -501,4 +501,8 @@ STRINGS = {
 "cvcheck_failed": "A verificação falhou: {error}",
 "cv_gen_failed_title": "Não foi possível montar um CV para esta vaga",
 "cv_gen_failed_hint": "Geralmente é um modelo local pequeno: escreve o documento em prosa em vez de JSON estrito. Um modelo maior ou o Claude Code dá conta — troque na página «Modelo». Tentar de novo também vale.",
+"log_harvest_board": "empregador encontrado num link: {name} → {url} (adicionado ao monitoramento)",
+"log_harvest_total": "novos empregadores a partir de links: {n} — seus quadros serão lidos por inteiro na próxima execução",
+"harvest_boards": "Lembrar empregadores encontrados nas vagas",
+"harvest_boards_hint": "A maioria das vagas dos agregadores aponta direto para o quadro da própria empresa. O app os memoriza e a partir da próxima execução os lê por inteiro. Não exige busca web nem modelo, então a cobertura cresce também com um modelo local.",
 }

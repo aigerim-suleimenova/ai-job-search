@@ -203,6 +203,10 @@
 
 <section class="card">
   <h2>{{ t('sources') }}</h2>
+  <label class="check"><input type="checkbox" name="harvest_boards"
+         {% if cfg.sources.harvest_boards %}checked{% endif %}> {{ t('harvest_boards') }}</label>
+  <p class="hint">{{ t('harvest_boards_hint') }}</p>
+
   <label>{{ t('companies_label') }}
     <textarea name="companies" rows="6" placeholder="Anthropic | https://boards.greenhouse.io/anthropic
 Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>

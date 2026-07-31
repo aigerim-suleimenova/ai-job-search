@@ -501,4 +501,8 @@ STRINGS = {
 "cvcheck_failed": "La comprobación falló: {error}",
 "cv_gen_failed_title": "No se pudo componer un CV para esta oferta",
 "cv_gen_failed_hint": "Suele ser un modelo local pequeño: escribe el documento en prosa en vez de JSON estricto. Un modelo mayor o Claude Code sí puede — se cambia en la página «Modelo». También vale la pena reintentar.",
+"log_harvest_board": "empleador encontrado en un enlace: {name} → {url} (añadido al seguimiento)",
+"log_harvest_total": "nuevos empleadores desde enlaces: {n} — sus tableros se leerán enteros desde la próxima ejecución",
+"harvest_boards": "Recordar empleadores hallados en las ofertas",
+"harvest_boards_hint": "La mayoría de las ofertas de los agregadores enlazan al tablero de la propia empresa. La app los recuerda y desde la siguiente ejecución los lee enteros. No hace falta búsqueda web ni modelo, así que la cobertura crece también con un modelo local.",
 }

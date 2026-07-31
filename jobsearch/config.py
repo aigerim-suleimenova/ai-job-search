@@ -69,6 +69,12 @@ DEFAULTS = {
         "use_himalayas": True,
         "use_themuse": True,
         "use_arbeitsagentur": True,
+        # Работодателей, найденных в ссылках уже собранных вакансий, добавляем
+        # в наблюдение: агрегатор показывает одну-две вакансии компании, а её
+        # доска — все. Модель и веб-поиск для этого не нужны, поэтому охват
+        # растёт и с локальной моделью.
+        "harvest_boards": True,
+        "harvest_per_run": 10,      # мягкий предел, чтобы охват рос постепенно
         "adzuna_app_id": "",
         "adzuna_app_key": "",
         "adzuna_countries": "de,nl,gb,fr,es,it,pl,at,us",

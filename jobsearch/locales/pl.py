@@ -501,4 +501,8 @@ STRINGS = {
 "cvcheck_failed": "Sprawdzenie się nie powiodło: {error}",
 "cv_gen_failed_title": "Nie udało się złożyć CV pod tę ofertę",
 "cv_gen_failed_hint": "Zwykle to mały model lokalny: pisze dokument prozą zamiast ścisłego JSON-a. Większy model albo Claude Code sobie poradzi — zmienisz to na stronie „Model”. Warto też spróbować ponownie.",
+"log_harvest_board": "pracodawca z linku: {name} → {url} (dodany do obserwowanych)",
+"log_harvest_total": "nowi pracodawcy z linków: {n} — ich tablice przeczytamy w całości od następnego przebiegu",
+"harvest_boards": "Zapamiętuj pracodawców z ofert",
+"harvest_boards_hint": "Większość ofert z agregatorów prowadzi wprost na tablicę firmy. Program je zapamiętuje i od następnego przebiegu czyta w całości. Nie trzeba ani wyszukiwarki, ani modelu — zasięg rośnie także z modelem lokalnym.",
 }

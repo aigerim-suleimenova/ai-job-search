@@ -303,6 +303,7 @@ async def save(request: Request, then: str = ""):
             research_company=flag("research_company"),
         )
     if section_present("companies", "use_remotive", "adzuna_app_id"):
+        cfg["sources"]["harvest_boards"] = flag("harvest_boards")
         companies = []
         for line in val("companies").splitlines():
             line = line.strip()

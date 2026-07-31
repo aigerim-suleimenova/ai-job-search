@@ -501,4 +501,8 @@ STRINGS = {
 "cvcheck_failed": "检查失败：{error}",
 "cv_gen_failed_title": "无法为这个职位生成简历",
 "cv_gen_failed_hint": "通常是本地小模型所致：它把文档写成散文而不是严格的 JSON。更大的模型或 Claude Code 可以胜任——在「模型」页面切换。再试一次也值得。",
+"log_harvest_board": "从链接发现的雇主：{name} → {url}（已加入监控）",
+"log_harvest_total": "从链接新增雇主 {n} 家——下次运行起将完整读取其招聘板",
+"harvest_boards": "记住招聘信息里出现的雇主",
+"harvest_boards_hint": "聚合网站上的多数职位直接链接到公司自己的招聘板。程序会记住这些板块，并从下次运行起完整读取。不需要网页搜索，也不需要模型，因此本地模型同样能扩大覆盖面。",
 }

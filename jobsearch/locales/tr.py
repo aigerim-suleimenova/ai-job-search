@@ -501,4 +501,8 @@ STRINGS = {
 "cvcheck_failed": "Kontrol başarısız oldu: {error}",
 "cv_gen_failed_title": "Bu ilan için CV oluşturulamadı",
 "cv_gen_failed_hint": "Genelde küçük bir yerel model buna yol açar: belgeyi katı JSON yerine düz yazı olarak yazar. Daha büyük bir model ya da Claude Code bunu yapabilir — «Model» sayfasından değiştirebilirsiniz. Tekrar denemek de işe yarayabilir.",
+"log_harvest_board": "bağlantıdan bulunan işveren: {name} → {url} (izlemeye eklendi)",
+"log_harvest_total": "bağlantılardan yeni işverenler: {n} — panoları bir sonraki çalıştırmadan itibaren tümüyle okunacak",
+"harvest_boards": "İlanlarda bulunan işverenleri hatırla",
+"harvest_boards_hint": "Toplayıcılardaki ilanların çoğu doğrudan şirketin kendi panosuna bağlanır. Uygulama bu panoları hatırlar ve sonraki çalıştırmadan itibaren tümünü okur. Web araması da model de gerekmez; kapsam yerel modelle de büyür.",
 }

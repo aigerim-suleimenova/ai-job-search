@@ -181,9 +181,27 @@ Third-party libraries end up inside the built app, each under its own licence.
 Their list and full texts are collected at build time into
 `THIRD-PARTY-LICENSES.txt` and shipped alongside the program.
 
+## The company list grows on its own
+
+Most vacancies that come from aggregators link straight to the employer's own
+board on an ATS — `boards.greenhouse.io/<company>`, `jobs.lever.co/<company>` and
+the like. The program remembers those addresses, and from the next run reads the
+board in full: the aggregator showed one or two openings, the board has all of
+them. On one real database 342 of the 392 links turned out to lead to boards, of
+27 employers that were not being watched.
+
+Nothing extra is downloaded for this. The links are already in hand, and neither
+web search nor the model takes part — which is why coverage grows the same way
+with a local model as with Claude Code.
+
+The employers found this way are added to the same list in the settings as the
+ones you typed in, so you can see what appeared and remove anything you did not
+want. The checkbox "Remember employers found in job links" turns it off
+altogether.
+
 ## How the program behaves on other people's sites
 
-It identifies itself honestly — `ai-job-search/1.0 (+a link to the repository)` —
+It identifies itself honestly — `ai-job-search/<version> (+a link to the repository)` —
 keeps a pause between requests to the same host, and respects `robots.txt`: if a
 site asks robots not to read a page, the program skips it and notes that in the
 log. The `robots.txt` rule does not apply to the platforms' documented APIs
