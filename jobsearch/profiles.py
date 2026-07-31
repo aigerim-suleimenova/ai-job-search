@@ -66,7 +66,7 @@ def _slugify(name: str, taken: set) -> str:
 def _read_registry() -> dict:
     if REGISTRY_PATH.exists():
         try:
-            return json.loads(REGISTRY_PATH.read_text())
+            return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             pass
     return {"profiles": [], "default": ""}
@@ -74,7 +74,7 @@ def _read_registry() -> dict:
 
 def _write_registry(reg: dict) -> None:
     DATA_ROOT.mkdir(parents=True, exist_ok=True)
-    REGISTRY_PATH.write_text(json.dumps(reg, ensure_ascii=False, indent=2))
+    REGISTRY_PATH.write_text(json.dumps(reg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def ensure_migrated() -> None:

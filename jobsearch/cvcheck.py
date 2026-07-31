@@ -253,7 +253,8 @@ def analyze(cfg: dict) -> dict:
     result["ats_total"] = ats
     result["visual_total"] = visual.get("visual_score")
     try:
-        (profiles.dir() / "cv_check.json").write_text(json.dumps(result, ensure_ascii=False))
+        (profiles.dir() / "cv_check.json").write_text(json.dumps(result, ensure_ascii=False),
+                                                  encoding="utf-8")
     except OSError:
         pass
     return result
@@ -263,7 +264,7 @@ def last_result() -> dict:
     path = profiles.dir() / "cv_check.json"
     if path.exists():
         try:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return {}
     return {}

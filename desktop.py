@@ -57,7 +57,7 @@ def _lock_path() -> Path:
 
 def _read_lock() -> dict:
     try:
-        return json.loads(_lock_path().read_text())
+        return json.loads(_lock_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
@@ -213,7 +213,7 @@ def main() -> int:
         _log_crash("Приложение не смогло запуститься", reason)
         _show_failure(reason)
         return 1
-    _lock_path().write_text(json.dumps({"port": port, "pid": os.getpid()}))
+    _lock_path().write_text(json.dumps({"port": port, "pid": os.getpid()}), encoding="utf-8")
 
     _open_window(port, own_server=True)
 

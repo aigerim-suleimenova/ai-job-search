@@ -21,7 +21,7 @@ def load() -> dict:
     with _lock:
         if p.exists():
             try:
-                return json.loads(p.read_text())
+                return json.loads(p.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 pass
     return {}
@@ -30,7 +30,7 @@ def load() -> dict:
 def save(state: dict) -> None:
     with _lock:
         profiles.DATA_ROOT.mkdir(parents=True, exist_ok=True)
-        path().write_text(json.dumps(state, ensure_ascii=False, indent=2))
+        path().write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def setup_done() -> bool:

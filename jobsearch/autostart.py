@@ -107,7 +107,8 @@ def _linux_enable() -> None:
         f"Name={APP_NAME}\n"
         f"Exec={cmd}\n"
         "X-GNOME-Autostart-enabled=true\n"
-        "Terminal=false\n"
+        "Terminal=false\n",
+        encoding="utf-8",
     )
 
 

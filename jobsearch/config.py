@@ -126,7 +126,7 @@ def load() -> dict:
     with _lock:
         if path.exists():
             try:
-                stored = json.loads(path.read_text())
+                stored = json.loads(path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 stored = {}
         else:
@@ -148,13 +148,13 @@ def load() -> dict:
 
 def save(cfg: dict) -> None:
     with _lock:
-        config_path().write_text(json.dumps(cfg, ensure_ascii=False, indent=2))
+        config_path().write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def cv_text() -> str:
     path = cv_text_path()
     if path.exists():
-        return path.read_text(errors="ignore")
+        return path.read_text(encoding="utf-8", errors="ignore")
     return ""
 
 
@@ -162,7 +162,7 @@ def cv_meta() -> dict:
     path = cv_meta_path()
     if path.exists():
         try:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return {}
     return {}
@@ -263,6 +263,7 @@ def save_cv(filename: str, raw: bytes) -> str:
         if old.suffix.lower() != ".txt" or old.name != "cv.txt":
             old.unlink(missing_ok=True)
     tmp.rename(d / f"cv{ext}")
-    cv_text_path().write_text(text)
-    cv_meta_path().write_text(json.dumps({"filename": filename, "chars": len(text)}, ensure_ascii=False))
+    cv_text_path().write_text(text, encoding="utf-8")
+    cv_meta_path().write_text(json.dumps({"filename": filename, "chars": len(text)}, ensure_ascii=False),
+                              encoding="utf-8")
     return text

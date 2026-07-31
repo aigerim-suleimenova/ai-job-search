@@ -15,7 +15,7 @@ def _macos_ram_gb() -> float:
 
 
 def _linux_ram_gb() -> float:
-    with open("/proc/meminfo") as fh:
+    with open("/proc/meminfo", encoding="utf-8") as fh:
         for line in fh:
             if line.startswith("MemTotal:"):
                 return int(re.search(r"\d+", line).group()) / 1024 ** 2
