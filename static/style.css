@@ -194,6 +194,15 @@ nav a[aria-current="page"] {
   box-shadow: none;
 }
 .theme-switch button:hover { color: var(--text); background: var(--card); }
+
+/* Кнопка-карандаш рядом с выбором человека: то же, что у переключателя темы */
+button.icon-only {
+  width: 26px; height: 26px; padding: 0;
+  color: var(--muted); background: transparent; border-color: var(--border);
+  box-shadow: none;
+}
+button.icon-only:hover { color: var(--text); background: var(--card); }
+#rename-person { margin: 0 0 0 -4px; flex: none; }
 .theme-icon[hidden] { display: none; }
 
 /* --- Карточки --- */

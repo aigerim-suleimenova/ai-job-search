@@ -495,4 +495,6 @@ STRINGS = {
 "log_robots_skip": "{name}: witryna prosi roboty, by nie czytały tej strony (robots.txt) — pomijamy",
 "models_show_unsupported": "pokaż też te, których to urządzenie nie uciągnie",
 "models_hidden_note": "ukryto {n}: za mało pamięci",
+"person_rename_title": "Zmień nazwę tej osoby",
+"person_rename_prompt": "Jak nazywa się ta osoba?",
 }

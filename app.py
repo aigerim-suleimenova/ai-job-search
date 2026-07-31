@@ -410,27 +410,48 @@ async def simple_start(request: Request, file: UploadFile = None):
     """Простой сценарий: имя, регион, CV, LinkedIn — остальное заполняется само."""
     form = await request.form()
     person = str(form.get("person", "")).strip()
-    # Имя нового человека — заводим отдельный профиль. Но если человек с таким
-    # именем уже есть, переключаемся на него: иначе повторный ввод плодил бы
-    # «Друг», «Друг-2», «Друг-3» с раздельными результатами.
+    # Что означает изменённое имя, зависит от того, сколько людей заведено.
+    #
+    # Один — значит человек правит своё собственное имя (в первый запуск здесь
+    # стоит «Я»), и ожидает переименования. Раньше вместо этого молча заводился
+    # второй профиль с пустой историей, а первый оставался висеть рядом.
+    #
+    # Несколько — значит поле работает как «для кого ищем сейчас»: переключаемся
+    # на того, кто уже есть, или заводим нового. Повторный ввод одного имени не
+    # должен плодить «Друг», «Друг-2», «Друг-3» с раздельными результатами.
     if person and person != profiles.name_of(profiles.active()):
         existing = next((p["slug"] for p in profiles.list_profiles()
                          if p["name"].strip().casefold() == person.casefold()), "")
-        slug = existing or profiles.create(person)
-        if not existing:
+        if existing:
+            slug = existing
+            profiles.set_active(slug)
+        elif len(profiles.list_profiles()) == 1:
+            slug = profiles.active()
+            profiles.rename(slug, person)
+        else:
+            slug = profiles.create(person)
             _seed_profile(slug)
-        profiles.set_active(slug)
+            profiles.set_active(slug)
     else:
         slug = profiles.active()
+
+    def ответ(resp):
+        """Выбранный человек должен пережить любой исход, а не только удачный.
+        Раньше на путях «резюме не читается» и «резюме нужно» cookie не ставилась,
+        и переключение молча откатывалось: сообщение относилось к одному человеку,
+        а страница возвращалась к другому."""
+        resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365,
+                        httponly=True, samesite="lax")
+        return resp
 
     if file is not None and file.filename:
         raw = await file.read()
         try:
             config.save_cv(file.filename, raw)
         except config.CVError as e:
-            return _redirect_to("/simple", _msg(e.key, **e.fmt))
+            return ответ(_redirect_to("/simple", _msg(e.key, **e.fmt)))
         except Exception as e:  # noqa: BLE001
-            return _redirect_to("/simple", _msg("msg_cv_unreadable", error=e))
+            return ответ(_redirect_to("/simple", _msg("msg_cv_unreadable", error=e)))
 
     cfg = config.load()
     cfg["search"]["locations"] = str(form.get("locations", "")).strip() or cfg["search"]["locations"]
@@ -438,7 +459,7 @@ async def simple_start(request: Request, file: UploadFile = None):
     config.save(cfg)
 
     if not config.cv_text():
-        return _redirect_to("/simple", _msg("msg_cv_needed"))
+        return ответ(_redirect_to("/simple", _msg("msg_cv_needed")))
 
     # Разбор резюме и сам поиск уходят в фон: страница возвращается сразу,
     # а ход работы виден в строке статуса и в журнале.
@@ -449,9 +470,7 @@ async def simple_start(request: Request, file: UploadFile = None):
         busy = pipeline.state.get("profile", "")
         note = (_msg("msg_busy_next", name=profiles.name_of(busy))
                 if busy and busy != slug else _msg("msg_search_already"))
-    resp = _redirect_to("/simple", note)
-    resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
-    return resp
+    return ответ(_redirect_to("/simple", note))
 
 
 @app.post("/upload_cv")

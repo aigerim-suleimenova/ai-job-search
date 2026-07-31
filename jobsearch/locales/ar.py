@@ -496,4 +496,6 @@ STRINGS = {
 "log_robots_skip": "{name}: يطلب الموقع من الروبوتات عدم قراءة هذه الصفحة (robots.txt) — تخطّيناها",
 "models_show_unsupported": "أظهر أيضًا ما لا يستطيع هذا الجهاز تشغيله",
 "models_hidden_note": "مخفي {n}: الذاكرة غير كافية",
+"person_rename_title": "إعادة تسمية هذا الشخص",
+"person_rename_prompt": "ما اسم هذا الشخص؟",
 }

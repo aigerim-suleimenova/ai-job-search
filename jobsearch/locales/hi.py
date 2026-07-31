@@ -495,4 +495,6 @@ STRINGS = {
 "log_robots_skip": "{name}: साइट robots.txt के ज़रिए रोबोट को यह पेज पढ़ने से मना करती है — छोड़ा गया",
 "models_show_unsupported": "वे भी दिखाएँ जो यह डिवाइस नहीं चला सकता",
 "models_hidden_note": "{n} छिपे: पर्याप्त मेमोरी नहीं",
+"person_rename_title": "इस व्यक्ति का नाम बदलें",
+"person_rename_prompt": "इस व्यक्ति का नाम क्या है?",
 }

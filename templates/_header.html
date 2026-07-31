@@ -19,6 +19,20 @@
         </select>
       </label>
     </form>
+    {# Имя правится там, где оно написано. Раньше для этого надо было знать про
+       карточку «Люди» на странице настроек — а человек искал глазами здесь. #}
+    <form method="post" action="/profile/rename" class="profile-switch" id="rename-person"
+          onsubmit="return renamePerson(this)">
+      <input type="hidden" name="name" value="{{ active_name }}">
+      <button type="submit" class="icon-only" title="{{ t('person_rename_title') }}"
+              aria-label="{{ t('person_rename_title') }}"
+              data-prompt="{{ t('person_rename_prompt') }}" data-current="{{ active_name }}">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h4l10-10a2.8 2.8 0 0 0-4-4L4 16v4Z"/>
+        </svg>
+      </button>
+    </form>
     {# Переключатель оформления. Что нажатие включит — решает скрипт внизу: пока
        выбрано «как в системе», это зависит от самой системы, а сервер её не видит. #}
     <form method="post" action="/set_theme" class="theme-switch">
@@ -55,6 +69,14 @@
   </nav>
 </header>
 <script>
+function renamePerson(form) {
+  const btn = form.querySelector('button');
+  const name = prompt(btn.dataset.prompt, btn.dataset.current);
+  if (name === null || !name.trim() || name.trim() === btn.dataset.current) return false;
+  form.querySelector('input[name=name]').value = name.trim();
+  return true;
+}
+
 // Кнопка показывает то, что включит: солнце — «сделать светлой», луна — «тёмной».
 (() => {
   const root = document.documentElement;

@@ -495,4 +495,6 @@ STRINGS = {
 "log_robots_skip": "{name}：该网站通过 robots.txt 要求机器人不要读取此页面——已跳过",
 "models_show_unsupported": "同时显示本机带不动的模型",
 "models_hidden_note": "已隐藏 {n} 个：内存不足",
+"person_rename_title": "重命名此人",
+"person_rename_prompt": "这个人叫什么名字？",
 }

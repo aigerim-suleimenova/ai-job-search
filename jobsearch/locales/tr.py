@@ -495,4 +495,6 @@ STRINGS = {
 "log_robots_skip": "{name}: site robotlardan bu sayfayı okumamalarını istiyor (robots.txt) — atlandı",
 "models_show_unsupported": "bu cihazın kaldıramayacaklarını da göster",
 "models_hidden_note": "{n} gizli: bellek yetersiz",
+"person_rename_title": "Bu kişiyi yeniden adlandır",
+"person_rename_prompt": "Bu kişinin adı ne?",
 }

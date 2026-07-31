@@ -572,6 +572,16 @@ TR = {
                     "en": "Three fields and the search starts. Roles, skills and seniority are taken from your CV; everything else uses sensible defaults.",
                     "it": "Tre campi e la ricerca parte. Ruoli, competenze e livello vengono ricavati dal CV; il resto usa impostazioni predefinite ragionevoli.",
                     "de": "Drei Felder, und die Suche startet. Rollen, Kenntnisse und Level werden aus dem CV übernommen; alles andere nutzt sinnvolle Standardwerte."},
+    "person_rename_title": {
+        "ru": "Переименовать этого человека",
+        "en": "Rename this person",
+        "it": "Rinomina questa persona",
+        "de": "Diese Person umbenennen"},
+    "person_rename_prompt": {
+        "ru": "Как зовут этого человека?",
+        "en": "What is this person called?",
+        "it": "Come si chiama questa persona?",
+        "de": "Wie heißt diese Person?"},
     "simple_person": {"ru": "Для кого ищем", "en": "Who is this for",
                       "it": "Per chi cerchiamo", "de": "Für wen suchen wir"},
     "simple_person_ph": {"ru": "Имя человека", "en": "Person's name",

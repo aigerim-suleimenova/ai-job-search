@@ -495,4 +495,6 @@ STRINGS = {
 "log_robots_skip": "{name}：サイトが robots.txt でロボットの読み取りを断っています — スキップしました",
 "models_show_unsupported": "この端末では動かないものも表示",
 "models_hidden_note": "{n} 件を非表示：メモリ不足",
+"person_rename_title": "この人の名前を変える",
+"person_rename_prompt": "この人の名前は？",
 }
