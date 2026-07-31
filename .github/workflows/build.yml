@@ -133,6 +133,27 @@ jobs:
           security list-keychain -d user -s login.keychain-db || true
           security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
+      # Windows раздавался архивом с папкой внутри: человек распаковывал, искал
+      # нужный .exe среди служебных файлов — и чаще всего бросал. Установщик
+      # ставит программу в профиль пользователя (без прав администратора),
+      # заводит ярлык в «Пуске» и запись в списке установленных программ.
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $env:GITHUB_REF_NAME.TrimStart('v')
+          } else { '0.0.0' }
+          Write-Host "Версия установщика: $version"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc "/DAppVersion=$version" packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Установщик не собрался" }
+          Get-ChildItem dist\*.exe | ForEach-Object { "{0}  {1:N1} МБ" -f $_.Name, ($_.Length / 1MB) }
+
       - name: Package Linux archive
         if: runner.os == 'Linux'
         run: tar -czf "dist/AI Job Search-linux.tar.gz" -C dist "AI Job Search"
@@ -143,6 +164,7 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.tar.gz
+            dist/AI Job Search Setup.exe
             dist/AI Job Search/
           if-no-files-found: warn
 
@@ -162,16 +184,18 @@ jobs:
       - name: Собрать список файлов
         run: |
           mkdir -p release
-          # Только готовые к раздаче файлы. Отдельный .exe сюда не берём: сборка
-          # под Windows — каталог, и запущенный без соседней папки _internal
-          # загрузчик просто падает. А скачивают, конечно, именно .exe.
-          find artifacts \( -name "*.dmg" -o -name "*.tar.gz" \) | while read -r f; do
-            cp "$f" release/
-          done
-          # Windows собирается каталогом — упаковываем в zip
+          # Только готовые к раздаче файлы. Голый "AI Job Search.exe" сюда не
+          # берём: сборка под Windows — каталог, и запущенный без соседней папки
+          # _internal загрузчик просто падает. А скачивают, конечно, именно .exe —
+          # поэтому единственный .exe в релизе должен быть установщиком.
+          find artifacts \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*Setup.exe" \) |
+            while read -r f; do cp "$f" release/; done
+          # Портативный вариант — для тех, кто не хочет ничего устанавливать.
+          # В архив кладём только саму программу: установщик уже лежит рядом
+          # отдельным файлом, дублировать его внутри архива незачем.
           win="artifacts/AI Job Search-windows"
-          if [ -d "$win" ]; then
-            (cd "$win" && zip -qr "$GITHUB_WORKSPACE/release/AI Job Search-windows.zip" .)
+          if [ -d "$win/AI Job Search" ]; then
+            (cd "$win" && zip -qr "$GITHUB_WORKSPACE/release/AI Job Search-windows-portable.zip" "AI Job Search")
           fi
           ls -lh release
 
