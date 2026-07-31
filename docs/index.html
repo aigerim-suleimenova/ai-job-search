@@ -28,6 +28,9 @@
   .hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.02em; }
   .hero p { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 660px; margin: 0 auto 28px; }
   .downloads { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .gate { max-width: 640px; margin: 14px auto 0; text-align: left; font-size: 14px; color: var(--muted, #6e6e73); }
+  .gate summary { cursor: pointer; font-weight: 500; font-size: inherit; }
+  .gate p { margin: 8px 0 0; line-height: 1.55; font-size: inherit; }
   .dl { display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
         background: var(--accent); color: #fff; padding: 13px 22px; border-radius: 10px;
         font-weight: 600; border: 1px solid var(--accent); }
@@ -92,6 +95,12 @@
     </a>
   </div>
   <p class="note" data-t="dl_note"></p>
+  <!-- Первое, обо что спотыкается человек на Windows: синее окно SmartScreen.
+       Лучше предупредить до скачивания, чем оставить гадать после. -->
+  <details class="gate">
+    <summary data-t="win_gate_t"></summary>
+    <p data-t="win_gate_d"></p>
+  </details>
 </div>
 
 <section>
@@ -174,6 +183,8 @@ const T = {
     hero_sub: "Программа читает ваше резюме, обходит сайты компаний и площадки с вакансиями, оценивает каждую находку и подсказывает, что поправить в CV под конкретную позицию. Запустили — закрыли — вернулись к готовому списку.",
     dl_mac: "Скачать для macOS", dl_win: "Скачать для Windows", dl_linux: "Скачать для Linux",
     dl_note: "Бесплатно и с открытым кодом. Первый запуск занимает пару минут: понадобится Claude Code или локальная модель.",
+    win_gate_t: "Первый запуск на Windows",
+    win_gate_d: "Установщик пока не подписан, поэтому Windows покажет синее окно «Система Windows защитила ваш компьютер». Это не вирус и не запрет: нажмите «Подробнее», затем «Выполнить в любом случае». Причина в том, что у новой программы ещё нет репутации у Microsoft — она набирается по мере того, как её скачивают.",
     how_title: "Как это работает", how_sub: "Три шага — дальше программа работает сама.",
     step1_t: "Загрузите резюме и укажите регион",
     step1_d: "Роли, навыки и уровень определяются из CV автоматически — заполнять анкету не нужно.",
@@ -214,6 +225,8 @@ const T = {
     hero_sub: "The app reads your CV, goes through company career pages and job boards, scores every match, and tells you what to change in your resume for each role. Start it, close it, come back to a finished list.",
     dl_mac: "Download for macOS", dl_win: "Download for Windows", dl_linux: "Download for Linux",
     dl_note: "Free and open source. First launch takes a couple of minutes: you will need Claude Code or a local model.",
+    win_gate_t: "First launch on Windows",
+    win_gate_d: "The installer is not signed yet, so Windows shows a blue box saying it protected your PC. That is not a virus warning and not a block: click More info, then Run anyway. A new program simply has no reputation with Microsoft yet — it builds up as people download it.",
     how_title: "How it works", how_sub: "Three steps — after that it runs on its own.",
     step1_t: "Upload a CV and pick a region",
     step1_d: "Roles, skills and seniority are taken from the CV automatically — no forms to fill in.",
@@ -254,6 +267,8 @@ const T = {
     hero_sub: "Il programma legge il suo CV, visita i siti delle aziende e i portali di lavoro, valuta ogni offerta e suggerisce cosa modificare nel curriculum per ciascuna posizione. Si avvia, si chiude, e al ritorno c'è una lista pronta.",
     dl_mac: "Scarica per macOS", dl_win: "Scarica per Windows", dl_linux: "Scarica per Linux",
     dl_note: "Gratuito e open source. Il primo avvio richiede pochi minuti: serve Claude Code o un modello locale.",
+    win_gate_t: "Primo avvio su Windows",
+    win_gate_d: "Il programma di installazione non è ancora firmato, quindi Windows mostra un riquadro blu che dice di aver protetto il PC. Non è un avviso di virus né un blocco: cliccate «Ulteriori informazioni» e poi «Esegui comunque». Un programma nuovo semplicemente non ha ancora una reputazione presso Microsoft: si costruisce man mano che viene scaricato.",
     how_title: "Come funziona", how_sub: "Tre passaggi — poi lavora da solo.",
     step1_t: "Carichi il CV e indichi la zona",
     step1_d: "Ruoli, competenze e livello vengono ricavati dal CV automaticamente — nessun modulo da compilare.",
@@ -294,6 +309,8 @@ const T = {
     hero_sub: "Das Programm liest Ihren Lebenslauf, geht Karriereseiten und Jobbörsen durch, bewertet jeden Treffer und sagt Ihnen, was Sie im Lebenslauf für die jeweilige Stelle ändern sollten. Starten, schließen, mit fertiger Liste zurückkommen.",
     dl_mac: "Für macOS laden", dl_win: "Für Windows laden", dl_linux: "Für Linux laden",
     dl_note: "Kostenlos und quelloffen. Der erste Start dauert ein paar Minuten: Sie brauchen Claude Code oder ein lokales Modell.",
+    win_gate_t: "Erster Start unter Windows",
+    win_gate_d: "Das Installationsprogramm ist noch nicht signiert, deshalb zeigt Windows ein blaues Fenster mit dem Hinweis, es habe den PC geschützt. Das ist keine Virenmeldung und keine Sperre: auf „Weitere Informationen“ und dann „Trotzdem ausführen“ klicken. Ein neues Programm hat bei Microsoft schlicht noch keine Reputation — sie entsteht mit der Zahl der Downloads.",
     how_title: "So funktioniert es", how_sub: "Drei Schritte — danach läuft es allein.",
     step1_t: "Lebenslauf hochladen und Region angeben",
     step1_d: "Rollen, Kenntnisse und Level werden automatisch aus dem CV übernommen — kein Formular auszufüllen.",
