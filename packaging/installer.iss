@@ -23,11 +23,15 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
 VersionInfoVersion={#AppVersion}
-DefaultDirName={autopf}\{#AppName}
+; Ставим только в профиль пользователя. {autopf} с диалогом выбора давал
+; человеку возможность поставить «для всех» — тогда программа уезжала в
+; Program Files, установщик просил админа, а сразу после установки не мог
+; запустить записанный туда файл: «CreateProcess failed; code 5».
+; Программе права администратора не нужны вовсе, и просить их не за что.
+DefaultDirName={localappdata}\Programs\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\dist
 OutputBaseFilename=AI Job Search Setup
 Compression=lzma2/max
@@ -54,7 +58,10 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; runasoriginaluser: если установщик всё же оказался запущен с повышенными
+; правами, программу надо открыть от имени человека, а не администратора —
+; иначе её данные лягут в чужой профиль.
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 ; Данные человека — резюме, настройки, найденные вакансии — лежат в %APPDATA% и
 ; при удалении программы не трогаются: переустановка не должна стирать историю.
