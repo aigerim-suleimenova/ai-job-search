@@ -1,17 +1,31 @@
 // Поиск по списку моделей и прогресс скачивания. Один файл на страницу
 // «Модель» и на знакомство при первом запуске.
+const SHOW_ALL_KEY = 'aijs-models-show-unsupported';
+
 function filterModels() {
   const q = document.getElementById('q').value.toLowerCase().trim();
-  const onlyFits = document.getElementById('onlyfits').checked;
-  let shown = 0;
-  document.querySelectorAll('.model-row').forEach(row => {
+  const box = document.getElementById('showall');
+  const showAll = box.checked;
+  try { localStorage.setItem(SHOW_ALL_KEY, showAll ? '1' : ''); } catch (e) { /* приватный режим */ }
+
+  const rows = document.querySelectorAll('.model-row');
+  let shown = 0, hiddenByMemory = 0;
+  rows.forEach(row => {
     const matchQ = !q || row.dataset.name.includes(q);
-    const matchF = !onlyFits || ['yes', 'tight'].includes(row.dataset.fits);
-    const ok = matchQ && matchF;
+    const fits = ['yes', 'tight'].includes(row.dataset.fits);
+    const ok = matchQ && (showAll || fits);
     row.style.display = ok ? '' : 'none';
     if (ok) shown++;
+    // «ничего не найдено» из-за скрытого фильтра — худший вид пустого списка,
+    // поэтому считаем, сколько подходящих под запрос моделей мы утаили
+    else if (matchQ && !fits) hiddenByMemory++;
   });
-  document.getElementById('count').textContent = shown + ' / ' + document.querySelectorAll('.model-row').length;
+
+  const count = document.getElementById('count');
+  const note = hiddenByMemory
+    ? ' · ' + (count.dataset.hiddenNote || '{n}').replace('{n}', hiddenByMemory)
+    : '';
+  count.textContent = shown + ' / ' + rows.length + note;
 }
 
 async function pollPull() {
@@ -31,6 +45,13 @@ async function pollPull() {
       d.error ? d.error : (d.status || '') + (d.percent ? ' — ' + d.percent + '%' : '');
   } catch (e) { /* сервер перезапускается — просто ждём */ }
 }
+
+// Состояние галочки переживает перезагрузку страницы: после «Скачать» она
+// обновляется, и выбор фильтра иначе молча терялся.
+try {
+  const box = document.getElementById('showall');
+  if (box) box.checked = !!localStorage.getItem(SHOW_ALL_KEY);
+} catch (e) { /* приватный режим */ }
 
 filterModels();
 setInterval(pollPull, 2000);

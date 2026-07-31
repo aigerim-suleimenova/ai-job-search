@@ -140,7 +140,6 @@ STRINGS = {
 "models_usable": "disponible pour un modèle",
 "models_choose": "Modèle",
 "models_search": "Rechercher par nom…",
-"models_only_fits": "seulement ceux que cet appareil peut faire tourner",
 "models_current": "en service",
 "models_fits_yes": "tourne bien",
 "models_fits_tight": "juste",
@@ -494,4 +493,6 @@ STRINGS = {
 "donate_short": "L'application est gratuite — vous pouvez soutenir l'auteur :",
 "theme_toggle": "Apparence claire ou sombre",
 "log_robots_skip": "{name} : le site demande aux robots de ne pas lire cette page (robots.txt) — ignorée",
+"models_show_unsupported": "afficher aussi ceux que cet appareil ne peut pas faire tourner",
+"models_hidden_note": "{n} masqués : mémoire insuffisante",
 }

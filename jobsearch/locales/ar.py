@@ -141,7 +141,6 @@ STRINGS = {
 "models_usable": "المتاح للنموذج",
 "models_choose": "النموذج",
 "models_search": "ابحث بالاسم…",
-"models_only_fits": "ما يستطيع هذا الجهاز تشغيله فقط",
 "models_current": "قيد الاستخدام",
 "models_fits_yes": "يعمل بأريحية",
 "models_fits_tight": "بالكاد",
@@ -495,4 +494,6 @@ STRINGS = {
 "donate_short": "البرنامج مجاني — يمكنك دعم المؤلف:",
 "theme_toggle": "مظهر فاتح أو داكن",
 "log_robots_skip": "{name}: يطلب الموقع من الروبوتات عدم قراءة هذه الصفحة (robots.txt) — تخطّيناها",
+"models_show_unsupported": "أظهر أيضًا ما لا يستطيع هذا الجهاز تشغيله",
+"models_hidden_note": "مخفي {n}: الذاكرة غير كافية",
 }

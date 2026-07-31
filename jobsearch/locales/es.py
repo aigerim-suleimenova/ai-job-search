@@ -140,7 +140,6 @@ STRINGS = {
 "models_usable": "disponible para un modelo",
 "models_choose": "Modelo",
 "models_search": "Buscar por nombre…",
-"models_only_fits": "solo los que puede mover este equipo",
 "models_current": "en uso",
 "models_fits_yes": "va bien",
 "models_fits_tight": "justo",
@@ -494,4 +493,6 @@ STRINGS = {
 "donate_short": "La aplicación es gratuita: podéis apoyar al autor:",
 "theme_toggle": "Aspecto claro u oscuro",
 "log_robots_skip": "{name}: el sitio pide a los robots que no lean esta página (robots.txt); la omitimos",
+"models_show_unsupported": "mostrar también los que este equipo no puede ejecutar",
+"models_hidden_note": "{n} ocultos: memoria insuficiente",
 }

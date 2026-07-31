@@ -140,7 +140,6 @@ STRINGS = {
 "models_usable": "доступно моделі",
 "models_choose": "Модель",
 "models_search": "Пошук за назвою…",
-"models_only_fits": "лише ті, що потягне цей пристрій",
 "models_current": "у роботі",
 "models_fits_yes": "піде",
 "models_fits_tight": "впритул",
@@ -494,4 +493,6 @@ STRINGS = {
 "donate_short": "Програма безкоштовна — можна підтримати автора:",
 "theme_toggle": "Світле або темне оформлення",
 "log_robots_skip": "{name}: сайт просить роботів не читати цю сторінку (robots.txt) — пропускаємо",
+"models_show_unsupported": "показати й ті, що не підуть на цьому пристрої",
+"models_hidden_note": "приховано {n}: не вистачить пам’яті",
 }

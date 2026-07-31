@@ -140,7 +140,6 @@ STRINGS = {
 "models_usable": "modele ayrılabilen",
 "models_choose": "Model",
 "models_search": "Ada göre ara…",
-"models_only_fits": "yalnızca bu cihazın kaldırabilecekleri",
 "models_current": "kullanımda",
 "models_fits_yes": "rahat çalışır",
 "models_fits_tight": "sınırda",
@@ -494,4 +493,6 @@ STRINGS = {
 "donate_short": "Uygulama ücretsiz — yazarı destekleyebilirsiniz:",
 "theme_toggle": "Açık ya da koyu görünüm",
 "log_robots_skip": "{name}: site robotlardan bu sayfayı okumamalarını istiyor (robots.txt) — atlandı",
+"models_show_unsupported": "bu cihazın kaldıramayacaklarını da göster",
+"models_hidden_note": "{n} gizli: bellek yetersiz",
 }

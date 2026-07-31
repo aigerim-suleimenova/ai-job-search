@@ -140,7 +140,6 @@ STRINGS = {
 "models_usable": "मॉडल के लिए उपलब्ध",
 "models_choose": "मॉडल",
 "models_search": "नाम से खोजें…",
-"models_only_fits": "सिर्फ़ वे जो यह डिवाइस चला सके",
 "models_current": "उपयोग में",
 "models_fits_yes": "आराम से चलेगा",
 "models_fits_tight": "बमुश्किल",
@@ -494,4 +493,6 @@ STRINGS = {
 "donate_short": "यह ऐप मुफ़्त है — आप लेखक का सहयोग कर सकते हैं:",
 "theme_toggle": "हल्का या गहरा रूप",
 "log_robots_skip": "{name}: साइट robots.txt के ज़रिए रोबोट को यह पेज पढ़ने से मना करती है — छोड़ा गया",
+"models_show_unsupported": "वे भी दिखाएँ जो यह डिवाइस नहीं चला सकता",
+"models_hidden_note": "{n} छिपे: पर्याप्त मेमोरी नहीं",
 }

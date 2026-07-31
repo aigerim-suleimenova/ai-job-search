@@ -140,7 +140,6 @@ STRINGS = {
 "models_usable": "モデルが使える容量",
 "models_choose": "モデル",
 "models_search": "名前で検索…",
-"models_only_fits": "この端末で動くものだけ",
 "models_current": "使用中",
 "models_fits_yes": "問題なく動く",
 "models_fits_tight": "ぎりぎり",
@@ -494,4 +493,6 @@ STRINGS = {
 "donate_short": "このアプリは無料です — 作者を支援できます：",
 "theme_toggle": "ライトまたはダークの外観",
 "log_robots_skip": "{name}：サイトが robots.txt でロボットの読み取りを断っています — スキップしました",
+"models_show_unsupported": "この端末では動かないものも表示",
+"models_hidden_note": "{n} 件を非表示：メモリ不足",
 }

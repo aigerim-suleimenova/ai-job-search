@@ -140,7 +140,6 @@ STRINGS = {
 "models_usable": "可供模型使用",
 "models_choose": "模型",
 "models_search": "按名称搜索…",
-"models_only_fits": "只看这台设备跑得动的",
 "models_current": "使用中",
 "models_fits_yes": "跑得动",
 "models_fits_tight": "勉强",
@@ -494,4 +493,6 @@ STRINGS = {
 "donate_short": "本应用免费 — 可以支持作者：",
 "theme_toggle": "浅色或深色外观",
 "log_robots_skip": "{name}：该网站通过 robots.txt 要求机器人不要读取此页面——已跳过",
+"models_show_unsupported": "同时显示本机带不动的模型",
+"models_hidden_note": "已隐藏 {n} 个：内存不足",
 }
