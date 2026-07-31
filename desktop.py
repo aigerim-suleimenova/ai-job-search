@@ -102,10 +102,28 @@ def _log_crash(title: str, details: str) -> None:
         pass
 
 
+def _capture_server_log() -> None:
+    """Uvicorn пишет причину беды в свой журнал, а у оконной программы этот
+    журнал никто не видит: в прошлый раз наружу вышло только «SystemExit: 3»,
+    а настоящая ошибка осталась в невидимом логе. Направляем его в файл."""
+    import logging
+    try:
+        handler = logging.FileHandler(_state_dir() / "errors.log", encoding="utf-8")
+    except OSError:
+        return
+    handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s"))
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.asgi"):
+        log = logging.getLogger(name)
+        if not any(isinstance(h, logging.FileHandler) for h in log.handlers):
+            log.addHandler(handler)
+        log.setLevel(logging.INFO)
+
+
 def _serve(port: int) -> None:
     """Сервер живёт в фоновом потоке. Раньше исключение здесь означало тихую
     смерть потока: окно не открывалось, а почему — не знал никто."""
     global _server, _server_error
+    _capture_server_log()
     try:
         from app import app as fastapi_app
 

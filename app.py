@@ -2,8 +2,9 @@
 import json
 import sys
 import threading
+import traceback
 import webbrowser
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -134,11 +135,31 @@ def render(request, template: str, ctx: dict, cfg: dict = None):
     return templates.TemplateResponse(request, template, ctx)
 
 
+def _log_startup_problem(шаг: str, details: str) -> None:
+    try:
+        with LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(f"\n=== {datetime.now():%Y-%m-%d %H:%M:%S} — шаг запуска «{шаг}» не удался\n"
+                    f"{details}\n")
+    except OSError:
+        pass
+
+
 @app.on_event("startup")
 def startup() -> None:
-    profiles.ensure_migrated()
-    scheduler.start()
-    scheduler.reschedule_all()
+    """Ни один из этих шагов не обязателен, чтобы человек увидел окно.
+
+    Раньше исключение здесь роняло весь запуск: uvicorn выходил с кодом 3,
+    поток сервера умирал, окно не открывалось — и всё это из-за расписания,
+    без которого программа прекрасно работает. Теперь каждый шаг отвечает
+    сам за себя, а причина попадает в журнал.
+    """
+    for шаг, действие in (("перенос профилей", profiles.ensure_migrated),
+                          ("запуск расписания", scheduler.start),
+                          ("восстановление расписаний", scheduler.reschedule_all)):
+        try:
+            действие()
+        except Exception:  # noqa: BLE001 — любая беда здесь не повод не открыться
+            _log_startup_problem(шаг, traceback.format_exc())
 
 
 def _redirect(msg: str = "") -> RedirectResponse:
@@ -966,9 +987,8 @@ LOG_PATH = profiles.DATA_ROOT / "errors.log"
 
 
 def _log_error(request: Request, exc: BaseException) -> str:
-    import traceback as _tb
     from datetime import datetime as _dt
-    text = "".join(_tb.format_exception(type(exc), exc, exc.__traceback__))
+    text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     entry = f"\n{'=' * 70}\n{_dt.now().isoformat(timespec='seconds')}  {request.method} {request.url}\n{text}"
     try:
         profiles.DATA_ROOT.mkdir(parents=True, exist_ok=True)
