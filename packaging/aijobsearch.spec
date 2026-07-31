@@ -12,6 +12,12 @@ ROOT = Path(SPECPATH).parent
 # Подпись: без сертификата собирается ad-hoc (работает локально, но при скачивании
 # система предупредит). Свой сертификат задаётся переменной окружения, чтобы в
 # репозитории не хранить ничего личного.
+# Версия — из тега сборки (v0.8.3 → 0.8.3). Раньше она была вписана в спеку
+# руками и разъезжалась с тегом: в «Свойствах» приложения стояло 1.0.0, что бы
+# ни выпускали. Без тега (локальная сборка) остаётся запасное значение.
+_ref = os.environ.get("GITHUB_REF_NAME", "")
+VERSION = _ref[1:] if _ref.startswith("v") and _ref[1:2].isdigit() else "0.0.0"
+
 SIGN_IDENTITY = os.environ.get("AIJS_CODESIGN_IDENTITY") or None
 ENTITLEMENTS = str(ROOT / "packaging" / "entitlements.plist") if SIGN_IDENTITY else None
 
@@ -80,7 +86,8 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "AI Job Search",
             "CFBundleDisplayName": "AI Job Search",
-            "CFBundleShortVersionString": "1.0.0",
+            "CFBundleShortVersionString": VERSION,
+            "CFBundleVersion": VERSION,
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "11.0",
         },
