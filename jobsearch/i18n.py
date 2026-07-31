@@ -902,6 +902,26 @@ TR = {
                      "en": "Two parties read a CV: the ATS robot (Greenhouse, Workable, Lever) parses the file into fields — columns, tables and text inside images break parsing and the application is dropped silently. A human looks for 6–10 seconds. We check both, plus keyword overlap with your target jobs.",
                      "it": "Il CV viene letto da due: il robot ATS (Greenhouse, Workable, Lever) analizza il file in campi — colonne, tabelle e testo dentro le immagini rompono l'analisi e la candidatura viene scartata in silenzio. Una persona guarda per 6–10 secondi. Verifichiamo entrambi, più la corrispondenza delle parole chiave.",
                      "de": "Zwei lesen den Lebenslauf: Der ATS-Roboter (Greenhouse, Workable, Lever) zerlegt die Datei in Felder — Spalten, Tabellen und Text in Bildern zerstören das Parsing, und die Bewerbung wird stillschweigend aussortiert. Ein Mensch schaut 6–10 Sekunden. Wir prüfen beides, plus die Stichwort-Übereinstimmung."},
+    "cv_gen_failed_title": {
+        "ru": "Не получилось собрать резюме под эту вакансию",
+        "en": "Could not put together a CV for this job",
+        "it": "Non è stato possibile comporre un CV per questa offerta",
+        "de": "Für diese Stelle konnte kein Lebenslauf erstellt werden"},
+    "cv_gen_failed_hint": {
+        "ru": "Чаще всего так отвечает небольшая локальная модель: документ она пишет прозой, а не строгим JSON. Помогает модель побольше или Claude Code — выбрать можно на странице «Модель». Попробовать ещё раз тоже стоит: иногда получается со второй попытки.",
+        "en": "This is usually a small local model: it writes the document as prose instead of strict JSON. A larger model or Claude Code handles it — you can switch on the Model page. Trying again is also worth it; sometimes the second attempt works.",
+        "it": "Di solito è un modello locale piccolo: scrive il documento in prosa invece che in JSON rigoroso. Un modello più grande o Claude Code se la cava — si cambia nella pagina «Modello». Vale anche la pena riprovare: a volte il secondo tentativo riesce.",
+        "de": "Meist liegt es an einem kleinen lokalen Modell: Es schreibt das Dokument als Fließtext statt als striktes JSON. Ein größeres Modell oder Claude Code schafft es — umstellen können Sie es auf der Seite „Modell“. Ein zweiter Versuch lohnt sich ebenfalls."},
+    "cvcheck_running": {
+        "ru": "Проверяем резюме… с локальной моделью это несколько минут",
+        "en": "Checking the CV… with a local model this takes a few minutes",
+        "it": "Controllo del CV… con un modello locale ci vogliono alcuni minuti",
+        "de": "Der Lebenslauf wird geprüft… mit einem lokalen Modell dauert das einige Minuten"},
+    "cvcheck_failed": {
+        "ru": "Проверка не удалась: {error}",
+        "en": "The check failed: {error}",
+        "it": "Il controllo non è riuscito: {error}",
+        "de": "Die Prüfung ist fehlgeschlagen: {error}"},
     "cvcheck_run": {"ru": "Проверить CV", "en": "Check CV", "it": "Verifica CV", "de": "CV prüfen"},
     "cvcheck_no_cv": {"ru": "CV не загружено — загрузите его в настройках",
                       "en": "No CV uploaded — upload it in settings",

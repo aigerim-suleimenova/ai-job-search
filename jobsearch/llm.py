@@ -207,8 +207,11 @@ def ask_json(prompt: str, model: str = "", claude_bin: str = "claude", timeout: 
     """Как ask, но требует JSON в ответе. Если модель вернула прозу — повторяет."""
     last = None
     for attempt in range(retries + 1):
+        # retries=0: свои повторы у нас уже есть, а вложенные перемножались —
+        # три попытки здесь на три внутри ask давали до девяти вызовов модели.
+        # С локальной моделью по десять минут каждый это выглядело как «зависло».
         text = ask(prompt, model=model, claude_bin=claude_bin, timeout=timeout,
-                   allowed_tools=allowed_tools, retries=retries, provider=provider)
+                   allowed_tools=allowed_tools, retries=0, provider=provider)
         try:
             return extract_json(text)
         except ClaudeError as e:

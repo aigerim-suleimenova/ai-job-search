@@ -90,3 +90,56 @@ def test_на_знакомстве_ведёт_к_кнопке_продолжит
 def test_без_якоря_перенаправление_прежнее(client, profile):
     r = client.post("/models/select", data={"model": "x", "back": "/models"}, follow_redirects=False)
     assert r.status_code == 303 and "#" not in r.headers["location"]
+
+
+def test_проверка_cv_уходит_в_фон_и_не_держит_страницу(client, profile, monkeypatch):
+    """Раньше это была ссылка, которая молча считала минутами. Теперь страница
+    возвращается сразу, а работа идёт в фоне."""
+    import time as _t
+    from jobsearch import config, cvcheck
+
+    config.save_cv("резюме.txt", ("Виктор Лавров, фронтенд-инженер. " * 8).encode("utf-8"))
+    monkeypatch.setattr(cvcheck, "analyze", lambda cfg: _t.sleep(1) or {})
+
+    начало = _t.monotonic()
+    r = client.post("/cv/check/run", follow_redirects=False)
+    assert r.status_code == 303
+    assert _t.monotonic() - начало < 0.5, "страница ждала окончания проверки"
+
+    assert client.get("/cv/check/status").json()["running"] is True
+    assert "cvcheck_running" not in client.get("/cv/check").text  # ключ переведён, а не показан сырым
+
+
+def test_неудачная_проверка_cv_показывает_причину(client, profile, monkeypatch):
+    from jobsearch import config, cvcheck
+    config.save_cv("резюме.txt", ("Виктор Лавров, фронтенд-инженер. " * 8).encode("utf-8"))
+
+    def взорваться(cfg):
+        raise RuntimeError("модель не ответила")
+
+    monkeypatch.setattr(cvcheck, "analyze", взорваться)
+    client.post("/cv/check/run", follow_redirects=False)
+    for _ in range(50):
+        if not client.get("/cv/check/status").json()["running"]:
+            break
+    статус = client.get("/cv/check/status").json()
+    assert "модель не ответила" in статус["error"]
+    assert "модель не ответила" in client.get("/cv/check").text, "причина не показана человеку"
+
+
+def test_несобравшееся_cv_объясняет_а_не_отдаёт_502(client, profile, monkeypatch):
+    """Пустая вкладка с «502» человеку ничего не говорит."""
+    from jobsearch import config, db, scoring
+    from conftest import job as образец
+
+    config.save_cv("резюме.txt", ("Виктор Лавров, фронтенд-инженер. " * 8).encode("utf-8"))
+    db.save_job(образец("k1"), run_id=1)
+    job_id = db.matched_jobs(min_score=0)[0]["id"]
+
+    def взорваться(*_a, **_kw):
+        raise RuntimeError("модель вернула прозу вместо JSON")
+
+    monkeypatch.setattr(scoring, "generate_cv", взорваться)
+    r = client.get(f"/cv/{job_id}")
+    assert r.status_code == 200, "человек получил голую ошибку вместо объяснения"
+    assert "JSON" in r.text or "модель" in r.text.lower()

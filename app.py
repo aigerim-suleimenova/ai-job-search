@@ -805,12 +805,50 @@ def models_pull_status():
     return JSONResponse(providers.pull_status())
 
 
+# Проверка CV зовёт модель и с локальной занимает минуты. Раньше это была
+# обычная ссылка: человек нажимал и сидел перед не меняющейся страницей, не
+# понимая, идёт что-нибудь или нет. Теперь работа уходит в фон, а страница
+# показывает ход и обновляется сама — как при разборе вакансии.
+_check_state: dict = {}      # «профиль» → что с проверкой сейчас
+
+
 @app.get("/cv/check")
-def cv_check(request: Request, run: int = 0):
+def cv_check(request: Request, msg: str = ""):
     cfg = config.load()
-    result = cvcheck.analyze(cfg) if run else cvcheck.last_result()
+    состояние = _check_state.get(profiles.active(), {})
     return render(request, "cvcheck.html",
-                  {"result": result, "cv": config.cv_meta()}, cfg=cfg)
+                  {"result": cvcheck.last_result(), "cv": config.cv_meta(), "msg": msg,
+                   "checking": bool(состояние.get("running")),
+                   "check_error": состояние.get("error", "")}, cfg=cfg)
+
+
+@app.post("/cv/check/run")
+def cv_check_run():
+    slug = profiles.active()
+    if _check_state.get(slug, {}).get("running"):
+        return RedirectResponse("/cv/check", status_code=303)
+    if not config.cv_text().strip():
+        return _redirect_to("/cv/check", _msg("cv_no_source"))
+    cfg = config.load()
+    _check_state[slug] = {"running": True, "error": ""}
+
+    def worker():
+        profiles.set_active(slug)
+        try:
+            cvcheck.analyze(cfg)
+            _check_state[slug] = {"running": False, "error": ""}
+        except Exception as e:  # noqa: BLE001 — причину показываем человеку, а не прячем
+            _check_state[slug] = {"running": False, "error": str(e)[:400]}
+
+    threading.Thread(target=worker, daemon=True).start()
+    return RedirectResponse("/cv/check", status_code=303)
+
+
+@app.get("/cv/check/status")
+def cv_check_status():
+    состояние = _check_state.get(profiles.active(), {})
+    return JSONResponse({"running": bool(состояние.get("running")),
+                         "error": состояние.get("error", "")})
 
 
 @app.post("/app_settings")
@@ -909,6 +947,7 @@ def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
 
 @app.get("/cv/{job_id}")
 def tailored_cv(job_id: int):
+    причина = ""          # текст неудачи, если модель не справилась
     job = db.get_job(job_id)
     if not job:
         return Response(content="Job not found", status_code=404)
@@ -926,11 +965,33 @@ def tailored_cv(job_id: int):
             return Response(content=f"<p style='font:15px -apple-system;padding:32px'>"
                                     f"{_msg('cv_no_source')}</p>",
                             media_type="text/html", status_code=200)
-        cv_data = scoring.generate_cv(job, cfg, source)
+        try:
+            cv_data = scoring.generate_cv(job, cfg, source)
+        except Exception as e:  # noqa: BLE001 — показать причину важнее, чем упасть
+            _log_startup_problem("подготовка CV под вакансию", traceback.format_exc())
+            cv_data = None
+            причина = str(e)[:400]
+        else:
+            причина = ""
         if cv_data:
             db.save_tailored_cv(job_id, json.dumps(cv_data, ensure_ascii=False))
     if not cv_data:
-        return Response(content="Could not generate CV — try again.", status_code=502)
+        # Пустая вкладка с «502» ничего не объясняет. Чаще всего сюда приводит
+        # небольшая локальная модель: документ она пишет прозой, а не строгим
+        # JSON, и разобрать его нечем.
+        подробности = ""
+        if причина:
+            подробности = ("<pre style='background:#f2f2f7;padding:12px;border-radius:8px;"
+                           "white-space:pre-wrap;font-size:12px'>" + причина + "</pre>")
+        страница = (
+            "<!doctype html><meta charset='utf-8'>"
+            "<body style='font:15px/1.55 -apple-system,sans-serif;padding:32px;max-width:38em'>"
+            f"<h2 style='margin:0 0 10px'>{_msg('cv_gen_failed_title')}</h2>"
+            f"<p style='color:#6e6e73'>{_msg('cv_gen_failed_hint')}</p>"
+            f"{подробности}</body>"
+        )
+        return Response(content=страница, media_type="text/html; charset=utf-8", status_code=200)
+
     html_doc = export_mod.cv_html(cv_data, job.get("title", ""), job.get("company", ""))
     return Response(content=html_doc, media_type="text/html; charset=utf-8")
 

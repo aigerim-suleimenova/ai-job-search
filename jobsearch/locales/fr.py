@@ -497,4 +497,8 @@ STRINGS = {
 "models_hidden_note": "{n} masqués : mémoire insuffisante",
 "person_rename_title": "Renommer cette personne",
 "person_rename_prompt": "Comment s'appelle cette personne ?",
+"cvcheck_running": "Vérification du CV… avec un modèle local cela prend quelques minutes",
+"cvcheck_failed": "La vérification a échoué : {error}",
+"cv_gen_failed_title": "Impossible de composer un CV pour cette offre",
+"cv_gen_failed_hint": "C'est en général un petit modèle local : il rédige le document en prose au lieu d'un JSON strict. Un modèle plus grand ou Claude Code y arrive — cela se change sur la page « Modèle ». Réessayer vaut aussi le coup.",
 }

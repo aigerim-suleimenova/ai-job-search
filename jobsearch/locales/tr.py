@@ -497,4 +497,8 @@ STRINGS = {
 "models_hidden_note": "{n} gizli: bellek yetersiz",
 "person_rename_title": "Bu kişiyi yeniden adlandır",
 "person_rename_prompt": "Bu kişinin adı ne?",
+"cvcheck_running": "CV kontrol ediliyor… yerel modelle bu birkaç dakika sürer",
+"cvcheck_failed": "Kontrol başarısız oldu: {error}",
+"cv_gen_failed_title": "Bu ilan için CV oluşturulamadı",
+"cv_gen_failed_hint": "Genelde küçük bir yerel model buna yol açar: belgeyi katı JSON yerine düz yazı olarak yazar. Daha büyük bir model ya da Claude Code bunu yapabilir — «Model» sayfasından değiştirebilirsiniz. Tekrar denemek de işe yarayabilir.",
 }

@@ -1,13 +1,25 @@
 {% set page_title = t('nav_cvcheck') %}{% include "_head.html" %}
 {% include "_header.html" %}
 
+{% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+
 <section class="card">
   <h2>{{ t('cvcheck_title') }}</h2>
   <p class="hint">{{ t('cvcheck_hint') }}</p>
-  <div class="row" style="margin-top:10px">
-    <a href="/cv/check?run=1"><button type="button" class="primary">{{ t('cvcheck_run') }}</button></a>
+  {# Проверка зовёт модель и идёт минуты. Кнопка отправляет форму, работа уходит
+     в фон, а здесь видно, что она идёт: раньше человек нажимал и ничего. #}
+  <div class="row" style="margin-top:10px" id="check-row" {% if checking %}data-running="1"{% endif %}>
+    <form method="post" action="/cv/check/run" style="margin:0" id="check-form">
+      <button class="primary" {% if checking %}disabled{% endif %}>{{ t('cvcheck_run') }}</button>
+    </form>
     <span class="hint">{{ cv.filename or t('cvcheck_no_cv') }}{% if cv.chars %} · {{ cv.chars }} {{ t('chars') }}{% endif %}</span>
   </div>
+  <p class="hint check-progress" id="check-progress" {% if not checking %}hidden{% endif %}>
+    <span class="live-dot"></span> {{ t('cvcheck_running') }}
+  </p>
+  {% if check_error %}
+  <p class="hint" style="color:var(--danger-text)">{{ t('cvcheck_failed').format(error=check_error) }}</p>
+  {% endif %}
 </section>
 
 {% if result and not result.error %}
@@ -98,6 +110,20 @@
 {% elif result.error %}
 <section class="card"><p>{{ t('cvcheck_no_cv') }}</p></section>
 {% endif %}
+<script>
+// Пока проверка идёт, спрашиваем состояние и перечитываем страницу, когда готово.
+(() => {
+  const row = document.getElementById('check-row');
+  if (!row || !row.dataset.running) return;
+  const timer = setInterval(async () => {
+    try {
+      const d = await (await fetch('/cv/check/status')).json();
+      if (!d.running) { clearInterval(timer); location.reload(); }
+    } catch (e) { /* сервер перезапускается — подождём */ }
+  }, 3000);
+})();
+</script>
+
 {% include "_footer.html" %}
 </body>
 </html>

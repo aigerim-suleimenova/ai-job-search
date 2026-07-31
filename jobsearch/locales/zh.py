@@ -497,4 +497,8 @@ STRINGS = {
 "models_hidden_note": "已隐藏 {n} 个：内存不足",
 "person_rename_title": "重命名此人",
 "person_rename_prompt": "这个人叫什么名字？",
+"cvcheck_running": "正在检查简历……使用本地模型需要几分钟",
+"cvcheck_failed": "检查失败：{error}",
+"cv_gen_failed_title": "无法为这个职位生成简历",
+"cv_gen_failed_hint": "通常是本地小模型所致：它把文档写成散文而不是严格的 JSON。更大的模型或 Claude Code 可以胜任——在「模型」页面切换。再试一次也值得。",
 }

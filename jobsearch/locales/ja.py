@@ -497,4 +497,8 @@ STRINGS = {
 "models_hidden_note": "{n} 件を非表示：メモリ不足",
 "person_rename_title": "この人の名前を変える",
 "person_rename_prompt": "この人の名前は？",
+"cvcheck_running": "履歴書を確認中… ローカルモデルでは数分かかります",
+"cvcheck_failed": "確認に失敗しました：{error}",
+"cv_gen_failed_title": "この求人向けの履歴書を作れませんでした",
+"cv_gen_failed_hint": "多くは小さなローカルモデルが原因です。厳密な JSON ではなく文章で書いてしまいます。大きめのモデルか Claude Code なら対応できます（「モデル」ページで変更）。もう一度試す価値もあります。",
 }
