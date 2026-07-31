@@ -128,7 +128,7 @@ def fetch(platform: str, slug: str, company_hint: str = "") -> list:
 
 
 def _get_json(url: str, **kw):
-    r = requests.get(url, headers=UA, timeout=TIMEOUT, **kw)
+    r = web.get(url, timeout=TIMEOUT, **kw)
     r.raise_for_status()
     return r.json()
 
@@ -232,7 +232,7 @@ def _recruitee(slug: str) -> list:
 
 
 def _personio(host: str) -> list:
-    r = requests.get(f"https://{host}/xml", headers=UA, timeout=TIMEOUT)
+    r = web.get(f"https://{host}/xml", timeout=TIMEOUT)
     r.raise_for_status()
     root = ET.fromstring(r.content)
     jobs = []

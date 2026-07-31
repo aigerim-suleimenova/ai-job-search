@@ -53,10 +53,10 @@ def _search_terms(cfg: dict) -> list:
 def remotive(cfg: dict, log) -> list:
     jobs = []
     try:
-        r = requests.get(
+        r = web.get(
             "https://remotive.com/api/remote-jobs",
             params={"limit": 200},
-            headers=UA, timeout=TIMEOUT,
+            timeout=TIMEOUT,
         )
         r.raise_for_status()
         for j in r.json().get("jobs", []):
@@ -79,7 +79,7 @@ def arbeitnow(cfg: dict, log) -> list:
     jobs, url = [], "https://www.arbeitnow.com/api/job-board-api"
     for _ in range(8):  # API не фильтрует — берём больше страниц, отбираем IT сами
         try:
-            r = requests.get(url, headers=UA, timeout=TIMEOUT)
+            r = web.get(url, timeout=TIMEOUT)
             r.raise_for_status()
             data = r.json()
         except requests.RequestException as e:
@@ -109,9 +109,9 @@ def wwr(cfg: dict, log) -> list:
     """WeWorkRemotely — RSS категории 'programming', реально предфильтрован под IT."""
     jobs = []
     try:
-        r = requests.get(
+        r = web.get(
             "https://weworkremotely.com/categories/remote-programming-jobs.rss",
-            headers=UA, timeout=TIMEOUT,
+            timeout=TIMEOUT,
         )
         r.raise_for_status()
         root = ET.fromstring(r.content)
@@ -139,17 +139,17 @@ def hn_hiring(cfg: dict, log) -> list:
     """Последний тред «Ask HN: Who is hiring?» — посты пишут сами компании."""
     jobs = []
     try:
-        r = requests.get(
+        r = web.get(
             "https://hn.algolia.com/api/v1/search_by_date",
             params={"tags": "story,author_whoishiring", "query": "who is hiring", "hitsPerPage": 5},
-            headers=UA, timeout=TIMEOUT,
+            timeout=TIMEOUT,
         )
         r.raise_for_status()
         hits = [h for h in r.json().get("hits", []) if "who is hiring" in (h.get("title") or "").lower()]
         if not hits:
             return []
         story_id = hits[0]["objectID"]
-        r = requests.get(f"https://hn.algolia.com/api/v1/items/{story_id}", headers=UA, timeout=60)
+        r = web.get(f"https://hn.algolia.com/api/v1/items/{story_id}", timeout=60)
         r.raise_for_status()
         for child in r.json().get("children", []):
             text = _strip_html(child.get("text") or "", limit=3000)
@@ -176,7 +176,7 @@ def remoteok(cfg: dict, log) -> list:
     """RemoteOK — общий фид ~100 свежих remote-вакансий (почти все IT)."""
     jobs = []
     try:
-        r = requests.get("https://remoteok.com/api", headers=UA, timeout=TIMEOUT)
+        r = web.get("https://remoteok.com/api", timeout=TIMEOUT)
         r.raise_for_status()
         for j in r.json()[1:]:  # нулевой элемент — legal notice, не вакансия
             if not j.get("position"):
@@ -203,8 +203,8 @@ def jobicy(cfg: dict, log) -> list:
     queries = [{}] + [{"tag": t} for t in _search_terms(cfg)[:2] if t]
     for q in queries:
         try:
-            r = requests.get("https://jobicy.com/api/v2/remote-jobs",
-                             params={"count": 50, **q}, headers=UA, timeout=TIMEOUT)
+            r = web.get("https://jobicy.com/api/v2/remote-jobs",
+                             params={"count": 50, **q}, timeout=TIMEOUT)
             r.raise_for_status()
             data = r.json()
         except (requests.RequestException, ValueError) as e:
@@ -234,9 +234,9 @@ def himalayas(cfg: dict, log) -> list:
     jobs = []
     for offset in range(0, 100, 20):
         try:
-            r = requests.get("https://himalayas.app/jobs/api",
+            r = web.get("https://himalayas.app/jobs/api",
                              params={"limit": 20, "offset": offset},
-                             headers=UA, timeout=TIMEOUT)
+                             timeout=TIMEOUT)
             r.raise_for_status()
             batch = r.json().get("jobs", [])
         except (requests.RequestException, ValueError) as e:
@@ -267,11 +267,11 @@ def themuse(cfg: dict, log) -> list:
     jobs = []
     for page in (1, 2):
         try:
-            r = requests.get(
+            r = web.get(
                 "https://www.themuse.com/api/public/jobs",
                 params={"page": page,
                         "category": ["Software Engineering", "IT", "Data Science"]},
-                headers=UA, timeout=TIMEOUT,
+            timeout=TIMEOUT,
             )
             r.raise_for_status()
             results = r.json().get("results", [])
@@ -303,7 +303,7 @@ def arbeitsagentur(cfg: dict, log) -> list:
         if not term:
             continue
         try:
-            r = requests.get(
+            r = web.get(
                 "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs",
                 params={"was": term, "size": 100, "angebotsart": 1},
                 headers={**UA, "X-API-Key": "jobboerse-jobsuche"}, timeout=TIMEOUT,
@@ -344,11 +344,11 @@ def adzuna(cfg: dict, log) -> list:
     what = " ".join(_search_terms(cfg))[:100]
     for cc in countries[:10]:
         try:
-            r = requests.get(
+            r = web.get(
                 f"https://api.adzuna.com/v1/api/jobs/{cc}/search/1",
                 params={"app_id": app_id, "app_key": app_key, "what": what,
                         "results_per_page": 50, "content-type": "application/json"},
-                headers=UA, timeout=TIMEOUT,
+            timeout=TIMEOUT,
             )
             r.raise_for_status()
             for j in r.json().get("results", []):
@@ -377,7 +377,7 @@ def jooble(cfg: dict, log) -> list:
             r = requests.post(
                 f"https://jooble.org/api/{key}",
                 json={"keywords": " ".join(_search_terms(cfg)), "location": loc},
-                headers=UA, timeout=TIMEOUT,
+            timeout=TIMEOUT,
             )
             r.raise_for_status()
             for j in r.json().get("jobs", []):
