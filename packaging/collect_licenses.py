@@ -11,6 +11,11 @@ MIT, BSD, Apache и почти все остальные разрешают ра
 import sys
 from pathlib import Path
 
+# Консоль Windows по умолчанию не в UTF-8, и кириллица в выводе роняет скрипт
+# кодировочной ошибкой — ровно так же, как это было в verify_build.py.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 try:
     import importlib.metadata as md
 except ImportError:                       # Python < 3.8, до нас не дойдёт
