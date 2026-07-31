@@ -63,6 +63,11 @@ def _robots_for(host: str, scheme: str = "https"):
         if r.status_code == 200 and len(r.text) < 500_000:
             parser = RobotFileParser()
             parser.parse(r.text.splitlines())
+            # crawl_delay() в стандартной библиотеке начинается с проверки
+            # mtime() и без неё всегда отдаёт None — отмечаем, что прочитали.
+            # Дробные задержки (Crawl-delay: 0.5) парсер игнорирует: он берёт
+            # только целые. Наша собственная пауза всё равно не даёт частить.
+            parser.modified()
             try:
                 delay = parser.crawl_delay(UA_STRING)
             except (AttributeError, ValueError):
