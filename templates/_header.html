@@ -6,7 +6,9 @@
   ('/coverage', 'nav_coverage'), ('/cv/check', 'nav_cvcheck'),
   ('/models', 'nav_models'), ('/notify', 'nav_notify')] %}
 <header>
-  <h1>AI Job Search</h1>
+  {# Версию должно быть видно в самой программе: человеку, у которого что-то
+     не работает, иначе нечего назвать, а нам — не о чем спрашивать. #}
+  <h1>AI Job Search <span class="app-version">{{ app_version }}</span></h1>
   <div class="toolbar-right">
     <form method="post" action="/profile/switch" class="profile-switch">
       <label>{{ t('person') }}

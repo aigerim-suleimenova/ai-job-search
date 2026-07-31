@@ -132,6 +132,11 @@ header > .toolbar-right {
   display: flex; align-items: center; gap: 8px; justify-self: end;
 }
 
+.app-version {
+  font-size: 11px; font-weight: 400; color: var(--faint);
+  vertical-align: 2px; margin-inline-start: 4px; font-variant-numeric: tabular-nums;
+}
+
 h1 {
   grid-area: title;
   font-size: 15px;

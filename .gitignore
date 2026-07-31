@@ -8,3 +8,4 @@ build/
 dist/
 *.spec.bak
 THIRD-PARTY-LICENSES.txt
+VERSION.txt

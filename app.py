@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from jobsearch import (appstate, autostart, config, coverage as coverage_check,
                        cvcheck, db, discovery, export as export_mod, hardware, i18n,
                        llm, mailer, notify, pipeline, profiles, providers, scheduler,
-                       scoring)
+                       scoring, version)
 
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="AI Job Search")
@@ -128,6 +128,7 @@ def render(request, template: str, ctx: dict, cfg: dict = None):
     lang = cfg_.get("ui", {}).get("lang", "ru")
     ctx = {**ctx, "provider_status": _provider_status(cfg_), "asset_v": _asset_version(),
            "lang": lang, "t": lambda key: i18n.t(lang, key), "theme": appstate.theme(),
+           "app_version": version.current(),
            "rtl": lang in i18n.RTL_LANGS,
            "ui_langs": i18n.UI_LANGS, "output_langs": i18n.OUTPUT_LANGS,
            "profiles": profiles.list_profiles(), "active_profile": profiles.active(),

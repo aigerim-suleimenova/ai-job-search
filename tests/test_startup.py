@@ -57,3 +57,23 @@ def test_все_шаги_падают_а_программа_живёт(profile, 
     журнал = (tmp_path / "errors.log").read_text(encoding="utf-8")
     for шаг in ("перенос профилей", "запуск расписания", "восстановление расписаний"):
         assert шаг in журнал, f"шаг «{шаг}» не отчитался о падении"
+
+
+def test_версия_видна_на_странице(profile, monkeypatch):
+    """Человеку, у которого что-то не работает, надо чем-то назвать свою сборку."""
+    from jobsearch import version
+    monkeypatch.setattr(version, "current", lambda: "9.9.9")
+    with TestClient(app_module.app) as client:
+        client.cookies.set("profile", profile)
+        html = client.get("/simple").text
+    assert "9.9.9" in html, "версия не показана в интерфейсе"
+
+
+def test_без_файла_версии_не_падает(profile):
+    """Запуск из исходников: файла нет, но страница обязана открыться."""
+    from jobsearch import version
+    version.current.cache_clear()
+    assert version.current()          # непустая строка, хоть «dev»
+    with TestClient(app_module.app) as client:
+        client.cookies.set("profile", profile)
+        assert client.get("/").status_code == 200

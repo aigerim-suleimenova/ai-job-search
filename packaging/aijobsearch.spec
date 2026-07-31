@@ -28,12 +28,17 @@ sys.path.insert(0, str(ROOT / "packaging"))
 import collect_licenses                                  # noqa: E402
 collect_licenses.main()
 
+# Номер версии внутрь сборки: без него программа не может назвать себя, а
+# человек, у которого что-то не работает, — сказать, что именно он запустил.
+(ROOT / "VERSION.txt").write_text(VERSION + "\n", encoding="utf-8")
+
 # Шаблоны и стили лежат рядом с кодом и читаются во время работы — кладём внутрь сборки.
 datas = [
     (str(ROOT / "templates"), "templates"),
     (str(ROOT / "static"), "static"),
     (str(ROOT / "LICENSE"), "."),
     (str(ROOT / "THIRD-PARTY-LICENSES.txt"), "."),
+    (str(ROOT / "VERSION.txt"), "."),
 ]
 
 # APScheduler и uvicorn грузят части динамически — PyInstaller их сам не находит.
