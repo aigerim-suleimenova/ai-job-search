@@ -765,6 +765,11 @@ TR = {
         "en": "Scored: {n}, {above} above the threshold. Deep analysis is off — these scores are preliminary; analyse a job with the button on its card.",
         "it": "Valutate: {n}, di cui {above} sopra soglia. L'analisi approfondita è disattivata — i punteggi sono provvisori; analizzate un'offerta col pulsante sulla sua scheda.",
         "de": "Bewertet: {n}, davon {above} über der Schwelle. Die Tiefenanalyse ist aus — die Punktzahlen sind vorläufig; einzelne Stellen analysieren Sie mit der Schaltfläche auf der Karte."},
+    "log_robots_skip": {
+        "ru": "{name}: сайт просит роботов не читать эту страницу (robots.txt) — пропускаем",
+        "en": "{name}: the site asks robots not to read this page (robots.txt) — skipping",
+        "it": "{name}: il sito chiede ai robot di non leggere questa pagina (robots.txt) — saltata",
+        "de": "{name}: Die Seite bittet Robots, sie nicht zu lesen (robots.txt) — übersprungen"},
     "log_deep_item": {
         "ru": "разбор {i}/{total}: {title} @ {company}{tail}",
         "en": "analysing {i}/{total}: {title} @ {company}{tail}",

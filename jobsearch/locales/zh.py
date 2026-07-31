@@ -493,4 +493,5 @@ STRINGS = {
 "log_triage_done_nodeep": "已评分：{n}，其中 {above} 个超过阈值。深度分析已关闭——这些分数只是初步的，可用卡片上的按钮单独分析。",
 "donate_short": "本应用免费 — 可以支持作者：",
 "theme_toggle": "浅色或深色外观",
+"log_robots_skip": "{name}：该网站通过 robots.txt 要求机器人不要读取此页面——已跳过",
 }

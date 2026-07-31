@@ -15,9 +15,9 @@ import xml.etree.ElementTree as ET
 
 import requests
 
-from . import iso_date
+from . import iso_date, web
 
-UA = {"User-Agent": "Mozilla/5.0 (Macintosh) ai-job-search/1.0"}
+UA = web.UA   # честное имя вместо маскировки под браузер
 TIMEOUT = 30
 
 # Arbeitnow — общая биржа по всем профессиям; отбираем IT-теги на своей стороне,

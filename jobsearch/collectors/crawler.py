@@ -9,7 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .. import config, i18n, llm
-from . import ats
+from . import ats, web
 
 
 
@@ -19,8 +19,7 @@ def _lk(log, key: str, **fmt) -> None:
     log(text.format(**fmt) if fmt else text)
 
 
-UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 ai-job-search/1.0"}
-TIMEOUT = 30
+TIMEOUT = web.TIMEOUT
 
 EXTRACT_PROMPT = """Ниже — текст и ссылки со страницы вакансий компании «{name}» ({url}).
 Извлеки список открытых вакансий. Верни ТОЛЬКО JSON-массив объектов вида
@@ -35,7 +34,9 @@ EXTRACT_PROMPT = """Ниже — текст и ссылки со страниц�
 
 
 def fetch_page(url: str):
-    r = requests.get(url, headers=UA, timeout=TIMEOUT)
+    r = web.get(url, respect_robots=True)
+    if r is None:
+        raise PermissionError("robots.txt")   # сайт просит роботов не ходить сюда
     r.raise_for_status()
     base_url = r.url  # сайты часто редиректят (смена домена/ребрендинг) —
     # относительные ссылки резолвим от итогового URL, а не от исходного
@@ -57,7 +58,7 @@ def fetch_job_text(url: str, limit: int = 6000) -> str:
     try:
         text, _ = fetch_page(url)
         return text[:limit]
-    except requests.RequestException:
+    except (requests.RequestException, PermissionError):
         return ""
 
 
@@ -83,7 +84,10 @@ def _find_board_link(page_url: str, links: list) -> str:
 
 def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
     try:
-        r = requests.get(url, headers=UA, timeout=TIMEOUT)
+        r = web.get(url, respect_robots=True)
+        if r is None:
+            _lk(log, "log_robots_skip", name=name)
+            return []
         r.raise_for_status()
         raw_html = r.text
         base_url = r.url  # см. комментарий в fetch_page — учитываем редиректы

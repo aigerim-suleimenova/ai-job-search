@@ -15,10 +15,19 @@ ROOT = Path(SPECPATH).parent
 SIGN_IDENTITY = os.environ.get("AIJS_CODESIGN_IDENTITY") or None
 ENTITLEMENTS = str(ROOT / "packaging" / "entitlements.plist") if SIGN_IDENTITY else None
 
+# Лицензии библиотек, которые уезжают внутрь: MIT, BSD и Apache разрешают
+# распространять свой код при условии, что их текст едет вместе с ним. Файл
+# собирается прямо здесь, чтобы он всегда соответствовал реальному составу сборки.
+sys.path.insert(0, str(ROOT / "packaging"))
+import collect_licenses                                  # noqa: E402
+collect_licenses.main()
+
 # Шаблоны и стили лежат рядом с кодом и читаются во время работы — кладём внутрь сборки.
 datas = [
     (str(ROOT / "templates"), "templates"),
     (str(ROOT / "static"), "static"),
+    (str(ROOT / "LICENSE"), "."),
+    (str(ROOT / "THIRD-PARTY-LICENSES.txt"), "."),
 ]
 
 # APScheduler и uvicorn грузят части динамически — PyInstaller их сам не находит.

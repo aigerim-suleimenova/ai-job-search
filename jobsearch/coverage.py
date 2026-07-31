@@ -9,9 +9,10 @@ from urllib.parse import urlparse
 import requests
 
 from . import config, i18n, llm
+from .collectors import web
 from .collectors import ats, crawler
 
-UA = {"User-Agent": "Mozilla/5.0 (Macintosh) ai-job-search/1.0"}
+UA = web.UA   # честное имя вместо маскировки под браузер
 TIMEOUT = 25
 
 FIND_URL_PROMPT = """Найди через веб-поиск официальную страницу вакансий (careers/jobs) компании «{name}».

@@ -493,4 +493,5 @@ STRINGS = {
 "log_triage_done_nodeep": "Puanlanan: {n}, bunların {above} tanesi eşiğin üzerinde. Derin inceleme kapalı — puanlar ön puandır; tek bir ilanı kartındaki düğmeyle inceleyebilirsiniz.",
 "donate_short": "Uygulama ücretsiz — yazarı destekleyebilirsiniz:",
 "theme_toggle": "Açık ya da koyu görünüm",
+"log_robots_skip": "{name}: site robotlardan bu sayfayı okumamalarını istiyor (robots.txt) — atlandı",
 }

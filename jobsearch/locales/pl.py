@@ -493,4 +493,5 @@ STRINGS = {
 "log_triage_done_nodeep": "Ocenione: {n}, w tym {above} powyżej progu. Głęboka analiza jest wyłączona — oceny są wstępne; pojedynczą ofertę rozbierzesz przyciskiem na jej karcie.",
 "donate_short": "Program jest bezpłatny — możesz wesprzeć autora:",
 "theme_toggle": "Wygląd jasny lub ciemny",
+"log_robots_skip": "{name}: witryna prosi roboty, by nie czytały tej strony (robots.txt) — pomijamy",
 }
