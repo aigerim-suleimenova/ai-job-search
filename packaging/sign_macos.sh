@@ -63,11 +63,22 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 # образа окажется приложение без штампа: пока у человека есть интернет, Gatekeeper
 # спросит Apple и пустит, а без сети — откажет. Поэтому две отправки: сначала
 # приложение (архивом — notarytool не принимает каталог), потом готовый образ.
+#
+# Доступ к нотаризации задаётся двумя способами. На своей машине удобнее профиль
+# в связке ключей (NOTARY_PROFILE). На сборочной машине связки нет и заводить её
+# ради одного запуска незачем — там же данные приходят переменными окружения.
+NOTARY_ARGS=()
 if [ -n "${NOTARY_PROFILE:-}" ]; then
+  NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")
+elif [ -n "${NOTARY_APPLE_ID:-}" ] && [ -n "${NOTARY_TEAM_ID:-}" ] && [ -n "${NOTARY_PASSWORD:-}" ]; then
+  NOTARY_ARGS=(--apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD")
+fi
+
+if [ ${#NOTARY_ARGS[@]} -gt 0 ]; then
   echo "→ Отправляем приложение на нотаризацию (несколько минут)"
   ZIP="$(mktemp -d)/app.zip"
   ditto -c -k --keepParent "$APP" "$ZIP"
-  xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+  xcrun notarytool submit "$ZIP" "${NOTARY_ARGS[@]}" --wait
   xcrun stapler staple "$APP"
   rm -rf "$(dirname "$ZIP")"
 fi
@@ -81,15 +92,15 @@ hdiutil create -volname "AI Job Search" -srcfolder "$STAGE" -ov -format UDZO "$D
 rm -rf "$STAGE"
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 
-if [ -n "${NOTARY_PROFILE:-}" ]; then
+if [ ${#NOTARY_ARGS[@]} -gt 0 ]; then
   echo "→ Отправляем образ на нотаризацию"
-  xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+  xcrun notarytool submit "$DMG" "${NOTARY_ARGS[@]}" --wait
   xcrun stapler staple "$DMG"
   echo "→ Нотаризовано: штамп и на приложении, и на образе"
 else
-  echo "→ Нотаризацию пропустили (не задан NOTARY_PROFILE)."
-  echo "  Профиль создаётся один раз:"
-  echo "  xcrun notarytool store-credentials aijobsearch --apple-id <email> --team-id <TEAMID> --password <app-specific-password>"
+  echo "→ Нотаризацию пропустили: нет ни NOTARY_PROFILE, ни NOTARY_APPLE_ID/TEAM_ID/PASSWORD."
+  echo "  Профиль на своей машине создаётся один раз:"
+  echo "  xcrun notarytool store-credentials aijobsearch"
 fi
 
 echo "Готово: $DMG"

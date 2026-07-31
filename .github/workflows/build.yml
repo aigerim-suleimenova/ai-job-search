@@ -53,14 +53,85 @@ jobs:
         run: python packaging/verify_build.py
         shell: bash
 
+      # Сертификат живёт в секретах репозитория: на раннере своей связки ключей
+      # нет, поэтому заводим временную, кладём ключ туда и удаляем её в конце.
+      # Без секретов (форк, чужой PR) шаг тихо пропускается — сборка всё равно
+      # соберётся, просто без подписи.
+      - name: Import signing certificate
+        if: runner.os == 'macOS'
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          if [ -z "$CERT_P12" ]; then
+            echo "Сертификата в секретах нет — сборка останется неподписанной."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # без этого codesign на каждый бинарник просил бы пароль, а спросить некого
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          # Молчаливый провал импорта — худший исход: сборка уедет в релиз без
+          # подписи, и узнают об этом пользователи. Лучше уронить сборку здесь.
+          if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+            echo "Сертификат импортировался, но Developer ID не виден — проверьте MACOS_CERT_P12 и пароль."
+            exit 1
+          fi
+
       - name: Package macOS disk image
         if: runner.os == 'macOS'
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
         run: |
-          stage="$(mktemp -d)"
-          cp -R "dist/AI Job Search.app" "$stage/"
-          ln -s /Applications "$stage/Applications"
-          hdiutil create -volname "AI Job Search" -srcfolder "$stage" \
-            -ov -format UDZO "dist/AI Job Search.dmg"
+          # Есть сертификат — подписываем и нотаризуем как положено; нет — просто
+          # собираем образ, как раньше, чтобы сборка не падала у посторонних.
+          if security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+            packaging/sign_macos.sh
+          else
+            stage="$(mktemp -d)"
+            cp -R "dist/AI Job Search.app" "$stage/"
+            ln -s /Applications "$stage/Applications"
+            hdiutil create -volname "AI Job Search" -srcfolder "$stage" \
+              -ov -format UDZO "dist/AI Job Search.dmg"
+          fi
+
+      # Подпись без проверки бесполезна: молча испортить её проще всего.
+      - name: Проверяем, что образ примет Gatekeeper
+        if: runner.os == 'macOS'
+        env:
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        run: |
+          if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+            echo "Сборка без подписи — проверять нечего."
+            exit 0
+          fi
+          codesign --verify --deep --strict "dist/AI Job Search.app"
+          if [ -n "$NOTARY_PASSWORD" ]; then
+            spctl -a -vvv -t exec "dist/AI Job Search.app"
+            spctl -a -vvv -t open --context context:primary-signature "dist/AI Job Search.dmg"
+            xcrun stapler validate "dist/AI Job Search.app"
+            xcrun stapler validate "dist/AI Job Search.dmg"
+          else
+            echo "Подписано, но не нотаризовано: нет данных для notarytool."
+          fi
+
+      # Временная связка не должна пережить сборку, даже если что-то упало выше.
+      - name: Remove signing keychain
+        if: always() && runner.os == 'macOS'
+        run: |
+          security list-keychain -d user -s login.keychain-db || true
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
       - name: Package Linux archive
         if: runner.os == 'Linux'
