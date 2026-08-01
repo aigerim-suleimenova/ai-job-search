@@ -618,4 +618,12 @@ STRINGS = {
 "prov_err_api_base_bad": "La dirección debe empezar por http:// o https://",
 "prov_err_api_unreachable": "El servicio no responde: {error}",
 "prov_err_api_not_json": "El servicio ha devuelto algo que no es JSON: {error}",
+"uninstall_title": "Desinstalar el programa",
+"uninstall_windows": "El programa se desinstala como cualquier otro: «Configuración» → «Aplicaciones». En la ventana de desinstalación le preguntará si borra también sus datos, y el inicio al entrar lo quita él solo.",
+"uninstall_manual": "En este sistema los programas se quitan a mano, y todo lo que este ha ido dejando a su alrededor se queda ahí: usted no puede encontrarlo por su cuenta, y solo el propio programa puede quitarlo — mientras siga instalado. Pulse el botón y borrará todo lo suyo menos a sí mismo. Esto es lo que le pertenece:",
+"uninstall_is_program": "el programa en sí",
+"uninstall_button": "Quitar todo menos el programa",
+"uninstall_confirm": "¿Borrar todos los datos y desactivar el inicio al entrar? No se puede deshacer. Después habrá que quitar el programa a mano.",
+"uninstall_ready": "Los datos están borrados y el inicio al entrar está desactivado. Solo queda el programa en sí: {path}",
+"uninstall_from_source": "la carpeta con el código fuente",
 }

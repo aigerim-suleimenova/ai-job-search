@@ -618,4 +618,12 @@ STRINGS = {
 "prov_err_api_base_bad": "Adres http:// ya da https:// ile başlamalı",
 "prov_err_api_unreachable": "Servis yanıt vermiyor: {error}",
 "prov_err_api_not_json": "Servis JSON dışında bir şey döndürdü: {error}",
+"uninstall_title": "Programı kaldırma",
+"uninstall_windows": "Program her zamanki gibi kaldırılır: «Ayarlar» → «Uygulamalar». Kaldırılırken verilerinizi de silsin mi diye sorar ve oturum açınca başlatma kaydını kendisi temizler.",
+"uninstall_manual": "Bu sistemde programlar elle kaldırılır ve bu programın kendi çevresinde kurduğu her şey geride kalır: bunları kendiniz bulamazsınız, yalnızca program temizleyebilir — hem de daha buradayken. Düğmeye basın, kendisi dışında kendine ait olan her şeyi kaldırsın. Ona ait olanlar şunlar:",
+"uninstall_is_program": "programın kendisi",
+"uninstall_button": "Programın kendisi dışında her şeyi kaldır",
+"uninstall_confirm": "Tüm veriler silinip oturum açınca başlatma kapatılsın mı? Geri alınamaz. Programın kendisini bundan sonra elle kaldırmanız gerekecek.",
+"uninstall_ready": "Veriler silindi, oturum açınca başlatma kapatıldı. Geriye programın kendisi kaldı: {path}",
+"uninstall_from_source": "kaynak kod klasörü",
 }

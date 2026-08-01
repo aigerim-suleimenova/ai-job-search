@@ -1685,6 +1685,40 @@ TR = {
         "en": "This model runs on a server — there is nothing to download, just pick the one you want.",
         "it": "Questo modello lavora su un server — non c'è nulla da scaricare, scelga semplicemente quello che preferisce.",
         "de": "Dieses Modell läuft auf einem Server — es gibt nichts herunterzuladen, wählen Sie einfach eines aus."},
+    # Удаление самой программы. На macOS и Linux его нет вовсе: образ
+    # перетаскивают в корзину, и данные с автозапуском остаются навсегда —
+    # убрать их может только сама программа, до того как её удалят.
+    "uninstall_title": {"ru": "Удаление программы", "en": "Removing the program",
+                        "it": "Disinstallare il programma", "de": "Programm entfernen"},
+    "uninstall_windows": {
+        "ru": "Программа удаляется как обычно: «Параметры» → «Приложения». В окне удаления она спросит, удалять ли заодно ваши данные, и уберёт за собой автозапуск.",
+        "en": "The program is removed the usual way: Settings → Apps. On the way out it asks whether to take your data too, and clears up its start-at-login entry itself.",
+        "it": "Il programma si disinstalla come al solito: «Impostazioni» → «App». Uscendo chiede se eliminare anche i suoi dati e rimuove da sé l'avvio automatico.",
+        "de": "Das Programm wird wie üblich entfernt: „Einstellungen“ → „Apps“. Dabei fragt es, ob Ihre Daten mitgehen sollen, und räumt den Autostart selbst weg."},
+    "uninstall_manual": {
+        "ru": "На этой системе программы удаляют вручную, и всё, что она завела вокруг себя, остаётся: найти это самому нельзя, а убрать может только она сама — пока не удалена. Нажмите кнопку, и она уберёт за собой всё, кроме себя. Вот что её касается:",
+        "en": "On this system programs are removed by hand, and everything this one set up around itself stays behind: you cannot find it yourself, and only the program can clear it — while it is still here. Press the button and it will remove everything of its own except itself. This is what belongs to it:",
+        "it": "Su questo sistema i programmi si rimuovono a mano, e tutto ciò che questo ha creato attorno a sé resta: da soli non lo si trova, e solo il programma può toglierlo — finché è qui. Prema il pulsante e rimuoverà tutto il suo, tranne sé stesso. Ecco che cosa gli appartiene:",
+        "de": "Auf diesem System werden Programme von Hand entfernt, und alles, was dieses um sich herum angelegt hat, bleibt zurück: Sie finden es nicht selbst, und nur das Programm kann es beseitigen — solange es noch da ist. Klicken Sie, und es räumt alles Eigene weg außer sich selbst. Das gehört dazu:"},
+    "uninstall_is_program": {"ru": "сама программа", "en": "the program itself",
+                             "it": "il programma stesso", "de": "das Programm selbst"},
+    "uninstall_button": {"ru": "Убрать всё, кроме самой программы",
+                         "en": "Remove everything except the program",
+                         "it": "Rimuovi tutto tranne il programma",
+                         "de": "Alles außer dem Programm entfernen"},
+    "uninstall_confirm": {
+        "ru": "Стереть все данные и выключить автозапуск? Отменить нельзя. Саму программу после этого нужно будет удалить вручную.",
+        "en": "Erase all data and switch off start-at-login? This cannot be undone. The program itself will then have to be removed by hand.",
+        "it": "Cancellare tutti i dati e disattivare l'avvio automatico? Non è possibile annullare. Il programma stesso andrà poi rimosso a mano.",
+        "de": "Alle Daten löschen und den Autostart abschalten? Das lässt sich nicht rückgängig machen. Das Programm selbst muss danach von Hand entfernt werden."},
+    "uninstall_ready": {
+        "ru": "Данные удалены, автозапуск выключен. Осталось убрать саму программу: {path}",
+        "en": "The data is gone and start-at-login is off. What remains is the program itself: {path}",
+        "it": "I dati sono stati cancellati e l'avvio automatico è disattivato. Resta il programma stesso: {path}",
+        "de": "Die Daten sind weg und der Autostart ist aus. Übrig bleibt das Programm selbst: {path}"},
+    "uninstall_from_source": {
+        "ru": "папка с исходниками", "en": "the folder with the sources",
+        "it": "la cartella con i sorgenti", "de": "der Ordner mit den Quellen"},
     "model_auto_generic": {"ru": "Авто (как настроено в программе)",
                            "en": "Auto (as the program is set up)",
                            "it": "Auto (come impostato nel programma)",

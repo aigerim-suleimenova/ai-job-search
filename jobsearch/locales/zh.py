@@ -618,4 +618,12 @@ STRINGS = {
 "prov_err_api_base_bad": "地址必须以 http:// 或 https:// 开头",
 "prov_err_api_unreachable": "服务没有回应：{error}",
 "prov_err_api_not_json": "服务返回的不是 JSON：{error}",
+"uninstall_title": "卸载程序",
+"uninstall_windows": "程序按平常的方式卸载：「设置」→「应用」。卸载时它会问要不要把你的数据一并删掉，登录时自动启动那一项，它自己会清理干净。",
+"uninstall_manual": "在这个系统上，程序要手动删除，而它在自己周围建起来的东西都会留下：你自己找不到它们，能清理的只有程序本身——趁它还在。按下按钮，它就会把属于自己的一切都清理掉，只留下自己。归它管的是这些：",
+"uninstall_is_program": "程序本身",
+"uninstall_button": "清除程序本身以外的一切",
+"uninstall_confirm": "清除全部数据并关闭登录时自动启动？此操作无法撤销。之后还要你自己动手删掉程序本身。",
+"uninstall_ready": "数据已清除，登录时自动启动已关闭。剩下的只有程序本身：{path}",
+"uninstall_from_source": "源代码文件夹",
 }

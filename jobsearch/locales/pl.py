@@ -618,4 +618,12 @@ STRINGS = {
 "prov_err_api_base_bad": "Adres musi zaczynać się od http:// lub https://",
 "prov_err_api_unreachable": "Usługa nie odpowiada: {error}",
 "prov_err_api_not_json": "Usługa zwróciła coś innego niż JSON: {error}",
+"uninstall_title": "Usuwanie programu",
+"uninstall_windows": "Program odinstalowuje się jak każdy inny: „Ustawienia” → „Aplikacje”. Przy odinstalowaniu zapyta, czy skasować przy okazji twoje dane, i sam wyłączy uruchamianie po zalogowaniu.",
+"uninstall_manual": "W tym systemie programy usuwa się ręcznie, a wszystko, co ten założył wokół siebie, zostaje: sam tego nie znajdziesz, a usunąć może to tylko on — dopóki jeszcze tu jest. Naciśnij przycisk, a posprząta po sobie wszystko poza sobą samym. Oto, co do niego należy:",
+"uninstall_is_program": "sam program",
+"uninstall_button": "Usuń wszystko poza samym programem",
+"uninstall_confirm": "Skasować wszystkie dane i wyłączyć uruchamianie po zalogowaniu? Tego nie da się cofnąć. Sam program trzeba będzie potem usunąć ręcznie.",
+"uninstall_ready": "Dane usunięte, uruchamianie po zalogowaniu wyłączone. Został sam program: {path}",
+"uninstall_from_source": "folder ze źródłami",
 }

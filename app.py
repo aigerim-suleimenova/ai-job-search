@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 from jobsearch import (appstate, autostart, config, coverage as coverage_check,
                        cvcheck, db, discovery, export as export_mod, hardware, i18n,
-                       llm, mailer, notify, pipeline, profiles, providers, scheduler,
+                       llm, mailer, notify, pipeline, profiles, providers, removal, scheduler,
                        scoring, update as update_mod, version)
 
 BASE = Path(__file__).resolve().parent
@@ -224,7 +224,12 @@ def render(request, template: str, ctx: dict, cfg: dict = None):
            "rtl": lang in i18n.RTL_LANGS,
            "ui_langs": i18n.UI_LANGS, "output_langs": i18n.OUTPUT_LANGS,
            "profiles": profiles.list_profiles(), "active_profile": profiles.active(),
-           "active_name": profiles.name_of(profiles.active())}
+           "active_name": profiles.name_of(profiles.active()),
+           # Где удаления нет (macOS, Linux), программа должна объяснить, что
+           # останется после неё, — сама она об этом сказать больше некому.
+           "removal": {"has_uninstaller": removal.has_uninstaller(),
+                       "program": removal.program_path(),
+                       "leftovers": removal.leftovers()}}
     return templates.TemplateResponse(request, template, ctx)
 
 
@@ -1109,6 +1114,42 @@ def app_update_install():
 @app.get("/app/update/status")
 def app_update_status():
     return JSONResponse(dict(_update_state))
+
+
+@app.post("/app/uninstall")
+def app_uninstall():
+    """Готовит программу к удалению там, где удалять её нечем.
+
+    На Windows этим занимается установщик. На macOS и Linux образ просто
+    перетаскивают в корзину — и данные с автозапуском остаются навсегда, потому
+    что убрать их может только сама программа, до того как её удалят. О чём
+    никто не догадывается.
+
+    Поэтому здесь: выключаем автозапуск, стираем данные и показываем, что
+    осталось убрать руками. Закрываться сама программа не спешит — иначе
+    человек не успеет прочитать, что ему делать дальше.
+    """
+    if pipeline.state["running"]:
+        return _redirect(_msg("msg_reset_busy"))
+    lang = _lang()
+    autostart.set_enabled(False)
+    survived = profiles.wipe_all()
+    db.forget_databases()
+    providers.forget_binaries()
+    profiles.ensure_migrated()
+    profiles.set_active(profiles.default_slug())
+    try:
+        scheduler.reschedule_all()
+    except Exception:  # noqa: BLE001
+        _log_startup_problem("восстановление расписаний", traceback.format_exc())
+    # Путь — прямо в сообщении: отдельная страница «а теперь удалите вот это»
+    # потерялась бы, а закрыть программу за человека нельзя, пока он не прочёл.
+    where = removal.program_path() or i18n.t(lang, "uninstall_from_source")
+    msg = i18n.t(lang, "msg_reset_failed").format(files=", ".join(survived)) if survived \
+        else i18n.t(lang, "uninstall_ready").format(path=where)
+    response = _redirect_to("/welcome", msg)
+    response.delete_cookie("profile")
+    return response
 
 
 @app.post("/app/reset")

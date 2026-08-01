@@ -618,4 +618,12 @@ STRINGS = {
 "prov_err_api_base_bad": "L'adresse doit commencer par http:// ou https://",
 "prov_err_api_unreachable": "Le service ne répond pas : {error}",
 "prov_err_api_not_json": "Le service a renvoyé autre chose que du JSON : {error}",
+"uninstall_title": "Désinstaller le programme",
+"uninstall_windows": "Le programme se désinstalle comme les autres : « Paramètres » → « Applications ». Dans la fenêtre de désinstallation, il demande s'il faut effacer aussi vos données, et il enlève lui-même le lancement à l'ouverture de session.",
+"uninstall_manual": "Sur ce système, les programmes s'enlèvent à la main, et tout ce que celui-ci a mis en place autour de lui reste sur l'ordinateur : vous ne pouvez pas le trouver vous-même, et seul le programme peut l'enlever — tant qu'il est encore là. Appuyez sur le bouton et il enlèvera tout ce qui lui appartient, sauf lui-même. Voici ce qui le concerne :",
+"uninstall_is_program": "le programme lui-même",
+"uninstall_button": "Tout enlever sauf le programme",
+"uninstall_confirm": "Effacer toutes les données et désactiver le lancement à l’ouverture de session ? Impossible de revenir en arrière. Le programme lui-même devra ensuite être enlevé à la main.",
+"uninstall_ready": "Les données sont effacées et le lancement à l'ouverture de session est désactivé. Il ne reste que le programme lui-même : {path}",
+"uninstall_from_source": "le dossier des sources",
 }

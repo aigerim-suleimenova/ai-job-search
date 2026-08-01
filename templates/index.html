@@ -383,6 +383,30 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
   </form>
 </section>
 
+{# Удаление самой программы.
+   На Windows это делает установщик — там достаточно сказать, где его искать.
+   На macOS и Linux установщика нет вовсе: образ перетаскивают в корзину, и
+   данные с автозапуском остаются навсегда. Убрать их может только сама
+   программа — до того, как её удалят, о чём никто не догадывается. Поэтому
+   здесь она называет всё поимённо и предлагает убрать за собой сама. #}
+<section class="card" id="uninstall">
+  <h2>{{ t('uninstall_title') }}</h2>
+  {% if removal.has_uninstaller %}
+  <p class="hint">{{ t('uninstall_windows') }}</p>
+  {% else %}
+  <p class="hint">{{ t('uninstall_manual') }}</p>
+  <ul class="hint" style="margin:10px 0 0">
+    {% if removal.program %}<li><code>{{ removal.program }}</code> — {{ t('uninstall_is_program') }}</li>{% endif %}
+    {% for path in removal.leftovers %}<li><code>{{ path }}</code></li>{% endfor %}
+  </ul>
+  <form method="post" action="/app/uninstall" style="margin-top:14px"
+        data-confirm="{{ t('uninstall_confirm') }}"
+        onsubmit="return confirm(this.dataset.confirm)">
+    <button class="danger">{{ t('uninstall_button') }}</button>
+  </form>
+  {% endif %}
+</section>
+
 <script>
 // Скачивание установщика — это десятки мегабайт. Без счётчика человек видит
 // нажатую кнопку и ничего больше, и не знает, идёт ли что-нибудь вообще.
