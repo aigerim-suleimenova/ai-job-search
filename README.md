@@ -29,16 +29,18 @@ elsewhere and wait until they are needed.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/quick-search-dark.png">
-  <img src="docs/img/quick-search.png" alt="The quick search page: who we are searching for, where to search, the CV file and a 'Start search' button." width="900">
+  <img src="docs/img/quick-search.png" alt="The quick search page: who we are searching for, where to search, the CV file, an optional date range and a 'Start search' button." width="900">
 </picture>
 
 The thinking is done not by the program but by a model of your choice: Claude
-Code, Cursor CLI or a local one through Ollama. The program shows which of them
-are already installed and whether your machine has enough memory.
+Code, Cursor, Codex, GitHub Copilot, Goose or Qwen, a local one through Ollama,
+or any service that speaks the OpenAI protocol — OpenRouter, LM Studio, your own
+server. The program shows which of them are already installed, which can search
+the web, and whether your machine has enough memory for a local model.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/models-dark.png">
-  <img src="docs/img/models.png" alt="The model selection page: three provider cards with installation and web-search markers, and a line about the computer's memory." width="900">
+  <img src="docs/img/models.png" alt="The model selection page: eight provider cards with installation and web-search markers, and a line about the computer's memory." width="900">
 </picture>
 
 The screenshots were taken on an invented profile: the people, companies and
