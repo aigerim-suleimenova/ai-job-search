@@ -737,11 +737,23 @@ def _without_key(text: str, key: str) -> str:
     return text.replace(key, "***") if key else text
 
 
-def call_ollama(prompt: str, model: str, timeout: int) -> str:
+def call_ollama(prompt: str, model: str, timeout: int, schema: dict = None) -> str:
+    """Запрос к местной модели.
+
+    schema — описание ответа. Ollama умеет держать вывод в его рамках, и для
+    малой модели это не роскошь: она сплошь и рядом отвечает связным текстом без
+    нужного поля, а разбирать нам нечего. Со схемой поле есть всегда.
+
+    temperature 0 — потому что здесь не сочиняют, а оценивают: один и тот же
+    вопрос должен давать один и тот же ответ. num_ctx задаётся явно: у Ollama
+    своё окно по умолчанию, и оно меньше того, что держит сама модель.
+    """
+    тело = {"model": model, "prompt": prompt, "stream": False,
+            "options": {"temperature": 0, "num_ctx": 8192}}
+    if schema:
+        тело["format"] = schema
     try:
-        r = requests.post(f"{OLLAMA_URL}/api/generate",
-                          json={"model": model, "prompt": prompt, "stream": False},
-                          timeout=timeout)
+        r = requests.post(f"{OLLAMA_URL}/api/generate", json=тело, timeout=timeout)
         r.raise_for_status()
         return str(r.json().get("response", "")).strip()
     except requests.RequestException as e:
@@ -751,11 +763,16 @@ def call_ollama(prompt: str, model: str, timeout: int) -> str:
 
 
 def call(prompt: str, provider: str, model: str, timeout: int = 600,
-         allowed_tools=None, claude_bin: str = "claude", llm: dict = None) -> str:
+         allowed_tools=None, claude_bin: str = "claude", llm: dict = None,
+         schema: dict = None) -> str:
     """The single place a model is called. allowed_tools matters only to Claude Code CLI.
 
     llm — весь блок настроек модели. Нужен своему адресу: у него, в отличие от
     командных строк, кроме имени модели есть ещё адрес и ключ.
+
+    schema — описание ожидаемого ответа. Понимает его пока только Ollama, и
+    именно ей оно и нужнее всех: малая модель без него теряет поля. Остальным
+    передавать нечего, и это не потеря — облачные модели держат формат сами.
     """
     if provider == "cursor_cli":
         return call_cursor(prompt, model, timeout)
@@ -770,7 +787,7 @@ def call(prompt: str, provider: str, model: str, timeout: int = 600,
     if provider == "openai_api":
         return call_openai_api(prompt, llm or {}, timeout)
     if provider == "ollama":
-        return call_ollama(prompt, model, timeout)
+        return call_ollama(prompt, model, timeout, schema=schema)
     return call_claude(prompt, model, timeout, allowed_tools, claude_bin)
 
 
