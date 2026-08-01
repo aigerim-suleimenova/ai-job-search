@@ -218,3 +218,40 @@ def test_ollama_получает_окно_и_нулевую_температур
     assert поймано["options"]["temperature"] == 0
     assert поймано["options"]["num_ctx"] >= 8192
     assert поймано["format"] == {"type": "object"}
+
+
+def test_примеры_строятся_из_профессии_кандидата(profile):
+    """Общие примеры не работают, и это измерено: на пятнадцати настоящих
+    вакансиях примеры про бухгалтера дали ровно столько же, сколько их
+    отсутствие, — шесть верных из пятнадцати. Примеры про профессию кандидата —
+    десять, и ни одна чужая вакансия не поднялась выше 50, то есть до порога в
+    70 не дошла ни одна."""
+    from jobsearch import config, scoring
+    cfg = config.load()
+    cfg["profile"]["roles"] = "SAP Integration Consultant, Integration Architect"
+
+    блок = scoring._examples_block(cfg)
+
+    assert "SAP Integration Consultant" in блок, "пример «своя» не про кандидата"
+    assert "своя" in блок and "чужая" in блок and "смежная" in блок
+
+
+def test_пример_чужой_профессии_не_совпадает_со_своей(profile):
+    """Иначе образец «вот это чужое» показывал бы кандидату его же профессию."""
+    from jobsearch import config, scoring
+    cfg = config.load()
+    for роль in ("Frontend-разработчик", "Бухгалтер", "Повар", "Медицинская сестра"):
+        cfg["profile"]["roles"] = роль
+        блок = scoring._examples_block(cfg)
+        строки = [s for s in блок.splitlines() if "чужая" in s]
+        assert строки, роль
+        assert роль.split("-")[0].lower() not in строки[0].lower(), \
+            f"{роль}: своя профессия названа чужой"
+
+
+def test_без_ролей_примеров_нет(profile):
+    """Выдуманная роль увела бы оценку сильнее, чем отсутствие примера."""
+    from jobsearch import config, scoring
+    cfg = config.load()
+    cfg["profile"]["roles"] = ""
+    assert scoring._examples_block(cfg) == ""
