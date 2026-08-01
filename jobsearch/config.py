@@ -6,6 +6,7 @@ is how one server serves several people.
 """
 import copy
 import json
+import os
 import threading
 
 from . import profiles
@@ -189,9 +190,32 @@ def load() -> dict:
     return cfg
 
 
+def _only_owner(path) -> None:
+    """Сужает права на файл до владельца.
+
+    В config.json лежат токен Telegram, пароль от почты и ключи от моделей, а
+    записывался он с обычными правами — на общей машине его читал любой другой
+    вход. Особенно это заметно на Linux: домашняя папка там сплошь и рядом
+    открыта на чтение всем.
+
+    На Windows os.chmod умеет только снимать и возвращать «только чтение», а
+    списками доступа не занимается, и притвориться, будто он тут что-то закрыл,
+    было бы враньём. Права там наследуются от папки профиля, куда чужой вход и
+    так не заходит.
+    """
+    if os.name == "nt":
+        return
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass  # чужая файловая система может не уметь прав — это не повод падать
+
+
 def save(cfg: dict) -> None:
     with _lock:
-        config_path().write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+        path = config_path()
+        path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+        _only_owner(path)
 
 
 def cv_text() -> str:
@@ -211,12 +235,37 @@ def cv_meta() -> dict:
     return {}
 
 
+# CV на сто мегабайт текста не бывает. Предел щедрый нарочно: смысл не в том,
+# чтобы отсечь длинное резюме, а в том, чтобы отсечь файл, который в архиве
+# весит килобайт, а разворачивается в гигабайты.
+MAX_DOCX_XML = 100 * 1024 * 1024
+
+
 def _docx_text(path) -> str:
-    """Pulls the text out of a .docx with no outside dependencies (docx = a zip of XML)."""
+    """Pulls the text out of a .docx with no outside dependencies (docx = a zip of XML).
+
+    С оглядкой на размер после распаковки. Раньше содержимое читалось целиком и
+    сразу: файл в несколько килобайт мог развернуться в гигабайты и увести
+    программу в своп вместе со всем, что она в это время делала. Приходит он,
+    между прочим, из формы загрузки CV — то есть от кого угодно, кто дотянулся
+    до окна.
+    """
     import re
     import zipfile
-    with zipfile.ZipFile(path) as z:
-        xml = z.read("word/document.xml").decode("utf-8", errors="ignore")
+    with zipfile.ZipFile(path) as архив:
+        # Сперва по описи, не читая: разжать, чтобы узнать, что разжимать не
+        # стоило, — значит не проверить ничего.
+        if архив.getinfo("word/document.xml").file_size > MAX_DOCX_XML:
+            raise CVError("cv_err_docx")
+        with архив.open("word/document.xml") as f:
+            # И всё равно с ограничением. Соврать в описи, чтобы проскочить,
+            # нельзя и без этого: zipfile сам держит распаковку в объявленных
+            # рамках и ловит расхождение по контрольной сумме. Но тогда предел
+            # держим не мы, а он, и молча — а здесь он записан.
+            сырьё = f.read(MAX_DOCX_XML + 1)
+        if len(сырьё) > MAX_DOCX_XML:
+            raise CVError("cv_err_docx")
+        xml = сырьё.decode("utf-8", errors="ignore")
     xml = re.sub(r"</w:p>", "\n", xml)          # end of paragraph → newline
     xml = re.sub(r"<w:tab/>", "\t", xml)
     text = re.sub(r"<[^>]+>", "", xml)          # strip the tags

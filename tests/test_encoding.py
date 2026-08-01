@@ -18,6 +18,10 @@ import pytest
 ТЕКСТОВЫЕ = {"read_text", "write_text", "open"}
 # …but open() is not only a file thing: webbrowser.open opens a browser
 НЕ_ФАЙЛЫ = {"webbrowser", "os", "subprocess", "urllib", "request"}
+# А ZipFile.open отдаёт байты и параметра encoding не имеет вовсе: требовать его
+# там — требовать невозможного. Разбирается по имени получателя, потому что типов
+# в дереве разбора нет; отсюда и уговор называть архив архивом.
+ДВОИЧНЫЕ = {"архив", "zip", "archive"}
 
 
 def исходники():
@@ -46,7 +50,7 @@ def нарушения(путь: Path):
             continue
         if isinstance(node.func, ast.Attribute):
             получатель = getattr(node.func.value, "id", "")
-            if получатель in НЕ_ФАЙЛЫ:
+            if получатель in НЕ_ФАЙЛЫ or получатель in ДВОИЧНЫЕ:
                 continue
         if двоичный_режим(node):
             continue

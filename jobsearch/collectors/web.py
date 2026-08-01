@@ -13,9 +13,11 @@ Documented APIs (Greenhouse, Lever, Adzuna and the rest) exist precisely so that
 programs will call them — robots.txt does not concern them, but they get the
 pause and the honest name along with everyone else.
 """
+import ipaddress
+import socket
 import threading
 import time
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
 import requests
@@ -36,6 +38,51 @@ _robots: dict = {}       # host → (parser | None, the delay from robots.txt)
 
 def _host(url: str) -> str:
     return urlparse(url).netloc.lower()
+
+
+class Refused(requests.RequestException):
+    """Адрес, по которому мы не пойдём."""
+
+
+MAX_HOPS = 5
+
+
+def check(url: str) -> None:
+    """Пускать ли нас по этому адресу вообще.
+
+    Ходим мы не только туда, куда человек попросил. Работодатели попадают в
+    список по ссылкам внутри уже собранных вакансий, а вакансии эти пишет кто
+    угодно. Ссылка на http://127.0.0.1:11434 или на 169.254.169.254 — это
+    просьба сходить внутрь машины, где стоит программа, и принести оттуда то,
+    до чего снаружи не дотянуться: ответ локальной Ollama, ключи облачной
+    учётки. Программа это делала, потому что ходила по любому адресу.
+
+    Схемы, кроме http и https, отсекаются заодно: file:// и подавно не для
+    сбора вакансий.
+
+    Чего это не закрывает: имя можно перерешить между нашей проверкой и самим
+    запросом — мы спрашиваем адрес у DNS, а requests потом спрашивает ещё раз.
+    Закрыть щель до конца можно, только приколотив найденный адрес к соединению;
+    пока не приколочено, и писать, будто закрыто, нельзя.
+    """
+    parts = urlparse(url)
+    if parts.scheme not in ("http", "https"):
+        raise Refused(f"схема {parts.scheme or '—'} не для сбора вакансий")
+    host = parts.hostname
+    if not host:
+        raise Refused("в адресе нет хоста")
+    try:
+        адреса = socket.getaddrinfo(host, parts.port or (443 if parts.scheme == "https" else 80),
+                                    proto=socket.IPPROTO_TCP)
+    except socket.gaierror as e:
+        raise Refused(f"имя {host} не нашлось") from e
+    for *_, sockaddr in адреса:
+        ip = ipaddress.ip_address(sockaddr[0])
+        # is_global разом отсекает петлю, частные сети, link-local (а с ним и
+        # 169.254.169.254, откуда облака отдают ключи), зарезервированное и
+        # многоадресное. Перечислять диапазоны руками значило бы однажды забыть один.
+        if not ip.is_global:
+            raise Refused(f"{host} ведёт внутрь машины или сети ({ip})")
 
 
 def _wait_turn(host: str, delay: float) -> None:
@@ -59,7 +106,11 @@ def _robots_for(host: str, scheme: str = "https"):
     parser = None
     delay = None
     try:
-        r = requests.get(f"{scheme}://{host}/robots.txt", headers=UA, timeout=ROBOTS_TIMEOUT)
+        # robots.txt берётся у того же хоста и той же проверкой: спросить «а можно
+        # к вам?» у 127.0.0.1 — это уже сходить к 127.0.0.1.
+        адрес = f"{scheme}://{host}/robots.txt"
+        check(адрес)
+        r = requests.get(адрес, headers=UA, timeout=ROBOTS_TIMEOUT)
         if r.status_code == 200 and len(r.text) < 500_000:
             parser = RobotFileParser()
             parser.parse(r.text.splitlines())
@@ -95,11 +146,26 @@ def allowed(url: str) -> bool:
 
 def get(url: str, *, respect_robots: bool = False, **kw):
     """A GET with the pause and the honest name. respect_robots=True is for ordinary
-    sites; when forbidden it returns None rather than raising."""
+    sites; when forbidden it returns None rather than raising.
+
+    Переходы ведём сами, по одному. Иначе проверка адреса стоила бы ровно
+    ничего: сайт отвечает «идите на http://127.0.0.1», requests послушно идёт, и
+    первый — единственный проверенный — адрес оказывается ни при чём.
+    """
     if respect_robots and not allowed(url):
         return None
-    host = _host(url)
-    _, robots_delay = _robots.get(host, (None, None))
-    _wait_turn(host, max(DELAY, float(robots_delay or 0)))
+    kw.pop("allow_redirects", None)
     headers = {**UA, **kw.pop("headers", {})}
-    return requests.get(url, headers=headers, timeout=kw.pop("timeout", TIMEOUT), **kw)
+    timeout = kw.pop("timeout", TIMEOUT)
+    for _ in range(MAX_HOPS + 1):
+        check(url)
+        host = _host(url)
+        _, robots_delay = _robots.get(host, (None, None))
+        _wait_turn(host, max(DELAY, float(robots_delay or 0)))
+        r = requests.get(url, headers=headers, timeout=timeout, allow_redirects=False, **kw)
+        куда = r.headers.get("location", "")
+        if r.status_code not in (301, 302, 303, 307, 308) or not куда:
+            return r
+        r.close()          # тело перехода нам не нужно, а соединение освободить надо
+        url = urljoin(url, куда)
+    raise Refused(f"переходов больше {MAX_HOPS} — похоже на кольцо")

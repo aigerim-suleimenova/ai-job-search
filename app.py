@@ -1,4 +1,5 @@
 """Web interface: the settings page, the results, starting a search."""
+import html
 import json
 import os
 import re
@@ -288,9 +289,31 @@ def _redirect(msg: str = "") -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
 
 
+def _here(path: str, default: str = "/") -> str:
+    """Адрес внутри этой программы — или главная, если подсунули чужой.
+
+    Куда вернуть человека после действия, приходит со страницы, полем back.
+    Проверялось оно только на «а показывается ли ещё эта страница», и в него
+    можно было положить https://чужой-сайт: программа отвечала переходом туда.
+    Своё окно человек считает своей программой и на чужой странице, открытой из
+    него, ведёт себя доверчиво — потому это и стоит закрыть.
+
+    Годится только путь: одна косая черта в начале и никакой схемы. Две косые
+    («//чужой-сайт») браузер понимает как адрес с той же схемой — это тот же
+    уход наружу, только записанный короче. Обратная косая тоже: браузеры
+    выправляют её в обычную, и «/\\чужой-сайт» доедет туда же, куда «//».
+    """
+    if not path.startswith("/") or path[1:2] in ("/", "\\") or "\\" in path:
+        return default
+    # «/https:/x» — уже не путь, а схема, как её ни записывай
+    первый = path.split("/", 2)[1].split("?")[0].split("#")[0]
+    return default if ":" in первый else path
+
+
 def _redirect_to(path: str, msg: str = "", anchor: str = "") -> RedirectResponse:
     """anchor — a place on the page: after an action a person should end up
     where they clicked, not at the top of a long list."""
+    path = _here(path)
     # «?» или «&» — смотря есть ли в адресе запрос: знакомство возвращает на
     # /welcome?step=model, и второй вопросительный знак сделал бы адрес негодным.
     url = f"{path}{'&' if '?' in path else '?'}msg={quote(msg)}" if msg else path
@@ -743,7 +766,7 @@ async def toggle_viewed(job_id: int, request: Request):
     form = await request.form()
     db.set_viewed(job_id, str(form.get("value", "1")) == "1")
     back = str(form.get("back", "/results"))
-    return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
+    return RedirectResponse(_here(back, "/results"), status_code=303)
 
 
 @app.post("/viewed_all")
@@ -755,7 +778,7 @@ async def viewed_all(request: Request):
         min_score = 0
     db.mark_all_viewed(min_score)
     back = str(form.get("back", "/results"))
-    return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
+    return RedirectResponse(_here(back, "/results"), status_code=303)
 
 
 # Analysing a single job on demand. The model thinks for a minute or two, and the
@@ -777,10 +800,10 @@ async def analyse_job(job_id: int, request: Request):
         back = "/results"
     job = db.get_job(job_id)
     if not job:
-        return RedirectResponse(back, status_code=303)
+        return RedirectResponse(_here(back), status_code=303)
     key = _deep_key(job_id)
     if _deep_state.get(key, {}).get("running"):
-        return RedirectResponse(back, status_code=303)
+        return RedirectResponse(_here(back), status_code=303)
     cfg, cv, profile = config.load(), config.cv_text(), profiles.active()
     _deep_state[key] = {"running": True, "error": ""}
 
@@ -802,7 +825,7 @@ async def analyse_job(job_id: int, request: Request):
             _deep_state[key] = {"running": False, "error": str(e)}
 
     threading.Thread(target=worker, daemon=True).start()
-    return RedirectResponse(back, status_code=303)
+    return RedirectResponse(_here(back), status_code=303)
 
 
 @app.get("/analyse/status")
@@ -1247,7 +1270,7 @@ async def set_lang(request: Request):
     cfg["ui"]["lang"] = code if code in i18n.UI_LANGS else cfg["ui"].get("lang", "en")
     config.save(cfg)
     back = str(form.get("back", "/"))
-    return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
+    return RedirectResponse(_here(back), status_code=303)
 
 
 @app.post("/set_theme")
@@ -1256,7 +1279,7 @@ async def set_theme(request: Request):
     form = await request.form()
     appstate.set_theme(str(form.get("theme", "auto")))
     back = str(form.get("back", "/"))
-    return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
+    return RedirectResponse(_here(back), status_code=303)
 
 
 def _export_jobs(min_score: int, sort: str = "default", viewed: str = "all",
@@ -1360,8 +1383,13 @@ def tailored_cv(job_id: int):
         # JSON, and there is nothing to parse it with.
         подробности = ""
         if причина:
+            # Экранировано: в тексте исключения оседает то, что написали не мы —
+            # ответ модели и куски описания вакансии, а описание пишет кто угодно.
+            # Без этого <script> из чужой вакансии выполнялся бы на нашей странице,
+            # а она ходит по адресам этой программы как своя.
             подробности = ("<pre style='background:#f2f2f7;padding:12px;border-radius:8px;"
-                           "white-space:pre-wrap;font-size:12px'>" + причина + "</pre>")
+                           "white-space:pre-wrap;font-size:12px'>"
+                           + html.escape(причина) + "</pre>")
         страница = (
             "<!doctype html><meta charset='utf-8'>"
             "<body style='font:15px/1.55 -apple-system,sans-serif;padding:32px;max-width:38em'>"
@@ -1531,6 +1559,53 @@ async def only_from_here(request: Request, call_next):
     return await call_next(request)
 
 
+# --- Что странице позволено ----------------------------------------------------
+#
+# Ни одного заголовка безопасности программа не ставила. Сами по себе они ничего
+# не чинят — они ограничивают ущерб, когда что-то другое уже не удержало: чужой
+# текст просочился в страницу, ответ не того типа, ссылка наружу.
+#
+# Главное здесь — connect-src и form-action. Страница этой программы знает адрес
+# почтового пароля, токена Telegram и ключей от моделей. Скрипт, попавший на неё
+# любым способом, прочесть их сможет, а вот отправить наружу — уже нет: некуда.
+#
+# 'unsafe-inline' стоит потому, что вёрстка на нём и держится: пятьдесят
+# обработчиков прямо в разметке, десяток блоков <script> и сотни style="…".
+# Убрать его — переписать все шаблоны на nonce, и это отдельная работа, а не
+# строчка в заголовке. Зато внешних ресурсов у программы нет ни одного, так что
+# default-src 'self' ничего не ломает и запрещает подтянуть что угодно со стороны.
+CSP = "; ".join((
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self'",       # наружу не дозвониться
+    "form-action 'self'",       # и форму на чужой адрес не отправить
+    "frame-ancestors 'none'",   # и в чужую рамку нас не вставить
+    "base-uri 'none'",
+    "object-src 'none'",
+))
+
+ЗАГОЛОВКИ = {
+    "Content-Security-Policy": CSP,
+    # Ответ читается как тот тип, который мы назвали, а не как тот, который
+    # браузеру померещился по содержимому.
+    "X-Content-Type-Options": "nosniff",
+    # Уходя по ссылке на вакансию, человек не должен приносить чужому сайту
+    # адрес страницы, с которой ушёл.
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+}
+
+
+@app.middleware("http")
+async def with_headers(request: Request, call_next):
+    ответ = await call_next(request)
+    for имя, значение in ЗАГОЛОВКИ.items():
+        ответ.headers.setdefault(имя, значение)
+    return ответ
+
+
 @app.post("/provider/install")
 async def provider_install(request: Request):
     """Opens the download page in the browser.
@@ -1632,7 +1707,7 @@ async def donate(request: Request):
     back = str(form.get("back") or "/simple")
     if url:
         webbrowser.open(url)
-    return RedirectResponse(back, status_code=303)
+    return RedirectResponse(_here(back), status_code=303)
 
 
 @app.get("/welcome")
