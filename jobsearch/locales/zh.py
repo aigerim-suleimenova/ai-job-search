@@ -539,4 +539,6 @@ STRINGS = {
 "crash_title": "{app} 无法启动",
 "crash_note": "这是程序的故障，不是你的数据出了问题——数据都在。详情已写入文件：",
 "crash_in_browser": "窗口未能打开，因此已在浏览器中打开程序：{url}",
+"welcome_blocked_model": "你选择的模型尚未下载——没有它搜索无法开始。请在上面的列表中点击「下载」，或选择更轻的模型。",
+"models_in_use": "✓ 使用中",
 }

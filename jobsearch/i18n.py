@@ -644,6 +644,15 @@ TR = {
         "en": "The tool you picked is not installed yet — the search cannot run without it. Install it using the hint above, or pick another one.",
         "it": "Lo strumento scelto non è ancora installato — senza di esso la ricerca non parte. Installatelo seguendo il suggerimento sopra, oppure sceglietene un altro.",
         "de": "Das gewählte Programm ist noch nicht installiert — ohne es startet die Suche nicht. Installieren Sie es nach dem Hinweis oben, oder wählen Sie ein anderes."},
+    # Программа на месте, а модель к ней — нет: причина другая, и подсказка «установите
+    # по подсказке выше» отправляла человека чинить то, что уже работает.
+    "welcome_blocked_model": {
+        "ru": "Выбранная модель ещё не скачана — без неё поиск не запустится. Нажмите «Скачать» в списке выше или выберите модель полегче.",
+        "en": "The model you picked has not been downloaded yet — the search cannot run without it. Press “Download” in the list above, or pick a lighter model.",
+        "it": "Il modello scelto non è ancora stato scaricato — senza di esso la ricerca non parte. Prema «Scarica» nell'elenco sopra, oppure scelga un modello più leggero.",
+        "de": "Das gewählte Modell ist noch nicht heruntergeladen — ohne es startet die Suche nicht. Drücken Sie oben in der Liste „Herunterladen“, oder wählen Sie ein leichteres Modell."},
+    "models_in_use": {"ru": "✓ Используется", "en": "✓ In use",
+                      "it": "✓ In uso", "de": "✓ In Verwendung"},
     "src_crawl": {"ru": "краулинг", "en": "crawling", "it": "crawling", "de": "Crawling"},
     "unit_gb": {"ru": "ГБ", "en": "GB", "it": "GB", "de": "GB"},
     "models_ram": {"ru": "память:", "en": "memory:", "it": "memoria:", "de": "Speicher:"},

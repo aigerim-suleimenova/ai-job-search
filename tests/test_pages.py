@@ -212,3 +212,95 @@ def test_старое_покрытие_с_русским_типом_источн
     текст = английский.get("/coverage").text
     assert "aggregator" in текст, "старое значение не перевелось"
     assert "агрегатор" not in человеческий_текст(текст)
+
+
+# --- The first screen: what the buttons say about the state --------------------
+
+ПРОВАЙДЕРЫ = {
+    "claude_cli": {"ready": False, "web_search": True, "kind": "cloud", "install_url": ""},
+    "cursor_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
+    "ollama": {"ready": False, "web_search": False, "kind": "local", "install_url": ""},
+}
+
+
+def доступны(monkeypatch, **готовы):
+    """Подменяет список провайдеров: что установлено, решает тест, а не машина."""
+    import app as app_module
+    from jobsearch import providers
+    avail = {k: dict(v) for k, v in ПРОВАЙДЕРЫ.items()}
+    for key, ready in готовы.items():
+        avail[key]["ready"] = ready
+    monkeypatch.setattr(providers, "available", lambda claude_bin="claude": avail)
+    monkeypatch.setattr(app_module.providers, "available", providers.available)
+
+
+def кнопка_строки(html: str, model_id: str) -> str:
+    """Последняя кнопка в строке модели — та, что выбирает её."""
+    anchor = "model-" + re.sub(r"[:/.]", "-", model_id)
+    row = html[html.index(f'id="{anchor}"'):]
+    row = row[:row.index("</form>", row.index("/models/select"))]
+    return re.findall(r"<button[^>]*>\s*([^<\n]+)", row)[-1].strip()
+
+
+def test_выбранная_модель_названа_на_кнопке(client, profile, monkeypatch):
+    """Раньше все строки предлагали «Использовать» — включая ту, что уже
+    используется, и по действию нельзя было понять, где ты сейчас."""
+    from jobsearch import config, i18n
+    доступны(monkeypatch, claude_cli=True)
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    cfg["llm"].update(provider="claude_cli", triage_model="sonnet")
+    config.save(cfg)
+
+    html = client.get("/models").text
+
+    assert кнопка_строки(html, "sonnet") == i18n.t("en", "models_in_use")
+    assert кнопка_строки(html, "opus") == i18n.t("en", "models_use")
+
+
+def test_знакомство_не_пускает_без_установленной_программы(client, profile, monkeypatch):
+    from jobsearch import config, i18n
+    доступны(monkeypatch)                      # ничего не установлено
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    config.save(cfg)
+
+    html = client.get("/welcome").text
+    хвост = html[html.index('id="welcome-continue"'):]
+
+    assert "disabled" in хвост.split("</button>")[0], "кнопка «Продолжить» осталась нажимаемой"
+    assert i18n.t("en", "welcome_blocked") in хвост
+
+
+def test_знакомство_различает_нет_программы_и_нет_модели(client, profile, monkeypatch):
+    """Ollama запущена, а модель к ней не скачана. Раньше человека отправляли
+    устанавливать то, что и так работает."""
+    from jobsearch import config, i18n, providers
+    доступны(monkeypatch, ollama=True)
+    monkeypatch.setattr(providers, "ollama_installed_models", lambda: set())
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    cfg["llm"].update(provider="ollama", triage_model="llama3.3:70b")
+    config.save(cfg)
+
+    хвост = client.get("/welcome").text
+    хвост = хвост[хвост.index('id="welcome-continue"'):]
+
+    assert "disabled" in хвост.split("</button>")[0]
+    assert i18n.t("en", "welcome_blocked_model") in хвост
+    assert i18n.t("en", "welcome_blocked") not in хвост, "причина названа неверно"
+
+
+def test_знакомство_пускает_когда_модель_на_месте(client, profile, monkeypatch):
+    from jobsearch import config, providers
+    доступны(monkeypatch, ollama=True)
+    monkeypatch.setattr(providers, "ollama_installed_models", lambda: {"llama3.3:70b"})
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    cfg["llm"].update(provider="ollama", triage_model="llama3.3:70b")
+    config.save(cfg)
+
+    хвост = client.get("/welcome").text
+    хвост = хвост[хвост.index('id="welcome-continue"'):]
+
+    assert "disabled" not in хвост.split("</button>")[0], "пройти дальше не дают"

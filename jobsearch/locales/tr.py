@@ -539,4 +539,6 @@ STRINGS = {
 "crash_title": "{app} başlatılamadı",
 "crash_note": "Bu, verilerinizin değil programın bir arızası — veriler yerinde. Ayrıntılar şu dosyada:",
 "crash_in_browser": "Pencere açılmadı, bu yüzden uygulama tarayıcınızda açıldı: {url}",
+"welcome_blocked_model": "Seçtiğiniz model henüz indirilmedi — onsuz arama başlamaz. Yukarıdaki listeden «İndir» düğmesine basın ya da daha hafif bir model seçin.",
+"models_in_use": "✓ Kullanımda",
 }

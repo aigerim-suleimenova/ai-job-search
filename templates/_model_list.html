@@ -53,13 +53,18 @@
           <button {% if m.fits == 'no' or not provider_ready %}disabled{% endif %}>{{ t('models_download') }}</button>
         </form>
         {% endif %}
+        {# Кнопка называет состояние, а не только действие: у выбранной модели она
+           говорит «используется», как и у выбранного провайдера в сетке выше.
+           Раньше все строки предлагали «Использовать» — включая ту, что уже
+           используется, и понять по действию, где ты сейчас, было нельзя. #}
         <form method="post" action="/models/select" style="margin:0">
           <input type="hidden" name="model" value="{{ m.id }}">
           <input type="hidden" name="back" value="{{ back }}">
           <input type="hidden" name="anchor"
                  value="{{ 'welcome-continue' if back == '/welcome' else anchor }}">
-          <button class="primary" {% if m.kind == 'local' and not m.installed %}disabled{% endif %}>
-            {{ t('models_use') }}
+          <button {% if m.id == current_model %}class="primary"{% endif %}
+                  {% if m.kind == 'local' and not m.installed %}disabled{% endif %}>
+            {% if m.id == current_model %}{{ t('models_in_use') }}{% else %}{{ t('models_use') }}{% endif %}
           </button>
         </form>
       </div>

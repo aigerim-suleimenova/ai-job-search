@@ -539,4 +539,6 @@ STRINGS = {
 "crash_title": "{app} no pudo iniciarse",
 "crash_note": "Es un fallo del programa, no de sus datos: están a salvo. Los detalles están en el archivo:",
 "crash_in_browser": "La ventana no se abrió, así que la aplicación se ha abierto en su navegador: {url}",
+"welcome_blocked_model": "El modelo elegido aún no se ha descargado: sin él la búsqueda no arranca. Pulse «Descargar» en la lista de arriba, o elija un modelo más ligero.",
+"models_in_use": "✓ En uso",
 }
