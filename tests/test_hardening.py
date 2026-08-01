@@ -250,3 +250,45 @@ def test_текст_ошибки_экранируется(monkeypatch, profile):
 
     assert "<script>" not in страница, "чужой скрипт попал на страницу как есть"
     assert "&lt;script&gt;" in страница, "текст ошибки пропал совсем — человеку нечего читать"
+
+
+# --- Заголовки не должны запирать дверь изнутри ---------------------------------
+
+def test_политика_отсылок_не_обнуляет_origin(profile):
+    """Ровно то, на чём обожглись.
+
+    При Referrer-Policy: no-referrer браузер шлёт при отправке формы
+    «Origin: null», и проверка «пришло ли это от нашей же страницы» отказывала
+    своему окну: вместо страницы человек видел «Not from this program.».
+    Заголовок был поставлен ради приличия к чужим сайтам, а стоил работы всей
+    программы. same-origin даёт снаружи ровно то же — чужой сайт не узнаёт
+    ничего, — и Origin при этом остаётся на месте."""
+    import app as приложение
+    политика = client_for(приложение.app, profile).get("/results").headers["Referrer-Policy"]
+    assert политика != "no-referrer", "этот вариант обнуляет Origin у форм"
+    assert политика in ("same-origin", "strict-origin-when-cross-origin",
+                        "strict-origin"), f"неизвестная политика: {политика}"
+
+
+def test_своё_окно_узнаётся_по_sec_fetch_site(profile):
+    """Так выглядит запрос от настоящей формы в окне программы. Sec-Fetch-Site
+    ставит сам браузер, и подделать его со страницы нельзя — значит он решает
+    дело и без Origin, каким бы тот ни пришёл."""
+    import app as приложение
+    ответ = client_for(приложение.app, profile).post(
+        "/models/provider", data={"provider": "claude_cli", "back": "/models"},
+        headers={"Sec-Fetch-Site": "same-origin", "Origin": "null"},
+        follow_redirects=False)
+    assert ответ.status_code == 303, "программа отказала своему же окну"
+
+
+def test_чужая_страница_по_прежнему_не_проходит(profile):
+    """Обратная сторона: доверять Sec-Fetch-Site можно только потому, что чужое
+    он называет чужим."""
+    import app as приложение
+    for site in ("cross-site", "same-site"):
+        ответ = client_for(приложение.app, profile).post(
+            "/models/provider", data={"provider": "ollama"},
+            headers={"Sec-Fetch-Site": site, "Origin": "http://127.0.0.1:8766"},
+            follow_redirects=False)
+        assert ответ.status_code == 403, f"{site} прошло насквозь"
