@@ -144,7 +144,7 @@ var
 begin
   Result := False;
   RemoveData := False;
-  Form := CreateCustomForm();
+  Form := CreateCustomForm;
   try
     Form.Caption := '{#AppName}';
     Form.ClientWidth := ScaleX(440);
@@ -190,13 +190,13 @@ begin
     Cancel.ModalResult := mrCancel;
     Cancel.Cancel := True;
 
-    if Form.ShowModal() = mrOk then
+    if Form.ShowModal = mrOk then
     begin
       RemoveData := Box.Checked;
       Result := True;
     end;
   finally
-    Form.Free();
+    Form.Free;
   end;
 end;
 
@@ -206,7 +206,7 @@ begin
   if UninstallSilent then
     Result := True
   else
-    Result := AskAboutData();
+    Result := AskAboutData;
 end;
 
 { Что осталось в папке программы — по именам, а не «часть элементов». }
@@ -247,6 +247,6 @@ begin
                    'Software\Microsoft\Windows\CurrentVersion\Run', '{#AppName}');
     if RemoveData then
       DelTree(ExpandConstant('{userappdata}\{#AppName}'), True, True, True);
-    ReportLeftovers();
+    ReportLeftovers;
   end;
 end;
