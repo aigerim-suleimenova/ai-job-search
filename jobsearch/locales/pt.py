@@ -644,4 +644,5 @@ STRINGS = {
 "tool_node_why": "{name} instala-se com o comando npm, e o npm vem com o Node.js. Sem ele, o comando das instruções nem sequer arranca.",
 "prov_err_api_bad_key": "A chave contém caracteres que as chaves não têm — provavelmente foi copiado algo a mais. Cole apenas a chave.",
 "log_all_sources_failed": "Nenhuma das {n} fontes respondeu — parece que as ligações não chegam. Veja «Cobertura»: ali diz o que cada uma respondeu. Uma causa frequente é um antivírus ou um gateway da empresa que inspeciona ligações seguras.",
+"person_add_prompt": "Quem estamos a adicionar? Terá as suas próprias definições, CV e lista de vagas.",
 }

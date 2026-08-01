@@ -745,6 +745,11 @@ TR = {
         "en": "What is this person called?",
         "it": "Come si chiama questa persona?",
         "de": "Wie heißt diese Person?"},
+    "person_add_prompt": {
+        "ru": "Кого добавляем? У него будет свои настройки, CV и список вакансий.",
+        "en": "Who are we adding? They get their own settings, CV and list of jobs.",
+        "it": "Chi aggiungiamo? Avrà impostazioni, CV ed elenco di offerte propri.",
+        "de": "Wen fügen wir hinzu? Er bekommt eigene Einstellungen, Lebenslauf und Stellenliste."},
     "simple_person": {"ru": "Для кого ищем", "en": "Who is this for",
                       "it": "Per chi cerchiamo", "de": "Für wen suchen wir"},
     "simple_person_ph": {"ru": "Имя человека", "en": "Person's name",

@@ -125,3 +125,20 @@ def test_второй_запуск_ничего_не_переписывает(mo
     profiles.rename_auto_defaults()
 
     assert profiles.REGISTRY_PATH.stat().st_mtime_ns == было, "файл переписан впустую"
+
+
+def test_завести_человека_можно_из_шапки(client):
+    """Возможность была, но жила на странице настроек, в карточке «Управление
+    людьми»: чтобы добавить второго, надо было сперва догадаться уйти со
+    страницы, где ты людей и выбираешь, на другую."""
+    from jobsearch import appstate, config
+    appstate.mark_setup_done(config.load()["llm"])   # иначе нас уводит в знакомство
+    страница = client.get("/").text
+    шапка = страница[страница.index("<header"):страница.index("</header>")]
+    assert 'action="/profile/create"' in шапка, "завести человека из шапки нельзя"
+    assert "addPerson" in страница, "кнопка есть, а спросить имя нечем"
+
+
+def test_кнопка_из_шапки_и_правда_заводит(client, отдельный_дом):
+    client.post("/profile/create", data={"name": "Пётр"}, follow_redirects=False)
+    assert "Пётр" in имена()

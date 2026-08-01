@@ -24,6 +24,23 @@
         </select>
       </label>
     </form>
+    {# Завести человека — здесь же, рядом с переключателем.
+       Возможность была, но жила на странице настроек, в карточке «Управление
+       людьми»: чтобы добавить второго, надо было сперва догадаться уйти со
+       страницы, где ты выбираешь людей, на другую. Переименование сюда уже
+       переехало по той же причине. #}
+    <form method="post" action="/profile/create" class="profile-switch" id="add-person"
+          onsubmit="return addPerson(this)">
+      <input type="hidden" name="name" value="">
+      <button type="submit" class="icon-only" title="{{ t('add_person') }}"
+              aria-label="{{ t('add_person') }}"
+              data-prompt="{{ t('person_add_prompt') }}">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
+    </form>
     {# A name is edited where it is written. This used to require knowing about the
        "People" card in the settings — while a person looked for it here. #}
     <form method="post" action="/profile/rename" class="profile-switch" id="rename-person"
@@ -75,6 +92,13 @@
   </nav>
 </header>
 <script>
+function addPerson(form) {
+  const name = prompt(form.querySelector('button').dataset.prompt, '');
+  if (name === null || !name.trim()) return false;
+  form.querySelector('input[name=name]').value = name.trim();
+  return true;
+}
+
 function renamePerson(form) {
   const btn = form.querySelector('button');
   const name = prompt(btn.dataset.prompt, btn.dataset.current);
