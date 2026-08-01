@@ -118,8 +118,18 @@ def fetch_latest() -> dict:
 
 
 def state() -> dict:
-    """What the last check found — read by the pages, which never wait on the network."""
-    return appstate.load().get("update") or {}
+    """What the last check found — read by the pages, which never wait on the network.
+
+    Сверяется с установленной версией при каждом чтении, а не только в час
+    опроса. Иначе выходит так: программа нашла новую версию и записала это,
+    человек её поставил — а запись пережила установку (данные лежат отдельно) и
+    ещё сутки предлагала обновиться до того, что уже стоит. «Вышла версия
+    0.8.20 — у вас 0.8.20», и кнопка «Обновить» рядом.
+    """
+    saved = appstate.load().get("update") or {}
+    if is_newer(saved.get("version", ""), version.current()):
+        return saved
+    return {**saved, "version": "", "notes_url": "", "asset": {}}
 
 
 def check(force: bool = False) -> dict:

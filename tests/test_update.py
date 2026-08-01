@@ -291,3 +291,47 @@ def _ответ(payload):
             return payload
 
     return R()
+
+
+# --- Запись об обновлении переживает само обновление ------------------------------
+
+def test_после_установки_не_предлагаем_ту_же_версию(monkeypatch):
+    """Так и было видно на экране: «Вышла версия 0.8.20 — у вас 0.8.20», и кнопка
+    «Обновить» рядом.
+
+    Программа нашла новую версию и записала это. Человек её поставил — а запись
+    пережила установку, потому что данные лежат отдельно от программы, и
+    следующий опрос GitHub только через сутки. Страница читала запись как есть.
+    """
+    monkeypatch.setattr(update.appstate, "load", lambda: {"update": {
+        "checked_at": 1.0, "version": "0.8.20",
+        "notes_url": "https://example/tag/v0.8.20",
+        "asset": {"name": "setup.exe", "url": update.DOWNLOAD_PREFIX + "v0.8.20/setup.exe"}}})
+    monkeypatch.setattr(update.version, "current", lambda: "0.8.20")
+
+    сейчас = update.state()
+
+    assert сейчас["version"] == "", "предложили обновиться до уже установленной версии"
+    assert not сейчас["asset"], "кнопка «Обновить» осталась бы на экране"
+
+
+def test_настоящее_обновление_по_прежнему_видно(monkeypatch):
+    """Обратная сторона: заглушить всё было бы легко и неправильно."""
+    monkeypatch.setattr(update.appstate, "load", lambda: {"update": {
+        "checked_at": 1.0, "version": "0.9.0", "notes_url": "u",
+        "asset": {"name": "setup.exe", "url": update.DOWNLOAD_PREFIX + "v0.9.0/setup.exe"}}})
+    monkeypatch.setattr(update.version, "current", lambda: "0.8.20")
+
+    сейчас = update.state()
+
+    assert сейчас["version"] == "0.9.0"
+    assert сейчас["asset"]["name"] == "setup.exe"
+
+
+def test_запись_от_более_старой_версии_тоже_не_показывается(monkeypatch):
+    """Откат на предыдущую сборку не должен звать «обновиться» назад."""
+    monkeypatch.setattr(update.appstate, "load", lambda: {"update": {
+        "checked_at": 1.0, "version": "0.8.15", "notes_url": "u", "asset": {"url": "x"}}})
+    monkeypatch.setattr(update.version, "current", lambda: "0.8.20")
+
+    assert update.state()["version"] == ""
