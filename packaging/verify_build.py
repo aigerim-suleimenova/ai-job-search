@@ -1,14 +1,15 @@
-"""Проверка собранного приложения: на месте ли исполняемый файл и данные.
+"""Checking the packaged app: is the executable there, and the data with it.
 
-Запустить окно в CI нельзя (нет дисплея), поэтому проверяем состав сборки —
-этого достаточно, чтобы поймать типичные промахи PyInstaller: пропущенные
-шаблоны, забытые скрытые импорты, пустой бинарник.
+A window cannot be opened in CI (there is no display), so we check what the build
+contains — enough to catch the usual PyInstaller misses: absent templates,
+forgotten hidden imports, an empty binary.
 """
 import sys
 from pathlib import Path
 
-# Консоль Windows по умолчанию не в UTF-8, и русский текст в выводе роняет скрипт
-# кодировочной ошибкой — при том что сама проверка уже прошла успешно.
+# The Windows console is not UTF-8 by default, and non-Latin text in the output
+# brings the script down with an encoding error — after the check itself has
+# already passed.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -39,9 +40,10 @@ def main() -> int:
         if not (bundle / needed).exists():
             problems.append(f"нет {needed} — интерфейс не отрисуется")
 
-    # Окно на Windows рисует .NET, а мост к нему — эта библиотека. Без неё
-    # программа собирается как ни в чём не бывало и падает уже у человека,
-    # при открытии окна: проверить состав дешевле, чем узнавать по скриншоту.
+    # On Windows the window is drawn by .NET, and this library is the bridge to it.
+    # Without it the program builds as though nothing were wrong and dies later, in
+    # someone's hands, on opening the window: checking the contents is cheaper than
+    # finding out from a screenshot.
     if sys.platform == "win32":
         if not (bundle / "pythonnet" / "runtime" / "Python.Runtime.dll").exists():
             problems.append("нет pythonnet/runtime/Python.Runtime.dll — окно не откроется")

@@ -1,7 +1,7 @@
-"""Точечный краулинг careers-страниц, не распознанных как ATS.
+"""Careful crawling of careers pages that were not recognised as an ATS.
 
-Страница скачивается, из неё берётся видимый текст и список ссылок,
-а Claude (haiku) извлекает из этого структурированный список вакансий.
+The page is downloaded, its visible text and list of links are taken from it, and
+Claude (haiku) extracts a structured list of jobs out of that.
 """
 from urllib.parse import urljoin, urlparse
 
@@ -14,7 +14,7 @@ from . import ats, web
 
 
 def _lk(log, key: str, **fmt) -> None:
-    """Строка журнала на языке интерфейса (log приходит из пайплайна)."""
+    """A log line in the interface language (log comes in from the pipeline)."""
     text = i18n.t(config.load()["ui"]["lang"], key)
     log(text.format(**fmt) if fmt else text)
 
@@ -36,10 +36,10 @@ EXTRACT_PROMPT = """Ниже — текст и ссылки со страниц�
 def fetch_page(url: str):
     r = web.get(url, respect_robots=True)
     if r is None:
-        raise PermissionError("robots.txt")   # сайт просит роботов не ходить сюда
+        raise PermissionError("robots.txt")   # the site asks robots not to come here
     r.raise_for_status()
-    base_url = r.url  # сайты часто редиректят (смена домена/ребрендинг) —
-    # относительные ссылки резолвим от итогового URL, а не от исходного
+    base_url = r.url  # sites redirect often (a domain change, a rebrand) — we
+    # resolve relative links against the final URL, not the original one
     soup = BeautifulSoup(r.text, "html.parser")
     for tag in soup(["script", "style", "noscript", "svg"]):
         tag.decompose()
@@ -54,7 +54,7 @@ def fetch_page(url: str):
 
 
 def fetch_job_text(url: str, limit: int = 6000) -> str:
-    """Текст страницы конкретной вакансии — для глубокого разбора."""
+    """The text of one job's own page — for the deep analysis."""
     try:
         text, _ = fetch_page(url)
         return text[:limit]
@@ -62,8 +62,8 @@ def fetch_job_text(url: str, limit: int = 6000) -> str:
         return ""
 
 
-# многие careers-страницы — лендинг «о нас», а реальный список вакансий лежит
-# на отдельной подстранице вида «Open Roles» / «Job Board» / «See open positions»
+# many careers pages are an "about us" landing page, while the real list of jobs
+# sits on a separate sub-page called "Open Roles" / "Job Board" / "See open positions"
 _BOARD_LINK_WORDS = (
     "open role", "open position", "job board", "current opening",
     "view all job", "view open job", "see open", "all openings",
@@ -76,7 +76,7 @@ def _find_board_link(page_url: str, links: list) -> str:
     for entry in links:
         label, _, href = entry.partition(" :: ")
         if urlparse(href).path.rstrip("/") == base_path:
-            continue  # ссылка на саму эту же страницу — не переход
+            continue  # a link back to this very page is not a step anywhere
         if any(w in label.lower() for w in _BOARD_LINK_WORDS):
             return href
     return ""
@@ -90,13 +90,14 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
             return []
         r.raise_for_status()
         raw_html = r.text
-        base_url = r.url  # см. комментарий в fetch_page — учитываем редиректы
+        base_url = r.url  # see the comment in fetch_page — we allow for redirects
     except requests.RequestException as e:
         log(f"crawl {name}: {e}")
         return []
 
-    # 1. Многие careers-страницы — это JS-обёртка вокруг встроенного ATS.
-    # Если находим его в HTML — читаем вакансии через API (надёжнее и с локациями).
+    # 1. Many careers pages are a JS wrapper around an embedded ATS.
+    # If we find it in the HTML we read the jobs through the API — more reliable,
+    # and with locations.
     found = ats.detect_in_html(raw_html)
     if found:
         try:
@@ -104,10 +105,10 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
             if jobs:
                 _lk(log, "log_crawl_ats", name=name, kind=found[0], id=found[1], n=len(jobs))
                 return jobs
-        except Exception as e:  # noqa: BLE001 — если не вышло, падаем на LLM-извлечение
+        except Exception as e:  # noqa: BLE001 — if that failed, fall back to the model
             _lk(log, "log_crawl_ats_fail", name=name, found=found, error=e)
 
-    # 2. Обычный краулинг: видимый текст + ссылки → LLM извлекает вакансии.
+    # 2. Ordinary crawling: visible text plus links → the model extracts the jobs.
     soup = BeautifulSoup(raw_html, "html.parser")
     for tag in soup(["script", "style", "noscript", "svg"]):
         tag.decompose()
@@ -153,16 +154,16 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
             "is_direct": True,
         })
 
-    # 3. Присланная страница — лендинг без списка вакансий (0 найдено):
-    # ищем ссылку вида «Open Roles» / «Job Board» и пробуем её (один уровень вглубь).
+    # 3. The page we were given is a landing page with no job list (0 found): we
+    # look for an "Open Roles" / "Job Board" link and try it (one level deeper).
     if not jobs and _depth == 0:
         board_url = _find_board_link(base_url, links)
         if board_url:
             _lk(log, "log_crawl_subpage", name=name, url=base_url, sub=board_url)
             return crawl_company(name, board_url, cfg, log, _depth=1)
 
-    # 4. Последний fallback: careers-страница целиком на JS без обнаружимого API —
-    # пробуем угадать ATS-борд по названию компании (напр. Datadog → greenhouse/datadog).
+    # 4. The last fallback: a careers page entirely in JS with no detectable API —
+    # we try to guess the ATS board from the company name (Datadog → greenhouse/datadog).
     if not jobs and name:
         guessed = ats.guess_by_name(name)
         if guessed:
@@ -170,8 +171,8 @@ def crawl_company(name: str, url: str, cfg: dict, log, _depth: int = 0) -> list:
             return guessed[2]
         return jobs
 
-    # подтягиваем описания со страниц вакансий: без них лексический отбор
-    # и триаж почти слепые (ограничиваем число запросов на компанию)
+    # we pull the descriptions from the job pages: without them the word-level sift
+    # and the triage are all but blind (capping the requests per company)
     for j in jobs[:20]:
         if j["url"] != url:
             j["description"] = fetch_job_text(j["url"], limit=4000)

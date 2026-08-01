@@ -1,6 +1,7 @@
-"""Локализация: язык интерфейса и язык, на котором ИИ пишет результаты.
+"""Localisation: the interface language and the language the AI writes results in.
 
-Четыре языка живут в словаре TR ниже, остальные — в jobsearch/locales/<код>.py.
+Four languages live in the TR dictionary below; the rest are in
+jobsearch/locales/<code>.py.
 """
 import importlib
 import locale
@@ -9,14 +10,14 @@ import platform
 import subprocess
 from functools import lru_cache
 
-# Языки в переключателях — по алфавиту, как принято в системных списках.
+# Languages in the pickers, alphabetically, as system lists usually have them.
 UI_LANGS = {
     "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
     "fr": "Français", "hi": "हिन्दी", "it": "Italiano", "ja": "日本語",
     "pl": "Polski", "pt": "Português", "ru": "Русский", "tr": "Türkçe",
     "uk": "Українська", "zh": "中文",
 }
-# языки, которые пишутся справа налево — шаблоны ставят им dir="rtl"
+# languages written right to left — the templates give them dir="rtl"
 RTL_LANGS = {"ar"}
 OUTPUT_LANGS = {
     "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
@@ -27,10 +28,10 @@ OUTPUT_LANGS = {
 
 
 def system_lang(default: str = "en") -> str:
-    """Язык системы — чтобы при первом запуске не показывать чужой язык.
+    """The system language, so that first launch does not show a foreign one.
 
-    Приложение из Finder не получает LANG, поэтому на macOS спрашиваем систему
-    напрямую; на Windows — API языка интерфейса; иначе смотрим переменные среды.
+    An app started from Finder gets no LANG, so on macOS we ask the system
+    directly; on Windows, the UI-language API; otherwise the environment.
     """
     code = ""
     system = platform.system()
@@ -43,7 +44,7 @@ def system_lang(default: str = "en") -> str:
             import ctypes
             lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
             code = locale.windows_locale.get(lcid, "").split("_")[0]
-    except Exception:  # noqa: BLE001 — определение языка не должно ронять запуск
+    except Exception:  # noqa: BLE001 — detecting a language must not break the launch
         code = ""
     if not code:
         env = os.environ.get("LANG") or os.environ.get("LC_ALL") or ""
@@ -55,7 +56,7 @@ def system_lang(default: str = "en") -> str:
             code = ""
     return code if code in UI_LANGS else default
 
-# Инструкция модели, на каком языке писать результаты (оценки, правки, дайджест)
+# Telling the model which language to write results in (scores, edits, the digest)
 OUTPUT_INSTRUCTION = {
     "ru": "на русском языке",
     "en": "in English",
@@ -80,18 +81,18 @@ OUTPUT_INSTRUCTION = {
 
 
 def out_lang(cfg: dict) -> str:
-    """На каком языке модель пишет результаты.
+    """Which language the model writes its results in.
 
-    Запасной вариант — английский, а не русский: раньше настройка с пустым или
-    незнакомым значением молча заставляла модель писать по-русски человеку,
-    у которого всё остальное на другом языке.
+    The fallback is English rather than Russian: an empty or unfamiliar value
+    used to make the model quietly write in Russian to someone whose every other
+    word was in a different language.
     """
     ui = cfg.get("ui", {})
     code = ui.get("output_lang") or ui.get("lang") or "en"
     return OUTPUT_INSTRUCTION.get(code, OUTPUT_INSTRUCTION["en"])
 
 
-# Строки интерфейса. Ключ → {ru, en}. Отсутствующий перевод падает на ru.
+# Interface strings. Key → {ru, en}. A missing translation falls back to English.
 TR = {
     "app_title": {"ru": "AI Job Search", "en": "AI Job Search", "it": "AI Job Search", "de": "AI Job Search"},
     "nav_settings": {"ru": "Настройки поиска", "en": "Search settings",
@@ -252,8 +253,8 @@ TR = {
     "models_selected": {"ru": "✓ Выбран", "en": "✓ Selected", "it": "✓ Selezionato", "de": "✓ Ausgewählt"},
     "models_your_device": {"ru": "Ваше устройство", "en": "Your device",
                            "it": "Il suo dispositivo", "de": "Ihr Gerät"},
-    # Каталог моделей. Раньше пометки и происхождение лежали в providers.py
-    # готовым русским текстом и приезжали на страницу как есть — на любом языке.
+    # The model catalogue. Notes and origins used to sit in providers.py as
+    # finished Russian text and reach the page as they were — in every language.
     "model_auto_cursor": {"ru": "Авто (выбирает Cursor)", "en": "Auto (Cursor decides)",
                           "it": "Auto (decide Cursor)", "de": "Auto (Cursor entscheidet)"},
     "model_note_strongest": {"ru": "самая сильная, дороже", "en": "the strongest, pricier",
@@ -276,8 +277,8 @@ TR = {
     "country_us": {"ru": "США", "en": "USA", "it": "USA", "de": "USA"},
     "country_cn": {"ru": "Китай", "en": "China", "it": "Cina", "de": "China"},
     "country_fr": {"ru": "Франция", "en": "France", "it": "Francia", "de": "Frankreich"},
-    # Скачивание локальной модели: свои шаги отделены от тех, что присылает сама
-    # Ollama (они приходят по-английски и переводу не подлежат).
+    # Downloading a local model: our own steps are kept apart from the ones Ollama
+    # sends (those arrive in English and are not ours to translate).
     "pull_starting": {"ru": "начинаем", "en": "starting", "it": "avvio", "de": "Start"},
     "pull_done": {"ru": "готово", "en": "done", "it": "fatto", "de": "fertig"},
     "prov_err_ollama_down": {
@@ -343,8 +344,8 @@ TR = {
                             "it": "AI Job Search: {count} offerte per {name}",
                             "de": "AI Job Search: {count} Stellen für {name}"},
     "profile_default_name": {"ru": "Я", "en": "Me", "it": "Io", "de": "Ich"},
-    # Экран аварии показывается до того, как поднялся сервер, — и до сих пор был
-    # русским независимо от выбранного языка.
+    # The crash screen is shown before the server is up — and until now it was in
+    # Russian whatever language had been chosen.
     "crash_title": {"ru": "{app} не смог запуститься", "en": "{app} could not start",
                     "it": "{app} non è riuscito ad avviarsi", "de": "{app} konnte nicht starten"},
     "crash_note": {
@@ -1464,10 +1465,10 @@ TR = {
 
 @lru_cache(maxsize=32)
 def _locale(lang: str) -> dict:
-    """Переводы отдельного языка из jobsearch/locales/<код>.py.
+    """One language's translations from jobsearch/locales/<code>.py.
 
-    Языков стало четырнадцать: держать их все в одном словаре — значит сделать
-    его нечитаемым. Четыре первых остались здесь, остальные лежат по файлам.
+    There are fourteen languages now: keeping them all in a single dictionary
+    would make it unreadable. The first four stayed here, the rest live in files.
     """
     try:
         module = importlib.import_module(f"{__package__}.locales.{lang}")
@@ -1477,11 +1478,12 @@ def _locale(lang: str) -> dict:
 
 
 def err(lang: str, exc) -> str:
-    """Текст исключения на языке интерфейса.
+    """An exception's text in the interface language.
 
-    Свои ошибки несут ключ перевода (ClaudeError, ProviderError, MailError,
-    CVError) — их и переводим. Всё остальное пришло от внешней программы
-    готовым текстом, и переводить его нечем.
+    Our own errors carry a translation key (ClaudeError, ProviderError,
+    MailError, CVError) — those are the ones we translate. Everything else
+    arrived from an outside program as finished text, and there is nothing to
+    translate it with.
     """
     key = getattr(exc, "key", "")
     if not key:
@@ -1495,14 +1497,14 @@ def err(lang: str, exc) -> str:
 
 
 def t(lang: str, key: str) -> str:
-    lang = (lang or "en").split("-")[0]  # "it-en" → заголовки по-итальянски
+    lang = (lang or "en").split("-")[0]  # "it-en" → headings in Italian
     entry = TR.get(key)
     if entry and entry.get(lang):
         return entry[lang]
     text = _locale(lang).get(key)
     if text:
         return text
-    # Запасной вариант — английский: русский понятен меньшинству пользователей.
+    # The fallback is English: Russian is understood by a minority of users.
     if entry:
         return entry.get("en") or entry.get("ru") or key
     return key

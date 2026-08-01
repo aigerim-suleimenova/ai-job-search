@@ -1,4 +1,4 @@
-"""Отправка дайджеста в Telegram."""
+"""Sending the digest to Telegram."""
 import html
 import json
 
@@ -10,8 +10,9 @@ TIMEOUT = 30
 
 
 class NotifyError(RuntimeError):
-    """Ошибка Telegram. Несёт ключ перевода: модуль не знает языка интерфейса,
-    а текст показывается человеку — раньше он всегда был русским."""
+    """A Telegram error. Carries a translation key: the module does not know the
+    interface language, and the text is shown to a person — it used to be in
+    Russian always."""
 
     def __init__(self, key: str, **fmt):
         self.key, self.fmt = key, fmt
@@ -29,7 +30,7 @@ def send_message(cfg: dict, text: str) -> None:
         raise NotifyError("tg_err_no_token")
     if not chat_id:
         raise NotifyError("tg_err_no_chat")
-    # телеграм ограничивает сообщение 4096 символами — режем по абзацам
+    # Telegram caps a message at 4096 characters — we cut on paragraph breaks
     chunks, current = [], ""
     for para in text.split("\n\n"):
         if len(current) + len(para) + 2 > 3900:
@@ -53,7 +54,7 @@ def send_message(cfg: dict, text: str) -> None:
 
 
 def detect_chat_id(token: str) -> str:
-    """Ищет chat_id в последних сообщениях боту (getUpdates)."""
+    """Looks for the chat_id among the bot's latest messages (getUpdates)."""
     r = requests.get(_api(token, "getUpdates"), timeout=TIMEOUT)
     data = r.json()
     if not data.get("ok"):

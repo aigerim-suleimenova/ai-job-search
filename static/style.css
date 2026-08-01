@@ -1,19 +1,19 @@
-/* Оформление в духе нативного приложения macOS: системный шрифт, компактная
-   плотность, тонкие разделители вместо тяжёлых рамок, системный синий акцент. */
+/* Styled after a native macOS app: the system font, compact density, thin
+   separators instead of heavy borders, the system blue as the accent. */
 
 :root {
-  --bg: #f2f2f7;               /* фон окна */
+  --bg: #f2f2f7;               /* the window background */
   --card: #ffffff;
-  --card-2: #fbfbfd;           /* вложенные блоки */
+  --card-2: #fbfbfd;           /* nested blocks */
   --text: #1d1d1f;
   --muted: #6e6e73;
   --faint: #8e8e93;
-  --accent: #007aff;           /* системный синий — заливки и рамки */
+  --accent: #007aff;           /* the system blue — fills and borders */
   --accent-press: #0062cc;
-  --link: #0a66cc;             /* тот же синий, но читаемый мелким текстом */
-  --accent-fill: #0067d6;      /* заливка под белым текстом: значок «новое» */
-  /* «зелёный» и «красный» мелким текстом: сами цвета слишком светлые и на
-     своём же фоне читаются плохо — тексту нужны более плотные варианты */
+  --link: #0a66cc;             /* the same blue, but readable in small text */
+  --accent-fill: #0067d6;      /* a fill under white text: the "new" badge */
+  /* "green" and "red" in small text: the colours themselves are too light and
+     read poorly on their own background — text needs denser variants */
   --ok-text: #146c2e;
   --warn-text: #9a5b00;
   --danger-text: #d70015;
@@ -28,11 +28,11 @@
   --radius-sm: 7px;
 }
 
-/* Тёмное оформление описано дважды намеренно: сверху — «как в системе» (кроме
-   случая, когда человек кнопкой выбрал светлое), ниже — выбранное кнопкой.
-   Объединить их в одно правило CSS не позволяет: медиазапрос не складывается
-   с селектором. color-scheme нужен, чтобы системные календарь, полосы прокрутки
-   и выпадающие списки не остались светлыми внутри тёмного окна. */
+/* The dark theme is written out twice on purpose: above, "as the system does"
+   (except where the button chose light), below, what the button chose. CSS will
+   not let them be merged into one rule: a media query does not add up with a
+   selector. color-scheme is there so that the system calendar, scrollbars and
+   drop-downs do not stay light inside a dark window. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
@@ -86,9 +86,9 @@
 
 * { box-sizing: border-box; }
 
-/* Ссылка без своего цвета досталась бы браузерной — тёмно-синей, а на тёмном
-   фоне её просто не видно. Правило общее, поэтому новая ссылка где угодно
-   в приложении сразу читается. */
+/* A link without a colour of its own would take the browser's — dark blue, which
+   on a dark background is simply invisible. The rule is general, so a new link
+   anywhere in the app reads properly from the start. */
 a { color: var(--link); }
 a:visited { color: var(--link); }
 
@@ -102,12 +102,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* --- Панель заголовка: как toolbar в нативном окне --- */
+/* --- The title bar: like the toolbar of a native window --- */
 
-/* Две строки, как в нативном окне: сверху название и переключатели, под ними
-   вкладки разделов. Одной строкой они не помещались — в неё же упирались
-   переносы при смене языка, — а разделы уезжали за край и становились
-   недоступны. Зоны заданы явно, поэтому длина подписей ничего не двигает. */
+/* Two rows, as in a native window: the name and the pickers on top, the section
+   tabs below. They did not fit into one row — which is also where the wrapping
+   ran when the language changed — and the sections slid off the edge and became
+   unreachable. The zones are stated explicitly, so the length of a label moves
+   nothing. */
 header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -149,7 +150,7 @@ h1 {
 nav {
   grid-area: nav;
   display: flex; gap: 2px; min-width: 0;
-  /* отрицательный отступ — чтобы фон активной вкладки не обрезался краем */
+  /* a negative margin, so the active tab's background is not clipped by the edge */
   margin: 0 -8px; padding: 2px 8px 8px;
   overflow-x: auto; scrollbar-width: none;
 }
@@ -166,14 +167,14 @@ nav a {
   transition: background .12s, color .12s;
 }
 nav a:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
-/* открытый раздел видно сразу — раньше подсветки не было вовсе */
+/* the open section is visible at once — there used to be no highlight at all */
 nav a[aria-current="page"] {
   color: var(--text);
   background: var(--card);
   box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, .05);
 }
 
-/* переключатели человека и языка — вправо, компактно */
+/* the person and language pickers — to the right, compactly */
 .profile-switch { margin: 0; flex: none; }
 .profile-switch label {
   display: flex; align-items: center; gap: 6px;
@@ -186,7 +187,7 @@ nav a[aria-current="page"] {
 }
 .profile-switch select:hover { background-color: var(--card); }
 
-/* Кнопка смены оформления — размером с соседние переключатели, только квадратная */
+/* The theme button — the size of the pickers beside it, only square */
 .theme-switch { margin: 0; flex: none; }
 .theme-switch button {
   width: 26px; height: 26px; padding: 0;
@@ -195,7 +196,7 @@ nav a[aria-current="page"] {
 }
 .theme-switch button:hover { color: var(--text); background: var(--card); }
 
-/* Кнопка-карандаш рядом с выбором человека: то же, что у переключателя темы */
+/* The pencil button next to the person picker: the same as the theme toggle */
 button.icon-only {
   width: 26px; height: 26px; padding: 0;
   color: var(--muted); background: transparent; border-color: var(--border);
@@ -205,7 +206,7 @@ button.icon-only:hover { color: var(--text); background: var(--card); }
 #rename-person { margin: 0 0 0 -4px; flex: none; }
 .theme-icon[hidden] { display: none; }
 
-/* --- Карточки --- */
+/* --- Cards --- */
 
 .card {
   background: var(--card);
@@ -227,7 +228,7 @@ h2 {
 }
 h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
 
-/* --- Формы --- */
+/* --- Forms --- */
 
 label {
   display: block;
@@ -267,7 +268,7 @@ select {
   background-position: right 9px center;
 }
 input[type="file"] {
-  /* поле выбора файла стояло в строку с подписью, а все остальные — под ней */
+  /* the file field sat on the same line as its label while every other sat below */
   display: block; margin-top: 5px;
   padding: 5px 8px; background: var(--card-2); font-size: 12.5px;
   height: 30px; line-height: 18px; width: auto; max-width: 340px;
@@ -284,8 +285,8 @@ label.check {
   color: var(--text); font-size: 13px; line-height: 1.5; font-weight: 400;
   margin-bottom: 10px;
 }
-/* Отступ сверху = половина разницы между строкой текста и самим квадратиком:
-   так он оказывается по центру первой строки, а не над ней. */
+/* The top margin is half the difference between a line of text and the box
+   itself: that puts it in the middle of the first line rather than above it. */
 label.check input {
   width: auto; flex: none;
   height: 14px; margin: calc((1.5em - 14px) / 2) 0 0;
@@ -296,7 +297,7 @@ label.check input {
 .grid-span2 { grid-column: 1 / -1; }
 @media (max-width: 720px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
 
-/* --- Кнопки: нативная высота, текст не переносится --- */
+/* --- Buttons: native height, the text does not wrap --- */
 
 button, .btn {
   display: inline-flex;
@@ -308,7 +309,7 @@ button, .btn {
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;            /* кнопка не разъезжается на две строки */
+  white-space: nowrap;            /* the button does not spread onto two lines */
   color: var(--text);
   background: var(--card);
   border: 1px solid var(--border-strong);
@@ -321,8 +322,8 @@ button:hover { background: color-mix(in srgb, var(--text) 4%, var(--card)); }
 button:active { transform: scale(.985); }
 
 button.primary {
-  /* Заливка чуть плотнее системного синего: белый текст на нём читается,
-     а на самом #007aff/#0a84ff — уже нет, особенно в тёмном окне. */
+  /* A fill a shade denser than the system blue: white text reads on it, while
+     on #007aff/#0a84ff itself it no longer does, especially in a dark window. */
   background: var(--accent-fill); border-color: var(--accent-fill); color: #fff;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 35%, transparent);
 }
@@ -334,13 +335,13 @@ button:disabled:hover { background: var(--card); }
 
 a:has(> button) { text-decoration: none; }
 
-/* строка контролов: всё выровнено по одной линии */
+/* a row of controls: everything aligned on one line */
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .row form { margin: 0; }
 .row input, .row select { margin-top: 0; }
 .row label { margin-bottom: 0; }
 
-/* --- Статус --- */
+/* --- Status --- */
 
 .status {
   display: flex; justify-content: space-between; align-items: center;
@@ -364,7 +365,7 @@ a:has(> button) { text-decoration: none; }
   max-height: 280px; overflow: auto; white-space: pre-wrap; word-break: break-word;
 }
 
-/* --- Таблицы --- */
+/* --- Tables --- */
 
 table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 th, td { text-align: start; padding: 7px 8px; border-bottom: 1px solid var(--border); }
@@ -390,7 +391,7 @@ details.research summary { color: var(--ok-text); }
 
 code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
-/* --- Вакансии --- */
+/* --- Jobs --- */
 
 .job { padding: 16px 20px; }
 .job.direct { border-inline-start: 3px solid var(--ok); }
@@ -421,24 +422,24 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 .job a:hover { color: var(--link); text-decoration: underline; }
 .job h3 a { font-weight: 600; }
 
-/* --- Пошаговые инструкции --- */
+/* --- Step-by-step instructions --- */
 
 .steps { margin: 10px 0 0; padding-inline-start: 20px; }
 .steps li { margin: 7px 0; line-height: 1.5; font-size: 13px; }
 
-/* --- Управление людьми: три действия в одну аккуратную строку --- */
+/* --- Managing people: three actions on one tidy line --- */
 
 .people-actions { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .people-actions form { margin: 0; }
 .people-actions input { width: 190px; margin-top: 0; }
 
-/* Статус: подпись и режим — одной строкой, кнопки не переносятся */
+/* Status: the label and the mode on one line, the buttons do not wrap */
 .status .state-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .status .state-line b { flex: none; font-weight: 600; }
 .status .state-text { color: var(--muted); }
 .status .state-mode { color: var(--faint); font-size: 12px; white-space: nowrap; }
 
-/* --- Сегментированный переключатель (как в macOS) --- */
+/* --- A segmented control (as in macOS) --- */
 
 .segmented {
   display: inline-flex; padding: 2px; gap: 2px;
@@ -456,7 +457,7 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
   box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
 }
 
-/* --- Карточка вакансии: текст и действия --- */
+/* --- The job card: the text and the actions --- */
 
 .reason { margin: 10px 0 0; font-size: 13px; line-height: 1.55; }
 
@@ -471,17 +472,18 @@ code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; font-siz
 }
 .job-actions .open-link:hover { text-decoration: underline; }
 
-/* Панель фильтров результатов: подписи компактные, всё в одну линию */
+/* The results filter bar: compact labels, everything on one line */
 .filters {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px 14px; align-items: end; margin-top: 14px;
 }
 @media (max-width: 780px) { .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .filters .date-field { width: 100%; }
-/* Календарь у поля даты рисует система: приглушаем значок, чтобы он не спорил
-   со стрелками выпадающих списков рядом. */
-/* Внутренняя часть поля даты выше обычной строки — без этого поле на два
-   пиксела выше соседних списков, и ряд фильтров едва заметно «пляшет». */
+/* The date field's calendar is drawn by the system: we mute the icon so it does
+   not argue with the arrows of the drop-downs beside it. */
+/* The inside of a date field is taller than an ordinary line — without this the
+   field stands two pixels above the lists beside it, and the filter row dances
+   almost imperceptibly. */
 input[type="date"] { padding-block: 6px; }
 input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: .45; cursor: pointer; transition: opacity .12s;
@@ -494,7 +496,7 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 .filters label { margin: 0; font-size: 11.5px; min-width: 0; }
 .filters select { min-width: 0; width: 100%; }
 
-/* --- Карточки провайдеров: одинаковая высота, кнопка прижата вниз --- */
+/* --- The provider cards: equal height, the button pressed to the bottom --- */
 
 .provider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: stretch; }
 @media (max-width: 820px) { .provider-grid { grid-template-columns: 1fr; } }
@@ -512,11 +514,12 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 }
 .provider-actions form { margin: 0; }
 
-/* компактная строка со сведениями об устройстве */
+/* a compact line with the device details */
 .device-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
 
-/* Строка списка моделей: раньше это была .card внутри .card — вложенная тень и
-   своя ширина ломали ритм страницы. Теперь это строка списка, как в Настройках. */
+/* A row of the model list: this used to be a .card inside a .card — the nested
+   shadow and its own width broke the rhythm of the page. Now it is a list row,
+   as in the Settings. */
 .model-row {
   background: var(--card-2);
   border: 1px solid var(--border);
@@ -531,21 +534,22 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 }
 .model-row form { margin: 0; }
 
-/* Кнопка сохранения формы настроек: тот же ритм, что между карточками */
+/* The settings form's save button: the same rhythm as between the cards */
 .actions { display: flex; gap: 10px; margin: 0 0 14px; }
 
-/* Ряд кнопок сразу под полями прилипал к ним вплотную: у полей нет нижнего
-   отступа, у ряда не было верхнего. Разделяем там, где это реально случается. */
+/* A row of buttons right under the fields stuck to them: the fields have no
+   bottom margin and the row had no top one. We separate them where it actually
+   happens. */
 .grid2 + .row, .grid3 + .row, textarea + .row, input + .row,
 .grid2 + .actions, .grid3 + .actions, textarea + .actions, input + .actions,
 .card > form > .actions:not(:first-child) { margin-top: 14px; }
 
-/* Знакомство при первом запуске: шапка без разделов — уходить пока некуда */
+/* The first-launch introduction: a header without sections — there is nowhere to go yet */
 .header-plain { grid-template-areas: "title tools"; row-gap: 0; padding: 12px 0 11px; }
 .welcome-done { display: flex; flex-direction: column; align-items: flex-start; }
 
-/* Арабский пишется справа налево: стрелка списка и «птичка» раскрытия
-   должны смотреть в ту же сторону, что и текст. */
+/* Arabic is written right to left: the list arrow and the disclosure chevron
+   have to point the same way as the text. */
 [dir="rtl"] select {
   background-position: left 9px center;
   padding-inline-end: 10px; padding-inline-start: 28px;
@@ -553,7 +557,7 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 [dir="rtl"] summary::before { content: "‹"; }
 [dir="rtl"] details[open] > summary::before { transform: rotate(-90deg); }
 
-/* Карточка идущего поиска: пока он идёт, это главное на странице */
+/* The running-search card: while it runs, this is the main thing on the page */
 .running-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .running-head h2 { margin-bottom: 4px; }
 .running-stage { margin: 0; color: var(--muted); font-size: 13px; }
@@ -561,7 +565,7 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
   margin-inline-start: 8px; font-size: 11.5px; color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
-/* Полоса без процентов: сколько осталось — честно неизвестно */
+/* A bar without a percentage: how much is left is honestly not known */
 .running-bar {
   height: 4px; margin-top: 14px; border-radius: 2px; overflow: hidden;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
@@ -575,8 +579,9 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 }
 @media (prefers-reduced-motion: reduce) { .running-bar i { animation: none; width: 100%; } }
 
-/* Строка поддержки под шапкой: негромкая полоска, а не баннер. Внизу страницы
-   её не видел никто — до неё надо было пролистать весь список находок. */
+/* The support line under the header: a quiet strip, not a banner. At the bottom
+   of the page nobody ever saw it — you had to scroll past the whole list of
+   findings to reach it. */
 .support {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   margin-bottom: 14px;
@@ -589,7 +594,7 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 .support-projects { margin: 0 0 0 auto; }
 [dir="rtl"] .support-projects { margin: 0 auto 0 0; }
 
-/* Полоса «идёт поиск» над списком результатов */
+/* The "search running" strip above the results list */
 .live-strip {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin-bottom: 14px; padding: 9px 14px;
@@ -614,8 +619,9 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 .check-progress[hidden] { display: none; }
 
 .running-timing { margin: 6px 0 0; font-size: 12px; color: var(--faint); }
-/* Кнопка «наверх»: всплывает, когда список уже прокручен, и не мешает,
-   пока в этом нет нужды. Слева в языках справа налево — отсюда логическое свойство. */
+/* The "top" button: it surfaces once the list has been scrolled and stays out of
+   the way until it is wanted. On the left in right-to-left languages — hence the
+   logical property. */
 .to-top {
   position: fixed; inset-block-end: 22px; inset-inline-end: 22px;
   width: 38px; height: 38px; padding: 0; border-radius: 50%;
@@ -627,7 +633,7 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 .to-top:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .to-top[hidden] { display: none; }
 
-/* Разбор одной вакансии по кнопке: пока идёт — вместо кнопки живая отметка */
+/* Analysing one job on demand: while it runs, a live mark stands in for the button */
 .analyse-slot { display: inline-flex; align-items: center; gap: 8px; }
 .analyse-slot form { margin: 0; }
 .analyse-slot .analyse-busy { display: none; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
@@ -635,15 +641,16 @@ input[type="date"]:not(:focus):placeholder-shown::-webkit-datetime-edit { color:
 .analyse-slot[data-busy] .analyse-busy { display: inline-flex; }
 .analyse-error:not(:empty) { font-size: 12px; color: var(--danger); max-width: 46ch; }
 
-/* Ссылка на другие проекты: это переход, а не действие — и выглядеть должна ссылкой */
+/* The link to other projects: it is a journey, not an action — and should look like a link */
 button.linklike {
   height: auto; padding: 0; border: 0; background: none; box-shadow: none;
   color: var(--link); font-size: inherit; font-weight: 500;
 }
 button.linklike:hover { background: none; text-decoration: underline; }
 
-/* Поле даты: видно текстовое в порядке день-месяц-год, а системное лежит
-   поверх значка справа прозрачным — нажатие по нему открывает родной календарь. */
+/* The date field: the text one is visible in day-month-year order, while the
+   system one lies transparent over the icon on the right — clicking it opens the
+   native calendar. */
 .date-field { position: relative; display: block; margin-top: 5px; }
 .date-field .date-text { margin-top: 0; padding-inline-end: 36px; }
 .date-field .date-native,

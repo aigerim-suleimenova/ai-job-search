@@ -1,4 +1,4 @@
-"""Веб-интерфейс: страница настроек, результаты, запуск поиска."""
+"""Web interface: the settings page, the results, starting a search."""
 import json
 import sys
 import threading
@@ -26,19 +26,19 @@ templates = Jinja2Templates(directory=BASE / "templates")
 
 @app.middleware("http")
 async def _profile_middleware(request: Request, call_next):
-    """Активный профиль на время запроса — из cookie (или профиль по умолчанию)."""
+    """The active profile for this request — from the cookie (or the default one)."""
     slug = request.cookies.get("profile", "")
     profiles.set_active(slug if profiles.exists(slug) else profiles.default_slug())
     return await call_next(request)
 
 
 def _provider_status(cfg: dict) -> dict:
-    """Готов ли выбранный «мозг» приложения. Без него поиск не заработает, и человек
-    должен узнать об этом сразу, а не из ошибки посреди прогона.
+    """Is the chosen "brain" of the app ready? Without it no search will run, and
+    a person should learn that straight away, not from an error mid-run.
 
-    Имя берётся из переводов: оно подставляется в фразу на языке интерфейса, а
-    раньше приезжало из providers.py всегда по-русски — «The app relies on
-    “Локальная модель (Ollama)”».
+    The name comes from the translations: it is dropped into a sentence in the
+    interface language, and it used to arrive from providers.py always in
+    Russian — "The app relies on “Локальная модель (Ollama)”".
     """
     key = cfg.get("llm", {}).get("provider", "claude_cli")
     provs = providers.available(cfg.get("llm", {}).get("claude_bin", "claude"))
@@ -48,11 +48,12 @@ def _provider_status(cfg: dict) -> dict:
 
 
 def _timing() -> dict:
-    """Сколько идёт прогон, сколько осталось до конца этапа и сколько он обычно длится.
+    """How long the run has taken, what is left of the stage, how long it usually takes.
 
-    Остаток считаем только внутри длинных этапов, где известно «сделано из
-    скольких», и по их собственному темпу. Проценты по всему прогону рисовать
-    честно нельзя: этапы разные по длине, и пропуск одного сдвинул бы всё.
+    The remainder is counted only inside long stages, where "done out of how
+    many" is known, and at that stage's own pace. Drawing a percentage for the
+    whole run would not be honest: the stages differ in length, and skipping
+    one would shift everything.
     """
     import time as _t
     out = {"elapsed_min": 0, "eta_min": 0, "typical_min": 0}
@@ -82,18 +83,18 @@ def _timing() -> dict:
 
 
 def mine_running() -> bool:
-    """Идёт ли прогон именно этого человека."""
+    """Is the run in progress this particular person's?"""
     return bool(pipeline.state["running"]
                 and pipeline.state.get("profile") == profiles.active())
 
 
 def _last_run_noauth() -> str:
-    """Текст ошибки последнего прогона, если он встал из-за входа в модель.
+    """The error of the last run, if it stopped because the model wants a login.
 
-    Строку ищем по началу на любом из языков: журнал пишется на том языке, что
-    стоял во время прогона, и раньше здесь сравнивалось с русским текстом —
-    у всех остальных совпадения не было никогда, и вместо причины показывался
-    прочерк.
+    The line is matched by its beginning in any language: the log is written in
+    whatever language was set during the run, and this used to compare against
+    the Russian text — for everyone else it never matched, and a dash was shown
+    instead of the reason.
     """
     runs = db.recent_runs(1)
     if not runs or runs[0]["status"] != "noauth":
@@ -112,18 +113,18 @@ def _lang(cfg: dict = None) -> str:
 
 
 def _err(exc) -> str:
-    """Текст исключения на языке интерфейса: свои ошибки несут ключ перевода."""
+    """An exception in the interface language: our own errors carry a translation key."""
     return i18n.err(_lang(), exc)
 
 
 def _msg(key: str, **fmt) -> str:
-    """Всплывающее сообщение на языке интерфейса, а не всегда по-русски."""
+    """A notice in the interface language, rather than always in Russian."""
     text = i18n.t(_lang(), key)
     return text.format(**fmt) if fmt else text
 
 
 def _seed_profile(slug: str) -> None:
-    """Новому человеку — тот же CLI и модель, что выбраны при первом запуске."""
+    """A new person gets the same CLI and model that were chosen on first launch."""
     defaults = appstate.default_llm()
     if not defaults:
         return
@@ -138,7 +139,7 @@ def _seed_profile(slug: str) -> None:
 
 
 def _asset_version() -> str:
-    """Метка стилей для адресной строки: меняется, когда меняется файл."""
+    """A stylesheet stamp for the URL: it changes when the file changes."""
     try:
         return str(int((BASE / "static" / "style.css").stat().st_mtime))
     except OSError:
@@ -146,7 +147,7 @@ def _asset_version() -> str:
 
 
 def render(request, template: str, ctx: dict, cfg: dict = None):
-    """Рендер с языком интерфейса и данными о профилях."""
+    """Render with the interface language and the profile data."""
     cfg_ = cfg or config.load()
     lang = cfg_.get("ui", {}).get("lang", "ru")
     ctx = {**ctx, "provider_status": _provider_status(cfg_), "asset_v": _asset_version(),
@@ -170,19 +171,19 @@ def _log_startup_problem(шаг: str, details: str) -> None:
 
 @app.on_event("startup")
 def startup() -> None:
-    """Ни один из этих шагов не обязателен, чтобы человек увидел окно.
+    """Not one of these steps is required for a person to see a window.
 
-    Раньше исключение здесь роняло весь запуск: uvicorn выходил с кодом 3,
-    поток сервера умирал, окно не открывалось — и всё это из-за расписания,
-    без которого программа прекрасно работает. Теперь каждый шаг отвечает
-    сам за себя, а причина попадает в журнал.
+    An exception here used to bring down the whole launch: uvicorn exited with
+    code 3, the server thread died, the window never opened — all because of
+    the scheduler, without which the app works perfectly well. Now every step
+    answers for itself, and the reason lands in the log.
     """
     for шаг, действие in (("перенос профилей", profiles.ensure_migrated),
                           ("запуск расписания", scheduler.start),
                           ("восстановление расписаний", scheduler.reschedule_all)):
         try:
             действие()
-        except Exception:  # noqa: BLE001 — любая беда здесь не повод не открыться
+        except Exception:  # noqa: BLE001 — no trouble here justifies not opening
             _log_startup_problem(шаг, traceback.format_exc())
 
 
@@ -192,8 +193,8 @@ def _redirect(msg: str = "") -> RedirectResponse:
 
 
 def _redirect_to(path: str, msg: str = "", anchor: str = "") -> RedirectResponse:
-    """anchor — якорь на странице: после действия человек должен оказаться там,
-    где нажимал, а не в начале длинного списка."""
+    """anchor — a place on the page: after an action a person should end up
+    where they clicked, not at the top of a long list."""
     url = f"{path}?msg={quote(msg)}" if msg else path
     if anchor:
         url += "#" + anchor
@@ -204,7 +205,7 @@ def _redirect_to(path: str, msg: str = "", anchor: str = "") -> RedirectResponse
 def index(request: Request, msg: str = ""):
     cfg = config.load()
     next_run = scheduler.next_run_time()
-    # статус показываем как «идёт», только если текущий прогон про этот профиль
+    # show the status as "running" only if the current run belongs to this profile
     mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
     state_view = {"running": mine, "step": pipeline.state.get("step", 0),
                   "steps": pipeline.STAGE_COUNT,
@@ -292,10 +293,10 @@ async def save(request: Request, then: str = ""):
         except ValueError:
             return default
 
-    # Форма настроек раньше перезаписывала конфиг целиком, поэтому любая частичная
-    # отправка стирала остальное — включая компании, которые прямо сейчас мог
-    # добавить идущий прогон. Теперь каждая секция обновляется, только если её
-    # поля действительно пришли.
+    # The settings form used to overwrite the whole config, so any partial
+    # submission wiped the rest — including companies a running search might be
+    # adding at that very moment. Now a section is updated only if its own
+    # fields actually arrived.
     def section_present(*fields):
         return any(f in form for f in fields)
 
@@ -365,8 +366,8 @@ async def save(request: Request, then: str = ""):
         )
     cfg["schedule"].pop("enabled", None)
     if section_present("ui_lang", "output_lang"):
-        # Незнакомое значение оставляет прежний язык, а не сбрасывает на
-        # русский: сброс молча переводил человеку и интерфейс, и результаты.
+        # An unfamiliar value keeps the current language instead of resetting to
+        # Russian: that reset silently switched both interface and results.
         ui_lang = val("ui_lang", cfg["ui"].get("lang", "en"))
         out_lang = val("output_lang", cfg["ui"].get("output_lang", "") or ui_lang)
         cfg["ui"].update(
@@ -433,18 +434,18 @@ def simple(request: Request, msg: str = ""):
 
 @app.post("/simple/start")
 async def simple_start(request: Request, file: UploadFile = None):
-    """Простой сценарий: имя, регион, CV, LinkedIn — остальное заполняется само."""
+    """The simple path: name, region, CV, LinkedIn — the rest fills itself in."""
     form = await request.form()
     person = str(form.get("person", "")).strip()
-    # Что означает изменённое имя, зависит от того, сколько людей заведено.
+    # What a changed name means depends on how many people exist.
     #
-    # Один — значит человек правит своё собственное имя (в первый запуск здесь
-    # стоит «Я»), и ожидает переименования. Раньше вместо этого молча заводился
-    # второй профиль с пустой историей, а первый оставался висеть рядом.
+    # One — the person is editing their own name (on first launch it reads "Me")
+    # and expects a rename. Instead a second profile with an empty history used
+    # to be created silently, while the first stayed hanging next to it.
     #
-    # Несколько — значит поле работает как «для кого ищем сейчас»: переключаемся
-    # на того, кто уже есть, или заводим нового. Повторный ввод одного имени не
-    # должен плодить «Друг», «Друг-2», «Друг-3» с раздельными результатами.
+    # Several — the field works as "who are we searching for now": we switch to
+    # someone who already exists, or add a new one. Typing the same name twice
+    # must not breed "Friend", "Friend-2", "Friend-3" with separate results.
     if person and person != profiles.name_of(profiles.active()):
         existing = next((p["slug"] for p in profiles.list_profiles()
                          if p["name"].strip().casefold() == person.casefold()), "")
@@ -462,10 +463,10 @@ async def simple_start(request: Request, file: UploadFile = None):
         slug = profiles.active()
 
     def ответ(resp):
-        """Выбранный человек должен пережить любой исход, а не только удачный.
-        Раньше на путях «резюме не читается» и «резюме нужно» cookie не ставилась,
-        и переключение молча откатывалось: сообщение относилось к одному человеку,
-        а страница возвращалась к другому."""
+        """The chosen person must survive every outcome, not only the happy one.
+        The "CV unreadable" and "CV needed" paths did not set the cookie, so the
+        switch silently rolled back: the message was about one person while the
+        page returned to another."""
         resp.set_cookie("profile", slug, max_age=60 * 60 * 24 * 365,
                         httponly=True, samesite="lax")
         return resp
@@ -487,8 +488,8 @@ async def simple_start(request: Request, file: UploadFile = None):
     if not config.cv_text():
         return ответ(_redirect_to("/simple", _msg("msg_cv_needed")))
 
-    # Разбор резюме и сам поиск уходят в фон: страница возвращается сразу,
-    # а ход работы виден в строке статуса и в журнале.
+    # Reading the CV and the search itself go to the background: the page comes
+    # back at once, and the progress is visible in the status line and the log.
     started = pipeline.prepare_and_run(slug, trigger="manual")
     if started:
         note = _msg("msg_search_started")
@@ -517,8 +518,8 @@ async def upload_cv(file: UploadFile):
 def run_now():
     if pipeline.run_async("manual", profile=profiles.active()):
         return _redirect(_msg("msg_search_started"))
-    # Пайплайн один на всех: если занят чужим прогоном, человек должен понимать,
-    # что ждёт не своих результатов, а очереди.
+    # One pipeline for everyone: if it is busy with someone else's run, a person
+    # should understand they are waiting for a queue, not for their own results.
     busy = pipeline.state.get("profile", "")
     if busy and busy != profiles.active():
         return _redirect(_msg("msg_busy_wait", name=profiles.name_of(busy)))
@@ -527,8 +528,8 @@ def run_now():
 
 @app.post("/stop")
 def stop_now():
-    """Останавливаем только прогон этого человека: в приложении несколько профилей,
-    и один пайплайн — иначе кнопка на чужой странице обрывала бы чужой поиск."""
+    """Stop only this person's run: the app holds several profiles and a single
+    pipeline — otherwise the button on one page would cut short another's search."""
     if not pipeline.state["running"]:
         return _redirect(_msg("msg_not_running"))
     if pipeline.state.get("profile") != profiles.active():
@@ -541,7 +542,7 @@ def stop_now():
 @app.get("/status")
 def status(min: int = -1):
     next_run = scheduler.next_run_time()
-    # прогон идёт «здесь» только если он про активный профиль
+    # the run is happening "here" only if it belongs to the active profile
     mine = pipeline.state["running"] and pipeline.state.get("profile") == profiles.active()
     busy_with = ""
     if pipeline.state["running"] and not mine:
@@ -562,7 +563,7 @@ def status(min: int = -1):
 
 
 def _posted_label(posted: str, lang: str) -> str:
-    """'2026-07-10' → 'опубл. 4 дн. назад (2026-07-10)' / 'posted 4d ago (…)'."""
+    """'2026-07-10' → 'posted 4d ago (2026-07-10)' / 'опубл. 4 дн. назад (…)'."""
     if not posted:
         return ""
     try:
@@ -636,10 +637,11 @@ async def viewed_all(request: Request):
     return RedirectResponse(back if back.startswith("/") else "/results", status_code=303)
 
 
-# Разбор одной вакансии по кнопке. Модель думает минуту-другую — держать
-# страницу всё это время нельзя (WebKit сам оборвёт запрос), поэтому разбор идёт
-# в фоне, а страница опрашивает /analyse/status и перерисовывается, когда готово.
-_deep_state: dict[str, dict] = {}   # «профиль:id вакансии» → что с ней сейчас
+# Analysing a single job on demand. The model thinks for a minute or two, and the
+# page cannot be held all that time (WebKit would cut the request off itself), so
+# the work goes to the background while the page polls /analyse/status and redraws
+# once it is done.
+_deep_state: dict[str, dict] = {}   # "profile:job id" → what is happening to it now
 
 
 def _deep_key(job_id: int) -> str:
@@ -668,7 +670,7 @@ async def analyse_job(job_id: int, request: Request):
             scoring.deep_analyze(job, cfg, cv, notes.append,
                                  research=bool(cfg["search"].get("research_company", True)))
             if not job.get("verified"):
-                # deep_analyze не бросает исключение, а пишет причину в журнал
+                # deep_analyze does not raise: it writes the reason to the log
                 raise RuntimeError(notes[-1] if notes else _msg("msg_analyse_failed",
                                                                 title=job.get("title", "")))
             db.save_job(job, int(job.get("run_id") or 0))
@@ -684,7 +686,7 @@ async def analyse_job(job_id: int, request: Request):
 
 @app.get("/analyse/status")
 def analyse_status():
-    """Какие вакансии этого человека сейчас разбираются, а какие уже готовы."""
+    """Which of this person's jobs are being analysed right now and which are done."""
     prefix = f"{profiles.active()}:"
     running, done, failed = [], {}, {}
     for key, st in list(_deep_state.items()):
@@ -788,11 +790,11 @@ async def models_set_provider(request: Request):
     cfg = config.load()
     if key in providers.available(cfg["llm"].get("claude_bin", "claude")):
         cfg["llm"]["provider"] = key
-        # модель прежнего провайдера бессмысленна для нового — берём самую сильную доступную
+        # the old provider's model means nothing to the new one — take the strongest available
         catalog = providers.models_for(key, lang=_lang(cfg))
         picks = [m for m in catalog if m.get("kind") != "local" or m.get("installed")]
-        # ничего не установлено — намечаем самую сильную модель, которая влезет
-        # в память: иначе в настройках осталась бы модель прежнего способа
+        # nothing installed — pencil in the strongest model that fits in memory:
+        # otherwise the settings would keep the previous provider's model
         picks = picks or [m for m in catalog if m.get("fits") in ("yes", "tight")] or catalog
         if picks:
             cfg["llm"]["triage_model"] = picks[0]["id"]
@@ -818,7 +820,8 @@ async def models_select(request: Request):
 
 @app.post("/models/pull")
 async def models_pull(request: Request):
-    """Скачивание идёт в фоне: модель весит гигабайты, ждать ответа страницы нельзя."""
+    """The download runs in the background: a model weighs gigabytes, and the page
+    cannot wait for it."""
     form = await request.form()
     model = str(form.get("model", "")).strip()
     if providers.pull_in_progress():
@@ -829,12 +832,12 @@ async def models_pull(request: Request):
 
 @app.get("/models/pull_status")
 def models_pull_status():
-    """Состояние скачивания — уже словами, на языке интерфейса.
+    """The download state, already in words and in the interface language.
 
-    Свои шаги и ошибки лежат в состоянии ключами: страница показывает их как
-    есть, и раньше на любом языке видела русские «начинаем» и «готово».
-    Сообщения самой Ollama («pulling manifest») переводить нечем — они идут
-    как пришли.
+    Our own steps and errors sit in that state as keys: the page shows whatever
+    it is given, and in every language it used to see the Russian "начинаем"
+    and "готово". Ollama's own messages ("pulling manifest") have nothing to be
+    translated with — they go through as they arrived.
     """
     lang = _lang()
     st = providers.pull_status()
@@ -848,11 +851,11 @@ def models_pull_status():
     return JSONResponse(st)
 
 
-# Проверка CV зовёт модель и с локальной занимает минуты. Раньше это была
-# обычная ссылка: человек нажимал и сидел перед не меняющейся страницей, не
-# понимая, идёт что-нибудь или нет. Теперь работа уходит в фон, а страница
-# показывает ход и обновляется сама — как при разборе вакансии.
-_check_state: dict = {}      # «профиль» → что с проверкой сейчас
+# The CV check calls the model, and with a local one it takes minutes. This used
+# to be an ordinary link: a person clicked it and sat in front of a page that
+# never changed, unsure whether anything was happening. Now the work goes to the
+# background and the page shows progress and refreshes itself — as with a job.
+_check_state: dict = {}      # "profile" → what is happening to the check now
 
 
 @app.get("/cv/check")
@@ -880,7 +883,7 @@ def cv_check_run():
         try:
             cvcheck.analyze(cfg)
             _check_state[slug] = {"running": False, "error": ""}
-        except Exception as e:  # noqa: BLE001 — причину показываем человеку, а не прячем
+        except Exception as e:  # noqa: BLE001 — show the reason, do not hide it
             _check_state[slug] = {"running": False, "error": str(e)[:400]}
 
     threading.Thread(target=worker, daemon=True).start()
@@ -896,7 +899,7 @@ def cv_check_status():
 
 @app.post("/app_settings")
 async def app_settings(request: Request):
-    """Поведение самой программы: автозапуск и работа в фоне."""
+    """How the app itself behaves: start at login and keep working in the background."""
     form = await request.form()
     cfg = config.load()
     cfg["ui"]["background"] = "background" in form
@@ -918,7 +921,7 @@ async def set_lang(request: Request):
 
 @app.post("/set_theme")
 async def set_theme(request: Request):
-    """Оформление общее на всё приложение: это про экран, а не про человека."""
+    """The theme is shared by the whole app: it is about the screen, not the person."""
     form = await request.form()
     appstate.set_theme(str(form.get("theme", "auto")))
     back = str(form.get("back", "/"))
@@ -928,8 +931,8 @@ async def set_theme(request: Request):
 def _export_jobs(min_score: int, sort: str = "default", viewed: str = "all",
                  source: str = "all", run: int = 0,
                  posted_from: str = "", posted_to: str = ""):
-    """Та же выборка, что и на странице результатов — экспорт обязан совпадать с тем,
-    что человек видит на экране."""
+    """The same selection as on the results page — an export has to match what a
+    person sees on screen."""
     jobs = db.matched_jobs(limit=1000, min_score=min_score, sort=sort,
                            viewed=viewed, source=source, run_id=run,
                            posted_from=posted_from, posted_to=posted_to)
@@ -941,7 +944,8 @@ def _export_jobs(min_score: int, sort: str = "default", viewed: str = "all",
 
 def _filter_note(lang: str, min_score: int, sort: str, viewed: str, source: str, run: int,
                  posted_from: str = "", posted_to: str = "") -> str:
-    """Подпись «что именно выгружено» — чтобы файл нельзя было принять за полный список."""
+    """A note saying what exactly was exported, so the file cannot be mistaken
+    for the complete list."""
     parts = [f"{i18n.t(lang, 'results_shown')} {min_score}%"]
     if sort != "default":
         parts.append(f"{i18n.t(lang, 'sort_by')}: {i18n.t(lang, 'sort_' + sort)}")
@@ -990,7 +994,7 @@ def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
 
 @app.get("/cv/{job_id}")
 def tailored_cv(job_id: int):
-    причина = ""          # текст неудачи, если модель не справилась
+    причина = ""          # the failure text, if the model could not manage
     job = db.get_job(job_id)
     if not job:
         return Response(content="Job not found", status_code=404)
@@ -1004,13 +1008,14 @@ def tailored_cv(job_id: int):
         cfg = config.load()
         source = config.cv_text()
         if not source.strip():
-            # без исходного резюме модель сочиняла документ с «<MISSING>» вместо отказа
+            # without the original CV the model invented a document full of
+            # "<MISSING>" instead of refusing
             return Response(content=f"<p style='font:15px -apple-system;padding:32px'>"
                                     f"{_msg('cv_no_source')}</p>",
                             media_type="text/html", status_code=200)
         try:
             cv_data = scoring.generate_cv(job, cfg, source)
-        except Exception as e:  # noqa: BLE001 — показать причину важнее, чем упасть
+        except Exception as e:  # noqa: BLE001 — showing the reason beats crashing
             _log_startup_problem("подготовка CV под вакансию", traceback.format_exc())
             cv_data = None
             причина = str(e)[:400]
@@ -1019,9 +1024,9 @@ def tailored_cv(job_id: int):
         if cv_data:
             db.save_tailored_cv(job_id, json.dumps(cv_data, ensure_ascii=False))
     if not cv_data:
-        # Пустая вкладка с «502» ничего не объясняет. Чаще всего сюда приводит
-        # небольшая локальная модель: документ она пишет прозой, а не строгим
-        # JSON, и разобрать его нечем.
+        # A blank tab with "502" explains nothing. What usually leads here is a
+        # small local model: it writes the document as prose rather than strict
+        # JSON, and there is nothing to parse it with.
         подробности = ""
         if причина:
             подробности = ("<pre style='background:#f2f2f7;padding:12px;border-radius:8px;"
@@ -1095,7 +1100,7 @@ async def coverage_do_check(request: Request):
 
 @app.post("/coverage/add")
 async def coverage_add(request: Request):
-    """Добавляет проверенную компанию в список мониторинга."""
+    """Adds a verified company to the watch list."""
     form = await request.form()
     name, url = str(form.get("name", "")).strip(), str(form.get("url", "")).strip()
     if url:
@@ -1108,11 +1113,11 @@ async def coverage_add(request: Request):
     return RedirectResponse("/coverage", status_code=303)
 
 
-# --- Запись ошибок -------------------------------------------------------
+# --- Recording errors ------------------------------------------------------
 
-# Собранное приложение не писало лога никуда: при сбое в окне появлялась строка
-# «Internal Server Error», и узнать, что именно упало, было неоткуда. Пишем
-# в файл рядом с данными и показываем человеку, где он лежит.
+# The packaged app wrote no log anywhere: on a failure the window showed the line
+# "Internal Server Error", and there was nowhere to learn what had actually
+# broken. We write to a file next to the data and tell the person where it is.
 LOG_PATH = profiles.DATA_ROOT / "errors.log"
 
 
@@ -1124,7 +1129,7 @@ def _log_error(request: Request, exc: BaseException) -> str:
         profiles.DATA_ROOT.mkdir(parents=True, exist_ok=True)
         with LOG_PATH.open("a", encoding="utf-8") as fh:
             fh.write(entry)
-        # файл не должен расти бесконечно
+        # the file must not grow forever
         if LOG_PATH.stat().st_size > 512_000:
             tail = LOG_PATH.read_text(encoding="utf-8", errors="ignore")[-256_000:]
             LOG_PATH.write_text(tail, encoding="utf-8")
@@ -1136,13 +1141,13 @@ def _log_error(request: Request, exc: BaseException) -> str:
 
 @app.exception_handler(Exception)
 async def on_error(request: Request, exc: Exception):
-    """Страница ошибки вместо голого «Internal Server Error»."""
+    """An error page instead of a bare "Internal Server Error"."""
     text = _log_error(request, exc)
     last = text.strip().splitlines()[-1][:300] if text.strip() else str(exc)[:300]
     lang = "en"
     try:
         lang = config.load().get("ui", {}).get("lang", "en")
-    except Exception:  # noqa: BLE001 — на странице ошибки нельзя падать второй раз
+    except Exception:  # noqa: BLE001 — an error page must not fail a second time
         pass
     html = (
         "<!doctype html><meta charset='utf-8'>"
@@ -1158,11 +1163,11 @@ async def on_error(request: Request, exc: Exception):
     return Response(content=html, media_type="text/html", status_code=500)
 
 
-# --- Первый запуск ---------------------------------------------------------
+# --- First launch ----------------------------------------------------------
 
-# Страницы, которые до выбора модели показывать бессмысленно: без неё ничего
-# не работает. Всё остальное (статика, статус скачивания, смена языка) должно
-# оставаться доступным, иначе само знакомство не сможет работать.
+# Pages there is no point showing before a model is chosen: without one nothing
+# works. Everything else (static files, download status, changing the language)
+# has to stay reachable, or the introduction itself could not work.
 _PAGES = {"/", "/simple", "/results", "/coverage", "/cv/check", "/notify", "/models"}
 
 
@@ -1176,11 +1181,12 @@ async def first_run_gate(request: Request, call_next):
 
 @app.post("/provider/install")
 async def provider_install(request: Request):
-    """Открывает страницу загрузки в браузере.
+    """Opens the download page in the browser.
 
-    Поставить программу за человека нельзя — это установщик с правами
-    администратора. Но и пересказывать словами «скачайте с сайта» плохо:
-    открываем нужную страницу сами, ровно ту, что записана в коде.
+    Installing the program for someone is not ours to do — that is an installer
+    asking for administrator rights. But retelling it in words, "download it
+    from the website", is poor too: we open the right page ourselves, exactly
+    the one written down in the code.
     """
     form = await request.form()
     key = str(form.get("provider", ""))
@@ -1195,7 +1201,7 @@ async def provider_install(request: Request):
 
 @app.post("/provider/recheck")
 async def provider_recheck(request: Request):
-    """Перепроверить, появилась ли программа — без перезапуска приложения."""
+    """Check again whether the program has appeared — without restarting the app."""
     form = await request.form()
     back = str(form.get("back") or "/models")
     providers.forget_binaries()
@@ -1207,8 +1213,8 @@ async def provider_recheck(request: Request):
     return _redirect_to(back, _msg("msg_recheck_found" if ready else "msg_recheck_none", name=name))
 
 
-# Внешние адреса заданы здесь списком: страница передаёт только ключ, чтобы
-# кнопкой нельзя было открыть произвольный адрес.
+# External addresses are listed here: the page passes only a key, so a button
+# cannot be made to open an arbitrary address.
 EXTERNAL_URLS = {
     "bmc": "https://buymeacoffee.com/ipupok",
     "kofi": "https://ko-fi.com/ipupok",
@@ -1241,7 +1247,7 @@ def welcome(request: Request, msg: str = ""):
         "current_model_name": chosen["name"] if chosen else current_model,
         "specs": hardware.specs(),
         "provider_ready": bool(provs.get(provider, {}).get("ready")),
-        # продолжать есть смысл, только если выбранным способом реально можно считать
+        # going on makes sense only if the chosen provider can really do the thinking
         "ready": bool(provs.get(provider, {}).get("ready")
                       and (not chosen or chosen.get("kind") != "local" or chosen.get("installed"))),
     }, cfg=cfg)

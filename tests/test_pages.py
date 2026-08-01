@@ -1,8 +1,9 @@
-"""Дым: страницы должны открываться.
+"""Smoke: the pages have to open.
 
-Сегодня эти восемь адресов проверялись руками после каждой правки — и один раз
-пропущенная проверка стоила «Internal Server Error» у человека на экране.
-Сеть и модель не задействованы: страницы рисуются из базы и настроек.
+These eight addresses used to be checked by hand after every change — and one
+skipped check cost somebody an "Internal Server Error" on their screen. Neither
+the network nor the model is involved: the pages are drawn from the database and
+the settings.
 """
 import re
 
@@ -47,8 +48,8 @@ def test_фильтры_результатов_не_роняют_страниц�
         "/results?min=70",
         "/results?sort=posted&viewed=new&source=direct",
         "/results?posted_from=2026-07-01&posted_to=2026-07-31",
-        "/results?posted_from=мусор",          # человек ввёл ерунду руками
-        "/results?run=999",                    # прогона с таким номером нет
+        "/results?posted_from=мусор",          # someone typed nonsense by hand
+        "/results?run=999",                    # there is no run with that number
         "/results?min=не-число",
     ]
     for q in запросы:
@@ -72,8 +73,8 @@ def test_несуществующая_вакансия_не_роняет(client,
 
 
 def test_выбор_модели_возвращает_к_месту_нажатия(client, profile):
-    """После «Использовать» страница перезагружается — и раньше человек
-    оказывался в начале длинного списка, а не там, где нажимал."""
+    """After "Use" the page reloads — and a person used to end up at the top of a
+    long list rather than where they had clicked."""
     r = client.post("/models/select",
                     data={"model": "claude-haiku-4-5", "back": "/models", "anchor": "model-claude-haiku-4-5"},
                     follow_redirects=False)
@@ -95,8 +96,8 @@ def test_без_якоря_перенаправление_прежнее(client,
 
 
 def test_проверка_cv_уходит_в_фон_и_не_держит_страницу(client, profile, monkeypatch):
-    """Раньше это была ссылка, которая молча считала минутами. Теперь страница
-    возвращается сразу, а работа идёт в фоне."""
+    """This used to be a link that thought silently for minutes. Now the page comes
+    back at once and the work goes on in the background."""
     import time as _t
     from jobsearch import config, cvcheck
 
@@ -109,7 +110,7 @@ def test_проверка_cv_уходит_в_фон_и_не_держит_стр�
     assert _t.monotonic() - начало < 0.5, "страница ждала окончания проверки"
 
     assert client.get("/cv/check/status").json()["running"] is True
-    assert "cvcheck_running" not in client.get("/cv/check").text  # ключ переведён, а не показан сырым
+    assert "cvcheck_running" not in client.get("/cv/check").text  # the key is translated, not shown raw
 
 
 def test_неудачная_проверка_cv_показывает_причину(client, profile, monkeypatch):
@@ -130,7 +131,7 @@ def test_неудачная_проверка_cv_показывает_причи�
 
 
 def test_несобравшееся_cv_объясняет_а_не_отдаёт_502(client, profile, monkeypatch):
-    """Пустая вкладка с «502» человеку ничего не говорит."""
+    """A blank tab with "502" tells a person nothing."""
     from jobsearch import config, db, scoring
     from conftest import job as образец
 
@@ -147,18 +148,18 @@ def test_несобравшееся_cv_объясняет_а_не_отдаёт_5
     assert "JSON" in r.text or "модель" in r.text.lower()
 
 
-# --- Русские слова на английских страницах -------------------------------------
+# --- Russian words on English pages --------------------------------------------
 
 КИРИЛЛИЦА = re.compile(r"[А-Яа-яЁё]")
-# Не всякая кириллица на английской странице — беда. «Русский» в списке языков
-# и имя профиля, которое человек написал сам, там и должны быть по-русски.
+# Not every piece of Cyrillic on an English page is trouble. "Русский" in the list
+# of languages, and a profile name the person wrote themselves, belong there.
 СВОИ_ИМЕНА = re.compile(r'<select name="(ui_lang|output_lang|slug)".*?</select>', re.S)
 ПОДСКАЗКА_ЯЗЫКА = 'title="Язык / Language"'
 
 
 def человеческий_текст(html: str) -> str:
-    """Страница без того, что человек не читает: комментарии в скриптах и
-    списки языков. Двойную косую в «https://» за комментарий не принимаем."""
+    """The page without what a person does not read: comments in scripts and lists
+    of languages. The double slash in "https://" is not taken for a comment."""
     html = СВОИ_ИМЕНА.sub("", html).replace(ПОДСКАЗКА_ЯЗЫКА, "")
     html = re.sub(r"/\*.*?\*/", "", html, flags=re.S)
     return re.sub(r"""(?<![:"'])//.*$""", "", html, flags=re.M)
@@ -166,21 +167,22 @@ def человеческий_текст(html: str) -> str:
 
 @pytest.fixture
 def английский(client, profile):
-    """Англоязычный человек. Профиль переименован по-латински: имя, которое
-    человек написал сам, — не текст программы, и путать их в проверке нельзя."""
+    """An English-speaking person. The profile is renamed in Latin script: a name
+    the person wrote themselves is not the program's text, and the check must not
+    confuse the two."""
     from jobsearch import config, profiles
     profiles.rename(profile, "Alex")
     cfg = config.load()
     cfg["ui"].update(lang="en", output_lang="en")
-    cfg["llm"]["provider"] = "ollama"      # его имя подставляется в текст страницы
+    cfg["llm"]["provider"] = "ollama"      # its name is dropped into the page text
     config.save(cfg)
     return client
 
 
 @pytest.mark.parametrize("path", СТРАНИЦЫ)
 def test_на_английском_нет_русских_слов(английский, path):
-    """Ключи-то переведены, но текст приходил и мимо них: имя провайдера,
-    пометки моделей, почтовые службы, имя профиля по умолчанию."""
+    """Every key is translated, but text arrived round them too: the provider's
+    name, the model notes, the mail services, the default profile name."""
     текст = человеческий_текст(английский.get(path).text)
     найдено = [ln.strip() for ln in текст.splitlines() if КИРИЛЛИЦА.search(ln)]
     assert not найдено, f"{path}: " + " | ".join(найдено[:4])
@@ -199,8 +201,8 @@ def test_на_английском_нет_русских_слов_с_данны�
 
 
 def test_старое_покрытие_с_русским_типом_источника_переводится(английский):
-    """Тип источника хранится в базе: у прогонов, записанных до перевода, там
-    так и лежит «агрегатор» — показать его надо всё равно по-английски."""
+    """The source kind is kept in the database: runs written before the translation
+    still hold "агрегатор" there — and it still has to be shown in English."""
     import json as _json
     from jobsearch import db
     run_id = db.start_run()

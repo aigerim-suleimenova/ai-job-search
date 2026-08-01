@@ -1,8 +1,9 @@
-"""Настройки уровня приложения — общие для всех людей внутри него.
+"""Application-level settings — shared by everyone inside it.
 
-CLI и модель — свойство компьютера, а не человека: их выбирают один раз при
-первом запуске. Дальше это значение по умолчанию для каждого нового профиля,
-чтобы добавление второго человека не возвращало настройки к «как получится».
+The CLI and the model belong to the computer rather than to a person: they are
+chosen once, on first launch. After that they are the default for every new
+profile, so adding a second person does not send the settings back to "whatever
+happens".
 """
 import json
 import threading
@@ -34,10 +35,11 @@ def save(state: dict) -> None:
 
 
 def setup_done() -> bool:
-    """Знакомство уже пройдено?
+    """Has the introduction already been through?
 
-    Тем, кто обновился с прежней версии, показывать его незачем: у них уже
-    есть настроенный профиль, и знакомство выглядело бы как потеря данных.
+    There is no reason to show it to people who upgraded from an earlier
+    version: they already have a configured profile, and the introduction would
+    look like their data had been lost.
     """
     if load().get("setup_done"):
         return True
@@ -56,7 +58,7 @@ THEMES = ("auto", "light", "dark")
 
 
 def theme() -> str:
-    """Оформление — свойство компьютера, а не человека: одно на всё приложение."""
+    """The theme belongs to the computer rather than a person: one for the whole app."""
     value = load().get("theme", "auto")
     return value if value in THEMES else "auto"
 
@@ -68,5 +70,5 @@ def set_theme(value: str) -> None:
 
 
 def default_llm() -> dict:
-    """Чем считать у нового профиля — тем же, что выбрано при первом запуске."""
+    """What a new profile thinks with: the same thing that was chosen on first launch."""
     return {k: v for k, v in (load().get("llm") or {}).items() if v}

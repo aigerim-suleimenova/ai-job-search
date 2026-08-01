@@ -1,12 +1,12 @@
-"""Запуск как обычной программы: своё окно, сервер внутри, без терминала.
+"""Launching as an ordinary program: its own window, the server inside, no terminal.
 
-Два режима закрытия окна (переключается в настройках):
-- обычный: закрыли окно — приложение завершилось;
-- фоновый: закрыли окно — поиск продолжается, а повторный запуск программы
-  просто открывает окно к уже работающему процессу.
+Two ways of closing the window (switched in the settings):
+- ordinary: close the window and the app exits;
+- background: close the window and the search carries on, while starting the
+  program again simply opens a window onto the process already running.
 
-Второй режим нужен для непрерывного поиска: держать окно открытым сутками
-неудобно, а прерывать поиск при закрытии — обидно.
+The second one is what makes an uninterrupted search possible: keeping a window
+open for days is awkward, and cutting the search short on closing is a shame.
 """
 import json
 import os
@@ -25,9 +25,10 @@ import uvicorn
 import webview
 
 def _make_output_safe(*streams) -> None:
-    """Консоль Windows по умолчанию не в UTF-8: любое русское слово в выводе
-    роняет программу кодировочной ошибкой. Сообщение о беде не должно
-    становиться бедой — переводим потоки в UTF-8, а непереводимое заменяем."""
+    """The Windows console is not UTF-8 by default: a single non-Latin word in the
+    output brings the program down with an encoding error. A message about
+    trouble must not become the trouble — we move the streams to UTF-8 and
+    replace whatever will not fit."""
     for stream in streams:
         if stream is None or not hasattr(stream, "reconfigure"):
             continue
@@ -73,7 +74,7 @@ def _alive(port: int) -> bool:
 
 
 def _free_port() -> int:
-    """Свободный порт: 8765, если не занят (привычный адрес), иначе любой."""
+    """A free port: 8765 if nobody has it (the familiar address), otherwise any."""
     for candidate in (8765, 0):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
             try:
@@ -94,8 +95,9 @@ def _wait_until_up(port: int, timeout: float = 30.0) -> bool:
 
 
 def _log_crash(title: str, details: str) -> None:
-    """Пишет причину в файл рядом с данными: у оконной программы нет консоли,
-    и без этого человеку нечего показать тому, кто будет разбираться."""
+    """Writes the reason to a file next to the data: a windowed program has no
+    console, and without this a person has nothing to show whoever will look
+    into it."""
     try:
         path = _state_dir() / "errors.log"
         with path.open("a", encoding="utf-8") as f:
@@ -105,9 +107,9 @@ def _log_crash(title: str, details: str) -> None:
 
 
 def _capture_server_log() -> None:
-    """Uvicorn пишет причину беды в свой журнал, а у оконной программы этот
-    журнал никто не видит: в прошлый раз наружу вышло только «SystemExit: 3»,
-    а настоящая ошибка осталась в невидимом логе. Направляем его в файл."""
+    """Uvicorn writes the reason into its own log, and in a windowed program
+    nobody ever sees that log: last time all that came out was "SystemExit: 3"
+    while the real error stayed invisible. We point it at a file."""
     import logging
     try:
         handler = logging.FileHandler(_state_dir() / "errors.log", encoding="utf-8")
@@ -122,8 +124,8 @@ def _capture_server_log() -> None:
 
 
 def _serve(port: int) -> None:
-    """Сервер живёт в фоновом потоке. Раньше исключение здесь означало тихую
-    смерть потока: окно не открывалось, а почему — не знал никто."""
+    """The server lives in a background thread. An exception here used to mean the
+    thread died quietly: the window never opened and nobody knew why."""
     global _server, _server_error
     _capture_server_log()
     try:
@@ -133,17 +135,17 @@ def _serve(port: int) -> None:
                                 log_level="warning", access_log=False)
         _server = uvicorn.Server(config)
         _server.run()
-    except BaseException:                     # noqa: BLE001 — важна любая причина
+    except BaseException:                     # noqa: BLE001 — every reason matters
         _server_error = traceback.format_exc()
         _log_crash("Внутренний сервер не запустился", _server_error)
 
 
 def _ui_lang() -> str:
-    """Язык интерфейса — для сообщений, которые показываются до сервера.
+    """The interface language, for messages shown before the server is up.
 
-    Настроек может не быть вовсе (первый запуск) или их чтение может упасть
-    вместе со всем остальным — тогда язык системы, а на крайний случай
-    английский: он понятен большему числу людей, чем русский.
+    There may be no settings at all (first launch), or reading them may fail
+    along with everything else — then the system language, and as a last resort
+    English: more people understand it than Russian.
     """
     try:
         from jobsearch import config, i18n, profiles
@@ -158,8 +160,8 @@ def _ui_lang() -> str:
 
 
 def _say(key: str, **fmt) -> str:
-    """Строка перевода, а если переводов не достать — пустая: сообщение о беде
-    не должно становиться второй бедой."""
+    """A translated line, or an empty one if the translations cannot be reached:
+    a message about trouble must not become a second helping of it."""
     try:
         from jobsearch import i18n
         text = i18n.t(_ui_lang(), key)
@@ -169,8 +171,8 @@ def _say(key: str, **fmt) -> str:
 
 
 def _show_failure(reason: str) -> None:
-    """Показывает причину в окне: без этого человек видит только то, что
-    программа не открылась."""
+    """Shows the reason in a window: without it a person sees only that the
+    program did not open."""
     log = _state_dir() / "errors.log"
     safe = (reason or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     title = _say("crash_title", app=APP_NAME) or f"{APP_NAME} could not start"
@@ -186,20 +188,20 @@ white-space:pre-wrap;max-height:320px;overflow:auto">{safe[-4000:]}</pre>
         webview.create_window(APP_NAME, html=html, width=760, height=520)
         webview.start()
         return
-    except Exception:                         # noqa: BLE001 — окна может не быть вовсе
+    except Exception:                         # noqa: BLE001 — there may be no window at all
         pass
-    # Окно не открылось — а рассказать о беде тем более надо: кладём ту же
-    # страницу файлом и отдаём браузеру.
+    # The window did not open — which makes telling about the trouble matter all
+    # the more: we put the same page in a file and hand it to the browser.
     try:
         page = _state_dir() / "error.html"
         page.write_text(html, encoding="utf-8")
         webbrowser.open(page.as_uri())
-    except Exception:                         # noqa: BLE001 — браузера тоже может не быть
+    except Exception:                         # noqa: BLE001 — there may be no browser either
         print(reason, file=sys.stderr)
 
 
 def _keep_running_in_background() -> bool:
-    """Настройка профиля по умолчанию: продолжать ли поиск после закрытия окна."""
+    """The default profile's setting: whether to keep searching once the window closes."""
     try:
         from jobsearch import config, profiles
         profiles.set_active(profiles.default_slug())
@@ -214,7 +216,7 @@ def _shutdown() -> None:
         if pipeline.state.get("running"):
             pipeline.request_stop()
         scheduler.stop()
-    except Exception:  # noqa: BLE001 — при выходе доводим молча
+    except Exception:  # noqa: BLE001 — on the way out we finish quietly
         pass
     try:
         _lock_path().unlink(missing_ok=True)
@@ -225,27 +227,27 @@ def _shutdown() -> None:
 
 
 def _on_closing() -> bool:
-    """True — окно закроется и процесс завершится, False — остаёмся работать в фоне."""
+    """True — the window closes and the process ends; False — we stay on in the background."""
     if _keep_running_in_background():
-        return True     # окно закрывается, процесс живёт: сервер и расписание работают
+        return True     # window closes, process lives on: server and schedule keep working
     _shutdown()
     return True
 
 
 def _unblock_bundled_libraries() -> int:
-    """Снимает с библиотек сборки метку «файл скачан из интернета».
+    """Takes the "came from the internet" mark off the build's own libraries.
 
-    Windows ставит такую метку всему, что распаковано из скачанного архива, а
-    .NET помеченные библиотеки загружать отказывается. Именно на этом падал
-    переносимый вариант: окно рисует .NET, а Python.Runtime.dll внутри сборки
-    для него был чужим файлом. Удалить метку — это ровно то, что делает
-    «Разблокировать» в свойствах файла.
+    Windows puts that mark on everything unpacked from a downloaded archive, and
+    .NET refuses to load a marked library. That is exactly what the portable
+    build died on: .NET draws the window, and Python.Runtime.dll inside the
+    build was a stranger's file to it. Removing the mark is precisely what
+    "Unblock" in the file properties does.
 
-    Возвращает число библиотек, с которых метку снять не удалось.
+    Returns how many libraries the mark could not be taken off.
     """
     bundle = getattr(sys, "_MEIPASS", "")
     if not bundle:
-        return 0                       # запуск из исходников: скачивать было нечего
+        return 0                       # running from source: there was nothing to download
     осталось = 0
     for dll in Path(bundle).rglob("*.dll"):
         метка = f"{dll}:Zone.Identifier"
@@ -254,16 +256,17 @@ def _unblock_bundled_libraries() -> int:
         try:
             os.remove(метка)
         except OSError:
-            осталось += 1              # папка только для чтения — метка остаётся
+            осталось += 1              # a read-only folder — the mark stays
     return осталось
 
 
 def _trust_marked_libraries() -> Path:
-    """Разрешение .NET доверять помеченным библиотекам.
+    """Permission for .NET to trust marked libraries.
 
-    Запасной путь для случая, когда метку снять не дают: тем же самым файлам
-    можно выдать доверие настройкой, не трогая их на диске. Файл кладём к
-    данным программы — туда писать можно всегда, в отличие от папки установки.
+    The fallback for when the mark cannot be removed: the very same files can be
+    granted trust by configuration, without touching them on disk. The file goes
+    next to the program's data — that is always writable, unlike the install
+    folder.
     """
     path = _state_dir() / "dotnet.config"
     path.write_text('<?xml version="1.0" encoding="utf-8"?>\n'
@@ -276,11 +279,11 @@ def _trust_marked_libraries() -> Path:
 
 
 def _prepare_windows_gui() -> None:
-    """Окно на Windows рисует .NET — убираем то, что мешает ему стартовать.
+    """On Windows the window is drawn by .NET — clear away what stops it starting.
 
-    На чистой сборке не делаем ничего: настройка загрузчика нужна только там,
-    где метка действительно есть и не снимается, а лишний раз менять условия
-    запуска у тех, у кого всё работает, — верный способ это сломать.
+    On a clean build we do nothing: the loader setting is needed only where the
+    mark is really there and really will not come off, and changing the launch
+    conditions for people whose window already works is a sure way to break it.
     """
     if sys.platform != "win32":
         return
@@ -288,10 +291,10 @@ def _prepare_windows_gui() -> None:
         if not _unblock_bundled_libraries():
             return
         if "PYTHONNET_NETFX_CONFIG_FILE" in os.environ:
-            return                     # человек настроил сам — не перебиваем
+            return                     # the person configured it — do not override
         os.environ["PYTHONNET_NETFX_CONFIG_FILE"] = str(_trust_marked_libraries())
-    except Exception:                  # noqa: BLE001 — подготовка необязательна,
-        pass                           # не вышло — остаётся показ в браузере
+    except Exception:                  # noqa: BLE001 — the preparation is optional,
+        pass                           # if it fails, the browser is still there
 
 
 def _remember_window_shown() -> None:
@@ -300,29 +303,29 @@ def _remember_window_shown() -> None:
 
 
 def _open_in_browser(port: int, own_server: bool) -> None:
-    """Своего окна нет — показываем программу в браузере.
+    """No window of our own — so we show the program in the browser.
 
-    Внутри это обычный сайт на 127.0.0.1, так что вкладка — полноценная замена
-    окну. Отказывать человеку в программе целиком из-за одной оконной
-    библиотеки не за что.
+    Inside it is an ordinary site on 127.0.0.1, so a tab is a full replacement
+    for a window. Refusing a person the whole program over one windowing library
+    is not a trade worth making.
     """
     url = f"http://127.0.0.1:{port}/simple"
     try:
         webbrowser.open(url)
-    except Exception:                  # noqa: BLE001 — браузера может не быть вовсе
+    except Exception:                  # noqa: BLE001 — there may be no browser at all
         pass
     print(_say("crash_in_browser", url=url) or f"{APP_NAME}: {url}", file=sys.stderr)
     if not own_server:
-        return                         # сервер чужой, держать его живым не нам
+        return                         # someone else's server: not ours to keep alive
     try:
         while True:
-            time.sleep(3600)           # окна нет — держим сервер, пока нужна вкладка
+            time.sleep(3600)           # no window — hold the server while the tab is needed
     except KeyboardInterrupt:
         pass
 
 
 def _open_window(port: int, own_server: bool) -> None:
-    """Своё окно, а если система его не даёт — вкладка в браузере."""
+    """Our own window, or a browser tab if the system will not give us one."""
     global _window
     try:
         _window = webview.create_window(APP_NAME, f"http://127.0.0.1:{port}/simple",
@@ -332,18 +335,18 @@ def _open_window(port: int, own_server: bool) -> None:
             _window.events.closing += _on_closing
         webview.start()
         return
-    except Exception:                  # noqa: BLE001 — важна любая причина
+    except Exception:                  # noqa: BLE001 — every reason matters
         reason = traceback.format_exc()
     _log_crash("Своё окно не открылось — показываем в браузере", reason)
     if _window_shown:
-        return                         # окном уже пользовались: беда на выходе, не на входе
+        return                         # the window was already in use: trouble on the way out
     _open_in_browser(port, own_server)
 
 
 def main() -> int:
     _prepare_windows_gui()
 
-    # Уже запущено? Тогда это «второй клик по иконке» — просто показываем окно.
+    # Already running? Then this is a second click on the icon — just show the window.
     lock = _read_lock()
     if _alive(lock.get("port", 0)):
         _open_window(lock["port"], own_server=False)
@@ -360,7 +363,7 @@ def main() -> int:
 
     _open_window(port, own_server=True)
 
-    # Окно закрыто. В фоновом режиме держим процесс живым, пока идёт работа.
+    # The window is closed. In background mode we keep the process alive while it works.
     if _keep_running_in_background():
         try:
             while True:

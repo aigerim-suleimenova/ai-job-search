@@ -1,4 +1,4 @@
-"""हिन्दी. Ключи и порядок — как в i18n.TR."""
+"""हिन्दी. Keys and order as in i18n.TR."""
 STRINGS = {
 "app_title": "AI Job Search",
 "nav_settings": "खोज सेटिंग्स",

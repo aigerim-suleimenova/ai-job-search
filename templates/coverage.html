@@ -51,8 +51,8 @@ https://www.mycompany.com/careers">{{ checked_input }}</textarea>
     {% for e in entries %}
     <tr>
       <td><a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.name }}</a></td>
-      {# Русские значения — из прогонов, записанных до того, как тип источника
-         стал кодом: покрытие хранится в базе, и старые строки никуда не делись. #}
+      {# The Russian values come from runs recorded before the source kind became a
+         code: coverage is kept in the database, and the old rows are still there. #}
       <td>{% if e.kind in ('crawl', 'краулинг') %}{{ t('src_crawl') }}
           {%- elif e.kind in ('aggregator', 'агрегатор') %}{{ t('badge_aggregator') }}
           {%- else %}{{ e.kind }}{% endif %}</td>

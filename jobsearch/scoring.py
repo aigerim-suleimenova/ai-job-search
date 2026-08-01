@@ -1,4 +1,4 @@
-"""Скоринг: дешёвый лексический отбор → LLM-триаж пачками → глубокий разбор топа."""
+"""Scoring: a cheap word-level sift → model triage in batches → deep analysis of the top."""
 import json
 import re
 
@@ -7,7 +7,7 @@ from . import config, i18n, llm
 
 
 def _lk(log, key: str, **fmt) -> None:
-    """Строка журнала на языке интерфейса (log приходит из пайплайна)."""
+    """A log line in the interface language (log comes in from the pipeline)."""
     text = i18n.t(config.load()["ui"]["lang"], key)
     log(text.format(**fmt) if fmt else text)
 
@@ -20,7 +20,7 @@ STOPWORDS = {
 
 
 def profile_terms(cfg: dict, cv: str) -> set:
-    # при приоритете на навыки повторяем навыки, чтобы поднять их вес в отборе
+    # when skills take priority we repeat them, to raise their weight in the sift
     prio = cfg["search"].get("match_priority", "both")
     skills = cfg["profile"].get("skills", "")
     skills_block = (skills + " ") * (3 if prio == "skills" else 1)
@@ -54,9 +54,10 @@ _PRIORITY_NOTE = {
 
 
 def _lang_banner(cfg: dict) -> str:
-    """Языковой баннер в НАЧАЛО промпта. Промпты написаны по-русски, поэтому при
-    другом языке результатов инструкцию в середине текста модель часто игнорирует —
-    явное требование первой строкой работает надёжно."""
+    """A language banner for the START of the prompt. The prompts are written in
+    Russian, so when the results are wanted in another language the model often
+    ignores an instruction buried mid-text — an explicit demand on the first line
+    works reliably."""
     code = cfg.get("ui", {}).get("output_lang", "ru")
     if code == "ru":
         return ""
@@ -109,11 +110,11 @@ TRIAGE_PROMPT = """Ты — ассистент по поиску работы. �
 
 
 def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
-    """Проставляет job['score'], job['is_agency'], job['reason'] — пачками параллельно.
+    """Fills in job['score'], job['is_agency'], job['reason'] — in parallel batches.
 
-    on_batch(batch) вызывается сразу после оценки каждой пачки: пайплайн кладёт
-    её в базу, и вакансии появляются на странице результатов по ходу прогона,
-    а не одним куском в конце.
+    on_batch(batch) is called as soon as each batch is scored: the pipeline puts
+    it into the database, and jobs appear on the results page during the run
+    rather than all at once at the end.
     """
     model = cfg["llm"].get("triage_model", "haiku")
     claude_bin = cfg["llm"].get("claude_bin", "claude")
@@ -171,7 +172,7 @@ CV:
 
 
 def profile_from_cv(cfg: dict, cv: str) -> dict:
-    """Заполняет пустые поля профиля из CV. Возвращает обновлённый cfg."""
+    """Fills the empty profile fields from the CV. Returns the updated cfg."""
     data = llm.ask_json(
         PROFILE_FROM_CV_PROMPT.format(cv=cv[:6000], lang=i18n.out_lang(cfg)),
         model=cfg["llm"].get("triage_model", "haiku"),
@@ -230,9 +231,10 @@ RESEARCH_BLOCK = """
 
 
 def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> None:
-    """Уточняет score и добавляет advice для одной вакансии (пишет в job).
-    При research=True дополнительно ищет в интернете зарплату и факты о компании
-    (Glassdoor/Kununu/levels.fyi и т.п.) — медленнее, но даёт то, чего нет в вакансии."""
+    """Refines the score and adds advice for one job (writing into job).
+    With research=True it also looks up the salary and facts about the company
+    online (Glassdoor/Kununu/levels.fyi and the like) — slower, but it gives what
+    the posting itself does not."""
     description = job.get("description") or ""
     if len(description) < 300 and job.get("url"):
         from .collectors import crawler
@@ -260,16 +262,17 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
             allowed_tools=["WebSearch", "WebFetch"] if research else None,
         )
     except llm.AuthError:
-        raise      # без входа в модель прогон смысла не имеет
+        raise      # without a signed-in model the run makes no sense
     except llm.ClaudeError as e:
         _lk(log, "log_deep_job_err", title=job.get("title"), error=e)
         return
     if not isinstance(result, dict):
         return
-    job["verified"] = True  # балл подтверждён глубоким разбором (не только триаж)
+    job["verified"] = True  # the score is confirmed by the deep analysis, not triage alone
     if isinstance(result.get("match"), (int, float)):
         job["score"] = max(0, min(100, int(result["match"])))
-    # двуязычный вывод («it-en») примерно вдвое длиннее — иначе текст обрывается на полуслове
+    # bilingual output ("it-en") is about twice as long — without this the text
+    # breaks off mid-sentence
     k = 2 if "-" in cfg.get("ui", {}).get("output_lang", "ru") else 1
     if result.get("reason"):
         job["reason"] = str(result["reason"])[:1000 * k]
@@ -320,7 +323,7 @@ TAILOR_CV_PROMPT = """Ты — эксперт по составлению рез
 
 
 def generate_cv(job: dict, cfg: dict, cv: str) -> dict:
-    """Генерирует адаптированное под вакансию CV (структурированный dict) по CV + рекомендациям."""
+    """Builds a CV tailored to the job (as a structured dict) from the CV and the advice."""
     recs = ""
     try:
         adv = json.loads(job.get("advice") or "{}")

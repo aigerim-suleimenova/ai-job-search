@@ -1,8 +1,8 @@
-"""Откуда брать модель: Claude Code CLI, Cursor CLI или локальная через Ollama.
+"""Where to get a model: Claude Code CLI, Cursor CLI or a local one via Ollama.
 
-Важное различие, которое нельзя прятать от пользователя: веб-поиск умеет только
-Claude Code CLI. Без него работают триаж и разбор вакансий (модель читает
-переданный текст), но поиск новых компаний в интернете — нет.
+One difference must not be hidden from the user: only Claude Code CLI can search
+the web. Without it triage and job analysis still work (the model reads the text
+it is handed), but finding new companies on the internet does not.
 """
 import json
 import os
@@ -19,14 +19,14 @@ from . import hardware, profiles
 OLLAMA_URL = "http://127.0.0.1:11434"
 
 
-# --- Каталог моделей -------------------------------------------------------
-# power: грубая оценка «мощности» для сортировки (0-100), нужна ram_gb — сколько
-# памяти реально требуется, чтобы модель не начала свопить.
+# --- The model catalogue ---------------------------------------------------
+# power: a rough measure of "strength" for sorting (0-100); ram_gb is how much
+# memory is really needed for the model not to start swapping.
 #
-# Пометки и происхождение хранятся ключами перевода, а не готовым текстом:
-# каталог читается на странице «Модель», а она бывает на любом из четырнадцати
-# языков. Марка изготовителя («Meta», «Alibaba») — имя собственное и не
-# переводится, страна — переводится.
+# Notes and origins are kept as translation keys rather than finished text: the
+# catalogue is read on the "Model" page, and that page comes in any of fourteen
+# languages. The maker's name ("Meta", "Alibaba") is a proper noun and is not
+# translated; the country is.
 CLOUD_MODELS = [
     {"id": "opus", "name": "Claude Opus 5", "power": 100, "note_key": "model_note_strongest"},
     {"id": "fable", "name": "Claude Fable 5", "power": 95, "note_key": "model_note_strong_fast"},
@@ -41,8 +41,8 @@ CURSOR_MODELS = [
     {"id": "auto", "name": "Auto", "name_key": "model_auto_cursor", "power": 80},
 ]
 
-# Локальные модели: имя в Ollama → метаданные. brand/country нужны, чтобы можно
-# было отфильтровать по происхождению (часть пользователей это волнует).
+# Local models: the Ollama name → metadata. brand/country are there so the list
+# can be filtered by origin (some people do care about it).
 LOCAL_MODELS = [
     {"id": "llama3.3:70b", "name": "Llama 3.3 70B", "params": "70B", "ram_gb": 43,
      "power": 92, "brand": "Meta", "country_key": "country_us"},
@@ -88,11 +88,12 @@ LOCAL_MODELS = [
 ]
 
 
-# --- Доступность провайдеров ----------------------------------------------
+# --- Provider availability -------------------------------------------------
 
-# Приложение, запущенное из Finder или Launchpad, наследует не пользовательский
-# PATH, а минимальный системный (/usr/bin:/bin:/usr/sbin:/sbin). Поэтому claude из
-# ~/.local/bin или Homebrew «не находится», хотя в терминале работает. Ищем шире.
+# An app started from Finder or Launchpad inherits not the user's PATH but the
+# minimal system one (/usr/bin:/bin:/usr/sbin:/sbin). That is why claude from
+# ~/.local/bin or Homebrew "cannot be found" although it works in the terminal.
+# So we look wider.
 _EXTRA_DIRS = [
     Path.home() / ".local" / "bin",
     Path.home() / "bin",
@@ -104,13 +105,13 @@ _EXTRA_DIRS = [
 
 
 def work_dir() -> str:
-    """Пустой каталог, из которого запускаются внешние CLI.
+    """An empty directory the external CLIs are launched from.
 
-    Дочерний процесс наследует от приложения и рабочий каталог, и права. У
-    запущенного из Finder приложения рабочий каталог — «/», и CLI, осматриваясь
-    вокруг себя, добирался до Документов, Загрузок, Фото и Музыки: macOS
-    спрашивал разрешение, причём от имени «AI Job Search». Здесь смотреть не на
-    что, и спрашивать не о чем.
+    A child process inherits both the working directory and the permissions of
+    the app. For an app started from Finder the working directory is "/", and a
+    CLI looking around itself reached Documents, Downloads, Photos and Music:
+    macOS asked for permission, and asked in the name of "AI Job Search". Here
+    there is nothing to look at, and so nothing to ask about.
     """
     d = profiles.DATA_ROOT / "cli-work"
     d.mkdir(parents=True, exist_ok=True)
@@ -119,11 +120,11 @@ def work_dir() -> str:
 
 @lru_cache(maxsize=1)
 def login_env() -> dict:
-    """Переменные окружения, как их видит терминал этого человека.
+    """The environment as this person's terminal sees it.
 
-    Запущенное из Finder приложение получает почти пустое окружение, и внешний
-    CLI ведёт себя не так, как в терминале: другой PATH, нет переменных из
-    ~/.zshrc. Спрашиваем их у входного shell один раз за запуск.
+    An app started from Finder gets an almost empty environment, and an external
+    CLI then behaves unlike it does in a terminal: a different PATH, none of the
+    variables from ~/.zshrc. We ask the login shell for them once per launch.
     """
     env = dict(os.environ)
     shell = os.environ.get("SHELL") or "/bin/zsh"
@@ -143,11 +144,11 @@ def login_env() -> dict:
 
 @lru_cache(maxsize=8)
 def resolve_bin(name: str) -> str:
-    """Полный путь к программе или пустая строка. Учитывает, что GUI-приложение
-    не видит пользовательский PATH."""
+    """The full path to a program, or an empty string. Allows for the fact that a
+    GUI app does not see the user's PATH."""
     if not name:
         return ""
-    if os.path.sep in name:                      # уже путь — проверяем как есть
+    if os.path.sep in name:                      # already a path — check it as it is
         return name if os.access(name, os.X_OK) else ""
     found = shutil.which(name)
     if found:
@@ -156,7 +157,7 @@ def resolve_bin(name: str) -> str:
         candidate = d / name
         if candidate.exists() and os.access(candidate, os.X_OK):
             return str(candidate)
-    # последний шанс: спросить login shell — он прочитает .zshrc/.bash_profile
+    # last chance: ask the login shell — it will read .zshrc/.bash_profile
     shell = os.environ.get("SHELL") or "/bin/zsh"
     try:
         out = subprocess.run([shell, "-lc", f"command -v {name}"], cwd=work_dir(),
@@ -191,16 +192,16 @@ def ollama_installed_models() -> set:
 
 
 def forget_binaries() -> None:
-    """Забыть найденные пути: человек мог поставить программу только что."""
+    """Forget the paths found: the person may have installed the program just now."""
     resolve_bin.cache_clear()
 
 
 def available(claude_bin: str = "claude") -> dict:
-    """Какие провайдеры реально готовы к работе на этой машине.
+    """Which providers are actually ready to work on this machine.
 
-    Названия и подсказки здесь не хранятся: они лежат в переводах под ключами
-    prov_<код> и prov_<код>_hint — иначе имя провайдера приезжало бы на
-    страницу по-русски посреди английской фразы.
+    Names and hints are not kept here: they live in the translations under the
+    keys prov_<code> and prov_<code>_hint — otherwise the provider's name would
+    arrive on the page in Russian in the middle of an English sentence.
     """
     return {
         "claude_cli": {
@@ -222,7 +223,7 @@ def available(claude_bin: str = "claude") -> dict:
 
 
 def _localized(model: dict, lang: str) -> dict:
-    """Модель каталога с человекочитаемыми полями на языке интерфейса."""
+    """A catalogue model whose readable fields are in the interface language."""
     from . import i18n
     out = dict(model)
     if model.get("name_key"):
@@ -236,7 +237,7 @@ def _localized(model: dict, lang: str) -> dict:
 
 
 def models_for(provider: str, installed: set = None, lang: str = "en") -> list:
-    """Список моделей провайдера с бейджем совместимости — отсортирован по мощности."""
+    """A provider's models with a "will it fit" badge, sorted by strength."""
     if provider == "claude_cli":
         return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in CLOUD_MODELS]
     if provider == "cursor_cli":
@@ -251,15 +252,16 @@ def models_for(provider: str, installed: set = None, lang: str = "en") -> list:
     return []
 
 
-# --- Вызовы ----------------------------------------------------------------
+# --- Calls -----------------------------------------------------------------
 
 class ProviderError(RuntimeError):
-    """Ошибка провайдера.
+    """A provider error.
 
-    Может нести ключ перевода — как MailError: модуль не знает языка
-    интерфейса, а текст показывается человеку. Когда сообщение приходит от
-    самой программы-провайдера (stderr claude, ответ Ollama), ключа нет и
-    текст передаётся как есть: переводить чужой вывод нечем.
+    It may carry a translation key, the way MailError does: the module does not
+    know the interface language, and the text is shown to a person. When the
+    message comes from the provider program itself (claude's stderr, Ollama's
+    answer), there is no key and the text is passed through as it is: there is
+    nothing to translate someone else's output with.
     """
 
     def __init__(self, message: str = "", key: str = "", **fmt):
@@ -335,7 +337,7 @@ def call_ollama(prompt: str, model: str, timeout: int) -> str:
 
 def call(prompt: str, provider: str, model: str, timeout: int = 600,
          allowed_tools=None, claude_bin: str = "claude") -> str:
-    """Единая точка вызова модели. allowed_tools учитывается только Claude Code CLI."""
+    """The single place a model is called. allowed_tools matters only to Claude Code CLI."""
     if provider == "cursor_cli":
         return call_cursor(prompt, model, timeout)
     if provider == "ollama":
@@ -347,11 +349,12 @@ def supports_web_search(provider: str) -> bool:
     return provider in ("", "claude_cli")
 
 
-# Скачивание модели — это гигабайты и минуты, поэтому оно идёт в фоне, а страница
-# опрашивает прогресс. Иначе окно приложения просто замирало бы до конца загрузки.
-# status_key/error_key — наши собственные шаги и ошибки, они переводятся при
-# выдаче наружу. В status приходят сообщения самой Ollama («pulling manifest»),
-# переводить их нечем, поэтому они идут как есть.
+# Downloading a model means gigabytes and minutes, so it runs in the background
+# while the page polls for progress. Otherwise the app window would simply freeze
+# until the download finished.
+# status_key/error_key are our own steps and errors; they are translated on the
+# way out. status carries Ollama's own messages ("pulling manifest") — there is
+# nothing to translate those with, so they go through as they are.
 _pull_state = {"model": "", "percent": 0, "status": "", "status_key": "",
                "error": "", "error_key": "", "error_fmt": {}, "done": False}
 _pull_lock = threading.Lock()
@@ -373,7 +376,7 @@ def _set_pull(**kw) -> None:
 
 
 def pull(model: str, log=None) -> bool:
-    """Скачивает локальную модель, сообщая прогресс через log()."""
+    """Downloads a local model, reporting progress through log()."""
     try:
         with requests.post(f"{OLLAMA_URL}/api/pull", json={"model": model, "stream": True},
                            stream=True, timeout=3600) as r:
@@ -396,15 +399,15 @@ def pull(model: str, log=None) -> bool:
                     raise ProviderError(str(ev["error"])[:300])
         return True
     except requests.ConnectionError as e:
-        # самая частая причина: Ollama не установлена или не запущена,
-        # а технический текст исключения тут только пугает
+        # the commonest cause is that Ollama is not installed or not running,
+        # and the technical text of the exception only frightens people here
         raise ProviderError(key="prov_err_ollama_down") from e
     except requests.RequestException as e:
         raise ProviderError(key="prov_err_pull_failed", error=e) from e
 
 
 def pull_async(model: str) -> None:
-    """Запускает скачивание в фоне: страница опрашивает pull_status()."""
+    """Starts the download in the background: the page polls pull_status()."""
     if pull_in_progress():
         return
     _set_pull(model=model, percent=0, status="", status_key="pull_starting",
@@ -415,8 +418,8 @@ def pull_async(model: str) -> None:
             pull(model)
             _set_pull(percent=100, status="", status_key="pull_done", done=True)
         except ProviderError as e:
-            # значения приводим к строкам: состояние уезжает в JSON на страницу,
-            # а в fmt может лежать исключение
+            # the values become strings: this state leaves as JSON for the page,
+            # and fmt may be holding an exception
             _set_pull(error=str(e) if not e.key else "", error_key=e.key,
                       error_fmt={k: str(v) for k, v in e.fmt.items()}, done=True)
 

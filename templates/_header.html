@@ -1,13 +1,13 @@
-{# Шапка одна на все страницы: раньше она была скопирована в семь шаблонов
-   и успела разъехаться — на «Модели» пропал выбор человека. #}
+{# One header for every page: it used to be copied into seven templates and had
+   already drifted apart — on "Model" the person picker had gone missing. #}
 {% set path = request.url.path %}
 {% set nav_items = [
   ('/simple', 'nav_simple'), ('/', 'nav_settings'), ('/results', 'nav_results'),
   ('/coverage', 'nav_coverage'), ('/cv/check', 'nav_cvcheck'),
   ('/models', 'nav_models'), ('/notify', 'nav_notify')] %}
 <header>
-  {# Версию должно быть видно в самой программе: человеку, у которого что-то
-     не работает, иначе нечего назвать, а нам — не о чем спрашивать. #}
+  {# The version has to be visible in the program itself: otherwise someone whose
+     program misbehaves has nothing to name, and we have nothing to ask about. #}
   <h1>AI Job Search <span class="app-version">{{ app_version }}</span></h1>
   <div class="toolbar-right">
     <form method="post" action="/profile/switch" class="profile-switch">
@@ -19,8 +19,8 @@
         </select>
       </label>
     </form>
-    {# Имя правится там, где оно написано. Раньше для этого надо было знать про
-       карточку «Люди» на странице настроек — а человек искал глазами здесь. #}
+    {# A name is edited where it is written. This used to require knowing about the
+       "People" card in the settings — while a person looked for it here. #}
     <form method="post" action="/profile/rename" class="profile-switch" id="rename-person"
           onsubmit="return renamePerson(this)">
       <input type="hidden" name="name" value="{{ active_name }}">
@@ -33,8 +33,9 @@
         </svg>
       </button>
     </form>
-    {# Переключатель оформления. Что нажатие включит — решает скрипт внизу: пока
-       выбрано «как в системе», это зависит от самой системы, а сервер её не видит. #}
+    {# The theme toggle. What a press will turn on is decided by the script below:
+       while "as the system does" is chosen it depends on the system itself, and
+       the server cannot see that. #}
     <form method="post" action="/set_theme" class="theme-switch">
       <input type="hidden" name="back" value="{{ path }}">
       <input type="hidden" name="theme" value="dark" id="theme-next">
@@ -77,7 +78,7 @@ function renamePerson(form) {
   return true;
 }
 
-// Кнопка показывает то, что включит: солнце — «сделать светлой», луна — «тёмной».
+// The button shows what it will turn on: a sun means "make it light", a moon "dark".
 (() => {
   const root = document.documentElement;
   const dark = root.dataset.theme === 'dark'

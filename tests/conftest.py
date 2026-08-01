@@ -1,7 +1,7 @@
-"""Общая обвязка тестов.
+"""The shared scaffolding for the tests.
 
-Каталог данных подменяется ДО импорта jobsearch: profiles.DATA_ROOT читается
-на импорте модуля, и после него переменную окружения менять уже поздно.
+The data directory is swapped BEFORE jobsearch is imported: profiles.DATA_ROOT is
+read at import time, and changing the environment variable after that is too late.
 """
 import os
 import shutil
@@ -26,7 +26,7 @@ def pytest_sessionfinish(session, exitstatus):
 
 @pytest.fixture
 def profile(tmp_path_factory):
-    """Чистый профиль со своей базой на каждый тест."""
+    """A clean profile with its own database for every test."""
     slug = profiles.create("Тест " + tmp_path_factory.mktemp("p").name)
     profiles.set_active(slug)
     db.init()
@@ -39,7 +39,7 @@ def cfg(profile):
 
 
 def job(key: str, **over) -> dict:
-    """Вакансия с разумными полями — переопределяем только то, что проверяем."""
+    """A job with sensible fields — we override only what the test is about."""
     base = dict(key=key, title="Senior Frontend Engineer", company="Northwind",
                 location="Berlin", url=f"https://example.com/{key}", source="greenhouse",
                 is_direct=1, is_agency=0, description="React, TypeScript",

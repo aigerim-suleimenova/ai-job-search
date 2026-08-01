@@ -1,10 +1,12 @@
-; Установщик для Windows. Раньше сборка раздавалась zip-архивом: человек должен
-; был распаковать папку и найти в ней нужный .exe рядом с каталогом _internal —
-; а половина просто удаляла архив. Теперь один файл: запустил, нажал «Установить»,
-; программа появилась в меню «Пуск» и в списке установленных.
+; The Windows installer. The build used to be handed out as a zip archive: a person
+; had to unpack the folder and find the right .exe in it next to the _internal
+; directory — and half of them simply deleted the archive. Now it is one file: run
+; it, press "Install", and the program appears in the Start menu and in the list of
+; installed programs.
 ;
-; Ставим в профиль пользователя, а не в Program Files: так не нужен пароль
-; администратора, и это единственное, чего программа от системы хочет.
+; We install into the user profile rather than Program Files: that way no
+; administrator password is needed, and it is the only thing the program wants from
+; the system.
 
 #define AppName "AI Job Search"
 #define AppPublisher "Viktor Lavrov"
@@ -23,11 +25,11 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
 VersionInfoVersion={#AppVersion}
-; Ставим только в профиль пользователя. {autopf} с диалогом выбора давал
-; человеку возможность поставить «для всех» — тогда программа уезжала в
-; Program Files, установщик просил админа, а сразу после установки не мог
-; запустить записанный туда файл: «CreateProcess failed; code 5».
-; Программе права администратора не нужны вовсе, и просить их не за что.
+; Into the user profile only. {autopf} with a choice dialog gave people the option
+; of installing "for everyone" — and then the program went into Program Files, the
+; installer asked for an administrator, and immediately after installing could not
+; start the file it had just written there: "CreateProcess failed; code 5".
+; The program does not need administrator rights at all, so there is nothing to ask for.
 DefaultDirName={localappdata}\Programs\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
@@ -58,12 +60,12 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
-; runasoriginaluser: если установщик всё же оказался запущен с повышенными
-; правами, программу надо открыть от имени человека, а не администратора —
-; иначе её данные лягут в чужой профиль.
+; runasoriginaluser: if the installer did end up running elevated, the program has
+; to be opened as the person rather than as the administrator — otherwise its data
+; would land in somebody else's profile.
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
-; Данные человека — резюме, настройки, найденные вакансии — лежат в %APPDATA% и
-; при удалении программы не трогаются: переустановка не должна стирать историю.
+; A person's data — the CV, the settings, the jobs found — lives in %APPDATA% and
+; is left alone when the program is removed: reinstalling must not wipe the history.
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"

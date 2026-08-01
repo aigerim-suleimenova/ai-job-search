@@ -1,10 +1,10 @@
-{# Выбор способа работы. Один и тот же блок на странице «Модель» и в знакомстве
-   при первом запуске — отличается только тем, куда возвращаются формы.
+{# Choosing how the app will work. The same block on the "Model" page and in the
+   first-launch introduction — the only difference is where the forms return to.
 
-   Выбрать можно и то, что ещё не установлено: человек говорит, чего хочет, а
-   страница показывает, что для этого нужно, и открывает загрузку кнопкой.
-   Раньше кнопка была недоступна — выбрать локальную модель было нельзя,
-   оставалось идти читать и разбираться самому. #}
+   Something not yet installed can be chosen too: a person says what they want,
+   and the page shows what that needs and opens the download with a button. The
+   button used to be disabled — a local model could not be chosen at all, leaving
+   nothing but going off to read and work it out alone. #}
 {% set back = back|default('/models') %}
 <div class="provider-grid" style="margin-top:12px">
   {% for key, p in provs.items() %}

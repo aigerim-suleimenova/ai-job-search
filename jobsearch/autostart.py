@@ -1,8 +1,8 @@
-"""Запуск приложения при входе в систему — каждая ОС делает это по-своему.
+"""Starting the app at login — every OS does this its own way.
 
-macOS   — LaunchAgent (~/Library/LaunchAgents/*.plist)
-Windows — ярлык-команда в ветке реестра Run
-Linux   — .desktop файл в ~/.config/autostart
+macOS   — a LaunchAgent (~/Library/LaunchAgents/*.plist)
+Windows — a command entry under the Run registry key
+Linux   — a .desktop file in ~/.config/autostart
 """
 import os
 import platform
@@ -16,10 +16,10 @@ LABEL = "com.aijobsearch.app"
 
 
 def app_command() -> list:
-    """Чем запускать приложение: собранное — самим собой, из исходников — python desktop.py."""
+    """What to start the app with: a packaged one by itself, source with python desktop.py."""
     if getattr(sys, "frozen", False):
         exe = Path(sys.executable)
-        # внутри .app исполняемый файл лежит в Contents/MacOS — системе удобнее сам бандл
+        # inside an .app the executable sits in Contents/MacOS — the system prefers the bundle
         if platform.system() == "Darwin" and ".app/Contents/MacOS" in str(exe):
             bundle = str(exe).split(".app/Contents/MacOS")[0] + ".app"
             return ["/usr/bin/open", "-a", bundle]
@@ -42,7 +42,7 @@ def _mac_enable() -> None:
             "Label": LABEL,
             "ProgramArguments": app_command(),
             "RunAtLoad": True,
-            "KeepAlive": False,          # не перезапускать, если пользователь сам закрыл
+            "KeepAlive": False,          # do not restart it if the user closed it themselves
         }, fh)
     subprocess.run(["launchctl", "unload", str(path)], capture_output=True)
     subprocess.run(["launchctl", "load", str(path)], capture_output=True)
@@ -122,7 +122,7 @@ def _linux_enabled() -> bool:
     return _linux_desktop_path().exists()
 
 
-# --- Общий интерфейс -------------------------------------------------------
+# --- The shared interface --------------------------------------------------
 
 _IMPL = {
     "Darwin": (_mac_enable, _mac_disable, _mac_enabled),
@@ -140,15 +140,15 @@ def enabled() -> bool:
         return False
     try:
         return _IMPL[platform.system()][2]()
-    except Exception:  # noqa: BLE001 — проверка автозапуска не должна ронять страницу
+    except Exception:  # noqa: BLE001 — checking autostart must not bring the page down
         return False
 
 
 def set_enabled(on: bool) -> str:
-    """Включает или выключает автозапуск.
+    """Turns starting at login on or off.
 
-    Возвращает пустую строку либо ключ перевода ошибки — язык подставит тот,
-    кто показывает сообщение."""
+    Returns an empty string, or the translation key of an error — the language is
+    filled in by whoever shows the message."""
     if not supported():
         return "msg_autostart_unsupported"
     enable, disable, _ = _IMPL[platform.system()]

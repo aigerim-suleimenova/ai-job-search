@@ -1,8 +1,8 @@
-"""Настройки: сохранение и чтение по кругу.
+"""Settings: saved and read back round the loop.
 
-Каждая новая галочка добавляется в трёх местах — DEFAULTS, шаблон и обработчик
-/save. Пропуск в любом из них выглядит одинаково: человек ставит галочку,
-страница перезагружается, галочка снята, и никакой ошибки.
+Every new checkbox is added in three places — DEFAULTS, the template and the
+/save handler. Missing any one of them looks exactly the same: a person ticks the
+box, the page reloads, the box is clear, and there is no error anywhere.
 """
 from jobsearch import config
 
@@ -24,8 +24,8 @@ def test_сохранение_и_чтение(profile):
 
 
 def test_галочки_переживают_круг(profile):
-    """Булевы значения ломаются чаще прочих: False неотличим от «не задано»,
-    если где-то по дороге стоит `or`."""
+    """Booleans break more often than anything else: False is indistinguishable
+    from "not set" if there is an `or` somewhere along the way."""
     cfg = config.load()
     for флаг in ("deep_during_run", "research_company", "include_remote",
                  "drop_off_target", "triage_second_vote"):
@@ -39,8 +39,8 @@ def test_галочки_переживают_круг(profile):
 
 
 def test_новые_ключи_добавляются_к_старому_файлу(profile):
-    """Человек обновил программу — в его config.json нет новых полей.
-    Они должны появиться из умолчаний, а его значения остаться."""
+    """A person upgraded the program — their config.json has none of the new
+    fields. Those must appear from the defaults, and their own values stay."""
     cfg = config.load()
     cfg["search"]["threshold"] = 55
     del cfg["search"]["deep_during_run"]

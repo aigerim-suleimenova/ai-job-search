@@ -1,4 +1,4 @@
-"""SQLite: виденные вакансии и история прогонов (у каждого профиля своя база)."""
+"""SQLite: the jobs already seen and the history of runs (a database per profile)."""
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -51,7 +51,7 @@ def conn():
                 try:
                     c.execute(alter)
                 except sqlite3.OperationalError:
-                    pass  # колонка уже есть
+                    pass  # the column is already there
             _initialized.add(str(path))
         yield c
         c.commit()
@@ -60,7 +60,7 @@ def conn():
 
 
 def init() -> None:
-    with conn():  # схема создаётся лениво в conn() при первом обращении к базе профиля
+    with conn():  # the schema is created lazily in conn() on first touch of the profile database
         pass
 
 
@@ -86,12 +86,12 @@ def finish_run(run_id: int, found: int, fresh: int, matched: int, status: str, l
 
 def save_job(job: dict, run_id: int) -> None:
     with conn() as c:
-        # Раньше здесь было INSERT OR IGNORE: строка писалась один раз и больше не
-        # менялась. Пока вакансии сохранялись только в конце, это работало. Как
-        # только они стали сохраняться по ходу триажа, результат глубокого
-        # разбора той же вакансии переставал доходить до базы — вставка молча
-        # игнорировалась. Обновляем то, что стало известно точнее, и не трогаем
-        # отметку «просмотрено» и дату первой встречи.
+        # This used to be INSERT OR IGNORE: a row was written once and never
+        # changed again. While jobs were saved only at the end, that worked. As
+        # soon as they began to be saved during triage, the deep analysis of the
+        # same job stopped reaching the database — the insert was silently
+        # ignored. We update what has become known more precisely and leave the
+        # "seen" mark and the date of first meeting alone.
         c.execute(
             """INSERT INTO jobs
                (key, title, company, location, url, source, is_direct, is_agency,
@@ -122,7 +122,7 @@ def save_job(job: dict, run_id: int) -> None:
 
 
 def mark_seen(key: str, run_id: int, title: str = "", company: str = "") -> None:
-    """Запоминаем вакансию без результата, чтобы не обрабатывать повторно."""
+    """Remember a job with no result, so it is not processed a second time."""
     with conn() as c:
         c.execute(
             "INSERT OR IGNORE INTO jobs(key, title, company, first_seen, run_id) VALUES (?,?,?,?,?)",
@@ -142,7 +142,7 @@ def save_tailored_cv(job_id: int, cv_json: str) -> None:
 
 
 SORTS = {
-    "default": "run_id DESC, is_direct DESC, score DESC",   # как было: свежий прогон → прямые → балл
+    "default": "run_id DESC, is_direct DESC, score DESC",   # as before: newest run → direct → score
     "score": "score DESC, run_id DESC",
     "posted": "CASE WHEN posted_at IS NULL OR posted_at='' THEN 1 ELSE 0 END, posted_at DESC, score DESC",
     "found": "first_seen DESC, score DESC",
@@ -153,10 +153,10 @@ SORTS = {
 def matched_jobs(limit: int = 300, min_score: int = 0, sort: str = "default",
                  viewed: str = "all", source: str = "all", run_id: int = 0,
                  posted_from: str = "", posted_to: str = "") -> list:
-    """Вакансии с оценкой. viewed: all|new|seen; source: all|direct|agency|aggregator;
-    run_id > 0 — только конкретный прогон; posted_from/posted_to — период публикации
-    в виде ГГГГ-ММ-ДД. Вакансии без даты в период не попадают: дата у них неизвестна,
-    и молча выдавать их за подходящие нельзя."""
+    """Scored jobs. viewed: all|new|seen; source: all|direct|agency|aggregator;
+    run_id > 0 — one particular run only; posted_from/posted_to — the publication
+    period as YYYY-MM-DD. Jobs without a date do not fall into a period: their date
+    is unknown, and passing them off as matching would not be honest."""
     where = ["score IS NOT NULL", "score >= ?"]
     params = [min_score]
     if viewed == "new":
@@ -220,19 +220,19 @@ def recent_runs(limit: int = 10) -> list:
 
 
 def all_scores() -> list:
-    """Все оценки по убыванию — для подсказки порога."""
+    """Every score, descending — for suggesting a threshold."""
     with conn() as c:
         return [r["score"] for r in c.execute(
             "SELECT score FROM jobs WHERE score IS NOT NULL ORDER BY score DESC")]
 
 
 def suggest_threshold(current: int, want: int = 12) -> int:
-    """Порог, при котором в выдаче будет ~want вакансий (кратно 5).
-    Возвращает 0, если текущий порог и так даёт достаточно."""
+    """The threshold that would leave about `want` jobs in the list (a multiple of 5).
+    Returns 0 if the current threshold already gives enough."""
     scores = all_scores()
     above = sum(1 for s in scores if s >= current)
     if above >= max(1, want // 2) or not scores:
-        return 0  # текущий порог нормальный — подсказка не нужна
+        return 0  # the current threshold is fine — no suggestion needed
     target = scores[min(want, len(scores)) - 1]
     sugg = (target // 5) * 5
     return sugg if 0 < sugg < current else 0

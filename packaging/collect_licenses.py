@@ -1,24 +1,25 @@
-"""Собирает лицензии всех библиотек, которые уезжают внутри приложения.
+"""Collects the licences of every library that travels inside the app.
 
-MIT, BSD, Apache и почти все остальные разрешают распространять код при одном
-условии: сохранить их текст и копирайт. В сборку попадает под сорок пакетов,
-и без такого файла это условие не выполняется — нарушение мелкое, но настоящее,
-и чинится один раз навсегда.
+MIT, BSD, Apache and nearly all the rest allow the code to be distributed on one
+condition: keep their text and their copyright. Close to forty packages end up in
+the build, and without a file like this that condition is not met — a small
+violation, but a real one, and it is fixed once and for all.
 
-Файл собирается на этапе сборки (см. packaging/aijobsearch.spec), поэтому
-всегда соответствует тому, что реально лежит внутри.
+The file is assembled at build time (see packaging/aijobsearch.spec), so it always
+matches what is really inside.
 """
 import sys
 from pathlib import Path
 
-# Консоль Windows по умолчанию не в UTF-8, и кириллица в выводе роняет скрипт
-# кодировочной ошибкой — ровно так же, как это было в verify_build.py.
+# The Windows console is not UTF-8 by default, and non-Latin text in the output
+# brings the script down with an encoding error — exactly as it did in
+# verify_build.py.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 try:
     import importlib.metadata as md
-except ImportError:                       # Python < 3.8, до нас не дойдёт
+except ImportError:                       # Python < 3.8, which will never reach us
     import importlib_metadata as md       # type: ignore
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,7 +36,7 @@ HEADER = """AI Job Search — сторонние компоненты
 
 """
 
-# Имена файлов с текстом лицензии, как их кладут в дистрибутивы
+# The names of licence-text files, as distributions tend to place them
 LICENSE_FILES = ("LICENSE", "LICENCE", "COPYING", "NOTICE")
 
 
@@ -52,10 +53,11 @@ def _license_name(dist) -> str:
 
 
 def _license_text(dist) -> str:
-    """Текст лицензии из дистрибутива, если он там есть.
+    """The licence text from the distribution, if it is there at all.
 
-    Читаем с диска через locate(): read_text() ищет файл рядом с METADATA, а
-    современные колёса кладут лицензии в подкаталог dist-info/licenses/.
+    We read from disk through locate(): read_text() looks for the file next to
+    METADATA, while modern wheels put licences into a dist-info/licenses/
+    subdirectory.
     """
     for file in dist.files or []:
         name = Path(str(file)).name.upper()

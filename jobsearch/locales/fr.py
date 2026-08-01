@@ -1,4 +1,4 @@
-"""Français. Ключи и порядок — как в i18n.TR."""
+"""Français. Keys and order as in i18n.TR."""
 STRINGS = {
 "app_title": "AI Job Search",
 "nav_settings": "Réglages de recherche",

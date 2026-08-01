@@ -31,9 +31,9 @@
 </section>
 {% endif %}
 
-{# Пока идёт поиск, это главное на странице: что происходит сейчас и куда
-   идти за результатами. Раньше здесь была строка «Статус: …» и чёрное окно
-   журнала — по ним не было понятно, что делать дальше. #}
+{# While a search is running this is the main thing on the page: what is
+   happening now and where to go for the results. There used to be a "Status: …"
+   line and a black log window here — neither made it clear what to do next. #}
 {% if state.running %}
 <section class="card running">
   <div class="running-head">
@@ -127,8 +127,8 @@ setInterval(async () => {
 </script>
 {% endif %}
 <script>
-// Форма уходит на сервер, дальше работа идёт в фоне — но нажатие должно
-// отзываться мгновенно, иначе кажется, что приложение зависло.
+// The form goes to the server and the work carries on in the background — but
+// the press has to answer instantly, or the app seems to have hung.
 const startForm = document.getElementById('start-form');
 if (startForm) startForm.addEventListener('submit', () => {
   const b = document.getElementById('start-btn');

@@ -1,9 +1,9 @@
-"""Расписание прогонов (пока приложение запущено).
+"""Scheduling runs (for as long as the app is running).
 
-Режимы (schedule.mode):
-  off        — вручную;
-  interval   — раз в N часов/дней/недель (APScheduler, по одной задаче на профиль);
-  continuous — непрерывно: один прогон за другим, вечно (отдельный фоновый поток).
+Modes (schedule.mode):
+  off        — by hand;
+  interval   — every N hours/days/weeks (APScheduler, one job per profile);
+  continuous — without pause: one run after another, forever (its own background thread).
 """
 import threading
 import time
@@ -15,7 +15,7 @@ from . import config, pipeline, profiles
 _scheduler = BackgroundScheduler()
 _UNIT_SECONDS = {"hours": 3600, "days": 86400, "weeks": 604800}
 
-# непрерывный воркер
+# the continuous worker
 _cont_thread = None
 _cont_stop = False
 
@@ -39,8 +39,8 @@ def _start_continuous_worker() -> None:
 
 
 def _continuous_loop() -> None:
-    """Вечный цикл: по кругу прогоняет все профили в режиме continuous.
-    Один прогон за раз (pipeline сериализуется своим локом)."""
+    """An endless loop: goes round every profile in continuous mode.
+    One run at a time (the pipeline serialises itself with its own lock)."""
     while not _cont_stop:
         ran = False
         for p in profiles.list_profiles():
@@ -52,31 +52,31 @@ def _continuous_loop() -> None:
             if sched.get("mode") != "continuous":
                 continue
             ran = True
-            pipeline.run(trigger="continuous", profile=slug)  # блокирует до конца прогона
+            pipeline.run(trigger="continuous", profile=slug)  # blocks until the run ends
             cooldown = max(1, int(sched.get("continuous_cooldown_min", 20))) * 60
             slept = 0
             while slept < cooldown and not _cont_stop:
-                # прерываемся раньше, если профиль вышел из непрерывного режима
+                # break off early if the profile has left continuous mode
                 time.sleep(5)
                 slept += 5
                 if config.load().get("schedule", {}).get("mode") != "continuous":
                     break
         if not ran:
-            time.sleep(20)  # никого в непрерывном режиме — ждём
+            time.sleep(20)  # nobody is in continuous mode — wait
 
 
 def stop() -> None:
-    """Остановить расписание и непрерывный режим — вызывается при закрытии приложения."""
+    """Stop the schedule and continuous mode — called when the app closes."""
     global _cont_stop
     _cont_stop = True
     try:
         _scheduler.shutdown(wait=False)
-    except Exception:  # noqa: BLE001 — планировщик мог не запускаться
+    except Exception:  # noqa: BLE001 — the scheduler may never have started
         pass
 
 
 def reschedule_all() -> None:
-    """Пересобирает интервальные задачи. Восстанавливает активный профиль."""
+    """Rebuilds the interval jobs. Restores the active profile afterwards."""
     saved = profiles.active()
     try:
         for job in list(_scheduler.get_jobs()):
@@ -96,7 +96,7 @@ def reschedule_all() -> None:
             )
     finally:
         profiles.set_active(saved)
-    _start_continuous_worker()  # на случай если поток не запущен
+    _start_continuous_worker()  # in case the thread is not running
 
 
 def reschedule(cfg: dict = None) -> None:

@@ -1,7 +1,8 @@
-"""Запуск программы: сообщение о беде не должно становиться бедой.
+"""Starting the program: a message about trouble must not become the trouble.
 
-На Windows консоль работает в cp1252, и русская строка в print роняла программу
-кодировочной ошибкой — поверх настоящей причины, которую человек так и не видел.
+On Windows the console runs in cp1252, and a Russian string in print brought the
+program down with an encoding error — on top of the real reason, which the person
+never got to see.
 """
 import io
 import os
@@ -15,7 +16,7 @@ import desktop
 
 
 def cp1252_поток():
-    """Строгий поток в кодировке Windows — такой же, как консоль там."""
+    """A strict stream in the Windows encoding — the same as the console there."""
     return io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
 
 
@@ -27,16 +28,16 @@ def test_поток_переводится_в_utf8():
 
 
 def test_после_перевода_кириллица_печатается():
-    """Ровно тот случай, который ронял программу у человека на Windows."""
+    """Exactly the case that brought the program down for someone on Windows."""
     поток = cp1252_поток()
     desktop._make_output_safe(поток)
-    print("Внутренний сервер не запустился", file=поток)   # раньше здесь падало
+    print("Внутренний сервер не запустился", file=поток)   # this used to fall over
     поток.flush()
 
 
 def test_кириллица_в_cp1252_действительно_роняет():
-    """Проверка самой проверки: без перевода поток обязан выбросить ошибку —
-    иначе тест выше ничего не доказывает."""
+    """Checking the check: without the conversion the stream must raise — otherwise
+    the test above proves nothing."""
     поток = cp1252_поток()
     with pytest.raises(UnicodeEncodeError):
         print("Внутренний сервер не запустился", file=поток)
@@ -44,7 +45,7 @@ def test_кириллица_в_cp1252_действительно_роняет():
 
 
 def test_отсутствующий_поток_не_ломает():
-    """В оконной сборке PyInstaller stdout может быть None."""
+    """In a windowed PyInstaller build stdout can be None."""
     desktop._make_output_safe(None, object())
 
 
@@ -67,7 +68,7 @@ def test_журнал_дописывается_а_не_перезаписыва�
 
 
 def test_упавший_сервер_оставляет_причину(profile, tmp_path, monkeypatch):
-    """Раньше исключение в потоке сервера пропадало бесследно."""
+    """An exception in the server thread used to vanish without a trace."""
     monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
     monkeypatch.setattr(desktop, "_server_error", "")
 
@@ -81,15 +82,15 @@ def test_упавший_сервер_оставляет_причину(profile, 
     assert "порт занят антивирусом" in (tmp_path / "errors.log").read_text(encoding="utf-8")
 
 
-# --- Окно, которое не открылось ------------------------------------------------
+# --- The window that would not open --------------------------------------------
 #
-# Переносимая сборка под Windows падала при открытии окна: распакованные из
-# скачанного архива библиотеки помечены как «из интернета», и .NET отказывался
-# грузить Python.Runtime.dll, без которого pywebview не умеет рисовать окно.
+# The portable Windows build died on opening its window: libraries unpacked from a
+# downloaded archive are marked as "from the internet", and .NET refused to load
+# Python.Runtime.dll, without which pywebview cannot draw a window at all.
 
 
 class _Событие(list):
-    """Подписка pywebview: window.events.shown += обработчик."""
+    """A pywebview subscription: window.events.shown += handler."""
 
     def __iadd__(self, обработчик):
         self.append(обработчик)
@@ -110,8 +111,8 @@ def _отказать_в_записи(*_a, **_kw):
 
 
 def test_метка_скачанного_файла_снимается(tmp_path, monkeypatch):
-    """Метка живёт отдельным потоком файла — «имя.dll:Zone.Identifier». На Linux
-    двоеточие в имени законно, поэтому тот же код проверяется и здесь."""
+    """The mark lives in a separate file stream — "name.dll:Zone.Identifier". On
+    Linux a colon is a legal character in a name, so the same code is exercised here."""
     (tmp_path / "Python.Runtime.dll").write_bytes(b"")
     метка = tmp_path / "Python.Runtime.dll:Zone.Identifier"
     метка.write_text("[ZoneTransfer]\nZoneId=3\n")
@@ -127,7 +128,7 @@ def test_запуск_из_исходников_ничего_не_ищет(monke
 
 
 def test_чистой_сборке_ничего_не_подкладываем(tmp_path, monkeypatch):
-    """У кого окно открывается — у того ничего не должно измениться."""
+    """For anyone whose window opens, nothing at all should change."""
     (tmp_path / "Python.Runtime.dll").write_bytes(b"")
     monkeypatch.setattr(desktop.sys, "_MEIPASS", str(tmp_path), raising=False)
     monkeypatch.setattr(desktop.sys, "platform", "win32")
@@ -140,8 +141,8 @@ def test_чистой_сборке_ничего_не_подкладываем(tm
 
 
 def test_несъёмная_метка_разрешается_настройкой(tmp_path, monkeypatch):
-    """Папка установки бывает только для чтения. Тогда остаётся выдать
-    помеченным библиотекам доверие настройкой, не трогая их на диске."""
+    """The install folder is sometimes read-only. Then all that is left is to grant
+    the marked libraries trust by configuration, without touching them on disk."""
     сборка = tmp_path / "bundle"
     сборка.mkdir()
     (сборка / "Python.Runtime.dll").write_bytes(b"")
@@ -171,7 +172,7 @@ def test_не_на_windows_не_вмешиваемся(tmp_path, monkeypatch):
 
 
 def test_без_окна_программа_открывается_в_браузере(tmp_path, monkeypatch):
-    """Раньше здесь программа просто падала с «Unhandled exception in script»."""
+    """The program used to simply die here with "Unhandled exception in script"."""
     monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
     monkeypatch.setattr(desktop, "_window_shown", False)
     monkeypatch.setattr(desktop.webview, "create_window", _не_дать_окна)
@@ -186,7 +187,7 @@ def test_без_окна_программа_открывается_в_брауз
 
 
 def test_рабочее_окно_браузер_не_трогает(tmp_path, monkeypatch):
-    """Запасной ход не должен срабатывать у тех, у кого окно есть."""
+    """The fallback must not fire for people who do have a window."""
     monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
     окно = _Окно()
     monkeypatch.setattr(desktop.webview, "create_window", lambda *a, **kw: окно)
@@ -202,8 +203,8 @@ def test_рабочее_окно_браузер_не_трогает(tmp_path, mo
 
 
 def test_экран_аварии_на_языке_интерфейса(profile, tmp_path, monkeypatch):
-    """Окно с причиной показывается до сервера — и было русским независимо от
-    выбранного языка."""
+    """The window with the reason is shown before the server — and was in Russian
+    whatever language had been chosen."""
     from jobsearch import config
     monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
     cfg = config.load()
@@ -222,7 +223,7 @@ def test_экран_аварии_на_языке_интерфейса(profile, t
 
 
 def test_без_настроек_экран_аварии_не_ломается(tmp_path, monkeypatch):
-    """Настроек может не быть вовсе — сообщение о беде всё равно должно выйти."""
+    """There may be no settings at all — the message about trouble still has to come out."""
     monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
     monkeypatch.setattr(desktop, "_ui_lang", _не_дать_окна)
     assert desktop._say("crash_title", app="X") == ""

@@ -1,4 +1,4 @@
-"""Вызовы Claude Code CLI в headless-режиме (claude -p)."""
+"""Calling Claude Code CLI in headless mode (claude -p)."""
 import concurrent.futures as _cf
 import contextvars
 import json
@@ -10,15 +10,15 @@ import time
 
 
 class ClaudeError(RuntimeError):
-    """Ошибка обращения к модели.
+    """An error while calling the model.
 
-    Может нести ключ перевода: текст попадает в журнал прогона, а журнал видит
-    человек — значит, он не может быть всегда русским. Когда сообщение пришло
-    от самого CLI, ключа нет и текст идёт как есть.
+    It may carry a translation key: the text lands in the run log, and a person
+    reads that log — so it cannot always be in Russian. When the message came
+    from the CLI itself there is no key and the text goes through as it is.
 
-    transient проставляется на месте, а не угадывается по тексту: раньше
-    решение «повторить ли вызов» принималось поиском русских слов в сообщении,
-    и с переводом оно перестало бы работать.
+    transient is set at the point of raising rather than guessed from the text:
+    the decision "should we call again" used to be made by looking for Russian
+    words in the message, and translating it would have stopped that working.
     """
 
     def __init__(self, message: str = "", key: str = "", transient: bool = False, **fmt):
@@ -27,7 +27,7 @@ class ClaudeError(RuntimeError):
 
 
 class AuthError(ClaudeError):
-    """Модель недоступна, пока человек не войдёт в неё. Повторять бессмысленно."""
+    """The model is out of reach until the person signs in. Retrying is pointless."""
 
 
 _AUTH_MARKERS = ("not logged in", "/login", "invalid api key", "authentication_error",
@@ -35,10 +35,10 @@ _AUTH_MARKERS = ("not logged in", "/login", "invalid api key", "authentication_e
 
 
 def _human_error(raw: str) -> str:
-    """Из ответа CLI — фраза для человека, а не весь JSON.
+    """From the CLI's answer, a sentence for a person rather than the whole JSON.
 
-    При ошибке claude печатает результат тем же JSON-ом, и в журнал прогона
-    улетала простыня на 800 символов, в которой сообщение терялось.
+    On an error claude prints the result as that same JSON, and an 800-character
+    sheet used to fly into the run log with the message lost inside it.
     """
     text = (raw or "").strip()
     if text.startswith("{"):
@@ -56,26 +56,26 @@ def _classify(text: str) -> ClaudeError:
 
 
 class Cancelled(RuntimeError):
-    """Работа отменена пользователем."""
+    """The work was cancelled by the user."""
 
     def __init__(self, key: str = "err_cancelled", **fmt):
         self.key, self.fmt = key, fmt
         super().__init__(key)
 
 
-# Останавливать длинный этап (триаж сотен вакансий) нужно быстро, поэтому pmap
-# сверяется с этим флагом перед каждой задачей. Уже идущие вызовы CLI доводим
-# до конца — обрывать их на полуслове смысла нет.
+# A long stage (triaging hundreds of jobs) has to stop quickly, so pmap checks
+# this flag before every task. CLI calls already under way are seen through —
+# there is no sense in cutting them off mid-sentence.
 _cancel = threading.Event()
-# «Стоп» гасил вообще все обращения к модели в процессе: пока прогон
-# останавливался, проверка покрытия и генерация CV молча падали. Отмена
-# действует только на потоки самого прогона — их помечает пайплайн, а pmap
-# копирует контекст в рабочие потоки.
+# "Stop" used to kill every call to the model in the process: while a run was
+# stopping, the coverage check and CV generation failed silently. Cancellation
+# now applies only to the run's own threads — the pipeline marks them, and pmap
+# copies the context into the worker threads.
 _in_run = contextvars.ContextVar("in_pipeline_run", default=False)
 
 
 def mark_run_thread() -> None:
-    """Пометить текущий поток как принадлежащий прогону."""
+    """Mark the current thread as belonging to a run."""
     _in_run.set(True)
 
 
@@ -95,9 +95,9 @@ def cancelled() -> bool:
     return _cancel.is_set()
 
 
-# Приметы временной беды в чужом выводе CLI — по ним видно, что вызов стоит
-# повторить. Свои ошибки сюда не входят: они помечены флагом transient, потому
-# что их текст переводится и искать в нём слова бессмысленно.
+# Signs of temporary trouble in the CLI's own output — they show a call is worth
+# repeating. Our own errors are not listed here: they carry the transient flag,
+# because their text is translated and looking for words in it makes no sense.
 _TRANSIENT = (
     "connection closed", "api error", "overloaded", "rate limit", "429", "529",
     "timeout", "timed out", "closed mid-response", "internal server", "5xx",
@@ -111,8 +111,8 @@ def _is_transient(exc) -> bool:
 
 
 def pmap(fn, items: list, workers: int = 5) -> list:
-    """Параллельно применяет fn к каждому элементу, сохраняя порядок.
-    Исключения не роняют весь пул — возвращаются как объект-исключение."""
+    """Applies fn to every item in parallel, keeping the order.
+    An exception does not bring the pool down — it is returned as the exception."""
     items = list(items)
     if not items:
         return []
@@ -128,8 +128,8 @@ def pmap(fn, items: list, workers: int = 5) -> list:
             except Exception as e:  # noqa: BLE001
                 out.append(e)
         return out
-    # копируем contextvars в каждый воркер: без этого потоки теряют активный
-    # профиль (profiles._active) и пишут в базу профиля по умолчанию
+    # copy the contextvars into every worker: without this the threads lose the
+    # active profile (profiles._active) and write into the default profile's database
     def _guarded(it):
         if _cancelled():
             raise Cancelled()
@@ -153,14 +153,15 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
         try:
             return providers.call(prompt, provider, model, timeout, allowed_tools, claude_bin)
         except providers.ProviderError as e:
-            # ключ перевода надо пронести дальше, иначе в журнал уедет его имя
+            # the translation key has to be carried on, or its name lands in the log
             raise ClaudeError("" if e.key else str(e), key=e.key, **e.fmt) from e
 
-    # Абсолютный путь + close_fds=False заставляют CPython использовать posix_spawn
-    # вместо fork+exec. Это критично на macOS: fork() из многопоточного процесса,
-    # уже трогавшего системные сетевые фреймворки, роняет ребёнка SIGSEGV в
-    # atfork-обработчиках (Network.framework) ещё до exec — claude «завершается
-    # с кодом -11 без вывода». posix_spawn обходит fork целиком.
+    # An absolute path plus close_fds=False make CPython use posix_spawn instead
+    # of fork+exec. That is critical on macOS: fork() from a multi-threaded
+    # process that has already touched the system networking frameworks kills the
+    # child with SIGSEGV in the atfork handlers (Network.framework) before exec
+    # even happens — claude "exits with code -11 and no output". posix_spawn
+    # sidesteps fork entirely.
     from . import providers as _p
     exe = _p.resolve_bin(claude_bin or "claude") or (claude_bin or "claude")
     cmd = [exe, "-p", "--output-format", "json"]
@@ -169,11 +170,13 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
     try:
-        # cwd — пустой служебный каталог: иначе CLI осматривает то место, где
-        # его запустили, и macOS начинает спрашивать доступ к папкам человека.
-        # encoding задаём явно: без него text=True берёт кодировку системы, а на
-        # Windows это cp1252, и русский промпт не переживает даже первых двух букв
-        # («Ты — ассистент…» → charmap can't encode position 0-1).
+        # cwd is an empty service directory: otherwise the CLI looks around the
+        # place it was started from, and macOS begins asking for access to the
+        # person's folders.
+        # encoding is set explicitly: without it text=True takes the system
+        # encoding, which on Windows is cp1252, and a Russian prompt does not
+        # survive even its first two letters ("Ты — ассистент…" → charmap can't
+        # encode position 0-1).
         proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
                               encoding="utf-8", errors="replace",
                               timeout=timeout, close_fds=False, cwd=_p.work_dir())
@@ -185,8 +188,8 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip()
         if not detail:
-            # пустой вывод при ненулевом коде; отрицательный код = убит сигналом
-            # (например, системой при нехватке памяти)
+            # empty output with a non-zero code; a negative code means killed by a
+            # signal (by the system when memory runs short, for instance)
             key = "prov_err_killed" if proc.returncode < 0 else "prov_err_exit_code"
             raise ClaudeError(key=key, transient=True, tool="claude",
                               code=proc.returncode)
@@ -204,9 +207,10 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
 
 def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int = 600,
         allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli") -> str:
-    """Вызов claude с повтором при временных ошибках (connection closed, overload, 429/5xx)."""
-    # Точка прерывания: этапы вроде discovery делают вызовы подряд в цикле, не через
-    # pmap, и без этой проверки «Стоп» ждал бы конца всего этапа.
+    """Calls claude, retrying on temporary errors (connection closed, overload, 429/5xx)."""
+    # A break point: stages such as discovery make their calls in a plain loop
+    # rather than through pmap, and without this check "Stop" would wait for the
+    # whole stage to finish.
     if _cancelled():
         raise Cancelled("err_search_stopped")
     last = None
@@ -214,11 +218,11 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
         try:
             return _ask_once(prompt, model, claude_bin, timeout, allowed_tools, provider)
         except AuthError:
-            raise          # войти за человека мы не можем — повторы только тратят время
+            raise          # we cannot sign in for them — retries only waste time
         except ClaudeError as e:
             last = e
             if attempt < retries and _is_transient(e):
-                time.sleep(2 * (attempt + 1))  # 2с, 4с
+                time.sleep(2 * (attempt + 1))  # 2s, 4s
                 continue
             raise
     raise last
@@ -226,12 +230,12 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
 
 def ask_json(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int = 600,
              allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli"):
-    """Как ask, но требует JSON в ответе. Если модель вернула прозу — повторяет."""
+    """Like ask, but requires JSON back. If the model answered in prose, it retries."""
     last = None
     for attempt in range(retries + 1):
-        # retries=0: свои повторы у нас уже есть, а вложенные перемножались —
-        # три попытки здесь на три внутри ask давали до девяти вызовов модели.
-        # С локальной моделью по десять минут каждый это выглядело как «зависло».
+        # retries=0: we already have our own retries, and nested ones multiplied —
+        # three attempts here times three inside ask meant up to nine calls to the
+        # model. With a local model at ten minutes each, that looked like a hang.
         text = ask(prompt, model=model, claude_bin=claude_bin, timeout=timeout,
                    allowed_tools=allowed_tools, retries=0, provider=provider)
         try:
@@ -246,7 +250,7 @@ def ask_json(prompt: str, model: str = "", claude_bin: str = "claude", timeout: 
 
 
 def extract_json(text: str):
-    """Достаёт первый JSON-объект/массив из ответа модели (терпимо к ```-обёрткам и прозе)."""
+    """Pulls the first JSON object/array out of the answer (tolerating ``` wrappers and prose)."""
     fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     candidates = [fenced.group(1)] if fenced else []
     candidates.append(text)

@@ -6,8 +6,9 @@
 <section class="card">
   <h2>{{ t('cvcheck_title') }}</h2>
   <p class="hint">{{ t('cvcheck_hint') }}</p>
-  {# Проверка зовёт модель и идёт минуты. Кнопка отправляет форму, работа уходит
-     в фон, а здесь видно, что она идёт: раньше человек нажимал и ничего. #}
+  {# The check calls the model and takes minutes. The button submits the form, the
+     work goes to the background, and here it is visible that it is running: a
+     person used to click and see nothing at all. #}
   <div class="row" style="margin-top:10px" id="check-row" {% if checking %}data-running="1"{% endif %}>
     <form method="post" action="/cv/check/run" style="margin:0" id="check-form">
       <button class="primary" {% if checking %}disabled{% endif %}>{{ t('cvcheck_run') }}</button>
@@ -111,7 +112,7 @@
 <section class="card"><p>{{ t('cvcheck_no_cv') }}</p></section>
 {% endif %}
 <script>
-// Пока проверка идёт, спрашиваем состояние и перечитываем страницу, когда готово.
+// While the check runs we poll for its state and reload the page when it is done.
 (() => {
   const row = document.getElementById('check-row');
   if (!row || !row.dataset.running) return;
@@ -119,7 +120,7 @@
     try {
       const d = await (await fetch('/cv/check/status')).json();
       if (!d.running) { clearInterval(timer); location.reload(); }
-    } catch (e) { /* сервер перезапускается — подождём */ }
+    } catch (e) { /* the server is restarting — we wait */ }
   }, 3000);
 })();
 </script>

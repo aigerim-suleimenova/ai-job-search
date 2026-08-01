@@ -1,8 +1,8 @@
-"""Работодатели из ссылок, которые уже скачаны.
+"""Employers from links we have already downloaded.
 
-Проверка идёт без сети: собранные адреса не запрашиваются, а только строятся
-и опознаются обратно. Именно круг «собрал → опознал» здесь и важен: без него
-одна и та же доска добавлялась бы каждый прогон заново.
+The check runs without the network: the assembled addresses are never requested,
+only built and recognised back. It is that round trip — assemble, then recognise
+— which matters here: without it the same board would be added afresh every run.
 """
 from jobsearch import harvest
 from jobsearch.collectors import ats
@@ -18,7 +18,7 @@ def test_доска_из_ссылки_на_вакансию():
 
 
 def test_собранный_адрес_опознаётся_обратно():
-    """Иначе доска добавится второй раз на следующем прогоне."""
+    """Otherwise the board is added a second time on the next run."""
     ссылки = [
         "https://boards.greenhouse.io/mercury/jobs/1",
         "https://jobs.lever.co/xsolla/abc",
@@ -48,7 +48,7 @@ def test_разные_ссылки_одной_доски_дают_одну_за�
 
 
 def test_уже_наблюдаемую_компанию_не_дублируем():
-    """Человек добавил доску руками — пусть и в другом написании."""
+    """The person added the board by hand — even if spelled differently."""
     свои = [{"name": "Mercury", "url": "https://boards.greenhouse.io/mercury/"}]
     jobs = [вакансия("https://job-boards.greenhouse.io/mercury/jobs/9")]
     assert harvest.find_new(jobs, свои) == []
@@ -73,8 +73,8 @@ def test_без_названия_компании_берём_имя_доски()
 
 
 def test_галочка_видна_и_выключается(profile):
-    """Список компаний пополняется сам — человек должен и знать об этом,
-    и уметь запретить, не читая исходников."""
+    """The company list fills up by itself — a person has to know that, and be
+    able to forbid it without reading the source."""
     import pytest
     pytest.importorskip("httpx", reason="TestClient требует httpx")
     from fastapi.testclient import TestClient
@@ -82,7 +82,7 @@ def test_галочка_видна_и_выключается(profile):
     import app as app_module
     from jobsearch import appstate, config, i18n
 
-    appstate.mark_setup_done(config.load()["llm"])   # иначе первый запуск уводит на знакомство
+    appstate.mark_setup_done(config.load()["llm"])   # or first launch sends us to the introduction
     with TestClient(app_module.app) as c:
         c.cookies.set("profile", profile)
         страница = c.get("/").text
@@ -91,7 +91,7 @@ def test_галочка_видна_и_выключается(profile):
         assert i18n.t(язык, "harvest_boards") in страница
         assert i18n.t(язык, "harvest_boards_hint")[:40] in страница
 
-        # галочка снята — в форме поля просто нет
+        # the box is clear — the field simply is not in the form
         c.post("/save", data={"companies": "", "use_remotive": "on"}, follow_redirects=False)
         assert config.load()["sources"]["harvest_boards"] is False
 

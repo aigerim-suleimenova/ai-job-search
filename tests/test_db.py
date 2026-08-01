@@ -1,8 +1,8 @@
-"""База: то, что ломается тихо.
+"""The database: the things that break quietly.
 
-Из-за одной строки здесь однажды пропали результаты сорокаминутного прогона —
-вставка молча игнорировалась, и глубокий разбор не доезжал до базы. Никакой
-ошибки при этом не возникало: просто в списке не было советов.
+One line here once lost the results of a forty-minute run — the insert was
+silently ignored and the deep analysis never reached the database. No error came
+of it at all: there simply was no advice in the list.
 """
 from jobsearch import db
 
@@ -29,8 +29,8 @@ def test_глубокий_разбор_перезаписывает_триажн
 
 
 def test_повторный_триаж_не_затирает_разобранное(profile):
-    """Следующий прогон встречает ту же вакансию и оценивает её быстро.
-    Это не повод терять уже сделанный разбор."""
+    """The next run meets the same job and scores it quickly.
+    That is no reason to lose the analysis already done."""
     db.save_job(job("k1", score=88, reason="точная", advice='{"a":1}', verified=True), run_id=1)
     db.save_job(job("k1", score=55, reason="быстрая", advice="", verified=False), run_id=2)
     row = db.matched_jobs(min_score=0)[0]

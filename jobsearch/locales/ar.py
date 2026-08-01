@@ -1,5 +1,5 @@
-"""العربية. Ключи и порядок — как в i18n.TR. Язык пишется справа налево:
-шаблоны ставят dir="rtl", см. app.render."""
+"""العربية. Keys and order as in i18n.TR. The language is written right to left:
+the templates set dir="rtl", see app.render."""
 STRINGS = {
 "app_title": "AI Job Search",
 "nav_settings": "إعدادات البحث",

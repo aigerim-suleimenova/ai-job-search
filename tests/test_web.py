@@ -1,7 +1,8 @@
-"""Как программа ведёт себя на чужих сайтах.
+"""How the program behaves on other people's sites.
 
-Проверяется без сети: requests.get подменяется, а вместо robots.txt отдаётся
-заранее заготовленный текст. Иначе тест зависел бы от настроения чужого сервера.
+Checked without the network: requests.get is stood in for, and a prepared text is
+handed back instead of robots.txt. Otherwise the test would depend on the mood of
+somebody else's server.
 """
 import time
 
@@ -30,7 +31,7 @@ class Ответ:
 
 
 def подменить(monkeypatch, robots="", **kw):
-    """Отдаёт заданный robots.txt, остальные адреса — пустую страницу."""
+    """Hands back the given robots.txt, and an empty page for every other address."""
     вызовы = []
 
     def fake_get(url, **rest):
@@ -101,8 +102,8 @@ def test_robots_запрашивается_один_раз_на_хост(monkeyp
 
 
 def test_crawl_delay_из_robots_уважается(monkeypatch):
-    """Стандартный парсер понимает только целые задержки — дробные молча
-    игнорирует, поэтому и проверяем целую."""
+    """The standard parser understands whole-number delays only — it ignores
+    fractional ones silently, which is why we check a whole one."""
     подменить(monkeypatch, robots="User-agent: *\nCrawl-delay: 1\n")
     monkeypatch.setattr(web, "DELAY", 0.01)
     web.get("https://example.com/a", respect_robots=True)

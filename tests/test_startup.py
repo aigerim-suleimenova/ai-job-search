@@ -1,8 +1,8 @@
-"""Запуск приложения не должен зависеть от необязательных шагов.
+"""Starting the app must not hang on steps that are optional.
 
-На Windows человек увидел окно с `SystemExit: 3` — так uvicorn сообщает, что
-обработчик запуска приложения бросил исключение. Упало расписание, а не
-открылась вся программа: окна нет, причины нет, пользоваться нечем.
+On Windows a person saw a window with `SystemExit: 3` — uvicorn's way of saying
+the startup handler raised. What broke was the scheduler; what failed to open was
+the whole program: no window, no reason, nothing to use.
 """
 import pytest
 
@@ -14,7 +14,7 @@ import app as app_module  # noqa: E402
 
 
 def test_упавшее_расписание_не_мешает_открыться(profile, monkeypatch, tmp_path):
-    """Ровно тот случай с Windows: планировщик не завёлся."""
+    """Exactly the Windows case: the scheduler would not start."""
     monkeypatch.setattr(app_module, "LOG_PATH", tmp_path / "errors.log")
 
     def взорваться():
@@ -22,7 +22,7 @@ def test_упавшее_расписание_не_мешает_открытьс�
 
     monkeypatch.setattr(app_module.scheduler, "start", взорваться)
 
-    with TestClient(app_module.app) as client:      # запускает startup-обработчик
+    with TestClient(app_module.app) as client:      # runs the startup handler
         client.cookies.set("profile", profile)
         assert client.get("/").status_code == 200, "приложение не открылось из-за расписания"
 
@@ -42,7 +42,7 @@ def test_упавший_перенос_профилей_не_мешает(profil
 
 
 def test_все_шаги_падают_а_программа_живёт(profile, monkeypatch, tmp_path):
-    """Крайний случай: не работает ничего необязательное."""
+    """The extreme case: nothing optional works at all."""
     monkeypatch.setattr(app_module, "LOG_PATH", tmp_path / "errors.log")
     for имя in ("ensure_migrated",):
         monkeypatch.setattr(app_module.profiles, имя,
@@ -60,7 +60,7 @@ def test_все_шаги_падают_а_программа_живёт(profile, 
 
 
 def test_версия_видна_на_странице(profile, monkeypatch):
-    """Человеку, у которого что-то не работает, надо чем-то назвать свою сборку."""
+    """Someone whose program misbehaves needs a way to name their build."""
     from jobsearch import version
     monkeypatch.setattr(version, "current", lambda: "9.9.9")
     with TestClient(app_module.app) as client:
@@ -70,10 +70,10 @@ def test_версия_видна_на_странице(profile, monkeypatch):
 
 
 def test_без_файла_версии_не_падает(profile):
-    """Запуск из исходников: файла нет, но страница обязана открыться."""
+    """Running from source: the file is missing, but the page still has to open."""
     from jobsearch import version
     version.current.cache_clear()
-    assert version.current()          # непустая строка, хоть «dev»
+    assert version.current()          # a non-empty string, even if only "dev"
     with TestClient(app_module.app) as client:
         client.cookies.set("profile", profile)
         assert client.get("/").status_code == 200
