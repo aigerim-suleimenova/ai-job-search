@@ -643,4 +643,5 @@ STRINGS = {
 "tool_node": "Node.js",
 "tool_node_why": "{name} instaluje się poleceniem npm, a npm przychodzi razem z Node.js. Bez niego polecenie z instrukcji w ogóle się nie wykona.",
 "prov_err_api_bad_key": "Klucz zawiera znaki, których w kluczach nie ma — pewnie skopiowało się coś jeszcze. Wklej sam klucz.",
+"log_all_sources_failed": "Nie odpowiedziało żadne z {n} źródeł — wygląda na to, że połączenia nie dochodzą. Zajrzyj do „Pokrycia”: tam napisano, co odpowiedziało każde. Częsta przyczyna to antywirus albo firmowa bramka sprawdzająca połączenia szyfrowane.",
 }

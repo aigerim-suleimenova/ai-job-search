@@ -884,6 +884,13 @@ TR = {
         "en": "Collected in total: {n}",
         "it": "Raccolte in totale: {n}",
         "de": "Insgesamt gesammelt: {n}"},
+    # Отказали все до единого — это не ответ рынка, а общая внешняя причина:
+    # антивирус, перехватывающий соединения, корпоративный шлюз, нет сети.
+    "log_all_sources_failed": {
+        "ru": "Ни один из {n} источников не ответил — похоже, до них не доходят соединения. Загляните в «Покрытие»: там сказано, что ответил каждый. Частая причина — антивирус или рабочий шлюз, проверяющий защищённые соединения.",
+        "en": "Not one of the {n} sources answered — the connections seem not to be getting through. Look at “Coverage”: it says what each one replied. A common cause is an antivirus or a work gateway inspecting secure connections.",
+        "it": "Nessuna delle {n} fonti ha risposto — sembra che le connessioni non arrivino. Guardi «Copertura»: lì è scritto che cosa ha risposto ciascuna. Una causa frequente è un antivirus o un gateway aziendale che ispeziona le connessioni sicure.",
+        "de": "Keine der {n} Quellen hat geantwortet — die Verbindungen kommen offenbar nicht durch. Sehen Sie unter „Abdeckung“ nach: dort steht, was jede geantwortet hat. Ein häufiger Grund ist ein Virenschutz oder ein Firmen-Gateway, das gesicherte Verbindungen prüft."},
     "log_after_filters": {
         "ru": "После фильтров локации/стоп-слов: {n} (отсеяно по локации: {loc}, по стоп-словам: {kw})",
         "en": "After the location and stop-word filters: {n} (dropped by location: {loc}, by stop-word: {kw})",

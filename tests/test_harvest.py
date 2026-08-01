@@ -4,6 +4,8 @@ The check runs without the network: the assembled addresses are never requested,
 only built and recognised back. It is that round trip — assemble, then recognise
 — which matters here: without it the same board would be added afresh every run.
 """
+import pytest
+
 from jobsearch import harvest
 from jobsearch.collectors import ats
 
@@ -97,3 +99,95 @@ def test_галочка_видна_и_выключается(profile):
 
         c.post("/save", data={"companies": "", "harvest_boards": "on"}, follow_redirects=False)
         assert config.load()["sources"]["harvest_boards"] is True
+
+
+# --- Что источник ответил, когда не дал ничего ---------------------------------
+
+def только_remotive() -> dict:
+    """Один источник включён, остальные выключены: у каждого свои требования к
+    настройкам, а проверяем мы здесь не их."""
+    from jobsearch import config
+    cfg = config._merge(config.DEFAULTS, {})
+    for ключ in list(cfg["sources"]):
+        if ключ.startswith("use_"):
+            cfg["sources"][ключ] = False
+    cfg["sources"]["use_remotive"] = True
+    return cfg
+
+
+def test_отказ_источника_доезжает_до_покрытия(monkeypatch):
+    """Поле error в покрытии было всегда — и всегда пустым: сборщики ловят свои
+    ошибки сами и возвращают пустой список, так что снаружи отказ выглядел
+    точь-в-точь как «ничего не нашлось». На странице «Покрытие» источники стояли
+    с нулями и без единого слова, и человек с антивирусом, перехватывающим
+    соединения, читал это как «таких вакансий нет»."""
+    import requests
+
+    from jobsearch.collectors import aggregators
+
+    def сломанный(cfg, log):
+        log("remotive: SSLError certificate verify failed")
+        return []
+
+    monkeypatch.setattr(aggregators, "remotive", сломанный)
+    покрытие = []
+
+    aggregators.collect(только_remotive(), lambda m: None, покрытие)
+
+    свой = [c for c in покрытие if c["name"] == "Remotive"][0]
+    assert свой["count"] == 0
+    assert свой["error"] and "certificate" in свой["error"], "отказ потерялся по дороге"
+
+
+def test_у_работающего_источника_ошибки_нет(monkeypatch):
+    """Обратная сторона: сказать «ошибка» там, где её не было, не лучше молчания."""
+    from jobsearch.collectors import aggregators
+
+    monkeypatch.setattr(aggregators, "remotive",
+                        lambda cfg, log: [{"title": "SAP Integration Consultant"}])
+    покрытие = []
+
+    aggregators.collect(только_remotive(), lambda m: None, покрытие)
+
+    свой = [c for c in покрытие if c["name"] == "Remotive"][0]
+    assert свой["count"] == 1 and свой["error"] is None
+
+
+# --- «Удалённо» — не то же самое, что «откуда угодно» ---------------------------
+
+СЛУЧАИ = [
+    # (место в вакансии, что искали, пускать ли)
+    ("United States, Remote", ["germany"], False),   # ровно то, на чём попались
+    ("Remote (US only)", ["germany"], False),
+    ("Remote — Europe", ["germany"], True),
+    ("Remote", ["germany"], True),                   # не названо ничего — и правда откуда угодно
+    ("Anywhere", ["germany"], True),
+    ("United States, Remote", ["usa"], True),        # искали США — США и получили
+    ("Berlin, Remote", ["germany"], True),
+    ("Remote, Poland", ["eu"], True),
+    ("APAC, Remote", ["germany"], False),
+    ("Remote, Canada", ["eu"], False),
+    ("Remote, London", ["germany"], False),
+]
+
+
+@pytest.mark.parametrize("место,искали,пускать", СЛУЧАИ)
+def test_удалённая_работа_всё_равно_где_то_находится(место, искали, пускать):
+    """Проверка на «удалённо» стояла первой и пропускала всё, где встретилось это
+    слово. На настоящем прогоне по резюме SAP-интегратора из тридцати двух
+    вакансий восемь оказались из одной американской конторы с пометкой
+    «United States, Remote» — человеку из Европы не годилась ни одна. Модель это
+    заметила и написала «US only», а фильтр, который для того и стоит, пропустил."""
+    from jobsearch import filters
+    assert filters.location_ok(место, искали, include_remote=True) is пускать, место
+
+
+def test_без_галочки_удалённые_отсекаются_как_прежде():
+    from jobsearch import filters
+    assert filters.location_ok("Remote", ["germany"], include_remote=False) is False
+
+
+def test_неизвестное_место_по_прежнему_не_режется():
+    """Пустое место — не повод выбрасывать: разберётся триаж."""
+    from jobsearch import filters
+    assert filters.location_ok("", ["germany"]) is True

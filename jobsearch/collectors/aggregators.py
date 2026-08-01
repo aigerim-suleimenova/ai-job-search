@@ -403,13 +403,31 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
     src = cfg["sources"]
 
     def track(enabled, name, url, fn):
+        """Сколько источник дал — и, если ничего, почему.
+
+        Поле error было здесь всегда, и всегда было пустым: сборщики ловят свои
+        ошибки сами и возвращают пустой список, так что снаружи отказ выглядел
+        точь-в-точь как «ничего не нашлось». На странице «Покрытие» девять
+        источников стояли с нулями и без единого слова — человек с антивирусом,
+        который перехватывает соединения, читал это как «таких вакансий нет».
+
+        Ошибку берём из того, что сборщик написал в журнал: все одиннадцать
+        пишут туда только при отказе, и записать больше им нечего.
+        """
         if not enabled:
             return
-        got = fn(cfg, log)
+        сказанное = []
+
+        def свой_журнал(msg):
+            сказанное.append(str(msg))
+            log(msg)
+
+        got = fn(cfg, свой_журнал)
         jobs.extend(got)
         if coverage is not None:
             coverage.append({"name": name, "url": url, "kind": "aggregator",
-                             "count": len(got), "error": None})
+                             "count": len(got),
+                             "error": "; ".join(сказанное)[:300] or None})
 
     track(src.get("use_remotive"), "Remotive", "https://remotive.com", remotive)
     track(src.get("use_arbeitnow"), "Arbeitnow", "https://arbeitnow.com", arbeitnow)

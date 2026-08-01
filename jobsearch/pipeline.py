@@ -218,6 +218,16 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         found = len(jobs)
         _logk("log_collected", n=found)
 
+        # Отказали все источники до единого — это не «вакансий нет», это «до нас
+        # не дошло». Прогон при этом отчитывался как успешный, и человек читал
+        # ноль как ответ рынка. А причина у такого обычно общая и внешняя:
+        # антивирус, перехватывающий соединения, корпоративный шлюз, отсутствие
+        # сети. Одна беда, а выглядела как приговор его специальности.
+        источники = [c for c in coverage if c.get("kind") == "aggregator"]
+        if источники and all(c.get("error") for c in источники):
+            status = "warn"
+            _logk("log_all_sources_failed", n=len(источники))
+
         # 2. Normalising and de-duplicating (direct jobs win over the rest)
         _stage("stage_dedupe")
         by_key = {}

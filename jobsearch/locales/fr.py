@@ -643,4 +643,5 @@ STRINGS = {
 "tool_node": "Node.js",
 "tool_node_why": "{name} s'installe avec la commande npm, et npm arrive avec Node.js. Sans lui, la commande des instructions ne démarre même pas.",
 "prov_err_api_bad_key": "La clé contient des caractères qu'une clé ne contient pas — quelque chose a sans doute été copié avec elle. Ne collez que la clé.",
+"log_all_sources_failed": "Aucune des {n} sources n'a répondu — les connexions ne semblent pas passer. Regardez « Couverture » : on y voit ce que chacune a répondu. Une cause fréquente est un antivirus ou une passerelle d'entreprise qui inspecte les connexions sécurisées.",
 }

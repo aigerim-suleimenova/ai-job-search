@@ -643,4 +643,5 @@ STRINGS = {
 "tool_node": "Node.js",
 "tool_node_why": "{name}, npm komutuyla kurulur; npm de Node.js ile birlikte gelir. O olmadan yönergedeki komut hiç çalışmaz.",
 "prov_err_api_bad_key": "Anahtarda, anahtarlarda bulunmayan karakterler var — büyük olasılıkla fazladan bir şey kopyalandı. Yalnızca anahtarı yapıştırın.",
+"log_all_sources_failed": "{n} kaynağın hiçbiri yanıt vermedi — bağlantılar ulaşmıyor gibi görünüyor. «Kapsam»a bakın: orada her birinin ne yanıtladığı yazıyor. Sık görülen sebep, güvenli bağlantıları inceleyen bir antivirüs ya da kurumsal ağ geçididir.",
 }

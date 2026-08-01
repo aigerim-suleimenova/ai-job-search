@@ -80,11 +80,44 @@ COUNTRY_MARKERS["италия"] = COUNTRY_MARKERS["italy"]
 COUNTRY_MARKERS["германия"] = COUNTRY_MARKERS["germany"]
 
 
+# Область целиком, а не отдельная страна: вакансия, названная так, подходит
+# любому, кто ищет внутри этой области.
+WIDE_EU_MARKERS = ["europe", "european union", " eu ", "eu-", "emea",
+                   "dach", "benelux", "nordics", "baltics", "европ"]
+
+
+# Области и страны за пределами двух наших списков. Без них «APAC, Remote»
+# считалось бы работой откуда угодно и приходило бы в поиск по Европе.
+OTHER_PLACE_MARKERS = [
+    "apac", "latam", "emea excl", "anz", "australia", "new zealand",
+    "canada", "brazil", "brasil", "argentina", "mexico", "india", "singapore",
+    "japan", "china", "korea", "israel", "uae", "dubai", "south africa",
+    "united kingdom", " uk ", "uk-", "london", "manchester", "edinburgh",
+]
+
+
+def _names_a_place(loc: str) -> bool:
+    """Названо ли в строке хоть какое-то место, кроме слова «удалённо»."""
+    return (any(m in loc for m in US_MARKERS) or any(m in loc for m in EU_MARKERS)
+            or any(m in loc for m in OTHER_PLACE_MARKERS)
+            or any(m in места for места in COUNTRY_MARKERS.values() for m in места if m in loc))
+
+
 def location_ok(location: str, wanted: list, include_remote: bool = True) -> bool:
     if not wanted:
         return True
     loc = f" {(location or '').lower()} "
-    if include_remote and any(m in loc for m in REMOTE_MARKERS):
+    # «Удалённо» — не то же самое, что «откуда угодно». Проверка стояла первой и
+    # пропускала всё, где встретилось это слово: «United States, Remote» проходило
+    # в поиск по Германии как ни в чём не бывало. На настоящем прогоне по резюме
+    # SAP-интегратора из тридцати двух вакансий восемь оказались из одной
+    # американской конторы, и человеку из Европы не годилась ни одна. Модель это
+    # даже заметила и написала «US only» — а фильтр, который для того и стоит,
+    # пропустил.
+    #
+    # Если рядом с «удалённо» названа страна, она и решает. Если не названо
+    # ничего — работа и правда откуда угодно, и её пропускаем.
+    if include_remote and any(m in loc for m in REMOTE_MARKERS) and not _names_a_place(loc):
         return True
     if not location:
         return True  # an unknown location is not cut off — triage will decide
@@ -100,6 +133,11 @@ def location_ok(location: str, wanted: list, include_remote: bool = True) -> boo
                 return True
         elif token in COUNTRY_MARKERS:
             if any(m in loc for m in COUNTRY_MARKERS[token]):
+                return True
+            # «Удалённо по Европе» человеку, который ищет в Германии, годится:
+            # страна входит в названную область. Без этой оговорки отказ от
+            # огульного «удалённо» выбросил бы вместе с американскими и такие.
+            if any(m in loc for m in WIDE_EU_MARKERS):
                 return True
         elif token in loc:
             return True

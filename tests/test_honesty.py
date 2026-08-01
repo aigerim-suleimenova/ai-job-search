@@ -230,3 +230,38 @@ def test_с_веб_поиском_изучение_компании_остаёт
                          cfg, "CV", lambda _m: None, research=True)
 
     assert any(и for и in инструменты), "лишили веб-поиска того, кто его умеет"
+
+
+def test_отказ_всех_источников_не_выдаётся_за_успех(monkeypatch, profile):
+    """Найдено настоящим прогоном: антивирус на машине перехватывал защищённые
+    соединения, все девять источников отвалились с ошибкой сертификата — а
+    прогон отчитался «Готово», status ok, ноль вакансий.
+
+    Ноль от рынка и ноль от того, что до рынка не дошло, — разные вещи, и
+    человек не должен путать одно с другим. Тем более что причина у такого
+    обычно общая и снаружи: антивирус, рабочий шлюз, нет сети.
+    """
+    from jobsearch import config, db, llm, pipeline
+    from jobsearch.collectors import aggregators
+
+    monkeypatch.setattr(llm, "ask_json", lambda prompt, **kw: {})
+    cfg = config.load()
+    cfg["llm"].update(provider="ollama", triage_model="gemma2:9b", deep_model="gemma2:9b")
+    cfg["search"].update(discover_per_run=0, discover_ats_per_run=0)
+    config.save(cfg)
+
+    def всё_упало(cfg, log, coverage=None):
+        for имя in ("Remotive", "Arbeitnow", "RemoteOK"):
+            coverage.append({"name": имя, "url": "https://x.example", "kind": "aggregator",
+                             "count": 0, "error": "SSLError certificate verify failed"})
+        return []
+
+    monkeypatch.setattr(aggregators, "collect", всё_упало)
+
+    pipeline.run(trigger="test", profile=profile)
+
+    with db.conn() as c:
+        прогон = dict(c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone())
+    assert прогон["status"] != "ok", "прогон, где не ответил никто, назван успешным"
+    assert "источник" in прогон["log"] or "sources" in прогон["log"], \
+        "в журнале не сказано, что молчали все"
