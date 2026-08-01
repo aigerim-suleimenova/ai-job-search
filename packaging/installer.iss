@@ -85,7 +85,13 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 ; runasoriginaluser: if the installer did end up running elevated, the program has
 ; to be opened as the person rather than as the administrator — otherwise its data
 ; would land in somebody else's profile.
-Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runasoriginaluser
+;
+; Без skipifsilent, но с проверкой: тихая установка бывает двух разных родов.
+; Когда программа обновляет себя сама, она закрывается и должна открыться снова —
+; иначе человек нажал «Обновить» и остался без программы. А тихая установка,
+; запущенная кем-то из скрипта, открывать окно не должна. Различаем по флагу
+; /RELAUNCH, который передаёт только наше собственное обновление.
+Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall runasoriginaluser; Check: ShouldLaunchAfter
 
 ; A person's data — the CV, the settings, the jobs found — lives in %APPDATA% and
 ; is left alone unless the person asks otherwise on the way out (see [Code]):
@@ -118,6 +124,15 @@ it.Leftovers=Nella cartella del programma è rimasto qualcosa, che può essere r
 [Code]
 var
   RemoveData: Boolean;
+
+{ Открывать ли программу после установки. Обычная установка — да, как и раньше.
+  Тихая — только если это мы сами себя обновляем и передали /RELAUNCH. }
+function ShouldLaunchAfter(): Boolean;
+begin
+  { Скобок у встроенных функций без параметров быть не должно: Pascal Script
+    считает это вызовом с неверным числом аргументов и не собирается. }
+  Result := (Pos('/RELAUNCH', Uppercase(GetCmdTail)) > 0) or (not WizardSilent);
+end;
 
 { Спрашиваем один раз, до удаления: галочка и есть ответ. }
 function AskAboutData(): Boolean;
@@ -188,7 +203,7 @@ end;
 function InitializeUninstall(): Boolean;
 begin
   { В тихом режиме спрашивать некого: данные тогда остаются, как и раньше. }
-  if UninstallSilent() then
+  if UninstallSilent then
     Result := True
   else
     Result := AskAboutData();
@@ -216,7 +231,7 @@ begin
   finally
     FindClose(Found);
   end;
-  if (Count > 0) and not UninstallSilent() then
+  if (Count > 0) and not UninstallSilent then
     MsgBox(CustomMessage('Leftovers') + #13#10 + #13#10
            + ExpandConstant('{app}') + #13#10 + #13#10 + List,
            mbInformation, MB_OK);

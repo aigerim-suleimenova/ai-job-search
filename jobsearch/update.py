@@ -219,12 +219,17 @@ def install(path: Path) -> None:
     """Hands the downloaded installer over and steps aside.
 
     The installer cannot replace files that are open, so the program has to go.
-    It is started detached and then we quit: the installer waits for the old copy
-    to close on its own and opens the new one when it is done.
+    It is started detached and then we quit; the installer closes whatever is
+    left of us, writes the new version and opens it again.
+
+    /RELAUNCH is our own flag and the installer looks for it: a silent install
+    started by somebody's script should not throw a window on the screen, but an
+    update the person asked for must give them their program back. Without it
+    they would press "Update" and be left with nothing on screen.
     """
     if platform.system() != "Windows":
         raise UpdateError("update_err_manual")
-    subprocess.Popen([str(path), "/SILENT", "/NOCANCEL"],
+    subprocess.Popen([str(path), "/SILENT", "/NOCANCEL", "/RELAUNCH"],
                      creationflags=getattr(subprocess, "DETACHED_PROCESS", 0)
                      | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
                      close_fds=True)
