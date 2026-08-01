@@ -34,11 +34,17 @@ async def _profile_middleware(request: Request, call_next):
 
 def _provider_status(cfg: dict) -> dict:
     """Готов ли выбранный «мозг» приложения. Без него поиск не заработает, и человек
-    должен узнать об этом сразу, а не из ошибки посреди прогона."""
+    должен узнать об этом сразу, а не из ошибки посреди прогона.
+
+    Имя берётся из переводов: оно подставляется в фразу на языке интерфейса, а
+    раньше приезжало из providers.py всегда по-русски — «The app relies on
+    “Локальная модель (Ollama)”».
+    """
     key = cfg.get("llm", {}).get("provider", "claude_cli")
     provs = providers.available(cfg.get("llm", {}).get("claude_bin", "claude"))
     p = provs.get(key, {})
-    return {"key": key, "ready": bool(p.get("ready")), "name": p.get("name", key)}
+    lang = cfg.get("ui", {}).get("lang", "en")
+    return {"key": key, "ready": bool(p.get("ready")), "name": i18n.t(lang, f"prov_{key}")}
 
 
 def _timing() -> dict:
@@ -82,20 +88,37 @@ def mine_running() -> bool:
 
 
 def _last_run_noauth() -> str:
-    """Текст ошибки последнего прогона, если он встал из-за входа в модель."""
+    """Текст ошибки последнего прогона, если он встал из-за входа в модель.
+
+    Строку ищем по началу на любом из языков: журнал пишется на том языке, что
+    стоял во время прогона, и раньше здесь сравнивалось с русским текстом —
+    у всех остальных совпадения не было никогда, и вместо причины показывался
+    прочерк.
+    """
     runs = db.recent_runs(1)
     if not runs or runs[0]["status"] != "noauth":
         return ""
+    prefixes = [i18n.t(code, "log_noauth").split("{error}")[0]
+                for code in i18n.UI_LANGS]
     for line in reversed((runs[0]["log"] or "").splitlines()):
-        if line.startswith("Модель не отвечает: "):
-            return line.split(": ", 1)[1][:200]
+        for prefix in prefixes:
+            if prefix and line.startswith(prefix):
+                return line[len(prefix):][:200]
     return "—"
+
+
+def _lang(cfg: dict = None) -> str:
+    return (cfg if cfg is not None else config.load()).get("ui", {}).get("lang", "en")
+
+
+def _err(exc) -> str:
+    """Текст исключения на языке интерфейса: свои ошибки несут ключ перевода."""
+    return i18n.err(_lang(), exc)
 
 
 def _msg(key: str, **fmt) -> str:
     """Всплывающее сообщение на языке интерфейса, а не всегда по-русски."""
-    lang = config.load().get("ui", {}).get("lang", "ru")
-    text = i18n.t(lang, key)
+    text = i18n.t(_lang(), key)
     return text.format(**fmt) if fmt else text
 
 
@@ -342,11 +365,13 @@ async def save(request: Request, then: str = ""):
         )
     cfg["schedule"].pop("enabled", None)
     if section_present("ui_lang", "output_lang"):
-        ui_lang = val("ui_lang", "ru")
-        out_lang = val("output_lang", "ru")
+        # Незнакомое значение оставляет прежний язык, а не сбрасывает на
+        # русский: сброс молча переводил человеку и интерфейс, и результаты.
+        ui_lang = val("ui_lang", cfg["ui"].get("lang", "en"))
+        out_lang = val("output_lang", cfg["ui"].get("output_lang", "") or ui_lang)
         cfg["ui"].update(
-            lang=ui_lang if ui_lang in i18n.UI_LANGS else "ru",
-            output_lang=out_lang if out_lang in i18n.OUTPUT_LANGS else "ru",
+            lang=ui_lang if ui_lang in i18n.UI_LANGS else cfg["ui"].get("lang", "en"),
+            output_lang=out_lang if out_lang in i18n.OUTPUT_LANGS else ui_lang,
         )
     config.save(cfg)
     scheduler.reschedule(cfg)
@@ -358,7 +383,7 @@ async def save(request: Request, then: str = ""):
         try:
             chat_id = notify.detect_chat_id(token)
         except RuntimeError as e:
-            return _redirect(_msg("msg_saved_tg_error", error=e))
+            return _redirect(_msg("msg_saved_tg_error", error=_err(e)))
         cfg["telegram"]["chat_id"] = chat_id
         config.save(cfg)
         return _redirect(_msg("msg_saved_chat_found", chat_id=chat_id))
@@ -366,7 +391,7 @@ async def save(request: Request, then: str = ""):
         try:
             notify.send_message(cfg, _msg("tg_test_message"))
         except RuntimeError as e:
-            return _redirect(_msg("msg_saved_tg_error", error=e))
+            return _redirect(_msg("msg_saved_tg_error", error=_err(e)))
         return _redirect(_msg("msg_saved_tg_sent"))
     if then == "discover":
         try:
@@ -678,9 +703,10 @@ def analyse_status():
 @app.get("/notify")
 def notify_page(request: Request, msg: str = ""):
     cfg = config.load()
+    presets = mailer.presets(_lang(cfg))
     return render(request, "notify.html", {
-        "cfg": cfg, "msg": msg, "presets": mailer.PRESETS,
-        "presets_json": json.dumps(mailer.PRESETS, ensure_ascii=False),
+        "cfg": cfg, "msg": msg, "presets": presets,
+        "presets_json": json.dumps(presets, ensure_ascii=False),
     }, cfg=cfg)
 
 
@@ -697,7 +723,7 @@ async def notify_telegram(request: Request, then: str = ""):
         try:
             chat_id = notify.detect_chat_id(cfg["telegram"]["bot_token"])
         except RuntimeError as e:
-            return _redirect_to("/notify", _msg("msg_tg_error", error=e))
+            return _redirect_to("/notify", _msg("msg_tg_error", error=_err(e)))
         cfg["telegram"]["chat_id"] = chat_id
         config.save(cfg)
         return _redirect_to("/notify", _msg("msg_chat_found", chat_id=chat_id))
@@ -705,7 +731,7 @@ async def notify_telegram(request: Request, then: str = ""):
         try:
             notify.send_message(cfg, _msg("tg_test_message"))
         except RuntimeError as e:
-            return _redirect_to("/notify", f"Telegram: {e}")
+            return _redirect_to("/notify", _msg("msg_tg_error", error=_err(e)))
         return _redirect_to("/notify", _msg("msg_tg_sent"))
     return _redirect_to("/notify", _msg("msg_saved"))
 
@@ -745,7 +771,7 @@ def models_page(request: Request, msg: str = ""):
     provider = cfg["llm"].get("provider", "claude_cli")
     provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
     current_model = cfg["llm"].get("triage_model", "haiku")
-    catalog = providers.models_for(provider)
+    catalog = providers.models_for(provider, lang=_lang(cfg))
     return render(request, "models.html", {
         "cfg": cfg, "msg": msg, "provs": provs, "current_provider": provider,
         "current_model": current_model, "models": catalog,
@@ -763,7 +789,7 @@ async def models_set_provider(request: Request):
     if key in providers.available(cfg["llm"].get("claude_bin", "claude")):
         cfg["llm"]["provider"] = key
         # модель прежнего провайдера бессмысленна для нового — берём самую сильную доступную
-        catalog = providers.models_for(key)
+        catalog = providers.models_for(key, lang=_lang(cfg))
         picks = [m for m in catalog if m.get("kind") != "local" or m.get("installed")]
         # ничего не установлено — намечаем самую сильную модель, которая влезет
         # в память: иначе в настройках осталась бы модель прежнего способа
@@ -803,7 +829,23 @@ async def models_pull(request: Request):
 
 @app.get("/models/pull_status")
 def models_pull_status():
-    return JSONResponse(providers.pull_status())
+    """Состояние скачивания — уже словами, на языке интерфейса.
+
+    Свои шаги и ошибки лежат в состоянии ключами: страница показывает их как
+    есть, и раньше на любом языке видела русские «начинаем» и «готово».
+    Сообщения самой Ollama («pulling manifest») переводить нечем — они идут
+    как пришли.
+    """
+    lang = _lang()
+    st = providers.pull_status()
+    if st.get("status_key"):
+        st["status"] = i18n.t(lang, st["status_key"])
+    if st.get("error_key"):
+        st["error"] = i18n.t(lang, st["error_key"]).format(**(st.get("error_fmt") or {}))
+    st.pop("status_key", None)
+    st.pop("error_key", None)
+    st.pop("error_fmt", None)
+    return JSONResponse(st)
 
 
 # Проверка CV зовёт модель и с локальной занимает минуты. Раньше это была
@@ -866,9 +908,9 @@ async def app_settings(request: Request):
 @app.post("/set_lang")
 async def set_lang(request: Request):
     form = await request.form()
-    code = str(form.get("ui_lang", "ru"))
+    code = str(form.get("ui_lang", ""))
     cfg = config.load()
-    cfg["ui"]["lang"] = code if code in i18n.UI_LANGS else "ru"
+    cfg["ui"]["lang"] = code if code in i18n.UI_LANGS else cfg["ui"].get("lang", "en")
     config.save(cfg)
     back = str(form.get("back", "/"))
     return RedirectResponse(back if back.startswith("/") else "/", status_code=303)
@@ -1190,7 +1232,7 @@ def welcome(request: Request, msg: str = ""):
     cfg = config.load()
     provider = cfg["llm"].get("provider", "claude_cli")
     provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
-    catalog = providers.models_for(provider)
+    catalog = providers.models_for(provider, lang=_lang(cfg))
     current_model = cfg["llm"].get("triage_model", "haiku")
     chosen = next((m for m in catalog if m["id"] == current_model), None)
     return render(request, "welcome.html", {

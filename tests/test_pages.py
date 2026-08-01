@@ -4,6 +4,8 @@
 пропущенная проверка стоила «Internal Server Error» у человека на экране.
 Сеть и модель не задействованы: страницы рисуются из базы и настроек.
 """
+import re
+
 import pytest
 
 pytest.importorskip("httpx", reason="TestClient требует httpx")
@@ -143,3 +145,68 @@ def test_несобравшееся_cv_объясняет_а_не_отдаёт_5
     r = client.get(f"/cv/{job_id}")
     assert r.status_code == 200, "человек получил голую ошибку вместо объяснения"
     assert "JSON" in r.text or "модель" in r.text.lower()
+
+
+# --- Русские слова на английских страницах -------------------------------------
+
+КИРИЛЛИЦА = re.compile(r"[А-Яа-яЁё]")
+# Не всякая кириллица на английской странице — беда. «Русский» в списке языков
+# и имя профиля, которое человек написал сам, там и должны быть по-русски.
+СВОИ_ИМЕНА = re.compile(r'<select name="(ui_lang|output_lang|slug)".*?</select>', re.S)
+ПОДСКАЗКА_ЯЗЫКА = 'title="Язык / Language"'
+
+
+def человеческий_текст(html: str) -> str:
+    """Страница без того, что человек не читает: комментарии в скриптах и
+    списки языков. Двойную косую в «https://» за комментарий не принимаем."""
+    html = СВОИ_ИМЕНА.sub("", html).replace(ПОДСКАЗКА_ЯЗЫКА, "")
+    html = re.sub(r"/\*.*?\*/", "", html, flags=re.S)
+    return re.sub(r"""(?<![:"'])//.*$""", "", html, flags=re.M)
+
+
+@pytest.fixture
+def английский(client, profile):
+    """Англоязычный человек. Профиль переименован по-латински: имя, которое
+    человек написал сам, — не текст программы, и путать их в проверке нельзя."""
+    from jobsearch import config, profiles
+    profiles.rename(profile, "Alex")
+    cfg = config.load()
+    cfg["ui"].update(lang="en", output_lang="en")
+    cfg["llm"]["provider"] = "ollama"      # его имя подставляется в текст страницы
+    config.save(cfg)
+    return client
+
+
+@pytest.mark.parametrize("path", СТРАНИЦЫ)
+def test_на_английском_нет_русских_слов(английский, path):
+    """Ключи-то переведены, но текст приходил и мимо них: имя провайдера,
+    пометки моделей, почтовые службы, имя профиля по умолчанию."""
+    текст = человеческий_текст(английский.get(path).text)
+    найдено = [ln.strip() for ln in текст.splitlines() if КИРИЛЛИЦА.search(ln)]
+    assert not найдено, f"{path}: " + " | ".join(найдено[:4])
+
+
+def test_на_английском_нет_русских_слов_с_данными(английский):
+    from jobsearch import db
+    db.save_job(job("k1", score=88, verified=True, reason="strong match",
+                    advice='{"cv_changes":["one"],"linkedin_changes":[],"cover_hint":"",'
+                           '"salary_estimate":"60k","company_insights":[],"sources":[]}'),
+                run_id=1)
+    for path in ("/results", "/coverage"):
+        текст = человеческий_текст(английский.get(path).text)
+        найдено = [ln.strip() for ln in текст.splitlines() if КИРИЛЛИЦА.search(ln)]
+        assert not найдено, f"{path}: " + " | ".join(найдено[:4])
+
+
+def test_старое_покрытие_с_русским_типом_источника_переводится(английский):
+    """Тип источника хранится в базе: у прогонов, записанных до перевода, там
+    так и лежит «агрегатор» — показать его надо всё равно по-английски."""
+    import json as _json
+    from jobsearch import db
+    run_id = db.start_run()
+    db.finish_run(run_id, found=1, fresh=1, matched=1, status="ok", log="",
+                  coverage=_json.dumps([{"name": "Remotive", "url": "https://remotive.com",
+                                         "kind": "агрегатор", "count": 3, "error": None}]))
+    текст = английский.get("/coverage").text
+    assert "aggregator" in текст, "старое значение не перевелось"
+    assert "агрегатор" not in человеческий_текст(текст)

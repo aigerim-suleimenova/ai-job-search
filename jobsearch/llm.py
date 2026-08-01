@@ -10,7 +10,20 @@ import time
 
 
 class ClaudeError(RuntimeError):
-    pass
+    """Ошибка обращения к модели.
+
+    Может нести ключ перевода: текст попадает в журнал прогона, а журнал видит
+    человек — значит, он не может быть всегда русским. Когда сообщение пришло
+    от самого CLI, ключа нет и текст идёт как есть.
+
+    transient проставляется на месте, а не угадывается по тексту: раньше
+    решение «повторить ли вызов» принималось поиском русских слов в сообщении,
+    и с переводом оно перестало бы работать.
+    """
+
+    def __init__(self, message: str = "", key: str = "", transient: bool = False, **fmt):
+        self.key, self.fmt, self.transient = key, fmt, transient
+        super().__init__(message or key)
 
 
 class AuthError(ClaudeError):
@@ -45,6 +58,10 @@ def _classify(text: str) -> ClaudeError:
 class Cancelled(RuntimeError):
     """Работа отменена пользователем."""
 
+    def __init__(self, key: str = "err_cancelled", **fmt):
+        self.key, self.fmt = key, fmt
+        super().__init__(key)
+
 
 # Останавливать длинный этап (триаж сотен вакансий) нужно быстро, поэтому pmap
 # сверяется с этим флагом перед каждой задачей. Уже идущие вызовы CLI доводим
@@ -78,17 +95,19 @@ def cancelled() -> bool:
     return _cancel.is_set()
 
 
-# временные ошибки, при которых имеет смысл повторить вызов
+# Приметы временной беды в чужом выводе CLI — по ним видно, что вызов стоит
+# повторить. Свои ошибки сюда не входят: они помечены флагом transient, потому
+# что их текст переводится и искать в нём слова бессмысленно.
 _TRANSIENT = (
     "connection closed", "api error", "overloaded", "rate limit", "429", "529",
     "timeout", "timed out", "closed mid-response", "internal server", "5xx",
-    "не ответил за", "без вывода",
 )
 
 
-def _is_transient(msg: str) -> bool:
-    m = (msg or "").lower()
-    return any(t in m for t in _TRANSIENT)
+def _is_transient(exc) -> bool:
+    if getattr(exc, "transient", False):
+        return True
+    return any(t in str(exc).lower() for t in _TRANSIENT)
 
 
 def pmap(fn, items: list, workers: int = 5) -> list:
@@ -102,7 +121,7 @@ def pmap(fn, items: list, workers: int = 5) -> list:
         out = []
         for it in items:
             if _cancelled():
-                out.append(Cancelled("отменено"))
+                out.append(Cancelled())
                 continue
             try:
                 out.append(fn(it))
@@ -113,7 +132,7 @@ def pmap(fn, items: list, workers: int = 5) -> list:
     # профиль (profiles._active) и пишут в базу профиля по умолчанию
     def _guarded(it):
         if _cancelled():
-            raise Cancelled("отменено")
+            raise Cancelled()
         return fn(it)
 
     with _cf.ThreadPoolExecutor(max_workers=workers) as ex:
@@ -134,7 +153,8 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
         try:
             return providers.call(prompt, provider, model, timeout, allowed_tools, claude_bin)
         except providers.ProviderError as e:
-            raise ClaudeError(str(e)) from e
+            # ключ перевода надо пронести дальше, иначе в журнал уедет его имя
+            raise ClaudeError("" if e.key else str(e), key=e.key, **e.fmt) from e
 
     # Абсолютный путь + close_fds=False заставляют CPython использовать posix_spawn
     # вместо fork+exec. Это критично на macOS: fork() из многопоточного процесса,
@@ -158,16 +178,18 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
                               encoding="utf-8", errors="replace",
                               timeout=timeout, close_fds=False, cwd=_p.work_dir())
     except FileNotFoundError:
-        raise ClaudeError(f"claude CLI не найден: {claude_bin!r}. Укажите путь в настройках LLM.")
+        raise ClaudeError(key="prov_err_no_claude", path=repr(claude_bin))
     except subprocess.TimeoutExpired:
-        raise ClaudeError(f"claude не ответил за {timeout} с")
+        raise ClaudeError(key="prov_err_timeout", transient=True, tool="claude",
+                          seconds=timeout)
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip()
         if not detail:
             # пустой вывод при ненулевом коде; отрицательный код = убит сигналом
             # (например, системой при нехватке памяти)
-            detail = (f"claude завершился с кодом {proc.returncode} без вывода"
-                      + (" (убит сигналом)" if proc.returncode < 0 else ""))
+            key = "prov_err_killed" if proc.returncode < 0 else "prov_err_exit_code"
+            raise ClaudeError(key=key, transient=True, tool="claude",
+                              code=proc.returncode)
         raise _classify(_human_error(detail))
     try:
         data = json.loads(proc.stdout)
@@ -186,7 +208,7 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
     # Точка прерывания: этапы вроде discovery делают вызовы подряд в цикле, не через
     # pmap, и без этой проверки «Стоп» ждал бы конца всего этапа.
     if _cancelled():
-        raise Cancelled("поиск остановлен")
+        raise Cancelled("err_search_stopped")
     last = None
     for attempt in range(retries + 1):
         try:
@@ -195,7 +217,7 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
             raise          # войти за человека мы не можем — повторы только тратят время
         except ClaudeError as e:
             last = e
-            if attempt < retries and _is_transient(str(e)):
+            if attempt < retries and _is_transient(e):
                 time.sleep(2 * (attempt + 1))  # 2с, 4с
                 continue
             raise
@@ -237,4 +259,4 @@ def extract_json(text: str):
                 return obj
             except json.JSONDecodeError:
                 continue
-    raise ClaudeError("В ответе модели нет JSON: " + text[:300])
+    raise ClaudeError(key="prov_err_no_json", text=text[:300])

@@ -17,15 +17,31 @@ PRESETS = {
               "app_password": True},
     "outlook": {"name": "Outlook / Hotmail", "host": "smtp-mail.outlook.com", "port": 587,
                 "tls": True, "app_password": False},
-    "yandex": {"name": "Яндекс Почта", "host": "smtp.yandex.ru", "port": 465, "tls": False,
+    "yandex": {"name": "Yandex Mail", "host": "smtp.yandex.ru", "port": 465, "tls": False,
                "app_password": True},
     "mailru": {"name": "Mail.ru", "host": "smtp.mail.ru", "port": 465, "tls": False,
                "app_password": True},
     "icloud": {"name": "iCloud", "host": "smtp.mail.me.com", "port": 587, "tls": True,
                "app_password": True},
-    "custom": {"name": "Другая (укажу вручную)", "host": "", "port": 587, "tls": True,
-               "app_password": False},
+    # у этой строчки имени нет: она называется на языке интерфейса
+    "custom": {"name": "", "name_key": "mail_preset_custom", "host": "", "port": 587,
+               "tls": True, "app_password": False},
 }
+
+
+def presets(lang: str = "en") -> dict:
+    """Список служб для выпадающего меню — с названиями на языке интерфейса.
+
+    Своё название есть не у всех: «Другая» — это не марка, а строчка
+    интерфейса, и она переводится.
+    """
+    out = {}
+    for key, p in PRESETS.items():
+        item = {k: v for k, v in p.items() if k != "name_key"}
+        if p.get("name_key"):
+            item["name"] = i18n.t(lang, p["name_key"])
+        out[key] = item
+    return out
 
 
 class MailError(RuntimeError):
@@ -82,7 +98,8 @@ def send_digest(cfg: dict, jobs: list, candidate: str, when: str, threshold: int
     if not jobs:
         return
     html = export.to_html(jobs, candidate, when, threshold)
-    subject = f"AI Job Search: {len(jobs)} вакансий для {candidate}"
+    subject = i18n.t(cfg.get("ui", {}).get("lang", "en"), "mail_digest_subject").format(
+        count=len(jobs), name=candidate)
     lines = [f"{j.get('score')}% — {j.get('title')} @ {j.get('company')}\n{j.get('url')}"
              for j in jobs[:20]]
     send(cfg, subject, html, "\n\n".join(lines))

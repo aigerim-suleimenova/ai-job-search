@@ -77,6 +77,17 @@ def _write_registry(reg: dict) -> None:
     REGISTRY_PATH.write_text(json.dumps(reg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _default_name() -> str:
+    """Как назвать профиль, заводимый самой программой.
+
+    Имя видно в переключателе на каждой странице, поэтому оно должно быть на
+    языке человека. Настроек в этот момент ещё нет — берём язык системы, тот
+    же, который при первом запуске выбирается для интерфейса.
+    """
+    from . import i18n
+    return i18n.t(i18n.system_lang(), "profile_default_name")
+
+
 def ensure_migrated() -> None:
     """Однократная миграция: старый плоский data/ → data/profiles/<slug>/."""
     with _lock:
@@ -99,13 +110,13 @@ def ensure_migrated() -> None:
                 src = DATA_ROOT / fn
                 if src.exists() and src.is_file():
                     shutil.move(str(src), str(dst / fn))
-            profiles.append({"slug": slug, "name": "Я"})
+            profiles.append({"slug": slug, "name": _default_name()})
 
         # если ничего не было — создаём пустой профиль
         if not profiles:
             slug = _slugify("me", taken)
             (PROFILES_DIR / slug).mkdir(parents=True, exist_ok=True)
-            profiles.append({"slug": slug, "name": "Я"})
+            profiles.append({"slug": slug, "name": _default_name()})
 
         _write_registry({"profiles": profiles, "default": profiles[0]["slug"]})
 

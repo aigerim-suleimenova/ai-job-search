@@ -9,6 +9,15 @@ from . import i18n
 TIMEOUT = 30
 
 
+class NotifyError(RuntimeError):
+    """Ошибка Telegram. Несёт ключ перевода: модуль не знает языка интерфейса,
+    а текст показывается человеку — раньше он всегда был русским."""
+
+    def __init__(self, key: str, **fmt):
+        self.key, self.fmt = key, fmt
+        super().__init__(key)
+
+
 def _api(token: str, method: str) -> str:
     return f"https://api.telegram.org/bot{token}/{method}"
 
@@ -17,9 +26,9 @@ def send_message(cfg: dict, text: str) -> None:
     tg = cfg["telegram"]
     token, chat_id = tg.get("bot_token", ""), tg.get("chat_id", "")
     if not token:
-        raise RuntimeError("Не задан bot token")
+        raise NotifyError("tg_err_no_token")
     if not chat_id:
-        raise RuntimeError("Не задан chat id — напишите боту сообщение и нажмите «Сохранить и определить chat id»")
+        raise NotifyError("tg_err_no_chat")
     # телеграм ограничивает сообщение 4096 символами — режем по абзацам
     chunks, current = [], ""
     for para in text.split("\n\n"):
@@ -54,7 +63,7 @@ def detect_chat_id(token: str) -> str:
         chat = msg.get("chat") or {}
         if chat.get("id"):
             return str(chat["id"])
-    raise RuntimeError("Обновлений нет. Напишите вашему боту любое сообщение и попробуйте снова.")
+    raise NotifyError("tg_err_no_updates")
 
 
 def _esc(s: str) -> str:

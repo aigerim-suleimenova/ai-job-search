@@ -406,7 +406,7 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
         got = fn(cfg, log)
         jobs.extend(got)
         if coverage is not None:
-            coverage.append({"name": name, "url": url, "kind": "агрегатор",
+            coverage.append({"name": name, "url": url, "kind": "aggregator",
                              "count": len(got), "error": None})
 
     track(src.get("use_remotive"), "Remotive", "https://remotive.com", remotive)

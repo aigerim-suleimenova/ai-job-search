@@ -199,3 +199,30 @@ def test_рабочее_окно_браузер_не_трогает(tmp_path, mo
     assert открыто == [], "открыли лишнюю вкладку поверх работающего окна"
     assert desktop._on_closing in окно.events.closing, "закрытие окна перестало отслеживаться"
     assert not (tmp_path / "errors.log").exists(), "рабочее окно записалось как беда"
+
+
+def test_экран_аварии_на_языке_интерфейса(profile, tmp_path, monkeypatch):
+    """Окно с причиной показывается до сервера — и было русским независимо от
+    выбранного языка."""
+    from jobsearch import config
+    monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    config.save(cfg)
+    monkeypatch.setattr(desktop.webview, "create_window", _не_дать_окна)
+    открыто = []
+    monkeypatch.setattr(desktop.webbrowser, "open", открыто.append)
+
+    desktop._show_failure("Traceback: boom")
+
+    страница = (tmp_path / "error.html").read_text(encoding="utf-8")
+    assert "could not start" in страница, "заголовок не на языке интерфейса"
+    assert "не смог запуститься" not in страница
+    assert открыто, "страницу с причиной не показали"
+
+
+def test_без_настроек_экран_аварии_не_ломается(tmp_path, monkeypatch):
+    """Настроек может не быть вовсе — сообщение о беде всё равно должно выйти."""
+    monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
+    monkeypatch.setattr(desktop, "_ui_lang", _не_дать_окна)
+    assert desktop._say("crash_title", app="X") == ""

@@ -138,16 +138,47 @@ def _serve(port: int) -> None:
         _log_crash("Внутренний сервер не запустился", _server_error)
 
 
+def _ui_lang() -> str:
+    """Язык интерфейса — для сообщений, которые показываются до сервера.
+
+    Настроек может не быть вовсе (первый запуск) или их чтение может упасть
+    вместе со всем остальным — тогда язык системы, а на крайний случай
+    английский: он понятен большему числу людей, чем русский.
+    """
+    try:
+        from jobsearch import config, i18n, profiles
+        profiles.set_active(profiles.default_slug())
+        return config.load().get("ui", {}).get("lang") or i18n.system_lang()
+    except Exception:                             # noqa: BLE001
+        try:
+            from jobsearch import i18n
+            return i18n.system_lang()
+        except Exception:                         # noqa: BLE001
+            return "en"
+
+
+def _say(key: str, **fmt) -> str:
+    """Строка перевода, а если переводов не достать — пустая: сообщение о беде
+    не должно становиться второй бедой."""
+    try:
+        from jobsearch import i18n
+        text = i18n.t(_ui_lang(), key)
+        return text.format(**fmt) if fmt else text
+    except Exception:                             # noqa: BLE001
+        return ""
+
+
 def _show_failure(reason: str) -> None:
     """Показывает причину в окне: без этого человек видит только то, что
     программа не открылась."""
     log = _state_dir() / "errors.log"
     safe = (reason or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    title = _say("crash_title", app=APP_NAME) or f"{APP_NAME} could not start"
+    note = _say("crash_note") or "Details are written to the file:"
     html = f"""<!doctype html><meta charset="utf-8">
 <body style="font:14px -apple-system,'Segoe UI',sans-serif;padding:28px;color:#1d1d1f">
-<h2 style="margin:0 0 10px">{APP_NAME} не смог запуститься</h2>
-<p style="color:#6e6e73;margin:0 0 16px">Это сбой программы, а не ваших данных — они на месте.
-Подробности записаны в файл:<br><code>{log}</code></p>
+<h2 style="margin:0 0 10px">{title}</h2>
+<p style="color:#6e6e73;margin:0 0 16px">{note}<br><code>{log}</code></p>
 <pre style="background:#f2f2f7;border-radius:8px;padding:14px;font-size:11.5px;
 white-space:pre-wrap;max-height:320px;overflow:auto">{safe[-4000:]}</pre>
 </body>"""
@@ -280,8 +311,7 @@ def _open_in_browser(port: int, own_server: bool) -> None:
         webbrowser.open(url)
     except Exception:                  # noqa: BLE001 — браузера может не быть вовсе
         pass
-    print(f"{APP_NAME}: окно не открылось, программа доступна по адресу {url}",
-          file=sys.stderr)
+    print(_say("crash_in_browser", url=url) or f"{APP_NAME}: {url}", file=sys.stderr)
     if not own_server:
         return                         # сервер чужой, держать его живым не нам
     try:

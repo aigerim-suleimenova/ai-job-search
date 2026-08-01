@@ -54,7 +54,12 @@ def _logk(key: str, **fmt) -> None:
     Журнал видит человек — значит, он не может быть всегда русским, как бы
     удобно это ни было при написании кода.
     """
-    text = i18n.t(config.load()["ui"]["lang"], key)
+    lang = config.load()["ui"]["lang"]
+    # Исключение в подстановке — тоже текст для человека: свои ошибки несут
+    # ключ перевода, и без этого в журнал уезжало бы имя ключа.
+    fmt = {k: (i18n.err(lang, v) if isinstance(v, BaseException) else v)
+           for k, v in fmt.items()}
+    text = i18n.t(lang, key)
     _log(text.format(**fmt) if fmt else text)
 
 
@@ -178,8 +183,9 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 entry["count"] = len(got)
                 _log(f"{name or url} [{entry['kind']}]: {len(got)}")
             except Exception as e:  # noqa: BLE001 — один источник не должен ронять прогон
-                _log(f"{name or url}: {e}")
-                entry["error"] = str(e)[:300]
+                reason = i18n.err(cfg["ui"]["lang"], e)
+                _log(f"{name or url}: {reason}")
+                entry["error"] = reason[:300]
                 got = []
             return entry, got
 
@@ -390,7 +396,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                                    db.now(), threshold)
                 _logk("log_mail_sent")
             except mailer.MailError as e:
-                _logk("log_mail_error", error=i18n.t(cfg["ui"]["lang"], e.key).format(**e.fmt))
+                _logk("log_mail_error", error=e)
                 status = "warn"
         _logk("log_done")
     except (Stopped, llm.Cancelled):
