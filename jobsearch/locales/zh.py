@@ -642,4 +642,5 @@ STRINGS = {
 "tool_too_old": "{name} 在，但版本是 {found}，需要 {need} 或更新的版本。",
 "tool_node": "Node.js",
 "tool_node_why": "{name} 用 npm 命令安装，而 npm 是随 Node.js 一起来的。没有它，说明里的那条命令根本跑不起来。",
+"prov_err_api_bad_key": "密钥里有密钥不会出现的字符，多半是连别的东西一起复制了。请只粘贴密钥本身。",
 }

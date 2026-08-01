@@ -227,3 +227,31 @@ def test_чужие_карточки_про_node_не_говорят(monkeypatch
     страница = client_for(приложение.app, profile).get("/models").text
 
     assert "Node.js" not in страница
+
+
+def test_на_странице_моделей_есть_и_кнопка_а_не_только_надпись(monkeypatch, profile):
+    """Сказать, чего не хватает, и не сказать, где это взять, — полдела.
+    На знакомстве для этого свой экран, здесь хватает кнопки."""
+    import app as приложение
+    без_командных_строк(monkeypatch)
+    нода(monkeypatch, найдена=False)
+    cfg = config.load()
+    cfg["llm"]["provider"] = "qwen_cli"
+    config.save(cfg)
+
+    страница = client_for(приложение.app, profile).get("/models").text
+
+    assert 'action="/tool/install"' in страница, "негде взять то, чего не хватает"
+
+
+def test_кнопки_нет_когда_всё_на_месте(monkeypatch, profile):
+    import app as приложение
+    без_командных_строк(monkeypatch)
+    нода(monkeypatch)
+    cfg = config.load()
+    cfg["llm"]["provider"] = "qwen_cli"
+    config.save(cfg)
+
+    страница = client_for(приложение.app, profile).get("/models").text
+
+    assert 'action="/tool/install"' not in страница

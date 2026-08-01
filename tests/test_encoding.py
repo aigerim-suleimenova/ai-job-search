@@ -39,8 +39,32 @@ def двоичный_режим(call: ast.Call) -> bool:
     return any(isinstance(m, ast.Constant) and "b" in str(m.value) for m in режимы)
 
 
+def запуски_без_кодировки(дерево):
+    """subprocess.run(..., text=True) без encoding= — та же беда, другой боком.
+
+    Вывод чужой программы декодируется кодировкой системы: cp1252 на Windows,
+    ascii при локали C. Нелатинская буква в чужой переменной среды рушила разбор,
+    и рушила скверно: ошибка случалась в потоке чтения, stdout молча оказывался
+    None, а падало потом и в другом месте — AttributeError вместо внятного
+    UnicodeDecodeError. Разом переставали работать все командные строки.
+    """
+    for node in ast.walk(дерево):
+        if not isinstance(node, ast.Call):
+            continue
+        если = getattr(node.func, "attr", "")
+        получатель = getattr(getattr(node.func, "value", None), "id", "")
+        if если != "run" or получатель != "subprocess":
+            continue
+        ключи = {k.arg for k in node.keywords}
+        текстом = any(k.arg == "text" and getattr(k.value, "value", False) is True
+                      for k in node.keywords) or "encoding" in ключи
+        if текстом and "encoding" not in ключи:
+            yield node.lineno, "subprocess.run(text=True)"
+
+
 def нарушения(путь: Path):
     дерево = ast.parse(путь.read_text(encoding="utf-8"))
+    yield from запуски_без_кодировки(дерево)
     for node in ast.walk(дерево):
         if not isinstance(node, ast.Call):
             continue

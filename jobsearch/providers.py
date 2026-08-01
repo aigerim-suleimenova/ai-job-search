@@ -158,11 +158,19 @@ def login_env() -> dict:
     if not os.path.exists(shell):
         return env
     try:
+        # encoding задана прямо. Без неё берётся кодировка системы — cp1252 на
+        # Windows, ascii при локали C, — и первая же нелатинская буква в чужой
+        # переменной среды рушит разбор. А она там есть у всякого, чьё имя не
+        # латиницей: оно лежит в HOME и в PATH. Падало при этом не понятным
+        # исключением, а AttributeError: ошибка случалась в потоке чтения, и
+        # stdout молча оказывался None. И переставали работать разом все
+        # командные строки.
         out = subprocess.run([shell, "-lc", "env -0"], capture_output=True,
-                             text=True, timeout=10, cwd=work_dir())
+                             text=True, encoding="utf-8", errors="replace",
+                             timeout=10, cwd=work_dir())
     except (OSError, subprocess.SubprocessError):
         return env
-    for pair in out.stdout.split("\0"):
+    for pair in (out.stdout or "").split("\0"):
         key, sep, value = pair.partition("=")
         if sep and key and not key.startswith(("BASH_FUNC", "_")):
             env[key] = value
@@ -188,8 +196,10 @@ def resolve_bin(name: str) -> str:
     shell = os.environ.get("SHELL") or "/bin/zsh"
     try:
         out = subprocess.run([shell, "-lc", f"command -v {name}"], cwd=work_dir(),
-                             capture_output=True, text=True, timeout=10)
-        path = out.stdout.strip().splitlines()[-1] if out.stdout.strip() else ""
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=10)
+        вывод = (out.stdout or "").strip()
+        path = вывод.splitlines()[-1] if вывод else ""
         if path and os.access(path, os.X_OK):
             return path
     except (OSError, subprocess.SubprocessError, IndexError):
@@ -299,7 +309,7 @@ def tool_state(tool: str) -> tuple:
         return (False, "")
     try:
         out = subprocess.run([path, spec["version_arg"]], capture_output=True,
-                             text=True, timeout=5, cwd=work_dir(), env=login_env())
+                             text=True, encoding="utf-8", errors="replace", timeout=5, cwd=work_dir(), env=login_env())
         version = (out.stdout or out.stderr or "").strip().splitlines()[0].strip()
     except (OSError, subprocess.SubprocessError, IndexError):
         return (True, "")
@@ -511,8 +521,7 @@ def call_claude(prompt: str, model: str, timeout: int, allowed_tools, claude_bin
         cmd += ["--model", model]
     if allowed_tools:
         cmd += ["--allowedTools", ",".join(allowed_tools)]
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace",
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
@@ -538,8 +547,7 @@ def call_cursor(prompt: str, model: str, timeout: int) -> str:
     cmd = [exe, "-p", "--output-format", "text"]
     if model and model != "auto":
         cmd += ["--model", model]
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace",
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
@@ -570,8 +578,7 @@ def call_codex(prompt: str, model: str, timeout: int) -> str:
     if model and model != "auto":
         cmd += ["--model", model]
     cmd.append("-")
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace",
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
@@ -592,8 +599,7 @@ def _run_cli(cmd: list, prompt: str, timeout: int, tool: str) -> str:
     кончается. Отсюда же выбор самих программ: те, что умеют читать только
     аргумент, сюда не годятся.
     """
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace",
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           cwd=work_dir(), env=login_env(),
                           timeout=timeout, close_fds=False)
     if proc.returncode != 0:
@@ -668,16 +674,31 @@ def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
         raise ProviderError(key="prov_err_no_api_model")
     headers = {"Content-Type": "application/json"}
     if key:                      # у местных служб ключа может не быть вовсе
+        # В заголовок запроса нельзя положить что угодно: там латиница и только
+        # она. Ключ этого не нарушает — нарушает то, что скопировалось вместе с
+        # ним. Проверяем заранее, потому что иначе requests падает
+        # UnicodeEncodeError, а это ValueError, и человек получал «служба
+        # ответила не в формате JSON» — про службу, до которой не дошло.
+        try:
+            key.encode("latin-1")
+        except UnicodeEncodeError as e:
+            raise ProviderError(key="prov_err_api_bad_key") from e
         headers["Authorization"] = f"Bearer {key}"
     try:
         r = requests.post(f"{base}/chat/completions", headers=headers, timeout=timeout,
                           json={"model": model, "stream": False,
                                 "messages": [{"role": "user", "content": prompt}]})
-        r.raise_for_status()
-        data = r.json()
     except requests.RequestException as e:
         raise ProviderError(key="prov_err_api_unreachable",
                             error=_without_key(str(e), key)) from e
+    if r.status_code >= 400:
+        # Служба ответила — и в ответе сказала, что не так. Раньше отсюда шло
+        # «служба недоступна» с голым «429 Client Error»: человек с кончившимися
+        # деньгами на OpenRouter читал, что до службы не достучаться, хотя она
+        # ответила исправно и назвала причину. Причину и показываем.
+        raise ProviderError(_without_key(_api_error_text(r), key))
+    try:
+        data = r.json()
     except ValueError as e:
         raise ProviderError(key="prov_err_api_not_json", error=e) from e
     try:
@@ -686,6 +707,29 @@ def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
         # у службы может быть своя форма ответа или своя ошибка в теле
         detail = str(data.get("error") or data)[:300] if isinstance(data, dict) else str(data)[:300]
         raise ProviderError(_without_key(detail, key)) from e
+
+
+def _api_error_text(r) -> str:
+    """Что служба сказала об отказе, её же словами.
+
+    Форма ответа у всех разная: у OpenAI и OpenRouter — {"error": {"message": …}},
+    у иных просто {"error": "…"} или вовсе текст. Берём то, что нашлось, а если
+    не нашлось ничего — хотя бы номер отказа: он всё равно понятнее пустоты.
+    """
+    try:
+        тело = r.json()
+    except ValueError:
+        тело = None
+    сообщение = ""
+    if isinstance(тело, dict):
+        ошибка = тело.get("error", тело.get("message", ""))
+        if isinstance(ошибка, dict):
+            сообщение = str(ошибка.get("message") or ошибка)
+        elif ошибка:
+            сообщение = str(ошибка)
+    if not сообщение:
+        сообщение = (r.text or "").strip()[:300]
+    return f"{r.status_code}: {сообщение}" if сообщение else f"{r.status_code}"
 
 
 def _without_key(text: str, key: str) -> str:

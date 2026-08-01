@@ -642,4 +642,5 @@ STRINGS = {
 "tool_too_old": "{name} jest, ale w wersji {found} — potrzebna {need} lub nowsza.",
 "tool_node": "Node.js",
 "tool_node_why": "{name} instaluje się poleceniem npm, a npm przychodzi razem z Node.js. Bez niego polecenie z instrukcji w ogóle się nie wykona.",
+"prov_err_api_bad_key": "Klucz zawiera znaki, których w kluczach nie ma — pewnie skopiowało się coś jeszcze. Wklej sam klucz.",
 }

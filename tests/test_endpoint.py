@@ -15,6 +15,10 @@ class Ответ:
     def __init__(self, payload, status=200):
         self._payload, self.status_code = payload, status
 
+    @property
+    def text(self):
+        return "" if isinstance(self._payload, Exception) else str(self._payload)
+
     def raise_for_status(self):
         if self.status_code >= 400:
             raise requests.HTTPError(f"{self.status_code} для {self._payload}")
@@ -38,7 +42,7 @@ def служба(monkeypatch, payload, status=200):
 
 
 ОТВЕТ = {"choices": [{"message": {"content": "  готовый ответ  "}}]}
-НАСТРОЙКИ = {"api_base": "https://openrouter.ai/api/v1", "api_key": "sk-секрет",
+НАСТРОЙКИ = {"api_base": "https://openrouter.ai/api/v1", "api_key": "sk-or-v1-0a1b2c3d",
              "api_model": "anthropic/claude-sonnet-5"}
 
 
@@ -61,8 +65,8 @@ def test_ключ_уходит_заголовком_а_не_в_адресе(monk
 
     providers.call_openai_api("привет", НАСТРОЙКИ, timeout=30)
 
-    assert послано["headers"]["Authorization"] == "Bearer sk-секрет"
-    assert "sk-секрет" not in послано["url"]
+    assert послано["headers"]["Authorization"] == "Bearer sk-or-v1-0a1b2c3d"
+    assert "sk-or-v1-0a1b2c3d" not in послано["url"]
 
 
 def test_без_ключа_тоже_работает(monkeypatch):
@@ -77,14 +81,14 @@ def test_без_ключа_тоже_работает(monkeypatch):
 
 def test_ключ_не_попадает_в_текст_ошибки(monkeypatch):
     def взорваться(url, **kw):
-        raise requests.ConnectionError(f"нет связи с {url}?key=sk-секрет")
+        raise requests.ConnectionError(f"нет связи с {url}?key=sk-or-v1-0a1b2c3d")
 
     monkeypatch.setattr(providers.requests, "post", взорваться)
 
     with pytest.raises(providers.ProviderError) as поймано:
         providers.call_openai_api("привет", НАСТРОЙКИ, timeout=30)
 
-    assert "sk-секрет" not in str(поймано.value) + str(поймано.value.fmt)
+    assert "sk-or-v1-0a1b2c3d" not in str(поймано.value) + str(поймано.value.fmt)
 
 
 def test_лишний_слэш_в_адресе_не_ломает(monkeypatch):
@@ -113,6 +117,46 @@ def test_чужая_форма_ответа_объясняется_а_не_ро�
         providers.call_openai_api("привет", НАСТРОЙКИ, timeout=30)
 
     assert "no credits" in str(поймано.value)
+
+
+@pytest.mark.parametrize("код", [400, 401, 402, 429, 500])
+def test_отказ_службы_объясняется_её_же_словами(monkeypatch, код):
+    """Найдено живой проверкой, а не тут.
+
+    Настоящие службы отвечают на беду кодом ошибки и телом с причиной. Тест
+    рядом брал 200 с ошибкой в теле — так не отвечает никто, и оттого мимо
+    прошло вот что: raise_for_status превращал ответ в HTTPError, и человек с
+    кончившимися деньгами на OpenRouter читал «служба недоступна». Служба
+    ответила исправно и назвала причину, а мы её выбрасывали."""
+    служба(monkeypatch, {"error": {"message": "insufficient_quota"}}, status=код)
+
+    with pytest.raises(providers.ProviderError) as поймано:
+        providers.call_openai_api("привет", НАСТРОЙКИ, timeout=30)
+
+    видно = str(поймано.value)
+    assert "insufficient_quota" in видно, f"причина потеряна: {видно}"
+    assert поймано.value.key != "prov_err_api_unreachable", "служба ответила, а мы говорим, что нет"
+
+
+def test_отказ_без_внятного_тела_называет_хотя_бы_номер(monkeypatch):
+    служба(monkeypatch, "<html>502 Bad Gateway</html>", status=502)
+    with pytest.raises(providers.ProviderError) as поймано:
+        providers.call_openai_api("привет", НАСТРОЙКИ, timeout=30)
+    assert "502" in str(поймано.value)
+
+
+def test_ключ_с_лишним_не_выдаёт_себя_за_беду_службы(monkeypatch):
+    """Тоже находка живой проверки. В заголовок запроса можно положить только
+    латиницу, и requests падает на этом UnicodeEncodeError — а это ValueError,
+    и человек читал «служба ответила не в формате JSON». Про службу, до которой
+    ничего не дошло."""
+    служба(monkeypatch, ОТВЕТ)
+    с_лишним = dict(НАСТРОЙКИ, api_key="sk-это-не-ключ")
+
+    with pytest.raises(providers.ProviderError) as поймано:
+        providers.call_openai_api("привет", с_лишним, timeout=30)
+
+    assert поймано.value.key == "prov_err_api_bad_key"
 
 
 def test_не_json_объясняется(monkeypatch):

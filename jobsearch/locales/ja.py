@@ -642,4 +642,5 @@ STRINGS = {
 "tool_too_old": "{name} はありますが、バージョンが {found} です。{need} 以降が必要です。",
 "tool_node": "Node.js",
 "tool_node_why": "{name} は npm コマンドで入れますが、npm は Node.js に付いてきます。これがないと、手順にあるコマンドはそもそも動きません。",
+"prov_err_api_bad_key": "鍵に、鍵には入らない文字が混じっています。余計なものが一緒にコピーされたようです。鍵だけを貼り付けてください。",
 }

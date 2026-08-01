@@ -642,4 +642,5 @@ STRINGS = {
 "tool_too_old": "{name} var ama sürümü {found} — {need} ya da daha yenisi gerekiyor.",
 "tool_node": "Node.js",
 "tool_node_why": "{name}, npm komutuyla kurulur; npm de Node.js ile birlikte gelir. O olmadan yönergedeki komut hiç çalışmaz.",
+"prov_err_api_bad_key": "Anahtarda, anahtarlarda bulunmayan karakterler var — büyük olasılıkla fazladan bir şey kopyalandı. Yalnızca anahtarı yapıştırın.",
 }

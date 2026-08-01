@@ -10,7 +10,7 @@ from functools import lru_cache
 
 
 def _macos_ram_gb() -> float:
-    out = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True)
+    out = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     return int(out.stdout.strip()) / 1024 ** 3
 
 
@@ -43,17 +43,17 @@ def _gpu_name() -> str:
     try:
         if system == "Darwin":
             out = subprocess.run(["system_profiler", "SPDisplaysDataType"],
-                                 capture_output=True, text=True, timeout=15).stdout
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15).stdout
             m = re.search(r"Chipset Model:\s*(.+)", out)
             return m.group(1).strip() if m else ""
         if system == "Linux":
             out = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total",
                                   "--format=csv,noheader"],
-                                 capture_output=True, text=True, timeout=15).stdout.strip()
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15).stdout.strip()
             return out.splitlines()[0] if out else ""
         if system == "Windows":
             out = subprocess.run(["wmic", "path", "win32_VideoController", "get", "name"],
-                                 capture_output=True, text=True, timeout=15).stdout
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15).stdout
             lines = [l.strip() for l in out.splitlines()[1:] if l.strip()]
             return lines[0] if lines else ""
     except (OSError, subprocess.SubprocessError, IndexError):
@@ -75,7 +75,7 @@ def specs() -> dict:
     if system == "Darwin":
         try:
             cpu = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"],
-                                 capture_output=True, text=True, timeout=10).stdout.strip() or cpu
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip() or cpu
         except (OSError, subprocess.SubprocessError):
             pass
     apple = system == "Darwin" and platform.machine() == "arm64"

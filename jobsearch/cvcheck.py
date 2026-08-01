@@ -59,7 +59,7 @@ def _render_pages(pdf: Path, out_dir: Path, limit: int = 3) -> list:
         png = out_dir / f"page{i + 1}.png"
         r = subprocess.run(["sips", "-s", "format", "png", "-Z", "1600",
                             str(single), "--out", str(png)],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode == 0 and png.exists():
             pages.append(png)
     return pages

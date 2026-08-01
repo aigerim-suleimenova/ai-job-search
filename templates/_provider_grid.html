@@ -31,9 +31,17 @@
        мы ему уже ничем не поможем. Сказать надо здесь. Спрашивается это только
        про выбранного провайдера — остальным семи оно стоило бы по запуску node
        на каждую отрисовку ни за чем. #}
+    {# И тут же кнопка, а не одна только надпись: сказать, чего не хватает, и не
+       сказать, где это взять, — полдела. На знакомстве для этого есть свой
+       экран, а здесь человек уже освоился, и хватит кнопки. #}
     {% if tool and current_provider == key %}
-    <p class="hint" style="color:var(--warn)">{{ t('welcome_tools_blocked').format(
-         name=t('tool_' + tool.key)) }}</p>
+    <p class="hint" style="color:var(--warn); margin-bottom:6px">{{
+         t('welcome_tools_blocked').format(name=t('tool_' + tool.key)) }}</p>
+    <form method="post" action="/tool/install" style="margin:0 0 6px">
+      <input type="hidden" name="tool" value="{{ tool.key }}">
+      <input type="hidden" name="back" value="{{ back }}">
+      <button class="link-like">{{ t('models_install') }} {{ t('tool_' + tool.key) }}</button>
+    </form>
     {% endif %}
     {# «используется: …» — только когда есть что назвать. У своего адреса имя
        модели вписывается руками на втором шаге, и до этого строка выходила

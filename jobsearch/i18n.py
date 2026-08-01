@@ -38,7 +38,7 @@ def system_lang(default: str = "en") -> str:
     try:
         if system == "Darwin":
             out = subprocess.run(["defaults", "read", "-g", "AppleLocale"],
-                                 capture_output=True, text=True, timeout=5).stdout.strip()
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5).stdout.strip()
             code = out.split("@")[0].split("_")[0]
         elif system == "Windows":
             import ctypes
@@ -1876,6 +1876,11 @@ TR = {
     "prov_err_no_api_base": {
         "ru": "Не указан адрес службы", "en": "No address for the service",
         "it": "Indirizzo del servizio non indicato", "de": "Keine Adresse für den Dienst"},
+    "prov_err_api_bad_key": {
+        "ru": "В ключе есть знаки, которых в ключах не бывает — похоже, скопировалось что-то лишнее. Вставьте только сам ключ.",
+        "en": "The key contains characters that keys do not have — something extra was probably copied along with it. Paste the key alone.",
+        "it": "La chiave contiene caratteri che le chiavi non hanno: probabilmente è stato copiato anche altro. Incolli solo la chiave.",
+        "de": "Der Schlüssel enthält Zeichen, die in Schlüsseln nicht vorkommen — vermutlich wurde etwas mitkopiert. Fügen Sie nur den Schlüssel ein."},
     "prov_err_no_api_model": {
         "ru": "Не указано название модели", "en": "No model name given",
         "it": "Nome del modello non indicato", "de": "Kein Modellname angegeben"},
