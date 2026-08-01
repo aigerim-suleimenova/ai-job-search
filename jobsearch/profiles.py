@@ -77,15 +77,56 @@ def _write_registry(reg: dict) -> None:
     REGISTRY_PATH.write_text(json.dumps(reg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _default_name() -> str:
-    """What to call a profile the program creates itself.
+DEFAULT_NAME = "user"
 
-    The name is visible in the picker on every page, so it has to be in the
-    person's language. There are no settings yet at this moment — we take the
-    system language, the same one first launch picks for the interface.
+
+def _default_name() -> str:
+    """Как назвать профиль, который программа завела сама.
+
+    Одинаково на всех языках, и это разрешение старой беды, а не небрежность.
+    Имя бралось по языку системы — единственному, который известен в этот
+    момент, потому что настроек ещё нет. Но язык системы и язык программы
+    сплошь и рядом разные: человек с русской Windows ставил английскую версию и
+    в переключателе людей видел «Я» посреди английского интерфейса.
+
+    Взять вместо этого выбранный язык нельзя: профиль заводится раньше, чем
+    появляется, где хранить выбор. Название же, одинаковое везде, не может
+    оказаться не тем языком — потому что не притворяется ничьим.
+    """
+    return DEFAULT_NAME
+
+
+def _auto_names() -> set:
+    """Имена, которые программа когда-либо давала профилю сама.
+
+    Нужны, чтобы отличить своё от чужого при переименовании: имя человек мог и
+    поменять руками, и такое трогать нельзя.
     """
     from . import i18n
-    return i18n.t(i18n.system_lang(), "profile_default_name")
+    return {i18n.t(код, "profile_default_name") for код in i18n.UI_LANGS} | {DEFAULT_NAME}
+
+
+def rename_auto_defaults() -> None:
+    """Переводит на новое имя те профили, что до сих пор носят выданное нами.
+
+    Без этого смена умолчания не заметна никому, кроме тех, кто ставит программу
+    впервые: имя записано в profiles.json на первом запуске и само не меняется.
+
+    Трогаем только профиль с кодом «me» — тот единственный, что заводит сама
+    программа, — и только если он до сих пор носит имя из наших. По одному имени
+    судить нельзя: «Я» человек мог вписать и сам, и переименовывать за ним то,
+    что он назвал, мы не будем.
+    """
+    with _lock:
+        reg = _read_registry()
+        свои = _auto_names()
+        менялось = False
+        for p in reg.get("profiles", []):
+            if p.get("slug") == "me" and p.get("name") in свои and p["name"] != DEFAULT_NAME:
+                p["name"] = DEFAULT_NAME
+                менялось = True
+        if менялось:
+            _write_registry(reg)
 
 
 def ensure_migrated() -> None:

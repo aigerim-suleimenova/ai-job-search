@@ -273,6 +273,7 @@ def startup() -> None:
     answers for itself, and the reason lands in the log.
     """
     for шаг, действие in (("перенос профилей", profiles.ensure_migrated),
+                          ("имя профиля по умолчанию", profiles.rename_auto_defaults),
                           ("запуск расписания", scheduler.start),
                           ("восстановление расписаний", scheduler.reschedule_all),
                           # спрашиваем о новой версии в фоне: иначе о ней никто не узнает,

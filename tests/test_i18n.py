@@ -97,12 +97,15 @@ def test_почтовые_службы_без_русского():
     assert mailer.presets("ru")["custom"]["name"] == "Другая (укажу вручную)"
 
 
-def test_имя_профиля_по_умолчанию_на_языке_системы(monkeypatch):
+def test_имя_профиля_по_умолчанию_не_зависит_от_языка_системы(monkeypatch):
+    """Имя бралось по языку системы — единственному, который известен, когда
+    профиль заводится: настроек ещё нет. Но язык системы и язык программы сплошь
+    и рядом разные, и человек с русской Windows, поставивший английскую версию,
+    видел в переключателе людей «Я» посреди английского интерфейса."""
     from jobsearch import profiles
-    monkeypatch.setattr(i18n, "system_lang", lambda default="en": "en")
-    assert profiles._default_name() == "Me"
-    monkeypatch.setattr(i18n, "system_lang", lambda default="en": "ru")
-    assert profiles._default_name() == "Я"
+    for язык in ("en", "ru", "ja", "ar"):
+        monkeypatch.setattr(i18n, "system_lang", lambda default="en", я=язык: я)
+        assert profiles._default_name() == "user", f"язык системы {язык} всё ещё влияет"
 
 
 def test_язык_ответа_модели_откатывается_на_английский():

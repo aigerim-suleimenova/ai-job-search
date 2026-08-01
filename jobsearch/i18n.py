@@ -379,6 +379,10 @@ TR = {
                             "en": "AI Job Search: {count} jobs for {name}",
                             "it": "AI Job Search: {count} offerte per {name}",
                             "de": "AI Job Search: {count} Stellen für {name}"},
+    # Новым профилям это имя больше не даётся — profiles.DEFAULT_NAME одинаков на
+    # всех языках, потому что язык системы и язык программы сплошь и рядом разные.
+    # Переводы остаются, чтобы узнать в profiles.json имя, выданное старой
+    # версией, и не принять его за то, которое человек вписал сам.
     "profile_default_name": {"ru": "Я", "en": "Me", "it": "Io", "de": "Ich"},
     # The crash screen is shown before the server is up — and until now it was in
     # Russian whatever language had been chosen.

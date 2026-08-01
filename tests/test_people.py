@@ -72,3 +72,56 @@ def test_знакомое_имя_переключает_а_не_дублируе
     # the cookie is set by a header; httpx does not put it into r.cookies on a 303
     поставлено = r.headers.get("set-cookie", "")
     assert f"profile={друг}" in поставлено, f"не переключились на существующего: {поставлено}"
+
+
+# --- Смена имени по умолчанию ---------------------------------------------------
+
+def реестр(monkeypatch, tmp_path, профили: list):
+    import json
+    monkeypatch.setattr(profiles, "DATA_ROOT", tmp_path)
+    monkeypatch.setattr(profiles, "PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr(profiles, "REGISTRY_PATH", tmp_path / "profiles.json")
+    (tmp_path / "profiles.json").write_text(
+        json.dumps({"profiles": профили, "default": профили[0]["slug"]}, ensure_ascii=False),
+        encoding="utf-8")
+    return lambda: {p["slug"]: p["name"] for p in profiles.list_profiles()}
+
+
+@pytest.mark.parametrize("старое", ["Я", "Me", "Ich", "我", "أنا"])
+def test_выданное_нами_имя_переименовывается(monkeypatch, tmp_path, старое):
+    """Без этого смена умолчания не заметна никому, кроме тех, кто ставит
+    программу впервые: имя записано в profiles.json на первом запуске."""
+    имена_ = реестр(monkeypatch, tmp_path, [{"slug": "me", "name": старое}])
+
+    profiles.rename_auto_defaults()
+
+    assert имена_() == {"me": "user"}
+
+
+def test_своё_имя_не_трогаем(monkeypatch, tmp_path):
+    имена_ = реестр(monkeypatch, tmp_path, [{"slug": "me", "name": "Виктор"}])
+    profiles.rename_auto_defaults()
+    assert имена_() == {"me": "Виктор"}
+
+
+def test_чужой_профиль_названный_я_остаётся(monkeypatch, tmp_path):
+    """По одному имени судить нельзя: «Я» человек мог вписать и сам. Заводит
+    программа ровно один профиль, с кодом «me», — им и ограничиваемся."""
+    имена_ = реестр(monkeypatch, tmp_path,
+                    [{"slug": "me", "name": "Я"}, {"slug": "ya", "name": "Я"}])
+
+    profiles.rename_auto_defaults()
+
+    assert имена_() == {"me": "user", "ya": "Я"}
+
+
+def test_второй_запуск_ничего_не_переписывает(monkeypatch, tmp_path):
+    """Переименование идёт при каждом запуске — значит оно должно быть тихим,
+    когда переименовывать нечего."""
+    реестр(monkeypatch, tmp_path, [{"slug": "me", "name": "user"}])
+    profiles.rename_auto_defaults()
+    было = profiles.REGISTRY_PATH.stat().st_mtime_ns
+
+    profiles.rename_auto_defaults()
+
+    assert profiles.REGISTRY_PATH.stat().st_mtime_ns == было, "файл переписан впустую"
