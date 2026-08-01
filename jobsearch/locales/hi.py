@@ -634,4 +634,12 @@ STRINGS = {
 "websearch_none": "इस्तेमाल न करें",
 "search_err_not_set": "वेब खोज सेट नहीं है: कोई सेवा चुनें और कुंजी लिखें",
 "search_err_failed": "वेब खोज नहीं हो पाई: {error}",
+"welcome_tools": "पहले क्या चाहिए",
+"welcome_tools_intro": "{name} {tool} के ज़रिए लगता है, इसलिए पहले वही। उसे लगाएँ, यहाँ लौटें और «फिर से जाँचें» दबाएँ।",
+"welcome_tools_then": "उसके बाद {name} की बारी है।",
+"welcome_tools_blocked": "{name} के बिना लगाने का कोई ज़रिया ही नहीं है।",
+"tool_old_badge": "पुराना संस्करण",
+"tool_too_old": "{name} है, पर संस्करण {found} है — {need} या उससे नया चाहिए।",
+"tool_node": "Node.js",
+"tool_node_why": "{name} npm कमांड से लगता है, और npm Node.js के साथ आता है। उसके बिना निर्देशों वाली कमांड चलेगी ही नहीं।",
 }

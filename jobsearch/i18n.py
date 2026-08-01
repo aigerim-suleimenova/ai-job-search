@@ -1718,6 +1718,44 @@ TR = {
         "en": "This model runs on a server — there is nothing to download, just pick the one you want.",
         "it": "Questo modello lavora su un server — non c'è nulla da scaricare, scelga semplicemente quello che preferisce.",
         "de": "Dieses Modell läuft auf einem Server — es gibt nichts herunterzuladen, wählen Sie einfach eines aus."},
+    # То, чем ставится сама программа. Copilot и Qwen приходят только через npm,
+    # а npm приходит с Node.js, которого на обычном компьютере нет. В карточке
+    # было написано «npm install -g @github/copilot» — человек уходил в терминал
+    # и получал «npm: команда не найдена» уже вне нашей программы, где помочь ему
+    # мы ничем не можем. Экран появляется только у тех, кого это касается.
+    "welcome_tools": {"ru": "Что нужно установить", "en": "What is needed first",
+                      "it": "Che cosa serve prima", "de": "Was zuerst nötig ist"},
+    "welcome_tools_intro": {
+        "ru": "{name} ставится через {tool} — сначала нужен он. Установите, вернитесь сюда и нажмите «Проверить снова».",
+        "en": "{name} is installed through {tool}, so that comes first. Install it, come back here and press “Check again”.",
+        "it": "{name} si installa tramite {tool}, quindi viene prima. Lo installi, torni qui e prema «Controlla di nuovo».",
+        "de": "{name} wird über {tool} installiert, das kommt also zuerst. Installieren Sie es, kommen Sie zurück und klicken Sie auf „Erneut prüfen“."},
+    # Без «сама» и без {hint} внутри. «Сама GitHub Copilot» — род не тот, а имена
+    # провайдеров все разного рода; подсказка же кончается своим двоеточием, и в
+    # строке их выходило два подряд. Подсказка теперь идёт отдельной строкой.
+    "welcome_tools_then": {
+        "ru": "Дальше — {name}.",
+        "en": "Then comes {name}.",
+        "it": "Poi tocca a {name}.",
+        "de": "Danach folgt {name}."},
+    "welcome_tools_blocked": {
+        "ru": "Пока нет {name}, ставить дальше нечем.",
+        "en": "Without {name} there is nothing to install with.",
+        "it": "Senza {name} non c'è nulla con cui installare.",
+        "de": "Ohne {name} gibt es nichts, womit installiert werden könnte."},
+    "tool_old_badge": {"ru": "версия старая", "en": "too old",
+                       "it": "versione vecchia", "de": "zu alt"},
+    "tool_too_old": {
+        "ru": "{name} найден, но версия {found} — нужна {need} или новее.",
+        "en": "{name} is here, but version {found} — {need} or newer is needed.",
+        "it": "{name} c'è, ma la versione è {found} — serve la {need} o più recente.",
+        "de": "{name} ist da, aber Version {found} — nötig ist {need} oder neuer."},
+    "tool_node": {"ru": "Node.js", "en": "Node.js", "it": "Node.js", "de": "Node.js"},
+    "tool_node_why": {
+        "ru": "{name} ставится командой npm, а npm приходит вместе с Node.js. Без него команда из инструкции просто не выполнится.",
+        "en": "{name} is installed with the npm command, and npm comes with Node.js. Without it the command in the instructions simply will not run.",
+        "it": "{name} si installa con il comando npm, e npm arriva insieme a Node.js. Senza, il comando delle istruzioni non parte nemmeno.",
+        "de": "{name} wird mit dem Befehl npm installiert, und npm kommt zusammen mit Node.js. Ohne das läuft der Befehl aus der Anleitung gar nicht erst."},
     # Удаление самой программы. На macOS и Linux его нет вовсе: образ
     # перетаскивают в корзину, и данные с автозапуском остаются навсегда —
     # убрать их может только сама программа, до того как её удалят.

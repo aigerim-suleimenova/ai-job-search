@@ -248,9 +248,93 @@ def ollama_installed_models() -> set:
     return set(_ollama_tags()["models"])
 
 
+# --- Чего требуют сами программы, кроме себя ----------------------------------
+#
+# Claude Code, Cursor, Goose и Ollama приходят своими установщиками и не требуют
+# ничего. Copilot и Qwen ставятся только через npm, а npm приходит с Node.js,
+# которого на обычном компьютере нет. В карточке было написано «npm install -g
+# @github/copilot» — человек шёл в терминал и получал «npm: команда не найдена»,
+# причём уже вне нашей программы, где мы ему ничем не поможем. Про то, чего не
+# хватает, надо сказать здесь и до того, как он уйдёт.
+#
+# Codex тоже ставится через npm, но у него есть и готовый бинарник, и страница
+# установки предлагает оба пути: требовать для него Node.js значило бы гнать
+# человека ставить то, без чего он прекрасно обойдётся.
+PREREQS = {
+    "copilot_cli": "node",
+    "qwen_cli": "node",
+}
+
+TOOLS = {
+    "node": {
+        "bin": "node",
+        "version_arg": "-v",
+        # npm-пакеты обеих командных строк требуют Node.js 22. Со старым Node
+        # установка не падает сразу, а падает потом и невнятно.
+        "min_major": 22,
+        "url": "https://nodejs.org/en/download",
+    },
+}
+
+
+def _major(text: str) -> int:
+    """Старшее число версии из того, что программа сказала о себе: «v22.14.0» → 22."""
+    import re
+    m = re.search(r"(\d+)", text or "")
+    return int(m.group(1)) if m else 0
+
+
+@lru_cache(maxsize=8)
+def tool_state(tool: str) -> tuple:
+    """(есть ли, что ответила о версии). Кортеж — чтобы лёг в lru_cache.
+
+    Версия не разобралась — считаем, что годится: не хватало ещё загородить
+    человеку дорогу из-за того, что мы не поняли чужой формат вывода.
+    """
+    spec = TOOLS.get(tool)
+    if not spec:
+        return (True, "")
+    path = resolve_bin(spec["bin"])
+    if not path:
+        return (False, "")
+    try:
+        out = subprocess.run([path, spec["version_arg"]], capture_output=True,
+                             text=True, timeout=5, cwd=work_dir(), env=login_env())
+        version = (out.stdout or out.stderr or "").strip().splitlines()[0].strip()
+    except (OSError, subprocess.SubprocessError, IndexError):
+        return (True, "")
+    major = _major(version)
+    return (not major or major >= spec["min_major"], version)
+
+
+def missing_tool(provider: str) -> str:
+    """Чего не хватает, чтобы вообще установить этого провайдера. Пусто — ничего.
+
+    Спрашивается только про то, что ещё не установлено: если Copilot уже стоит,
+    как он туда попал — не наше дело, и гнать человека за Node.js поздно и незачем.
+    """
+    tool = PREREQS.get(provider, "")
+    if not tool or tool_state(tool)[0]:
+        return ""
+    return tool
+
+
+def tool_info(tool: str) -> dict:
+    """Всё, что странице нужно знать об инструменте."""
+    ready, version = tool_state(tool)
+    spec = TOOLS.get(tool, {})
+    return {"key": tool, "ready": ready, "version": version,
+            "url": spec.get("url", ""), "min_major": spec.get("min_major", 0),
+            # Нашёлся, но старый — это не то же самое, что «не нашёлся»: сказать
+            # «установите Node.js» тому, у кого он есть, значит послать его по
+            # кругу. Разные беды — разные слова.
+            "too_old": bool(version) and not ready}
+
+
 def forget_binaries() -> None:
     """Forget the paths found: the person may have installed the program just now."""
     resolve_bin.cache_clear()
+    tool_state.cache_clear()
     forget_ollama()
 
 

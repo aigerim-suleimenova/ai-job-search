@@ -901,6 +901,12 @@ def models_page(request: Request, msg: str = ""):
         "current_model_name": next((m["name"] for m in catalog if m["id"] == current_model), current_model),
         "specs": hardware.specs(),
         "provider_ready": bool(provs.get(provider, {}).get("ready")),
+        # Провайдера меняют и отсюда, уже после знакомства, — и упираются в ту же
+        # стену. Экрана «что нужно установить» здесь нет, но сказать про это
+        # надо и здесь: без этого карточка молча предлагает npm, которого нет.
+        "tool": (providers.tool_info(providers.missing_tool(provider))
+                 if not provs.get(provider, {}).get("ready")
+                 and providers.missing_tool(provider) else None),
     }, cfg=cfg)
 
 
@@ -928,6 +934,11 @@ async def models_set_provider(request: Request):
     # to the very top instead, above everything they had already read.
     back = str(form.get("back") or "/models")
     where = _reachable(back)
+    # Выбрали то, что и установить-то нечем, — ведём прямо туда, где сказано чем.
+    # Иначе человек уходит по кнопке «Скачать» в инструкцию с «npm install -g …»,
+    # а npm у него нет, и узнаёт он об этом уже в терминале.
+    if where.startswith("/welcome") and providers.missing_tool(key):
+        return _redirect_to("/welcome?step=tools", msg)
     # Куда возвращать, решает страница, с которой пришли: у знакомства это кнопка
     # «Далее», у страницы моделей — список. А если гейт увёл нас в другое место,
     # то и якорь оттуда там ничего не значит.
@@ -1559,6 +1570,51 @@ async def provider_recheck(request: Request):
                         anchor=str(form.get("anchor", "")))
 
 
+@app.post("/tool/install")
+async def tool_install(request: Request):
+    """Открывает страницу загрузки того, без чего провайдера не установить.
+
+    Отдельно от /provider/install, потому что это разные вещи: там ставят саму
+    программу, здесь — то, чем её ставят. Адрес берётся из таблицы по коду, как
+    и у пожертвований: со страницы приходит только код, и открыть по этой кнопке
+    произвольный адрес нельзя.
+    """
+    form = await request.form()
+    key = str(form.get("tool", ""))
+    back = str(form.get("back") or "/welcome?step=tools")
+    url = providers.TOOLS.get(key, {}).get("url", "")
+    if not url:
+        return _redirect_to(_reachable(back), _msg("msg_install_unknown"))
+    webbrowser.open(url)
+    return _redirect_to(_reachable(back), _msg("msg_install_opened", name=_msg("tool_" + key)))
+
+
+@app.post("/tool/recheck")
+async def tool_recheck(request: Request):
+    """Посмотреть заново — человек только что вернулся с установки."""
+    form = await request.form()
+    back = str(form.get("back") or "/welcome?step=tools")
+    key = str(form.get("tool", ""))
+    # Про незнакомый код сказать нечего, а сказать что-нибудь всё равно придётся —
+    # и в сообщение уехал бы сам ключ перевода, «tool_чтототам». Это мы уже
+    # проходили: непереведённый ключ на экране выглядит как поломка.
+    if key not in providers.TOOLS:
+        return _redirect_to(_reachable(back), _msg("msg_install_unknown"))
+    providers.forget_binaries()
+    ready, version = providers.tool_state(key)
+    name = _msg("tool_" + key)
+    if ready:
+        msg = _msg("msg_recheck_found", name=name)
+    elif version:
+        # Нашёлся, но старый. Сказать «не найден» тому, у кого он есть, — значит
+        # отправить его ставить второй раз то же самое.
+        msg = _msg("tool_too_old", name=name, found=version,
+                   need=providers.TOOLS.get(key, {}).get("min_major", ""))
+    else:
+        msg = _msg("msg_recheck_none", name=name)
+    return _redirect_to(_reachable(back), msg)
+
+
 # External addresses are listed here: the page passes only a key, so a button
 # cannot be made to open an arbitrary address.
 EXTERNAL_URLS = {
@@ -1600,10 +1656,18 @@ def welcome(request: Request, msg: str = "", step: str = ""):
     # the model inside it. The same answer decides whether the app opens at all,
     # so it is worked out in one place for both.
     blocked_by = providers.missing_piece(cfg["llm"])
+    # Чего не хватает, чтобы установить саму программу. Спрашиваем только про
+    # выбранного провайдера и только когда он ещё не установлен: остальным семи
+    # это стоило бы по запуску node на каждую отрисовку страницы ни за чем.
+    tool = providers.missing_tool(provider) if blocked_by == "provider" else ""
     # На второй шаг нечего идти, пока не решён первый: без установленной
     # программы список моделей — это список того, чем всё равно не воспользуешься.
     if step == "model" and blocked_by == "provider":
-        step = ""
+        step = "tools" if tool else ""
+    # И обратно: экран «что нужно установить» не должен становиться тупиком.
+    # Нужное поставили — человека там больше нечем занять.
+    if step == "tools" and not tool:
+        step = "model" if blocked_by == "model" else ""
     return render(request, "welcome.html", {
         # cfg нужен самой странице: у своего адреса на втором шаге вместо списка
         # моделей стоят поля, и значения в них берутся из настроек
@@ -1616,6 +1680,7 @@ def welcome(request: Request, msg: str = "", step: str = ""):
         # going on makes sense only if the chosen provider can really do the thinking
         "ready": not blocked_by,
         "blocked_by": blocked_by,
+        "tool": providers.tool_info(tool) if tool else None,
         # Somebody arriving here after a reinstall has data to clear; somebody
         # genuinely new has nothing, and should not be shown the offer at all.
         "can_reset": appstate.has_data(),

@@ -634,4 +634,12 @@ STRINGS = {
 "websearch_none": "使わない",
 "search_err_not_set": "ウェブ検索が設定されていません。サービスを選び、キーを入力してください",
 "search_err_failed": "ウェブ検索に失敗しました：{error}",
+"welcome_tools": "先に必要なもの",
+"welcome_tools_intro": "{name} は {tool} を使って入れます。まずそちらから。入れたらここへ戻り、「もう一度確認」を押してください。",
+"welcome_tools_then": "そのあとが {name} です。",
+"welcome_tools_blocked": "{name} がないと、入れる手立てがありません。",
+"tool_old_badge": "バージョンが古い",
+"tool_too_old": "{name} はありますが、バージョンが {found} です。{need} 以降が必要です。",
+"tool_node": "Node.js",
+"tool_node_why": "{name} は npm コマンドで入れますが、npm は Node.js に付いてきます。これがないと、手順にあるコマンドはそもそも動きません。",
 }

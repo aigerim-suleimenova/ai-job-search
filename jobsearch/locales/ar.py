@@ -635,4 +635,12 @@ STRINGS = {
 "websearch_none": "بلا خدمة",
 "search_err_not_set": "البحث في الويب غير مُعدّ: اختر خدمة واكتب المفتاح",
 "search_err_failed": "فشل البحث في الويب: {error}",
+"welcome_tools": "ما يلزم أولاً",
+"welcome_tools_intro": "‏{name} يُثبَّت عبر {tool}، فهو أولاً. ثبِّته ثم عد إلى هنا واضغط «تحقّق مرة أخرى».",
+"welcome_tools_then": "ثم يأتي دور {name}.",
+"welcome_tools_blocked": "بدون {name} لا يوجد ما يُثبَّت به.",
+"tool_old_badge": "إصدار قديم",
+"tool_too_old": "‏{name} موجود، لكن إصداره {found} — واللازم {need} أو أحدث.",
+"tool_node": "Node.js",
+"tool_node_why": "‏{name} يُثبَّت بأمر npm، و npm يأتي مع Node.js. بدونه لن يعمل الأمر المذكور في الإرشادات أصلاً.",
 }

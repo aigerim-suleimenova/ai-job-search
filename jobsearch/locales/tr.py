@@ -634,4 +634,12 @@ STRINGS = {
 "websearch_none": "kullanılmasın",
 "search_err_not_set": "Web araması ayarlanmadı: bir servis seçin ve anahtarı girin",
 "search_err_failed": "Web araması başarısız oldu: {error}",
+"welcome_tools": "Önce ne gerekiyor",
+"welcome_tools_intro": "{name}, {tool} üzerinden kurulur; yani önce o gerekir. Kurun, buraya dönün ve «Yeniden denetle»ye basın.",
+"welcome_tools_then": "Sonra sıra {name} kurulumuna gelir.",
+"welcome_tools_blocked": "{name} olmadan kuracak bir şey yok.",
+"tool_old_badge": "sürüm eski",
+"tool_too_old": "{name} var ama sürümü {found} — {need} ya da daha yenisi gerekiyor.",
+"tool_node": "Node.js",
+"tool_node_why": "{name}, npm komutuyla kurulur; npm de Node.js ile birlikte gelir. O olmadan yönergedeki komut hiç çalışmaz.",
 }

@@ -634,4 +634,12 @@ STRINGS = {
 "websearch_none": "不使用",
 "search_err_not_set": "联网搜索还没设置：请选一家服务并填上密钥",
 "search_err_failed": "联网搜索失败：{error}",
+"welcome_tools": "先要装什么",
+"welcome_tools_intro": "{name} 要通过 {tool} 安装，所以先装它。装好后回到这里，按「重新检查」。",
+"welcome_tools_then": "接下来才是 {name}。",
+"welcome_tools_blocked": "没有 {name}，就没有可用来安装的东西。",
+"tool_old_badge": "版本太旧",
+"tool_too_old": "{name} 在，但版本是 {found}，需要 {need} 或更新的版本。",
+"tool_node": "Node.js",
+"tool_node_why": "{name} 用 npm 命令安装，而 npm 是随 Node.js 一起来的。没有它，说明里的那条命令根本跑不起来。",
 }

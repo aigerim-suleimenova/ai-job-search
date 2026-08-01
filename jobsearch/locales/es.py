@@ -634,4 +634,12 @@ STRINGS = {
 "websearch_none": "no usar ninguno",
 "search_err_not_set": "La búsqueda web no está configurada: elija un servicio e introduzca una clave",
 "search_err_failed": "La búsqueda web ha fallado: {error}",
+"welcome_tools": "Qué hace falta primero",
+"welcome_tools_intro": "{name} se instala mediante {tool}, así que eso va primero. Instálelo, vuelva aquí y pulse «Comprobar de nuevo».",
+"welcome_tools_then": "Después toca {name}.",
+"welcome_tools_blocked": "Sin {name} no hay con qué instalar.",
+"tool_old_badge": "versión antigua",
+"tool_too_old": "{name} está, pero la versión es {found}: hace falta la {need} o más reciente.",
+"tool_node": "Node.js",
+"tool_node_why": "{name} se instala con el comando npm, y npm viene con Node.js. Sin él, el comando de las instrucciones ni siquiera se ejecuta.",
 }
