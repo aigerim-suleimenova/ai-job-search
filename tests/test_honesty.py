@@ -265,3 +265,62 @@ def test_отказ_всех_источников_не_выдаётся_за_у�
     assert прогон["status"] != "ok", "прогон, где не ответил никто, назван успешным"
     assert "источник" in прогон["log"] or "sources" in прогон["log"], \
         "в журнале не сказано, что молчали все"
+
+
+# --- Галочка «проверено» --------------------------------------------------------
+
+def глубокий_ответ(monkeypatch, ответ):
+    from jobsearch import scoring
+    monkeypatch.setattr(scoring.llm, "ask_json", lambda prompt, **kw: ответ)
+
+
+def вакансия_на_разбор() -> dict:
+    return {"title": "Senior Ruby on Rails Developer", "company": "Proxify AB",
+            "location": "Remote", "url": "https://example.com/1",
+            "description": "Ruby on Rails, RSpec, PostgreSQL. " * 40,
+            "score": 90, "verified": False}
+
+
+def test_без_оценки_разбора_галочки_не_ставим(monkeypatch, profile):
+    """Пометка ставилась по факту ответа, а оценка бралась, только если в ответе
+    было поле match. Слабые модели сплошь и рядом отвечают связным текстом без
+    него — и на карточке оставался балл быстрого триажа с галочкой «проверено».
+
+    Триаж видит семьсот знаков описания и восемь вакансий за раз, он для того и
+    быстрый. Галочка говорила, что балл подтверждён вторым, внимательным
+    проходом, — а он его не подтверждал. Так вакансия на Ruby on Rails и стояла
+    у SAP-интегратора с «90 % ✓ проверено».
+    """
+    from jobsearch import config, scoring
+    глубокий_ответ(monkeypatch, {"reason": "Ключевые навыки все на месте.",
+                                 "cv_changes": ["Подчеркнуть SAP PO/PI"]})
+    j = вакансия_на_разбор()
+
+    scoring.deep_analyze(j, config.load(), cv="SAP Integration Consultant",
+                         log=lambda *a, **k: None, research=False)
+
+    assert j["verified"] is False, "проверенным назван балл, которого разбор не давал"
+    assert j["score"] == 90, "балл триажа при этом терять незачем"
+
+
+def test_с_оценкой_разбора_галочка_ставится(monkeypatch, profile):
+    """Обратная сторона: разбор ответил оценкой — значит подтвердил."""
+    from jobsearch import config, scoring
+    глубокий_ответ(monkeypatch, {"match": 20, "reason": "Другое направление."})
+    j = вакансия_на_разбор()
+
+    scoring.deep_analyze(j, config.load(), cv="SAP Integration Consultant",
+                         log=lambda *a, **k: None, research=False)
+
+    assert j["verified"] is True
+    assert j["score"] == 20, "оценку разбора не взяли"
+
+
+def test_совет_не_подсказывает_соврать():
+    """Модель предлагала «упомянуть опыт с PostgreSQL» тому, у кого его нет.
+    Это совет соврать, и на собеседовании он обернётся против человека. В запросе
+    на адаптацию CV такой запрет был, а в запросе на разбор — нет."""
+    from jobsearch import scoring
+    запрос = scoring.DEEP_PROMPT.lower()
+    assert "не предлагай упоминать навыки" in запрос
+    assert "которых у кандидата нет" in запрос
