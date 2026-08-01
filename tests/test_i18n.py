@@ -160,3 +160,17 @@ def test_с_адресом_подсказка_его_называет(lang):
     готово = _drop_empty_parens(
         i18n.t(lang, "api_model_hint").format(base="https://openrouter.ai/api/v1"))
     assert "https://openrouter.ai/api/v1" in готово, f"{lang}: адрес пропал"
+
+
+def test_коды_языков_установщика_программа_понимает():
+    """Установщик пишет свой код языка в файл, программа его читает. Коды берутся
+    из [Languages] в installer.iss, и разойтись им нельзя: чужой код программа
+    молча отбросит и откроется на языке системы — ровно та беда, из-за которой
+    всё это и делалось."""
+    import re
+    from pathlib import Path
+    iss = (Path(__file__).resolve().parent.parent / "packaging" / "installer.iss")
+    коды = re.findall(r'^Name: "([^"]+)"; MessagesFile', iss.read_text(encoding="utf-8"), re.M)
+    assert коды, "в installer.iss не нашлось ни одного языка — сменился формат?"
+    чужие = [c for c in коды if c not in i18n.UI_LANGS]
+    assert not чужие, f"установщик говорит на языках, которых нет у программы: {чужие}"

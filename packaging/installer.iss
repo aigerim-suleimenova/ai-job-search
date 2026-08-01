@@ -143,17 +143,26 @@ end;
   Кладём рядом с данными, а не в реестр: там же, где всё остальное, и «удалить
   все данные» уносит это вместе с прочим — как и должно. Читается только при
   первом запуске, когда язык ещё не выбран в самой программе, так что
-  переустановка чужой выбор не перебьёт. }
+  переустановка чужой выбор не перебьёт.
+
+  Только при обычной установке: в тихой вопрос никому не задавали, и отвечать
+  за человека мы не будем — там пусть решает язык системы, как и раньше. Тихой
+  идёт и наше собственное обновление, которому переписывать этот файл незачем.
+
+  ForceDirectories, а не CreateDir: папки может не быть целиком, если программу
+  ставят впервые. Содержимое строки — только латиница и кавычки: SaveStringToFile
+  принимает AnsiString, а читаем мы файл как UTF-8. }
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   dir: String;
 begin
-  if CurStep = ssPostInstall then
+  { Скобок у встроенных функций без параметров быть не должно — см. ShouldLaunchAfter. }
+  if (CurStep = ssPostInstall) and (not WizardSilent) then
   begin
     dir := ExpandConstant('{userappdata}\{#AppName}');
-    CreateDir(dir);
-    SaveStringToFile(dir + '\installer.json',
-                     '{"lang": "' + ExpandConstant('{language}') + '"}', False);
+    if ForceDirectories(dir) then
+      SaveStringToFile(dir + '\installer.json',
+                       '{"lang": "' + ExpandConstant('{language}') + '"}', False);
   end;
 end;
 
