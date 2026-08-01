@@ -1468,6 +1468,159 @@ TR = {
     "delete_confirm": {"ru": "Удалить профиль и все его данные (CV, найденные вакансии)? Отменить нельзя.", "en": "Delete this profile and all its data (CV, found jobs)? This cannot be undone.", "it": "Eliminare il profilo e tutti i suoi dati (CV, offerte trovate)? Non è possibile annullare.", "de": "Dieses Profil und alle zugehörigen Daten (CV, gefundene Stellen) löschen? Das kann nicht rückgängig gemacht werden."},
     "manage_people": {"ru": "Люди", "en": "People", "it": "Persone", "de": "Personen"},
     "manage_hint": {"ru": "Каждый человек — свой профиль: CV, настройки, компании, результаты и расписание. Переключайтесь наверху страницы.", "en": "Each person is their own profile: CV, settings, companies, results and schedule. Switch at the top of the page.", "it": "Ogni persona ha il proprio profilo: CV, impostazioni, aziende, risultati e pianificazione. Passate da uno all'altro in cima alla pagina.", "de": "Jede Person hat ihr eigenes Profil: CV, Einstellungen, Unternehmen, Ergebnisse und Zeitplan. Wechseln Sie oben auf der Seite."},
+    # Taking a model back off the disk, and erasing everything the app has stored.
+    # Both texts end up inside a confirm() box, so they carry no straight
+    # apostrophe: it used to cut the line in half and leave a button that did
+    # nothing at all — in French only, where the apostrophe is unavoidable.
+    "models_delete": {"ru": "Удалить", "en": "Delete", "it": "Elimina", "de": "Löschen"},
+    "models_delete_confirm": {
+        "ru": "Удалить модель «{name}» с компьютера? Освободится место на диске, а скачать её снова можно в любой момент.",
+        "en": "Delete the model “{name}” from this computer? It gives the disk space back, and it can be downloaded again at any time.",
+        "it": "Eliminare il modello «{name}» da questo computer? Restituisce lo spazio su disco e si può scaricare di nuovo in qualsiasi momento.",
+        "de": "Das Modell „{name}“ von diesem Computer löschen? Der Speicherplatz wird frei, und es lässt sich jederzeit erneut herunterladen."},
+    "msg_model_deleted": {
+        "ru": "Модель {model} удалена с компьютера",
+        "en": "The model {model} has been deleted from this computer",
+        "it": "Il modello {model} è stato eliminato dal computer",
+        "de": "Das Modell {model} wurde vom Computer gelöscht"},
+    "prov_err_delete_failed": {
+        "ru": "Не удалось удалить модель: {error}",
+        "en": "Could not delete the model: {error}",
+        "it": "Impossibile eliminare il modello: {error}",
+        "de": "Das Modell konnte nicht gelöscht werden: {error}"},
+    "reset_title": {"ru": "Удаление всех данных", "en": "Erasing everything",
+                    "it": "Cancellare tutto", "de": "Alles löschen"},
+    "reset_hint": {
+        "ru": "Удаление программы не трогает ваши данные: профили, CV, найденные вакансии и настройки остаются на компьютере и находятся снова при следующей установке. Эта кнопка стирает их все и возвращает программу к первому запуску. Скачанные модели она не трогает — их можно удалить по одной на странице «Модель».",
+        "en": "Uninstalling the program does not touch your data: profiles, CVs, found jobs and settings stay on the computer and are found again by the next installation. This button erases all of it and returns the program to its first launch. Downloaded models are left alone — those are removed one by one on the “Model” page.",
+        "it": "Disinstallare il programma non tocca i suoi dati: profili, CV, offerte trovate e impostazioni restano sul computer e vengono ritrovati alla prossima installazione. Questo pulsante cancella tutto e riporta il programma al primo avvio. I modelli scaricati non vengono toccati — si eliminano uno per uno nella pagina «Modello».",
+        "de": "Das Deinstallieren des Programms rührt Ihre Daten nicht an: Profile, Lebensläufe, gefundene Stellen und Einstellungen bleiben auf dem Rechner und werden von der nächsten Installation wiedergefunden. Dieser Knopf löscht alles davon und setzt das Programm auf den ersten Start zurück. Heruntergeladene Modelle bleiben unberührt — die werden einzeln auf der Seite „Modell“ entfernt."},
+    "reset_button": {"ru": "Удалить все данные", "en": "Erase all data",
+                     "it": "Cancella tutti i dati", "de": "Alle Daten löschen"},
+    "reset_confirm": {
+        "ru": "Стереть все данные: профили, CV, найденные вакансии и настройки? Отменить нельзя.",
+        "en": "Erase all data: profiles, CVs, found jobs and settings? This cannot be undone.",
+        "it": "Cancellare tutti i dati: profili, CV, offerte trovate e impostazioni? Non è possibile annullare.",
+        "de": "Alle Daten löschen: Profile, Lebensläufe, gefundene Stellen und Einstellungen? Das kann nicht rückgängig gemacht werden."},
+    "msg_reset_done": {
+        "ru": "Все данные удалены — программа начинает с чистого листа",
+        "en": "Everything has been erased — the program starts from a clean sheet",
+        "it": "Tutto è stato cancellato — il programma riparte da zero",
+        "de": "Alles wurde gelöscht — das Programm beginnt von vorn"},
+    "msg_reset_failed": {
+        "ru": "Данные удалены, кроме этого: {files}. Закройте программу и удалите вручную, если нужно.",
+        "en": "The data has been erased apart from this: {files}. Close the program and remove it by hand if it matters.",
+        "it": "I dati sono stati cancellati tranne questo: {files}. Chiuda il programma e lo rimuova a mano, se necessario.",
+        "de": "Die Daten wurden gelöscht, bis auf dies: {files}. Schließen Sie das Programm und entfernen Sie es bei Bedarf von Hand."},
+    "msg_reset_busy": {
+        "ru": "Сейчас идёт поиск — остановите его, а потом удаляйте данные",
+        "en": "A search is running — stop it first, then erase the data",
+        "it": "È in corso una ricerca — la fermi prima di cancellare i dati",
+        "de": "Es läuft eine Suche — stoppen Sie sie zuerst und löschen Sie dann die Daten"},
+    # Прогон, в котором не оценено ничего. Собрать вакансии можно и без модели, и
+    # такой прогон доходил до конца со словами «подошло 0» — читалось это как
+    # «сегодня ничего подходящего», хотя ни одну вакансию так и не посмотрели.
+    "log_nothing_scored": {
+        "ru": "Ни одна вакансия не оценена — прогон остановлен.",
+        "en": "Not one job could be scored — the run has stopped.",
+        "it": "Nessuna offerta è stata valutata — l'esecuzione si è fermata.",
+        "de": "Keine einzige Stelle konnte bewertet werden — der Durchlauf ist gestoppt."},
+    "log_nothing_scored_why": {
+        "ru": "Модель не ответила: {error}",
+        "en": "The model did not answer: {error}",
+        "it": "Il modello non ha risposto: {error}",
+        "de": "Das Modell hat nicht geantwortet: {error}"},
+    "log_triage_partial": {
+        "ru": "Оценено не всё: не удались пачек — {failed}, без оценки осталось вакансий — {missed}. Они вернутся в следующий прогон.",
+        "en": "Not everything was scored: {failed} batches failed, {missed} jobs were left without a score. They come back next run.",
+        "it": "Non è stato valutato tutto: {failed} lotti non sono riusciti, {missed} offerte restano senza voto. Torneranno alla prossima esecuzione.",
+        "de": "Nicht alles wurde bewertet: {failed} Stapel schlugen fehl, {missed} Stellen blieben ohne Bewertung. Sie kommen beim nächsten Durchlauf wieder."},
+    "log_drop_dates": {
+        "ru": "По сроку размещения отброшено: {n} (с {since} по {until})",
+        "en": "Dropped by posting date: {n} (from {since} to {until})",
+        "it": "Scartate per data di pubblicazione: {n} (da {since} a {until})",
+        "de": "Nach Veröffentlichungsdatum verworfen: {n} (von {since} bis {until})"},
+    "cvcheck_partial": {
+        "ru": "Часть проверки не выполнена — для неё нужна модель: {error}. Остальное посчитано на этом компьютере и остаётся в силе.",
+        "en": "Part of the check could not be done — it needs the model: {error}. The rest was worked out on this computer and still holds.",
+        "it": "Una parte del controllo non è stata eseguita — le serve il modello: {error}. Il resto è stato calcolato su questo computer e resta valido.",
+        "de": "Ein Teil der Prüfung konnte nicht durchgeführt werden — dafür wird das Modell gebraucht: {error}. Der Rest wurde auf diesem Computer berechnet und gilt weiterhin."},
+    "simple_dates_hint": {
+        "ru": "Пусто — без ограничения по сроку.",
+        "en": "Empty means no limit on the posting date.",
+        "it": "Vuoto significa nessun limite sulla data di pubblicazione.",
+        "de": "Leer bedeutet keine Begrenzung des Veröffentlichungsdatums."},
+    # Обновление программы. Раньше о новых версиях человек не узнавал вовсе.
+    "update_title": {"ru": "Обновление", "en": "Update",
+                     "it": "Aggiornamento", "de": "Aktualisierung"},
+    "update_available": {
+        "ru": "Вышла версия {version} — у вас {current}.",
+        "en": "Version {version} is out — you have {current}.",
+        "it": "È uscita la versione {version} — lei ha la {current}.",
+        "de": "Version {version} ist erschienen — Sie haben {current}."},
+    "update_current": {
+        "ru": "У вас последняя версия — {version}.",
+        "en": "You have the latest version — {version}.",
+        "it": "Lei ha l'ultima versione — {version}.",
+        "de": "Sie haben die neueste Version — {version}."},
+    "update_check": {"ru": "Проверить обновления", "en": "Check for updates",
+                     "it": "Controlla aggiornamenti", "de": "Nach Updates suchen"},
+    "update_install": {"ru": "Обновить", "en": "Update now",
+                       "it": "Aggiorna", "de": "Jetzt aktualisieren"},
+    "update_notes": {"ru": "Что изменилось", "en": "What changed",
+                     "it": "Cosa è cambiato", "de": "Was sich geändert hat"},
+    "update_badge": {"ru": "новая версия", "en": "new version",
+                     "it": "nuova versione", "de": "neue Version"},
+    "update_downloading": {"ru": "Скачиваем обновление:", "en": "Downloading the update:",
+                           "it": "Scaricamento dell'aggiornamento:", "de": "Update wird geladen:"},
+    "update_manual_hint": {
+        "ru": "Для этой системы обновление ставится вручную: откройте страницу выпуска и скачайте файл.",
+        "en": "On this system the update is installed by hand: open the release page and download the file.",
+        "it": "Su questo sistema l'aggiornamento si installa a mano: apra la pagina della versione e scarichi il file.",
+        "de": "Auf diesem System wird das Update von Hand installiert: Öffnen Sie die Release-Seite und laden Sie die Datei herunter."},
+    "update_found": {
+        "ru": "Вышла версия {version} — поставить её можно ниже",
+        "en": "Version {version} is out — you can install it below",
+        "it": "È uscita la versione {version} — può installarla qui sotto",
+        "de": "Version {version} ist erschienen — Sie können sie unten installieren"},
+    "update_none": {
+        "ru": "Обновлений нет, у вас последняя версия — {version}",
+        "en": "No updates — {version} is the latest there is",
+        "it": "Nessun aggiornamento — {version} è l'ultima disponibile",
+        "de": "Keine Updates — {version} ist die neueste Version"},
+    "update_started": {
+        "ru": "Скачиваем обновление. Программа закроется сама и откроется уже новой.",
+        "en": "Downloading the update. The program will close by itself and open again as the new version.",
+        "it": "Stiamo scaricando l'aggiornamento. Il programma si chiuderà da solo e si riaprirà nella nuova versione.",
+        "de": "Das Update wird geladen. Das Programm schließt sich von selbst und öffnet sich als neue Version wieder."},
+    "update_busy": {
+        "ru": "Обновление уже скачивается", "en": "The update is already downloading",
+        "it": "L'aggiornamento è già in scaricamento", "de": "Das Update wird bereits geladen"},
+    "update_busy_search": {
+        "ru": "Сейчас идёт поиск — дождитесь конца или остановите его, а потом обновляйтесь",
+        "en": "A search is running — let it finish or stop it, and update after that",
+        "it": "È in corso una ricerca — la lasci finire o la fermi, e aggiorni dopo",
+        "de": "Es läuft eine Suche — lassen Sie sie enden oder stoppen Sie sie, und aktualisieren Sie danach"},
+    "update_manual": {
+        "ru": "Для этой системы готового установщика нет — скачайте обновление со страницы выпуска",
+        "en": "There is no ready installer for this system — download the update from the release page",
+        "it": "Per questo sistema non c'è un installatore pronto — scarichi l'aggiornamento dalla pagina della versione",
+        "de": "Für dieses System gibt es kein fertiges Installationsprogramm — laden Sie das Update von der Release-Seite"},
+    "update_err_bad_url": {
+        "ru": "Адрес файла ведёт не к нам — обновление отменено",
+        "en": "The file address does not lead to us — the update has been called off",
+        "it": "L'indirizzo del file non porta a noi — aggiornamento annullato",
+        "de": "Die Dateiadresse führt nicht zu uns — das Update wurde abgebrochen"},
+    "update_err_download": {
+        "ru": "Не удалось скачать обновление: {error}",
+        "en": "Could not download the update: {error}",
+        "it": "Impossibile scaricare l'aggiornamento: {error}",
+        "de": "Das Update konnte nicht geladen werden: {error}"},
+    "update_err_manual": {
+        "ru": "На этой системе обновление ставится вручную",
+        "en": "On this system the update is installed by hand",
+        "it": "Su questo sistema l'aggiornamento si installa a mano",
+        "de": "Auf diesem System wird das Update von Hand installiert"},
 
 }
 

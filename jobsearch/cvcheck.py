@@ -234,20 +234,41 @@ def keyword_check(cfg: dict, cv: str, jobs: list) -> dict:
 
 
 def analyze(cfg: dict) -> dict:
-    """The full check of the uploaded CV: technical plus visual."""
+    """The full check of the uploaded CV: technical plus visual.
+
+    The technical part is worked out here, on this computer, and always succeeds.
+    The other two ask the model, and the model may be out of reach — that used to
+    take the whole check down with it, the finished technical findings included.
+    A page of real answers was thrown away because an extra could not be had.
+
+    Now what fails is remembered and told, and everything that did work is kept.
+    """
     text = config.cv_text()
     pdf = cv_file()
     if not text and not pdf:
         return {"error": "no_cv"}
     tech = technical_checks(text, pdf)
+    lang = cfg.get("ui", {}).get("lang", "en")
+    unfinished = []
+
     visual = {}
     if pdf and pdf.suffix.lower() == ".pdf" and shutil.which("sips"):
-        with tempfile.TemporaryDirectory() as tmp:
-            pages = _render_pages(pdf, Path(tmp))
-            visual = visual_review(pages, cfg)
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                pages = _render_pages(pdf, Path(tmp))
+                visual = visual_review(pages, cfg)
+        except Exception as e:  # noqa: BLE001 — an extra must not sink the rest
+            unfinished.append(i18n.err(lang, e))
+
     from . import db
-    keywords = keyword_check(cfg, text, db.matched_jobs(limit=5, min_score=0, sort="score"))
+    try:
+        keywords = keyword_check(cfg, text, db.matched_jobs(limit=5, min_score=0, sort="score"))
+    except Exception as e:  # noqa: BLE001
+        keywords = {}
+        unfinished.append(i18n.err(lang, e))
+
     result = {"tech": tech, "visual": visual, "keywords": keywords,
+              "unfinished": unfinished[:1],
               "filename": (config.cv_meta() or {}).get("filename", "")}
     # the final score: the mechanics and the layout matter more than the looks —
     # an ATS cuts you off without a word

@@ -133,6 +133,13 @@ header > .toolbar-right {
   display: flex; align-items: center; gap: 8px; justify-self: end;
 }
 
+/* Куда встаёт то, к чему вернули человека после нажатия.
+   Шапка липкая, а браузер по якорю ставит цель ровно к верху окна — то есть
+   под шапку: заголовок раздела оказывался спрятан за ней, и выглядело это так,
+   будто вернули не туда. Отступ считан по самой высокой шапке (82px), на
+   короткой сверху остаётся немного воздуха, и это ей не вредит. */
+.card[id], .model-row[id], .provider-card[id] { scroll-margin-top: 94px; }
+
 .app-version {
   font-size: 11px; font-weight: 400; color: var(--faint);
   vertical-align: 2px; margin-inline-start: 4px; font-variant-numeric: tabular-nums;
@@ -651,6 +658,14 @@ button.linklike:hover { background: none; text-decoration: underline; }
 /* The date field: the text one is visible in day-month-year order, while the
    system one lies transparent over the icon on the right — clicking it opens the
    native calendar. */
+/* Кнопка, которой не место среди кнопок: «очистить даты» стоит внутри подсказки
+   и должна читаться как продолжение фразы, а не спорить за внимание с «Искать». */
+button.link-like {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline;
+}
+button.link-like:hover { opacity: .8; }
+
 .date-field { position: relative; display: block; margin-top: 5px; }
 .date-field .date-text { margin-top: 0; padding-inline-end: 36px; }
 .date-field .date-native,

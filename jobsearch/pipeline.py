@@ -18,6 +18,21 @@ class Stopped(RuntimeError):
     """The run was interrupted by the user."""
 
 
+class NothingScored(RuntimeError):
+    """Not one job could be scored — there was nothing to think with.
+
+    Collecting jobs needs no model at all: the aggregators are ordinary web
+    addresses, and the stages up to triage go through perfectly well without one.
+    So a run with a model that had gone reached the very end, wrote down
+    "found 340, suitable 0" and finished green — and read exactly like "nothing
+    suitable came up today", while in truth not a single job had been looked at.
+    """
+
+    def __init__(self, cause: BaseException = None):
+        self.cause = cause
+        super().__init__("nothing scored")
+
+
 def request_stop() -> None:
     """Asks the current run to stop at the nearest check point."""
     _stop.set()
@@ -215,15 +230,21 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         wanted = filters.parse_locations(cfg["search"].get("locations", ""))
         exclude = [t.strip().lower() for t in cfg["search"].get("keywords_exclude", "").split(",") if t.strip()]
         include_remote = bool(cfg["search"].get("include_remote", True))
-        kept, drop_loc, drop_kw = [], [], []
+        since = str(cfg["search"].get("posted_from", "") or "")
+        until = str(cfg["search"].get("posted_to", "") or "")
+        kept, drop_loc, drop_kw, drop_date = [], [], [], []
         for j in jobs:
             if not filters.location_ok(j.get("location", ""), wanted, include_remote):
                 drop_loc.append(j)
             elif filters.has_excluded(j, exclude):
                 drop_kw.append(j)
+            elif not filters.posted_ok(j, since, until):
+                drop_date.append(j)
             else:
                 kept.append(j)
         jobs = kept
+        if drop_date:
+            _logk("log_drop_dates", n=len(drop_date), since=since or "…", until=until or "…")
         for j in jobs:
             if filters.looks_like_agency(j.get("company", "")):
                 j["is_agency"] = True
@@ -296,9 +317,19 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             if total:
                 state["progress"] = {"done": done, "total": total}
 
-        scoring.triage(candidates, cfg, _log, cv=cv, on_batch=_save_batch)
+        failures = scoring.triage(candidates, cfg, _log, cv=cv, on_batch=_save_batch)
         threshold = int(cfg["search"].get("threshold", 70))
         scored = [j for j in candidates if j.get("score") is not None]
+        if candidates and not scored:
+            # Было что оценивать, но не оценено ничего. Дальше идти незачем:
+            # ниже только рассылка письма о том, что подходящего не нашлось.
+            raise NothingScored(failures[0] if failures else None)
+        if failures:
+            # Часть пачек не ответила — вакансии из них не потеряны навсегда
+            # (без оценки они не помечены просмотренными и вернутся в следующий
+            # прогон), но прогон уже не полный, и говорить о нём как о полном нельзя.
+            status = "warn"
+            _logk("log_triage_partial", failed=len(failures), missed=len(candidates) - len(scored))
 
         # 6b. A second opinion for the grey zone. Triage is noisy to ±15-20 points;
         # an overestimate is corrected later by the deep analysis, but an
@@ -413,6 +444,14 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         status = "noauth"
         _logk("log_noauth", error=e)
         _logk("log_noauth_stop")
+    except NothingScored as e:
+        # The same trouble as above, only the model said nothing rather than
+        # asking to sign in — it had been deleted, or was never started. The run
+        # used to walk past this and finish green.
+        status = "error"
+        _logk("log_nothing_scored")
+        if e.cause is not None:
+            _logk("log_nothing_scored_why", error=e.cause)
     except Exception:  # noqa: BLE001
         status = "error"
         _log(i18n.t(config.load()["ui"]["lang"], "log_error") + "\n" + traceback.format_exc(limit=6))

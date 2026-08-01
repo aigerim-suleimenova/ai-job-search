@@ -6,9 +6,16 @@
    button used to be disabled — a local model could not be chosen at all, leaving
    nothing but going off to read and work it out alone. #}
 {% set back = back|default('/models') %}
+{# Куда вернуть человека после нажатия. Выбрав, через что работать, он ещё не
+   закончил: следующий вопрос — какой моделью, и он ниже на этой же странице.
+   Раньше его отсюда бросало в самый верх, к началу всего, что он уже прочёл.
+   А «Проверить снова» и «Скачать» возвращают к своей же карточке: человек
+   спрашивал про конкретную программу и остаться должен возле неё. #}
+{% set step2 = 'welcome-step2' if back == '/welcome' else 'models-choose' %}
 <div class="provider-grid" style="margin-top:12px">
   {% for key, p in provs.items() %}
-  <div class="provider-card {% if current_provider == key %}on{% endif %}">
+  <div class="provider-card {% if current_provider == key %}on{% endif %}"
+       id="provider-{{ key }}">
     <b>{{ t('prov_' + key) }}</b>
     <p class="meta" style="margin:6px 0">
       {% if p.ready %}<span class="badge ok">{{ t('models_ready') }}</span>
@@ -28,17 +35,20 @@
       <form method="post" action="/provider/install">
         <input type="hidden" name="provider" value="{{ key }}">
         <input type="hidden" name="back" value="{{ back }}">
+        <input type="hidden" name="anchor" value="provider-{{ key }}">
         <button class="primary">{{ t('models_install') }}</button>
       </form>
       <form method="post" action="/provider/recheck">
         <input type="hidden" name="provider" value="{{ key }}">
         <input type="hidden" name="back" value="{{ back }}">
+        <input type="hidden" name="anchor" value="provider-{{ key }}">
         <button>{{ t('models_recheck') }}</button>
       </form>
       {% endif %}
       <form method="post" action="/models/provider">
         <input type="hidden" name="provider" value="{{ key }}">
         <input type="hidden" name="back" value="{{ back }}">
+        <input type="hidden" name="anchor" value="{{ step2 }}">
         <button {% if current_provider == key %}class="primary"{% endif %}>
           {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
         </button>

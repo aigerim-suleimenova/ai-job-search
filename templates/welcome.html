@@ -34,7 +34,7 @@
   {% include "_provider_grid.html" %}
 </section>
 
-<section class="card">
+<section class="card" id="welcome-step2">
   <h2>{{ t('welcome_step2') }} — {{ t('prov_' + current_provider) }}</h2>
   <p class="meta" style="margin-bottom:14px">{{ specs.cpu }} · {{ t('models_ram') }}
      {{ specs.ram_gb }} {{ t('unit_gb') }} · {{ t('models_usable') }} ≈
@@ -56,6 +56,21 @@
     {{ t('welcome_blocked_model') if blocked_by == 'model' else t('welcome_blocked') }}</p>
   {% endif %}
 </section>
+
+{# Сюда попадают и те, кто переустановил программу: их прежние данные пережили
+   удаление, и это выглядит так, будто ничего не удалялось. Предложение стереть
+   всё показывается только им — тому, кто здесь впервые, стирать нечего. #}
+{% if can_reset %}
+<section class="card">
+  <h2>{{ t('reset_title') }}</h2>
+  <p class="hint">{{ t('reset_hint') }}</p>
+  <form method="post" action="/app/reset" style="margin-top:12px"
+        data-confirm="{{ t('reset_confirm') }}"
+        onsubmit="return confirm(this.dataset.confirm)">
+    <button class="danger">{{ t('reset_button') }}</button>
+  </form>
+</section>
+{% endif %}
 
 <script src="/static/models.js"></script>
 {% include "_footer.html" %}

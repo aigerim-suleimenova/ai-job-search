@@ -90,6 +90,39 @@ def test_на_знакомстве_ведёт_к_кнопке_продолжит
     assert r.headers["location"].endswith("#welcome-continue")
 
 
+def test_выбор_провайдера_ведёт_к_следующему_вопросу(client, profile, monkeypatch):
+    """Выбрав, через что работать, человек ещё не закончил: дальше — какой моделью,
+    и это ниже на той же странице. Его бросало в самый верх, к началу всего, что
+    он уже прочитал."""
+    доступны(monkeypatch, claude_cli=True)
+    r = client.post("/models/provider",
+                    data={"provider": "claude_cli", "back": "/welcome", "anchor": "welcome-step2"},
+                    follow_redirects=False)
+    assert r.headers["location"].endswith("#welcome-step2"), r.headers["location"]
+
+    r = client.post("/models/provider",
+                    data={"provider": "claude_cli", "back": "/models", "anchor": "models-choose"},
+                    follow_redirects=False)
+    assert r.headers["location"].endswith("#models-choose"), r.headers["location"]
+
+
+def test_проверка_программы_возвращает_к_её_же_карточке(client, profile, monkeypatch):
+    """«Проверить снова» спрашивают про конкретную программу — и остаться надо
+    возле неё, а не уехать наверх страницы."""
+    доступны(monkeypatch, claude_cli=True)
+    r = client.post("/provider/recheck",
+                    data={"provider": "ollama", "back": "/welcome", "anchor": "provider-ollama"},
+                    follow_redirects=False)
+    assert r.headers["location"].endswith("#provider-ollama"), r.headers["location"]
+
+
+@pytest.mark.parametrize("path,anchor", [("/welcome", "welcome-step2"), ("/models", "models-choose")])
+def test_якорь_есть_на_самой_странице(client, profile, monkeypatch, path, anchor):
+    """Якорь в адресе без якоря на странице — это просто прокрутка наверх."""
+    доступны(monkeypatch, claude_cli=True)
+    assert f'id="{anchor}"' in client.get(path).text, f"{path}: некуда возвращать"
+
+
 def test_без_якоря_перенаправление_прежнее(client, profile):
     r = client.post("/models/select", data={"model": "x", "back": "/models"}, follow_redirects=False)
     assert r.status_code == 303 and "#" not in r.headers["location"]
@@ -174,7 +207,9 @@ def английский(client, profile):
     profiles.rename(profile, "Alex")
     cfg = config.load()
     cfg["ui"].update(lang="en", output_lang="en")
-    cfg["llm"]["provider"] = "ollama"      # its name is dropped into the page text
+    # its name is dropped into the page text; the model has to match the provider,
+    # or the pages are not shown at all and there is nothing here to read
+    cfg["llm"].update(provider="ollama", triage_model="llama3.1:8b")
     config.save(cfg)
     return client
 

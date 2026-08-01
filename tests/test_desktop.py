@@ -204,9 +204,21 @@ def test_рабочее_окно_браузер_не_трогает(tmp_path, mo
 
 def test_экран_аварии_на_языке_интерфейса(profile, tmp_path, monkeypatch):
     """The window with the reason is shown before the server — and was in Russian
-    whatever language had been chosen."""
-    from jobsearch import config
+    whatever language had been chosen.
+
+    Настраивается профиль по умолчанию, а не свой: экран рисуется до сервера,
+    когда профиль ещё никем не выбран, и язык читается именно оттуда. Тест
+    задавал язык своему профилю, а проверял чужой.
+
+    А язык системы подменён нарочно, и подменён на русский: пока он совпадал с
+    ожидаемым ответом, тест проходил, ни разу не заглянув в настройки — на
+    английской машине он был зелёным и при коде, который читал бы только
+    систему. Ровно ту беду, ради которой он написан, он и не поймал бы.
+    """
+    from jobsearch import config, i18n, profiles
     monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
+    monkeypatch.setattr(profiles, "default_slug", lambda: profile)
+    monkeypatch.setattr(i18n, "system_lang", lambda default="en": "ru")
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     config.save(cfg)

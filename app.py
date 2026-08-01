@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from jobsearch import (appstate, autostart, config, coverage as coverage_check,
                        cvcheck, db, discovery, export as export_mod, hardware, i18n,
                        llm, mailer, notify, pipeline, profiles, providers, scheduler,
-                       scoring, version)
+                       scoring, update as update_mod, version)
 
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="AI Job Search")
@@ -24,11 +24,15 @@ app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 
 
-@app.middleware("http")
-async def _profile_middleware(request: Request, call_next):
+def _activate_profile(request: Request) -> None:
     """The active profile for this request — from the cookie (or the default one)."""
     slug = request.cookies.get("profile", "")
     profiles.set_active(slug if profiles.exists(slug) else profiles.default_slug())
+
+
+@app.middleware("http")
+async def _profile_middleware(request: Request, call_next):
+    _activate_profile(request)
     return await call_next(request)
 
 
@@ -123,6 +127,16 @@ def _msg(key: str, **fmt) -> str:
     return text.format(**fmt) if fmt else text
 
 
+def _date_or_empty(raw) -> str:
+    """ГГГГ-ММ-ДД или пусто. Поле приходит из браузера, а туда можно вписать что
+    угодно — в настройки должно попасть либо настоящая дата, либо ничего."""
+    text = str(raw or "").strip()
+    try:
+        return date.fromisoformat(text).isoformat() if text else ""
+    except ValueError:
+        return ""
+
+
 def _seed_profile(slug: str) -> None:
     """A new person gets the same CLI and model that were chosen on first launch."""
     defaults = appstate.default_llm()
@@ -153,6 +167,8 @@ def render(request, template: str, ctx: dict, cfg: dict = None):
     ctx = {**ctx, "provider_status": _provider_status(cfg_), "asset_v": _asset_version(),
            "lang": lang, "t": lambda key: i18n.t(lang, key), "theme": appstate.theme(),
            "app_version": version.current(),
+           # read from what the last check wrote down — the page never waits on the network
+           "update": update_mod.state(),
            "rtl": lang in i18n.RTL_LANGS,
            "ui_langs": i18n.UI_LANGS, "output_langs": i18n.OUTPUT_LANGS,
            "profiles": profiles.list_profiles(), "active_profile": profiles.active(),
@@ -180,7 +196,10 @@ def startup() -> None:
     """
     for шаг, действие in (("перенос профилей", profiles.ensure_migrated),
                           ("запуск расписания", scheduler.start),
-                          ("восстановление расписаний", scheduler.reschedule_all)):
+                          ("восстановление расписаний", scheduler.reschedule_all),
+                          # спрашиваем о новой версии в фоне: иначе о ней никто не узнает,
+                          # а ждать сети при запуске программа не должна
+                          ("проверка обновления", update_mod.check_in_background)):
         try:
             действие()
         except Exception:  # noqa: BLE001 — no trouble here justifies not opening
@@ -199,6 +218,20 @@ def _redirect_to(path: str, msg: str = "", anchor: str = "") -> RedirectResponse
     if anchor:
         url += "#" + anchor
     return RedirectResponse(url, status_code=303)
+
+
+def _reachable(path: str) -> str:
+    """Where a person can actually be sent right now.
+
+    Deleting the model that was in use leaves nothing to think with, and the page
+    they came from stops being shown at all. Sending them back there anyway means
+    the gate below bounces them to the introduction and the explanation is lost
+    on the way — they arrive at a strange screen with nothing said. So we address
+    the introduction ourselves and the words survive the journey.
+
+    (_PAGES is defined with the gate further down; it is read when this runs.)
+    """
+    return "/welcome" if path.split("?")[0] in _PAGES and appstate.needs_setup() else path
 
 
 @app.get("/")
@@ -482,6 +515,10 @@ async def simple_start(request: Request, file: UploadFile = None):
 
     cfg = config.load()
     cfg["search"]["locations"] = str(form.get("locations", "")).strip() or cfg["search"]["locations"]
+    # За какой срок искать. Пустое поле — это ответ («без ограничения»), а не
+    # отсутствие ответа, поэтому берётся как есть, без подстановки прежнего.
+    cfg["search"]["posted_from"] = _date_or_empty(form.get("posted_from"))
+    cfg["search"]["posted_to"] = _date_or_empty(form.get("posted_to"))
     cfg["profile"]["linkedin"] = str(form.get("linkedin", "")).strip()
     config.save(cfg)
 
@@ -800,9 +837,14 @@ async def models_set_provider(request: Request):
             cfg["llm"]["triage_model"] = picks[0]["id"]
             cfg["llm"]["deep_model"] = picks[0]["id"]
         config.save(cfg)
-    return _redirect_to(str(form.get("back") or "/models"),
-                        _msg("msg_provider_set", provider=i18n.t(
-                            config.load().get("ui", {}).get("lang", "ru"), "prov_" + key)))
+    msg = _msg("msg_provider_set", provider=i18n.t(
+        config.load().get("ui", {}).get("lang", "ru"), "prov_" + key))
+    # Choosing what powers the search answers only half the question; which model
+    # is the other half, further down the same page. A person used to be thrown
+    # to the very top instead, above everything they had already read.
+    where = _reachable(str(form.get("back") or "/models"))
+    anchor = "welcome-step2" if where == "/welcome" else str(form.get("anchor", ""))
+    return _redirect_to(where, msg, anchor=anchor)
 
 
 @app.post("/models/select")
@@ -828,6 +870,28 @@ async def models_pull(request: Request):
         return _redirect_to(str(form.get("back") or "/models"), _msg("msg_pull_busy"))
     providers.pull_async(model)
     return _redirect_to(str(form.get("back") or "/models"), _msg("msg_pull_started", model=model))
+
+
+@app.post("/models/delete")
+async def models_delete(request: Request):
+    """Removes a downloaded model from the computer.
+
+    A model weighs gigabytes, and until now nothing in the app could take one
+    back off the disk: it could only be downloaded. Deleting the one in use is
+    allowed — it leaves the app with nothing to think with, and the introduction
+    says so and asks for another, which is a plainer state of affairs than a
+    setting pointing at a model that is no longer there.
+    """
+    form = await request.form()
+    model = str(form.get("model", "")).strip()
+    back = str(form.get("back") or "/models")
+    if providers.pull_in_progress():
+        return _redirect_to(back, _msg("msg_pull_busy"))
+    try:
+        providers.delete_model(model)
+    except providers.ProviderError as e:
+        return _redirect_to(_reachable(back), _err(e))
+    return _redirect_to(_reachable(back), _msg("msg_model_deleted", model=model))
 
 
 @app.get("/models/pull_status")
@@ -876,6 +940,7 @@ def cv_check_run():
     if not config.cv_text().strip():
         return _redirect_to("/cv/check", _msg("cv_no_source"))
     cfg = config.load()
+    lang = _lang(cfg)      # взято здесь: в потоке настройки читать уже не у кого
     _check_state[slug] = {"running": True, "error": ""}
 
     def worker():
@@ -884,7 +949,10 @@ def cv_check_run():
             cvcheck.analyze(cfg)
             _check_state[slug] = {"running": False, "error": ""}
         except Exception as e:  # noqa: BLE001 — show the reason, do not hide it
-            _check_state[slug] = {"running": False, "error": str(e)[:400]}
+            # i18n.err, а не str(e): наши собственные ошибки носят с собой ключ
+            # перевода вместо готовой фразы, и человеку показывалось голое
+            # «prov_err_ollama_unreachable» — слово, которое ему ничего не говорит.
+            _check_state[slug] = {"running": False, "error": i18n.err(lang, e)[:400]}
 
     threading.Thread(target=worker, daemon=True).start()
     return RedirectResponse("/cv/check", status_code=303)
@@ -906,6 +974,93 @@ async def app_settings(request: Request):
     config.save(cfg)
     err = autostart.set_enabled("autostart" in form)
     return _redirect(_msg(err) if err else _msg("msg_app_settings_saved"))
+
+
+# Скачивание установщика идёт в фоне: это десятки мегабайт, и страница не должна
+# на них стоять. Здесь же видно, чем всё кончилось.
+_update_state: dict = {"running": False, "percent": 0, "error": ""}
+
+
+@app.post("/app/update/check")
+def app_update_check():
+    """Спросить о новой версии прямо сейчас, не дожидаясь суточной проверки."""
+    found = update_mod.check(force=True)
+    if found.get("version"):
+        return _redirect(_msg("update_found", version=found["version"]))
+    return _redirect(_msg("update_none", version=version.current()))
+
+
+@app.post("/app/update/install")
+def app_update_install():
+    """Скачивает установщик и передаёт ему работу.
+
+    Программа при этом закрывается: установщик не может заменить файлы, которые
+    открыты. Он дождётся, пока старая копия уйдёт, и откроет новую.
+    """
+    if _update_state["running"]:
+        return _redirect(_msg("update_busy"))
+    asset = (update_mod.state().get("asset") or {})
+    if not asset.get("url"):
+        return _redirect(_msg("update_manual"))
+    if pipeline.state["running"]:
+        return _redirect(_msg("update_busy_search"))
+    _update_state.update(running=True, percent=0, error="")
+    lang = _lang()
+
+    def worker():
+        try:
+            path = update_mod.download(asset, progress=lambda p: _update_state.update(percent=p))
+            update_mod.install(path)
+            _update_state.update(running=False, percent=100)
+            update_mod.quit_soon()      # установщик ждёт, пока мы закроемся
+        except update_mod.UpdateError as e:
+            _update_state.update(running=False, error=i18n.t(lang, e.key).format(**{
+                k: str(v) for k, v in e.fmt.items()}))
+        except Exception as e:  # noqa: BLE001 — причину надо показать, а не спрятать
+            _update_state.update(running=False, error=str(e)[:300])
+
+    threading.Thread(target=worker, daemon=True).start()
+    return _redirect(_msg("update_started"))
+
+
+@app.get("/app/update/status")
+def app_update_status():
+    return JSONResponse(dict(_update_state))
+
+
+@app.post("/app/reset")
+def app_reset():
+    """Erases everything the app knows and starts from the introduction again.
+
+    Uninstalling the program leaves this data where it is — no installer may
+    throw away someone's CV and results on a hunch. The price is that
+    reinstalling is not the fresh start it looks like, and the only honest way
+    to one runs from inside the program.
+
+    A run in progress is not stopped for you: it writes into the very files
+    being erased, and would quietly put some of them back. Better to say so and
+    let the person stop it.
+    """
+    if pipeline.state["running"]:
+        return _redirect(_msg("msg_reset_busy"))
+    # The chosen language is about to be erased along with everything else, and
+    # the sentence explaining that should still arrive in it.
+    lang = _lang()
+    autostart.set_enabled(False)      # a shortcut left behind would outlive the data
+    survived = profiles.wipe_all()
+    db.forget_databases()
+    providers.forget_binaries()
+    profiles.ensure_migrated()        # an empty profile again, as on a first launch
+    profiles.set_active(profiles.default_slug())
+    try:
+        scheduler.reschedule_all()    # the schedules pointed at profiles that are gone
+    except Exception:  # noqa: BLE001 — the data is already gone; this must not undo that
+        _log_startup_problem("восстановление расписаний", traceback.format_exc())
+    msg = i18n.t(lang, "msg_reset_failed").format(files=", ".join(survived)) if survived \
+        else i18n.t(lang, "msg_reset_done")
+    response = _redirect_to("/welcome", msg)
+    response.delete_cookie("profile")  # it names a profile that no longer exists
+    return response
 
 
 @app.post("/set_lang")
@@ -1173,9 +1328,17 @@ _PAGES = {"/", "/simple", "/results", "/coverage", "/cv/check", "/notify", "/mod
 
 @app.middleware("http")
 async def first_run_gate(request: Request, call_next):
-    if (request.method == "GET" and request.url.path in _PAGES
-            and not appstate.setup_done()):
-        return RedirectResponse("/welcome", status_code=303)
+    """Without a model that works there is one screen worth showing, and this is
+    the one place that can insist on it.
+
+    The profile is settled here as well as in the middleware above: this one
+    wraps that one (Starlette runs the last-registered outermost), and the model
+    being asked about belongs to the profile the request came for.
+    """
+    if request.method == "GET" and request.url.path in _PAGES:
+        _activate_profile(request)
+        if appstate.needs_setup():
+            return RedirectResponse("/welcome", status_code=303)
     return await call_next(request)
 
 
@@ -1193,10 +1356,12 @@ async def provider_install(request: Request):
     back = str(form.get("back") or "/models")
     provs = providers.available(config.load()["llm"].get("claude_bin", "claude"))
     url = provs.get(key, {}).get("install_url", "")
+    anchor = str(form.get("anchor", ""))
     if not url:
-        return _redirect_to(back, _msg("msg_install_unknown"))
+        return _redirect_to(back, _msg("msg_install_unknown"), anchor=anchor)
     webbrowser.open(url)
-    return _redirect_to(back, _msg("msg_install_opened", name=_msg("prov_" + key)))
+    return _redirect_to(back, _msg("msg_install_opened", name=_msg("prov_" + key)),
+                        anchor=anchor)
 
 
 @app.post("/provider/recheck")
@@ -1210,7 +1375,9 @@ async def provider_recheck(request: Request):
     key = str(form.get("provider") or cfg["llm"].get("provider", "claude_cli"))
     ready = bool(provs.get(key, {}).get("ready"))
     name = _msg("prov_" + key)
-    return _redirect_to(back, _msg("msg_recheck_found" if ready else "msg_recheck_none", name=name))
+    # back to the card that was asked about, not to the top of the page
+    return _redirect_to(back, _msg("msg_recheck_found" if ready else "msg_recheck_none", name=name),
+                        anchor=str(form.get("anchor", "")))
 
 
 # External addresses are listed here: the page passes only a key, so a button
@@ -1241,28 +1408,34 @@ def welcome(request: Request, msg: str = ""):
     catalog = providers.models_for(provider, lang=_lang(cfg))
     current_model = cfg["llm"].get("triage_model", "haiku")
     chosen = next((m for m in catalog if m["id"] == current_model), None)
-    provider_ready = bool(provs.get(provider, {}).get("ready"))
-    model_ready = bool(not chosen or chosen.get("kind") != "local" or chosen.get("installed"))
+    # Which of the two is missing, so the page can say so. Both used to be
+    # explained as "the tool is not installed" — and that sent a person off to
+    # install Ollama, which was running perfectly well; what was missing was
+    # the model inside it. The same answer decides whether the app opens at all,
+    # so it is worked out in one place for both.
+    blocked_by = providers.missing_piece(cfg["llm"])
     return render(request, "welcome.html", {
         "msg": msg, "provs": provs, "current_provider": provider,
         "current_model": current_model, "models": catalog,
         "current_model_name": chosen["name"] if chosen else current_model,
         "specs": hardware.specs(),
-        "provider_ready": provider_ready,
+        "provider_ready": blocked_by != "provider",
         # going on makes sense only if the chosen provider can really do the thinking
-        "ready": provider_ready and model_ready,
-        # Which of the two is missing, so the page can say so. Both used to be
-        # explained as "the tool is not installed" — and that sent a person off to
-        # install Ollama, which was running perfectly well; what was missing was
-        # the model inside it.
-        "blocked_by": "" if provider_ready and model_ready
-                      else ("provider" if not provider_ready else "model"),
+        "ready": not blocked_by,
+        "blocked_by": blocked_by,
+        # Somebody arriving here after a reinstall has data to clear; somebody
+        # genuinely new has nothing, and should not be shown the offer at all.
+        "can_reset": appstate.has_data(),
     }, cfg=cfg)
 
 
 @app.post("/welcome/done")
 def welcome_done():
+    """The button is disabled without a model, which settles it for the page but
+    not for the address: this is the last check before the app opens."""
     cfg = config.load()
+    if providers.missing_piece(cfg["llm"]):
+        return _redirect_to("/welcome", _msg("welcome_blocked"))
     appstate.mark_setup_done(cfg["llm"])
     return RedirectResponse("/simple", status_code=303)
 

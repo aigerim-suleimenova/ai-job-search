@@ -24,6 +24,13 @@
 </section>
 
 {% if result and not result.error %}
+{# Часть проверки могла не выполниться: она спрашивает модель, а модели может не
+   быть. Остальное при этом посчитано здесь же, на этом компьютере, и остаётся в
+   силе — но промолчать о недостающем нельзя, иначе человек прочтёт неполный
+   разбор как полный. #}
+{% if result.unfinished %}
+<p class="hint" style="color:var(--warn)">{{ t('cvcheck_partial').format(error=result.unfinished[0]) }}</p>
+{% endif %}
 <section class="card">
   <div class="row" style="gap:24px; flex-wrap:wrap">
     <div>

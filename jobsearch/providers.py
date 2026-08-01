@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import threading
+import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -174,26 +175,57 @@ def _bin_exists(name: str) -> bool:
     return bool(resolve_bin(name))
 
 
-def ollama_running() -> bool:
+# One question to Ollama, remembered for a moment.
+#
+# /api/tags answers both things anyone here ever wants to know: whether Ollama is
+# running at all, and what has been downloaded into it. They used to be asked
+# separately and several times over a single page — by the gate deciding whether
+# to show the introduction, by the provider badge, by the model list. On a
+# machine without Ollama every one of those waited out its own timeout, and
+# choosing a provider took six seconds.
+#
+# The timeout is short because this is localhost: a program that is there accepts
+# the connection at once, and one that is not should not keep a person waiting to
+# find that out. The longer half is for reading — an Ollama busy loading a model
+# may think before it answers, and that is not a reason to call it missing.
+_tags = {"asked_at": 0.0, "alive": False, "models": frozenset()}
+_TAGS_TTL = 3.0
+_TAGS_TIMEOUT = (0.4, 3)          # (сколько ждём соединения, сколько — ответа)
+
+
+def _ollama_tags() -> dict:
+    now = time.monotonic()
+    if _tags["asked_at"] and now - _tags["asked_at"] < _TAGS_TTL:
+        return _tags
+    alive, models = False, frozenset()
     try:
-        requests.get(f"{OLLAMA_URL}/api/tags", timeout=2).raise_for_status()
-        return True
-    except requests.RequestException:
-        return False
+        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=_TAGS_TIMEOUT)
+        r.raise_for_status()
+        models = frozenset(m.get("name", "") for m in r.json().get("models", []))
+        alive = True
+    except (requests.RequestException, ValueError):
+        pass
+    _tags.update(asked_at=now, alive=alive, models=models)
+    return _tags
+
+
+def forget_ollama() -> None:
+    """Ask Ollama afresh: something has just changed on the disk or in the app."""
+    _tags["asked_at"] = 0.0
+
+
+def ollama_running() -> bool:
+    return _ollama_tags()["alive"]
 
 
 def ollama_installed_models() -> set:
-    try:
-        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
-        r.raise_for_status()
-        return {m.get("name", "") for m in r.json().get("models", [])}
-    except (requests.RequestException, ValueError):
-        return set()
+    return set(_ollama_tags()["models"])
 
 
 def forget_binaries() -> None:
     """Forget the paths found: the person may have installed the program just now."""
     resolve_bin.cache_clear()
+    forget_ollama()
 
 
 def available(claude_bin: str = "claude") -> dict:
@@ -220,6 +252,28 @@ def available(claude_bin: str = "claude") -> dict:
             "install_url": "https://ollama.com/download",
         },
     }
+
+
+def missing_piece(llm: dict) -> str:
+    """What stands between the app and a thought: "" | "provider" | "model".
+
+    The two are different troubles and must not be told as one. Ollama can be
+    running perfectly well while the model inside it was never downloaded — and
+    a person sent off to "install Ollama" would be reinstalling the one part
+    that already works.
+
+    A local model is looked for in Ollama itself rather than in our catalogue:
+    somebody may be using a model we never listed, and it would be strange to
+    call their working setup broken.
+    """
+    provider = llm.get("provider") or "claude_cli"
+    if not available(llm.get("claude_bin", "claude")).get(provider, {}).get("ready"):
+        return "provider"
+    if provider == "ollama":
+        model = llm.get("triage_model") or ""
+        if not model or model not in ollama_installed_models():
+            return "model"
+    return ""
 
 
 def _localized(model: dict, lang: str) -> dict:
@@ -406,6 +460,24 @@ def pull(model: str, log=None) -> bool:
         raise ProviderError(key="prov_err_pull_failed", error=e) from e
 
 
+def delete_model(model: str) -> None:
+    """Removes a downloaded model from the computer — several gigabytes back.
+
+    Ollama renamed the field of this request from "name" to "model"; builds old
+    enough to want the first are still about, so both go, and whichever one the
+    running Ollama does not know it ignores.
+    """
+    try:
+        r = requests.delete(f"{OLLAMA_URL}/api/delete",
+                            json={"model": model, "name": model}, timeout=120)
+        r.raise_for_status()
+        forget_ollama()      # список скачанного только что изменился
+    except requests.ConnectionError as e:
+        raise ProviderError(key="prov_err_ollama_down") from e
+    except requests.RequestException as e:
+        raise ProviderError(key="prov_err_delete_failed", error=e) from e
+
+
 def pull_async(model: str) -> None:
     """Starts the download in the background: the page polls pull_status()."""
     if pull_in_progress():
@@ -416,6 +488,7 @@ def pull_async(model: str) -> None:
     def worker():
         try:
             pull(model)
+            forget_ollama()  # модель появилась — список скачанного устарел
             _set_pull(percent=100, status="", status_key="pull_done", done=True)
         except ProviderError as e:
             # the values become strings: this state leaves as JSON for the page,

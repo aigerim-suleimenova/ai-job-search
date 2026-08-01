@@ -191,6 +191,45 @@ def delete(slug: str) -> None:
     shutil.rmtree(PROFILES_DIR / slug, ignore_errors=True)
 
 
+# Not anybody's data but the running program's own scaffolding: the lock that
+# keeps a second copy from starting, the crash log and the page that shows it.
+# Erasing those would not give a person a clean start — it would knock the legs
+# out from under the very copy doing the erasing, and on Windows the log is held
+# open and cannot be deleted at all.
+RUNTIME_FILES = {"running.json", "errors.log", "error.html", "dotnet.config"}
+
+
+def wipe_all() -> list:
+    """Erases everything the app has stored about people. Returns what survived.
+
+    Uninstalling the program does not touch this directory — and rightly so, no
+    installer may throw away someone's data. The consequence is that reinstalling
+    is not a fresh start: the old profiles, the old settings and the "the
+    introduction is over" mark are all still here, waiting. This is the way back
+    to a genuinely empty program, and it exists only from inside it.
+
+    Everything goes except the runtime files, rather than a list of known names:
+    a data file added to the app later would otherwise quietly outlive "delete
+    everything" — and the one thing this must never do is leave something behind
+    silently.
+    """
+    survived = []
+    with _lock:
+        entries = sorted(DATA_ROOT.glob("*")) if DATA_ROOT.exists() else []
+        for entry in entries:
+            if entry.name in RUNTIME_FILES:
+                continue
+            try:
+                if entry.is_dir():
+                    shutil.rmtree(entry)
+                else:
+                    entry.unlink()
+            except OSError:
+                survived.append(entry.name)
+    _active.set(None)
+    return survived
+
+
 def set_default(slug: str) -> None:
     with _lock:
         reg = _read_registry()

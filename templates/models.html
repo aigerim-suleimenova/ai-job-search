@@ -17,7 +17,7 @@
      {{ t('models_usable') }} ≈ {{ specs.usable_gb }} {{ t('unit_gb') }}{% if specs.gpu and specs.gpu != specs.cpu %} · {{ specs.gpu }}{% endif %}</p>
 </section>
 
-<section class="card">
+<section class="card" id="models-choose">
   <h2>{{ t('models_choose') }} — {{ t('prov_' + current_provider) }}</h2>
   {% include "_model_list.html" %}
 </section>

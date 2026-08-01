@@ -64,6 +64,15 @@ def init() -> None:
         pass
 
 
+def forget_databases() -> None:
+    """Forget which databases have a schema — they have just been erased.
+
+    Without this the next connection to a path that has been wiped would be
+    trusted as already prepared, and the first query would meet no tables.
+    """
+    _initialized.clear()
+
+
 def seen_keys() -> set:
     with conn() as c:
         return {r["key"] for r in c.execute("SELECT key FROM jobs")}

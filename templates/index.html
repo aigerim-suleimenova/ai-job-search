@@ -59,8 +59,12 @@
       <button>{{ t('rename_person') }}</button>
     </form>
     {% if profiles|length > 1 %}
+    {# Вопрос — в data-атрибуте: по-французски в нём есть апостроф, и внутри
+       строки в кавычках он обрывал её на середине. Кнопка не спрашивала и не
+       удаляла — она просто ничего не делала, и только на одном языке. #}
     <form method="post" action="/profile/delete"
-          onsubmit="return confirm('{{ t('delete_confirm') }}')">
+          data-confirm="{{ t('delete_confirm') }}"
+          onsubmit="return confirm(this.dataset.confirm)">
       <input type="hidden" name="slug" value="{{ active_profile }}">
       <button class="danger">{{ t('delete_person') }}</button>
     </form>
@@ -68,6 +72,33 @@
   </div>
 </section>
 
+
+{# Про новые версии человек иначе не узнаёт вовсе: программа о них молчала, а
+   ходить на сайт и проверять никто не станет. Проверка идёт в фоне при запуске,
+   сюда попадает уже готовый ответ. #}
+<section class="card" id="update">
+  <h2>{{ t('update_title') }}</h2>
+  {% if update.version %}
+  <p>{{ t('update_available').format(version=update.version, current=app_version) }}</p>
+  <div class="row" style="gap:10px; margin-top:12px">
+    {% if update.asset and update.asset.url %}
+    <form method="post" action="/app/update/install" style="margin:0">
+      <button class="primary">{{ t('update_install') }}</button>
+    </form>
+    {% endif %}
+    <a class="hint" href="{{ update.notes_url }}" target="_blank" rel="noopener noreferrer">{{ t('update_notes') }}</a>
+  </div>
+  {% if not (update.asset and update.asset.url) %}
+  <p class="hint" style="margin-top:10px">{{ t('update_manual_hint') }}</p>
+  {% endif %}
+  <p class="hint update-progress" id="update-progress" hidden></p>
+  {% else %}
+  <p class="hint">{{ t('update_current').format(version=app_version) }}</p>
+  {% endif %}
+  <form method="post" action="/app/update/check" style="margin-top:12px">
+    <button>{{ t('update_check') }}</button>
+  </form>
+</section>
 
 <section class="card">
   <h2>{{ t('app_behavior') }}</h2>
@@ -338,7 +369,38 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
 </section>
 {% endif %}
 
+{# Внизу страницы и последним по порядку: это единственное действие здесь, после
+   которого нечего восстанавливать. Вопрос лежит в data-атрибуте, а не в самом
+   onsubmit — в некоторых языках в нём есть апостроф, и внутри строки в кавычках
+   он оборвал бы её, а кнопка молча перестала бы работать. #}
+<section class="card">
+  <h2>{{ t('reset_title') }}</h2>
+  <p class="hint">{{ t('reset_hint') }}</p>
+  <form method="post" action="/app/reset" style="margin-top:12px"
+        data-confirm="{{ t('reset_confirm') }}"
+        onsubmit="return confirm(this.dataset.confirm)">
+    <button class="danger">{{ t('reset_button') }}</button>
+  </form>
+</section>
+
 <script>
+// Скачивание установщика — это десятки мегабайт. Без счётчика человек видит
+// нажатую кнопку и ничего больше, и не знает, идёт ли что-нибудь вообще.
+const UPDATE_DOWNLOADING = {{ t('update_downloading')|tojson }};
+async function updateProgress() {
+  const box = document.getElementById("update-progress");
+  if (!box) return;
+  try {
+    const s = await (await fetch("/app/update/status")).json();
+    if (s.error) { box.hidden = false; box.textContent = s.error; return; }
+    if (!s.running) { box.hidden = s.percent !== 100; return; }
+    box.hidden = false;
+    box.textContent = UPDATE_DOWNLOADING + " " + s.percent + "%";
+    setTimeout(updateProgress, 700);
+  } catch (e) { /* программа уже закрывается — установщик перехватил работу */ }
+}
+updateProgress();
+
 const RUNNING_PREFIX = {{ t('status_running')|tojson }};
 async function poll() {
   try {

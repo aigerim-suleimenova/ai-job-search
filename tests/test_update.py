@@ -1,0 +1,167 @@
+"""Обновление: узнать о новой версии и поставить её.
+
+Отдельного внимания стоит то, откуда берётся файл. GitHub присылает список
+файлов вместе с адресами, но адрес в ответе — это лишь предложение: ответ можно
+подменить по дороге, а скачанное здесь будет запущено. Поэтому адрес проверяется
+перед скачиванием, и проверяется в том самом месте, которое лезет в сеть, — а не
+только там, где его выбирали.
+"""
+import pytest
+
+from jobsearch import update, version
+
+
+# --- Что считать новее ----------------------------------------------------------
+
+@pytest.mark.parametrize("новая,своя,ожидание", [
+    ("0.8.17", "0.8.16", True),
+    ("0.9.0", "0.8.16", True),
+    ("0.8.16", "0.8.16", False),
+    ("0.8.15", "0.8.16", False),
+    ("0.8.9", "0.8.10", False),          # не по алфавиту, а по числам
+    ("0.10.0", "0.9.9", True),
+])
+def test_сравнение_версий(новая, своя, ожидание):
+    assert update.is_newer(новая, своя) is ожидание
+
+
+def test_запуску_из_исходников_обновление_не_предлагают():
+    """Из исходников программа зовётся «dev» и ни от чего не отстаёт: там
+    работает то, что разработчик у себя открыл."""
+    assert update.is_newer("9.9.9", version.FALLBACK) is False
+    assert update.is_newer("", "0.8.16") is False
+
+
+# --- Откуда берётся файл --------------------------------------------------------
+
+def чужой(url):
+    return {"name": "AI Job Search Setup.exe", "url": url, "size": 1}
+
+
+@pytest.mark.parametrize("адрес", [
+    "https://example.com/evil.exe",
+    "http://github.com/mrWD/ai-job-search/releases/download/v1/x.exe",   # не https
+    "https://github.com/someone-else/ai-job-search/releases/download/v1/x.exe",
+    "https://github.com.evil.test/mrWD/ai-job-search/releases/download/v1/x.exe",
+    "https://raw.githubusercontent.com/mrWD/ai-job-search/main/x.exe",
+    "",
+])
+def test_скачиваем_только_из_своих_выпусков(адрес):
+    """Ответ с подменённым адресом может назвать файл, но не место, откуда его брать."""
+    with pytest.raises(update.UpdateError) as поймано:
+        update.download(чужой(адрес))
+    assert поймано.value.key == "update_err_bad_url"
+
+
+def test_свой_адрес_проходит_проверку(monkeypatch, tmp_path):
+    """Обратная сторона: настоящий адрес отвергать нельзя."""
+    свой = update.DOWNLOAD_PREFIX + "v0.8.17/AI%20Job%20Search%20Setup.exe"
+    попытки = []
+
+    class Ответ:
+        headers = {"Content-Length": "4"}
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size=0):
+            yield b"data"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(update.requests, "get",
+                        lambda url, **kw: попытки.append(url) or Ответ())
+
+    path = update.download(чужой(свой))
+
+    assert попытки == [свой], "пошли не по тому адресу"
+    assert path.read_bytes() == b"data"
+
+
+def test_имя_файла_из_ответа_не_уводит_из_папки(monkeypatch):
+    """Имя тоже приходит снаружи. Из него делается имя файла на диске, и «..» в
+    нём не должно уводить запись куда-то ещё."""
+    class Ответ:
+        headers = {}
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size=0):
+            yield b"x"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(update.requests, "get", lambda url, **kw: Ответ())
+    asset = {"name": "../../../../Windows/System32/evil.exe",
+             "url": update.DOWNLOAD_PREFIX + "v1/x.exe"}
+
+    path = update.download(asset)
+
+    assert ".." not in path.name, f"имя увело из папки: {path}"
+    assert path.name == "evil.exe", f"от имени осталось что-то странное: {path.name}"
+    # главное: файл лёг именно туда, куда мы его звали, а не куда указало имя
+    assert path.resolve().parent == path.parent.resolve()
+    assert path.parent.name.startswith("aijs-update-")
+
+
+# --- Выбор файла под систему ----------------------------------------------------
+
+def test_на_windows_берётся_установщик(monkeypatch):
+    monkeypatch.setattr(update.platform, "system", lambda: "Windows")
+    assets = [
+        {"name": "AI Job Search.dmg", "browser_download_url": update.DOWNLOAD_PREFIX + "v1/a.dmg"},
+        {"name": "AI Job Search Setup.exe", "browser_download_url": update.DOWNLOAD_PREFIX + "v1/s.exe"},
+    ]
+    assert update._asset_for_this_os(assets)["name"] == "AI Job Search Setup.exe"
+
+
+def test_установщик_с_чужого_адреса_не_предлагается(monkeypatch):
+    monkeypatch.setattr(update.platform, "system", lambda: "Windows")
+    assets = [{"name": "AI Job Search Setup.exe",
+               "browser_download_url": "https://example.com/setup.exe"}]
+    assert update._asset_for_this_os(assets) == {}
+
+
+def test_где_ставить_руками_ничего_не_предлагается(monkeypatch):
+    """Образ надо перетащить, архив распаковать — без человека не обойтись."""
+    monkeypatch.setattr(update.platform, "system", lambda: "Darwin")
+    assets = [{"name": "AI Job Search Setup.exe",
+               "browser_download_url": update.DOWNLOAD_PREFIX + "v1/s.exe"}]
+    assert update._asset_for_this_os(assets) == {}
+
+
+# --- Ответ GitHub ---------------------------------------------------------------
+
+def test_черновик_и_предвыпуск_не_предлагаются(monkeypatch):
+    for поле in ("draft", "prerelease"):
+        monkeypatch.setattr(update.requests, "get",
+                            lambda *a, **kw: _ответ({"tag_name": "v9.9.9", поле: True}))
+        assert update.fetch_latest() == {}
+
+
+def test_недоступный_github_не_ломает_программу(monkeypatch):
+    def взорваться(*a, **kw):
+        raise update.requests.RequestException("нет сети")
+
+    monkeypatch.setattr(update.requests, "get", взорваться)
+    assert update.fetch_latest() == {}
+
+
+def _ответ(payload):
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return payload
+
+    return R()

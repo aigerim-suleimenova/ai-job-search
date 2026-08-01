@@ -118,6 +118,26 @@ def has_excluded(job: dict, exclude_terms: list) -> bool:
     )
 
 
+def posted_ok(job: dict, since: str = "", until: str = "") -> bool:
+    """Was the job posted within the period asked for? Dates are ГГГГ-ММ-ДД.
+
+    A job with no date is kept. Sources are uneven about this — many aggregators
+    give no date at all — and dropping everything undated would quietly throw
+    away most of the search the moment somebody set a period. Better to let
+    through what we cannot judge than to hide it without saying so.
+    """
+    if not since and not until:
+        return True
+    posted = str(job.get("posted_at") or "").strip()[:10]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", posted):
+        return True                      # даты нет или она непонятная — не нам судить
+    if since and posted < since:
+        return False
+    if until and posted > until:
+        return False
+    return True
+
+
 def looks_like_agency(company: str) -> bool:
     name = (company or "").lower()
     return any(m in name for m in AGENCY_MARKERS)

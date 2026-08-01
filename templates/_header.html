@@ -8,7 +8,12 @@
 <header>
   {# The version has to be visible in the program itself: otherwise someone whose
      program misbehaves has nothing to name, and we have nothing to ask about. #}
-  <h1>AI Job Search <span class="app-version">{{ app_version }}</span></h1>
+  {# Новая версия помечается рядом с номером на каждой странице: карточка с
+     кнопкой лежит в настройках, но человек может туда неделями не заходить. #}
+  <h1>AI Job Search <span class="app-version">{{ app_version }}</span>
+    {% if update.version %}<a class="badge ok update-badge" href="/#update"
+       title="{{ t('update_available').format(version=update.version, current=app_version) }}">{{ t('update_badge') }}</a>{% endif %}
+  </h1>
   <div class="toolbar-right">
     <form method="post" action="/profile/switch" class="profile-switch">
       <label>{{ t('person') }}

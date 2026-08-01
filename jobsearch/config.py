@@ -49,6 +49,11 @@ DEFAULTS = {
         "triage_second_vote": True, # a second triage vote for borderline ones (catches underestimates)
         "keywords_include": "",
         "keywords_exclude": "",
+        # За какой срок брать вакансии, ГГГГ-ММ-ДД. Пусто с обеих сторон — без
+        # ограничения, как было. Отсекается до модели: платить за разбор
+        # позапрошлогодней вакансии незачем, да и откликаться на неё поздно.
+        "posted_from": "",
+        "posted_to": "",
         "include_remote": True,
         "triage_limit": 400,         # the most jobs the model will triage in one run
         "deep_during_run": True,     # do the deep analysis during the run itself

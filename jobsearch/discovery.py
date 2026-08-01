@@ -12,8 +12,16 @@ from .collectors import ats
 
 
 def _lk(log, key: str, **fmt) -> None:
-    """A log line in the interface language (log comes in from the pipeline)."""
-    text = i18n.t(config.load()["ui"]["lang"], key)
+    """A log line in the interface language (log comes in from the pipeline).
+
+    An exception among the substitutions is unwrapped into words, the same way
+    the pipeline does it: our own errors carry a translation key, and passing one
+    straight through puts the key's own name in front of a person.
+    """
+    lang = config.load()["ui"]["lang"]
+    fmt = {k: (i18n.err(lang, v) if isinstance(v, BaseException) else v)
+           for k, v in fmt.items()}
+    text = i18n.t(lang, key)
     log(text.format(**fmt) if fmt else text)
 
 

@@ -24,6 +24,37 @@ def pytest_sessionfinish(session, exitstatus):
     shutil.rmtree(_DATA, ignore_errors=True)
 
 
+@pytest.fixture(autouse=True)
+def настроено(monkeypatch):
+    """The app as it is once somebody has set it up: a provider that answers.
+
+    The pages are shown only when there is a model to think with — without this
+    every page test would be quietly sent to the introduction instead. The
+    answers would still be 200 and the checks would still pass, having looked at
+    the introduction eight times and at the pages not once.
+
+    Tests about the introduction itself override this, and the ones about
+    erasing everything take the mark away on purpose.
+    """
+    from jobsearch import appstate, autostart, providers, update
+    monkeypatch.setattr(providers, "_bin_exists", lambda name: True)
+    monkeypatch.setattr(providers, "ollama_running", lambda: True)
+    monkeypatch.setattr(providers, "ollama_installed_models",
+                        lambda: {m["id"] for m in providers.LOCAL_MODELS})
+    # Start-at-login lives outside the data directory — in the registry on
+    # Windows, in LaunchAgents on a Mac. A test that erases everything turns it
+    # off for real, and it would be the developer's own machine it turned it off
+    # on. Nothing here may reach that far.
+    monkeypatch.setattr(autostart, "set_enabled", lambda on: "")
+    # Asking GitHub whether a new version is out is a real call to the internet,
+    # made on every startup. A test suite has no business reaching outside the
+    # machine: it would be slow, it would fail on a train, and it would tell
+    # somebody else's server how often the tests run.
+    monkeypatch.setattr(update, "fetch_latest", lambda: {})
+    monkeypatch.setattr(update, "check_in_background", lambda: None)
+    appstate.mark_setup_done(config.load()["llm"])
+
+
 @pytest.fixture
 def profile(tmp_path_factory):
     """A clean profile with its own database for every test."""

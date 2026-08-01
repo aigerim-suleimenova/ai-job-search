@@ -47,6 +47,45 @@ def setup_done() -> bool:
                for p in profiles.list_profiles())
 
 
+def has_data() -> bool:
+    """Is there anything of anybody's here at all?
+
+    Asked so that "erase everything" is offered to a person who has something to
+    erase, and keeps out of the way on a genuinely first launch, where the offer
+    would only be alarming.
+
+    The question is about the person's things, not about this file existing. The
+    app writes its own notes here too — the theme, when it last asked about a new
+    version — and on the strength of one of those the offer to erase everything
+    appeared in front of somebody who had not yet typed a single letter.
+    """
+    if load().get("setup_done"):
+        return True
+    return any(any((profiles.PROFILES_DIR / p["slug"]).glob("*"))
+               for p in profiles.list_profiles())
+
+
+def needs_setup() -> bool:
+    """Should the introduction be shown in place of the app?
+
+    Two reasons, and the second one used to be missed. The introduction was
+    shown once and then never again, whatever became of the setup afterwards:
+    uninstall Ollama, or delete the model out of it, and the app went on opening
+    its settings page with a warning banner — every button there leading to a
+    search that could not start, and the one screen able to put it right no
+    longer reachable.
+
+    Reinstalling did not help either, and looked like a bug of its own: this
+    directory outlives an uninstall, so the mark saying "the introduction is
+    over" was still there to be found on what a person had every reason to
+    consider a first launch.
+    """
+    from . import config, providers
+    if not setup_done():
+        return True
+    return bool(providers.missing_piece(config.load().get("llm", {})))
+
+
 def mark_setup_done(llm: dict) -> None:
     state = load()
     state["setup_done"] = True

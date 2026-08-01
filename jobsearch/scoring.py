@@ -7,8 +7,17 @@ from . import config, i18n, llm
 
 
 def _lk(log, key: str, **fmt) -> None:
-    """A log line in the interface language (log comes in from the pipeline)."""
-    text = i18n.t(config.load()["ui"]["lang"], key)
+    """A log line in the interface language (log comes in from the pipeline).
+
+    An exception among the substitutions is text for a person too. Our own errors
+    carry a translation key rather than a sentence, and without unwrapping it the
+    key's own name went into the log: a person whose Ollama had gone read
+    "prov_err_ollama_unreachable" and was none the wiser.
+    """
+    lang = config.load()["ui"]["lang"]
+    fmt = {k: (i18n.err(lang, v) if isinstance(v, BaseException) else v)
+           for k, v in fmt.items()}
+    text = i18n.t(lang, key)
     log(text.format(**fmt) if fmt else text)
 
 
@@ -115,6 +124,11 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
     on_batch(batch) is called as soon as each batch is scored: the pipeline puts
     it into the database, and jobs appear on the results page during the run
     rather than all at once at the end.
+
+    Returns the errors that batches failed with. One batch going wrong is not a
+    reason to stop — but the caller has to be able to tell "nothing suitable was
+    found" from "nothing was ever looked at", and for that it needs to know
+    whether anybody answered at all.
     """
     model = cfg["llm"].get("triage_model", "haiku")
     claude_bin = cfg["llm"].get("claude_bin", "claude")
@@ -150,11 +164,13 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
             on_batch(batch, done["n"], len(batches))
         _lk(log, "log_triage_batch", done=done["n"], total=len(batches))
 
+    failures = []
     for r in llm.pmap(process, batches, workers=workers):
         if isinstance(r, Exception):
             done["n"] += 1
+            failures.append(r)
             _lk(log, "log_triage_batch_err", error=r)
-    return jobs
+    return failures
 
 
 PROFILE_FROM_CV_PROMPT = """Ниже CV кандидата. Заполни поля профиля для поиска работы.

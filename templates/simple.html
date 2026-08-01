@@ -87,6 +87,32 @@
       <input name="linkedin" value="{{ cfg.profile.linkedin }}" placeholder="https://linkedin.com/in/...">
     </label>
 
+    {# За какой срок брать вакансии. Поле такое же, как в фильтрах результатов:
+       свой текстовый порядок цифр плюс системный календарь под значком — иначе
+       браузер показывает дату в том порядке, какой стоит в настройках системы.
+       Пустые поля значат «без ограничения», и очистить их надо чем-то одним
+       нажатием: стирать две даты руками неудобно. #}
+    <div class="grid2" style="margin-top:14px">
+      {% for key, label, value in [('posted_from', t('filter_posted_from'), cfg.search.posted_from),
+                                   ('posted_to', t('filter_posted_to'), cfg.search.posted_to)] %}
+      <label>{{ label }}
+        <span class="date-field">
+          <input type="text" class="date-text" inputmode="numeric" maxlength="10"
+                 placeholder="{{ t('date_mask') }}" autocomplete="off">
+          <input type="date" class="date-native" name="{{ key }}" value="{{ value }}"
+                 aria-label="{{ t('filter_open_calendar') }}">
+          <svg class="date-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+          </svg>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+    <p class="hint" style="margin:6px 0 0">
+      {{ t('simple_dates_hint') }}
+      <button type="button" class="link-like" data-clear-dates>{{ t('filter_dates_clear') }}</button>
+    </p>
+
     <div class="row" style="margin-top:18px">
       <button class="primary" id="start-btn" {% if state.running %}disabled{% endif %}
               data-busy="{{ t('simple_starting') }}">{{ t('simple_go') }}</button>
@@ -135,6 +161,7 @@ if (startForm) startForm.addEventListener('submit', () => {
   if (b) { b.textContent = b.dataset.busy; b.disabled = true; }
 });
 </script>
+<script src="/static/dates.js?v={{ asset_v }}"></script>
 {% include "_footer.html" %}
 </body>
 </html>

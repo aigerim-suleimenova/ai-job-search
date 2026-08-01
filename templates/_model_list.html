@@ -53,6 +53,20 @@
           <button {% if m.fits == 'no' or not provider_ready %}disabled{% endif %}>{{ t('models_download') }}</button>
         </form>
         {% endif %}
+        {# Скачанную модель можно и убрать: она занимает гигабайты, а до сих пор
+           единственным способом освободить их было идти в саму Ollama.
+           Текст вопроса живёт в data-атрибуте, а не прямо в onsubmit: в нём есть
+           апостроф на некоторых языках, и внутри строки в кавычках он обрывал бы
+           её на середине — кнопка молча переставала бы работать. #}
+        {% if m.kind == 'local' and m.installed %}
+        <form method="post" action="/models/delete" style="margin:0"
+              data-confirm="{{ t('models_delete_confirm').format(name=m.name) }}"
+              onsubmit="return confirm(this.dataset.confirm)">
+          <input type="hidden" name="model" value="{{ m.id }}">
+          <input type="hidden" name="back" value="{{ back }}">
+          <button class="danger">{{ t('models_delete') }}</button>
+        </form>
+        {% endif %}
         {# Кнопка называет состояние, а не только действие: у выбранной модели она
            говорит «используется», как и у выбранного провайдера в сетке выше.
            Раньше все строки предлагали «Использовать» — включая ту, что уже

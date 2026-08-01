@@ -35,7 +35,10 @@
       {% endfor %}
     </span>
   </div>
-  <form method="get" action="/results" class="filters">
+  {# data-autosubmit: здесь форма — это фильтры, и поправленная дата должна сразу
+     перерисовать список. В быстром поиске такая же форма запускает поиск, и там
+     этого атрибута нет. #}
+  <form method="get" action="/results" class="filters" data-autosubmit>
     <input type="hidden" name="min" value="{{ min_score }}">
     <label>{{ t('sort_by') }}
       <select name="sort" onchange="this.form.submit()">
@@ -269,39 +272,7 @@
 </script>
 
 
-<script>
-// A person types dd.mm.yyyy as text, while the form sends what the server
-// understands. The calendar is the system's: a transparent type=date field lies
-// over the icon on the right.
-(() => {
-  const toText = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '';
-  const toIso = text => {
-    const m = text.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (!m) return '';
-    const [, d, mo, y] = m;
-    const dt = new Date(+y, +mo - 1, +d);
-    const real = dt.getFullYear() === +y && dt.getMonth() === +mo - 1 && dt.getDate() === +d;
-    return real ? y + '-' + mo + '-' + d : '';
-  };
-  document.querySelectorAll('.date-field').forEach(field => {
-    const text = field.querySelector('.date-text');
-    const native = field.querySelector('.date-native');
-    text.value = toText(native.value);
-    text.addEventListener('input', () => {
-      const digits = text.value.replace(/\D/g, '').slice(0, 8);
-      let out = digits.slice(0, 2);
-      if (digits.length > 2) out += '.' + digits.slice(2, 4);
-      if (digits.length > 4) out += '.' + digits.slice(4, 8);
-      text.value = out;
-      const iso = toIso(out);
-      // submit only once the date is complete, or wiped out entirely
-      if (iso) { native.value = iso; text.form.submit(); }
-      else if (!digits.length && native.value) { native.value = ''; text.form.submit(); }
-    });
-    native.addEventListener('change', () => { text.value = toText(native.value); native.form.submit(); });
-  });
-})();
-</script>
+<script src="/static/dates.js?v={{ asset_v }}"></script>
 
 <script>
 // Analysing one job runs in the background (a minute or two). While it runs the
