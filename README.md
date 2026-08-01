@@ -57,7 +57,10 @@ The app opens like an ordinary program — a window, no terminal.
   SmartScreen will say "Windows protected your PC": "More info" → "Run anyway".
   If you would rather not use an installer, there is
   `AI Job Search-windows-portable.zip`: unpack it and run `AI Job Search.exe`
-  from the folder.
+  from the folder. Windows marks everything unpacked from a downloaded archive
+  as "came from the internet", and .NET — which draws the app's window — refuses
+  to load libraries with that mark. The app clears the mark itself on startup,
+  and if the window still will not open it opens in your browser instead.
 - **Linux** — unpack `AI Job Search-linux.tar.gz` and run `AI Job Search`.
 
 On first launch the program asks what to think with: Claude Code, Cursor CLI or a
