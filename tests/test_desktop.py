@@ -239,3 +239,68 @@ def test_без_настроек_экран_аварии_не_ломается(t
     monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
     monkeypatch.setattr(desktop, "_ui_lang", _не_дать_окна)
     assert desktop._say("crash_title", app="X") == ""
+
+
+# --- «Программа уже запущена» — но точно ли наша и точно ли жива ----------------
+
+def test_прицепляемся_только_к_своей_ровеснице(monkeypatch):
+    """Тот самый сбой: окно открылось на «отказано в подключении».
+
+    Установщик закрывает старую копию и тут же запускает новую. Новая заставала
+    старую ещё живой, решала «программа уже запущена», открывала окно на её порт
+    и своего сервера не поднимала. Старая дописывала и умирала — окно упиралось
+    в пустоту. Проверка смотрела лишь на то, слушает ли кто-нибудь порт.
+    """
+    from jobsearch import version
+    monkeypatch.setattr(version, "current", lambda: "0.8.23")
+
+    def ответ(версия):
+        import io, json as _json
+        class R:
+            def read(self, n=None):
+                return _json.dumps({"app": "ai-job-search", "version": версия}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        return lambda url, timeout=None: R()
+
+    # старая копия, которую сейчас закрывают
+    monkeypatch.setattr(desktop.urllib.request, "urlopen", ответ("0.8.22"))
+    assert desktop._alive(8765) is False, "прицепились к копии, которую закрывают"
+
+    # своя ровесница — к ней прицепиться правильно
+    monkeypatch.setattr(desktop.urllib.request, "urlopen", ответ("0.8.23"))
+    assert desktop._alive(8765) is True, "не узнали собственную запущенную копию"
+
+
+def test_чужая_программа_на_порту_не_считается_нашей(monkeypatch):
+    """На 8765 может сидеть что угодно — окно открылось бы прямо в него."""
+    class R:
+        def read(self, n=None):
+            return b'{"hello": "i am something else"}'
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(desktop.urllib.request, "urlopen", lambda url, timeout=None: R())
+    assert desktop._alive(8765) is False
+
+
+def test_мёртвый_замок_не_мешает_запуску(monkeypatch):
+    """Замок остаётся от копии, которая умерла ненормально. Раньше он был просто
+    неверным, теперь — безвредным."""
+    def отказ(url, timeout=None):
+        raise OSError("отказано в подключении")
+
+    monkeypatch.setattr(desktop.urllib.request, "urlopen", отказ)
+    assert desktop._alive(8765) is False
+    assert desktop._alive(0) is False
+
+
+def test_не_json_в_ответе_не_роняет(monkeypatch):
+    class R:
+        def read(self, n=None):
+            return b"<html>404</html>"
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(desktop.urllib.request, "urlopen", lambda url, timeout=None: R())
+    assert desktop._alive(8765) is False

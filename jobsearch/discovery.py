@@ -6,8 +6,26 @@ finds are added to the watch list (sources.companies).
 """
 from urllib.parse import urlparse
 
-from . import config, i18n, llm
+from . import config, i18n, llm, providers, websearch
 from .collectors import ats
+
+# Выдача, найденная приложением, — модели остаётся её разобрать.
+FOUND_BLOCK = """
+
+Вот что нашлось в интернете по этому запросу. Бери работодателей ТОЛЬКО отсюда,
+ничего не добавляй от себя:
+{found}
+"""
+
+
+def _query(cfg: dict, round_no: int) -> str:
+    """Запрос к поисковой службе — тем же языком, каким его задал бы человек."""
+    p, s = cfg["profile"], cfg["search"]
+    роли = p.get("roles") or p.get("skills") or "software engineer"
+    места = s.get("locations") or ""
+    доски = ("site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com"
+             if round_no % 2 else "careers hiring")
+    return f"{роли} {места} {доски}".strip()
 
 
 
@@ -119,6 +137,22 @@ def discover(cfg: dict, log, n: int = 5) -> list:
             angle=_ANGLES[r % len(_ANGLES)],
             known=", ".join(seen_names[:120]) or "—",
         )
+        # Ищет либо сама модель (это умеет только Claude Code), либо приложение
+        # своим ключом — тогда модель получает выдачу текстом и лишь разбирает
+        # её. Работа у неё та же: она и раньше не искала, а читала найденное.
+        tools, found = ["WebSearch", "WebFetch"], ""
+        if not providers.supports_web_search(cfg["llm"].get("provider", "claude_cli")):
+            tools = None
+            try:
+                found = websearch.as_text(websearch.search(cfg, _query(cfg, r), n=10))
+            except websearch.SearchError as e:
+                _lk(log, "log_disc_err", r=r + 1, error=e)
+                dry += 1
+                continue
+            if not found:
+                dry += 1
+                continue
+            prompt += FOUND_BLOCK.format(found=found)
         try:
             items = llm.ask_json(
                 prompt,
@@ -127,7 +161,7 @@ def discover(cfg: dict, log, n: int = 5) -> list:
                 provider=cfg["llm"].get("provider", "claude_cli"),
                 llm=cfg["llm"],
                 timeout=600,
-                allowed_tools=["WebSearch", "WebFetch"],
+                allowed_tools=tools,
             )
         except llm.AuthError:
             raise      # without a signed-in model the run makes no sense

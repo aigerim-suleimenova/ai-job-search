@@ -182,3 +182,51 @@ def test_пустые_даты_снимают_ограничение(client_chec
     cfg = config.load()
     assert cfg["search"]["posted_from"] == ""
     assert cfg["search"]["posted_to"] == ""
+
+
+# --- Без веб-поиска не просим о том, чего модель не может -------------------------
+
+def test_без_веб_поиска_не_просим_изучать_компанию(profile, monkeypatch):
+    """Изучение компании — это поиск в интернете. Просить о нём модель, которой
+    в сеть не выйти, значит потратить вызов впустую и подтолкнуть её сочинять:
+    ответить-то она чем-то должна.
+
+    Флаг в настройках говорит «хочу», а может ли — решает провайдер."""
+    from jobsearch import db, llm, pipeline
+    вызовы = []
+    monkeypatch.setattr(llm, "ask_json",
+                        lambda prompt, **kw: вызовы.append(kw.get("allowed_tools")) or {})
+    monkeypatch.setattr(pipeline.aggregators, "collect", lambda cfg, log, cov: [
+        {"key": "k1", "title": "Frontend", "company": "Acme", "location": "Berlin",
+         "url": "https://example.com/1", "source": "remotive", "is_direct": 1,
+         "is_agency": 0, "description": "React " * 100, "posted_at": "2026-07-20"}])
+    cfg = config.load()
+    # локальная модель: в сеть не ходит
+    cfg["llm"].update(provider="ollama", triage_model="gemma2:9b", deep_model="gemma2:9b")
+    cfg["search"].update(discover_per_run=0, discover_ats_per_run=0,
+                         drop_off_target=False, research_company=True, threshold=0)
+    cfg["profile"]["roles"] = "Frontend"
+    config.save(cfg)
+
+    pipeline.run(trigger="test", profile=profile)
+
+    assert вызовы, "модель не звали вовсе"
+    assert all(not и for и in вызовы), \
+        "просили поискать в интернете модель, которая туда не ходит"
+
+
+def test_с_веб_поиском_изучение_компании_остаётся(profile, monkeypatch):
+    """Обратная сторона: у кого поиск есть, тот его и получает."""
+    from jobsearch import llm, scoring
+    инструменты = []
+    monkeypatch.setattr(llm, "ask_json",
+                        lambda prompt, **kw: инструменты.append(kw.get("allowed_tools")) or {})
+    cfg = config.load()
+    cfg["llm"].update(provider="claude_cli")
+    config.save(cfg)
+
+    scoring.deep_analyze({"title": "T", "company": "C", "location": "",
+                          "description": "x" * 400},
+                         cfg, "CV", lambda _m: None, research=True)
+
+    assert any(и for и in инструменты), "лишили веб-поиска того, кто его умеет"

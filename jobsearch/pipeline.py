@@ -150,7 +150,9 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         # 0. Finding new companies for this profile (web search through claude).
         # Only Claude Code CLI can search the web: on other providers this step is
         # skipped, or the model would start inventing companies and links.
-        web_ok = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
+        # Ищет либо сама модель, либо приложение своим ключом — человеку
+        # разница не видна, поэтому и решение здесь одно на оба случая.
+        web_ok = providers.web_search_possible(cfg)
         n_disc = int(cfg["search"].get("discover_per_run", 0))
         if n_disc > 0 and not web_ok:
             _logk("log_discover_skipped")
@@ -378,7 +380,13 @@ def run(trigger: str = "manual", profile: str = None) -> None:
 
         # 7. Deep analysis (in parallel): the exact %, edits for the CV and LinkedIn,
         # plus, if enabled, the salary and facts about the company from a web search
-        research = bool(cfg["search"].get("research_company", True))
+        # Изучение компании — это web-поиск. Просить о нём модель, которой в сеть
+        # не выйти, значит потратить вызов впустую и подтолкнуть её сочинять:
+        # ответить-то она чем-то должна. Флаг в настройках говорит «хочу», а
+        # может ли — решает провайдер.
+        research = bool(cfg["search"].get("research_company", True)) and web_ok
+        if cfg["search"].get("research_company", True) and not web_ok:
+            _logk("log_research_skipped")
         _stage("stage_deep_research" if research else "stage_deep")
         deep_done = {"n": 0}
 

@@ -2,7 +2,7 @@
 import json
 import re
 
-from . import config, i18n, llm
+from . import config, i18n, llm, providers, websearch
 
 
 
@@ -266,6 +266,14 @@ RESEARCH_PROMPT = """Найди в интернете сведения о ком
   "sources": ["<URL, на которые опирался>", ...]
 }}"""
 
+# Выдача поиска, добытая приложением: модель её только пересказывает, а сама в
+# сеть не ходит — инструментов ей при этом не выдаётся вовсе.
+FOUND_ONLINE_BLOCK = """
+
+Вот что нашлось в интернете. Опирайся ТОЛЬКО на это, ничего не добавляй от себя:
+{found}
+"""
+
 # Что нашлось про компанию, передаётся во второй запрос уже готовым текстом.
 FOUND_BLOCK = """
 Уже известно о компании (найдено отдельно, можешь опираться):
@@ -294,17 +302,35 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
     #    компании и должность злоумышленник и так знает, он их сам и написал.
     found = {}
     if research:
-        try:
-            found = llm.ask_json(
-                _lang_banner(cfg) + RESEARCH_PROMPT.format(
-                    company=job.get("company", ""), title=job.get("title", ""),
-                    location=job.get("location", ""), lang=lang),
-                timeout=900, allowed_tools=["WebSearch", "WebFetch"], **ask)
-        except llm.AuthError:
-            raise
-        except llm.ClaudeError as e:
-            # без сведений о компании разбор всё равно имеет смысл — идём дальше
-            _lk(log, "log_deep_job_err", title=job.get("title"), error=e)
+        # Модель ищет сама только у Claude Code. У остальных ищет приложение и
+        # отдаёт выдачу текстом — тогда модель её просто пересказывает, а
+        # сетевых инструментов не получает вовсе.
+        сама_ищет = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
+        prompt = _lang_banner(cfg) + RESEARCH_PROMPT.format(
+            company=job.get("company", ""), title=job.get("title", ""),
+            location=job.get("location", ""), lang=lang)
+        выдача = ""
+        if not сама_ищет:
+            запрос = f"{job.get('company', '')} salary glassdoor kununu levels.fyi"
+            try:
+                выдача = websearch.as_text(websearch.search(cfg, запрос, n=8))
+            except websearch.SearchError:
+                выдача = ""
+            if выдача:
+                prompt += FOUND_ONLINE_BLOCK.format(found=выдача)
+        # Ничего не нашлось — спрашивать не о чем: без выдачи модель может только
+        # сочинить, а разбор под кандидата ниже имеет смысл и без этих сведений.
+        if сама_ищет or выдача:
+            try:
+                found = llm.ask_json(
+                    prompt,
+                    timeout=900,
+                    allowed_tools=["WebSearch", "WebFetch"] if сама_ищет else None, **ask)
+            except llm.AuthError:
+                raise
+            except llm.ClaudeError as e:
+                # без сведений о компании разбор всё равно имеет смысл — идём дальше
+                _lk(log, "log_deep_job_err", title=job.get("title"), error=e)
         if not isinstance(found, dict):
             found = {}
 

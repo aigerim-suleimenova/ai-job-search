@@ -80,6 +80,11 @@ DEFAULTS = {
         # this, so the reach grows with a local model too.
         "harvest_boards": True,
         "harvest_per_run": 10,      # a soft limit, so the reach grows gradually
+        # Поиск в интернете силами самого приложения. Веб-поиск умеет только
+        # Claude Code; с ключом сюда разведка новых компаний и зарплатные вилки
+        # работают с любой моделью, потому что ищет уже не она.
+        "web_search_provider": "",   # brave | tavily | serper
+        "web_search_key": "",
         "adzuna_app_id": "",
         "adzuna_app_key": "",
         "adzuna_countries": "de,nl,gb,fr,es,it,pl,at,us",

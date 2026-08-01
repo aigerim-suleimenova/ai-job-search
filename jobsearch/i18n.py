@@ -248,10 +248,43 @@ TR = {
     "models_websearch": {"ru": "умеет веб-поиск", "en": "web search", "it": "ricerca web", "de": "Websuche"},
     "models_no_websearch": {"ru": "без веб-поиска", "en": "no web search",
                             "it": "senza ricerca web", "de": "keine Websuche"},
-    "models_websearch_warning": {"ru": "Выбранная модель не умеет искать в интернете, поэтому поиск новых компаний отключится. Вакансии уже отслеживаемых работодателей и с агрегаторов будут собираться и оцениваться как обычно.",
-                                 "en": "The selected model cannot search the web, so discovery of new companies is disabled. Jobs from already-monitored employers and aggregators are still collected and scored.",
-                                 "it": "Il modello scelto non può cercare sul web, quindi la scoperta di nuove aziende è disattivata. Le offerte dai datori già monitorati e dagli aggregatori vengono comunque raccolte e valutate.",
-                                 "de": "Das gewählte Modell kann nicht im Web suchen, daher entfällt das Finden neuer Unternehmen. Stellen bereits überwachter Arbeitgeber und von Aggregatoren werden weiterhin gesammelt und bewertet."},
+    # Тестировщик прочёл прежнюю редакцию — «поиск новых компаний отключится» —
+    # и спросил: «это что, теперь только вручную отслеживать конкретные компании?»
+    # Нет, и это ровно то, что надо было сказать первым делом: настраивать ничего
+    # не нужно, вакансии идут с агрегаторов, а список работодателей пополняется
+    # сам — по ссылкам внутри уже найденных вакансий, без всякой модели.
+    "models_websearch_warning": {"ru": "Выбранная модель не умеет искать в интернете. Настраивать компании вручную из-за этого не придётся: вакансии по-прежнему собираются с девяти агрегаторов, а список работодателей пополняется сам — по ссылкам внутри уже найденных вакансий. Не будет двух вещей: модель не пойдёт искать компании, которых никто ещё не упоминал, и не соберёт зарплатные вилки и сведения о компаниях.",
+                                 "en": "The selected model cannot search the web. That does not leave you setting up companies by hand: jobs still come from nine aggregators, and the list of employers still grows on its own, from the links inside the jobs already found. Two things are lost: the model will not go looking for companies nobody has mentioned yet, and it will not gather salary ranges and facts about companies.",
+                                 "it": "Il modello scelto non può cercare sul web. Non per questo dovrà configurare le aziende a mano: le offerte continuano ad arrivare da nove aggregatori e l'elenco dei datori di lavoro cresce da sé, dai link dentro le offerte già trovate. Si perdono due cose: il modello non andrà a cercare aziende che nessuno ha ancora nominato e non raccoglierà fasce salariali e informazioni sulle aziende.",
+                                 "de": "Das gewählte Modell kann nicht im Web suchen. Unternehmen von Hand einzutragen bleibt Ihnen dennoch erspart: Stellen kommen weiterhin von neun Aggregatoren, und die Liste der Arbeitgeber wächst von selbst — aus den Links in den bereits gefundenen Stellen. Zweierlei entfällt: Das Modell sucht nicht nach Unternehmen, die noch niemand genannt hat, und es sammelt keine Gehaltsspannen und Angaben zu Unternehmen."},
+    # Поиск в интернете силами приложения — тем, у кого модель искать не умеет.
+    "websearch_title": {"ru": "Поиск в интернете (ключ)", "en": "Web search (a key)",
+                        "it": "Ricerca sul web (chiave)", "de": "Websuche (Schlüssel)"},
+    "websearch_hint": {
+        "ru": "Искать в интернете умеет только Claude Code — с остальными разведка новых компаний и зарплатные вилки отключаются. Впишите ключ любой из этих служб, и искать будет само приложение, а модель получит найденное текстом. Тогда это работает с любой моделью, а у всех трёх служб есть бесплатный уровень — нескольких поисков за прогон он с запасом покрывает.",
+        "en": "Only Claude Code can search the web — with anything else, hunting for new companies and looking up salary ranges are switched off. Put in a key from any of these services and the app will do the searching itself, handing the model what it found as text. That works with any model, and all three have a free tier which covers the few searches a run needs several times over.",
+        "it": "Solo Claude Code sa cercare sul web — con gli altri la scoperta di nuove aziende e le fasce salariali si disattivano. Inserisca una chiave di uno di questi servizi e a cercare sarà l'app stessa, passando al modello ciò che ha trovato come testo. Così funziona con qualsiasi modello, e tutti e tre hanno un livello gratuito che copre ampiamente le poche ricerche di un'esecuzione.",
+        "de": "Im Web suchen kann nur Claude Code — bei allen anderen entfallen das Finden neuer Unternehmen und die Gehaltsspannen. Tragen Sie einen Schlüssel eines dieser Dienste ein, dann sucht die App selbst und reicht dem Modell das Gefundene als Text weiter. Das funktioniert mit jedem Modell, und alle drei haben ein kostenloses Kontingent, das die wenigen Suchen eines Durchlaufs um ein Vielfaches deckt."},
+    "websearch_service": {"ru": "Служба", "en": "Service",
+                          "it": "Servizio", "de": "Dienst"},
+    "websearch_key": {"ru": "Ключ", "en": "Key", "it": "Chiave", "de": "Schlüssel"},
+    "websearch_none": {"ru": "не использовать", "en": "do not use one",
+                       "it": "non usarla", "de": "keinen verwenden"},
+    "search_err_not_set": {
+        "ru": "Поиск в интернете не настроен: выберите службу и впишите ключ",
+        "en": "Web search is not set up: pick a service and enter a key",
+        "it": "La ricerca sul web non è configurata: scelga un servizio e inserisca una chiave",
+        "de": "Die Websuche ist nicht eingerichtet: Dienst wählen und Schlüssel eintragen"},
+    "search_err_failed": {
+        "ru": "Поиск в интернете не удался: {error}",
+        "en": "The web search failed: {error}",
+        "it": "La ricerca sul web non è riuscita: {error}",
+        "de": "Die Websuche ist fehlgeschlagen: {error}"},
+    "log_research_skipped": {
+        "ru": "Сведения о компаниях и зарплатах пропускаем: выбранная модель не ходит в интернет",
+        "en": "Skipping company facts and salaries: the chosen model does not go online",
+        "it": "Saltiamo dati aziendali e stipendi: il modello scelto non va in rete",
+        "de": "Firmenangaben und Gehälter entfallen: Das gewählte Modell geht nicht ins Netz"},
     "models_select": {"ru": "Выбрать", "en": "Select", "it": "Seleziona", "de": "Auswählen"},
     "models_selected": {"ru": "✓ Выбран", "en": "✓ Selected", "it": "✓ Selezionato", "de": "✓ Ausgewählt"},
     "models_your_device": {"ru": "Ваше устройство", "en": "Your device",

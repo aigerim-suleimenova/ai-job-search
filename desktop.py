@@ -14,6 +14,7 @@ import socket
 import sys
 import threading
 import time
+import urllib.request
 import webbrowser
 from contextlib import closing
 from pathlib import Path
@@ -66,11 +67,32 @@ def _read_lock() -> dict:
 
 
 def _alive(port: int) -> bool:
+    """Отвечает ли на этом порту НАША программа, а не кто-нибудь вообще.
+
+    Раньше здесь просто стучались в порт. Этого мало сразу по двум причинам, и
+    вторая стоила работоспособности:
+
+    — на порту может сидеть что угодно чужое, и мы открыли бы окно в него;
+    — во время обновления установщик закрывает старую копию и тут же запускает
+      новую. Новая заставала старую ещё живой, решала «программа уже запущена»,
+      открывала окно на её порт и своего сервера не поднимала. Через мгновение
+      старая дописывала и умирала — окно упиралось в «отказано в подключении».
+
+    Поэтому спрашиваем, кто там, и сверяем версию: прицепляться имеет смысл
+    только к своей ровеснице. Старая копия, которую сейчас закрывают, ответит
+    чужим номером — и мы поднимем свой сервер, как и следовало.
+    """
     if not port:
         return False
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.settimeout(0.6)
-        return s.connect_ex(("127.0.0.1", port)) == 0
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/ping", timeout=1.5) as r:
+            answer = json.loads(r.read(400).decode("utf-8", "replace"))
+    except Exception:  # noqa: BLE001 — не ответил, ответил не тем, ответил не JSON
+        return False
+    if answer.get("app") != "ai-job-search":
+        return False
+    from jobsearch import version
+    return str(answer.get("version", "")) == version.current()
 
 
 def _free_port() -> int:

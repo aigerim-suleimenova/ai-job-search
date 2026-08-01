@@ -1,5 +1,6 @@
 """Web interface: the settings page, the results, starting a search."""
 import json
+import os
 import sys
 import threading
 import traceback
@@ -16,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 from jobsearch import (appstate, autostart, config, coverage as coverage_check,
                        cvcheck, db, discovery, export as export_mod, hardware, i18n,
                        llm, mailer, notify, pipeline, profiles, providers, removal, scheduler,
+                       websearch,
                        scoring, update as update_mod, version)
 
 BASE = Path(__file__).resolve().parent
@@ -439,6 +441,11 @@ async def save(request: Request, then: str = ""):
             use_arbeitsagentur=flag("use_arbeitsagentur"),
             adzuna_app_id=val("adzuna_app_id"), adzuna_app_key=val("adzuna_app_key"),
             adzuna_countries=val("adzuna_countries"), jooble_key=val("jooble_key"),
+            # Поиск в интернете силами приложения: служба выбирается из списка,
+            # чужое значение сюда попасть не должно.
+            web_search_provider=(val("web_search_provider")
+                                 if val("web_search_provider") in websearch.PROVIDERS else ""),
+            web_search_key=val("web_search_key"),
         )
     if section_present("claude_bin", "triage_model", "deep_model"):
         cfg["llm"].update(
@@ -980,6 +987,22 @@ async def models_delete(request: Request):
     except providers.ProviderError as e:
         return _redirect_to(_reachable(back), _err(e))
     return _redirect_to(_reachable(back), _msg("msg_model_deleted", model=model))
+
+
+@app.get("/ping")
+def ping():
+    """Кто отвечает на этом порту.
+
+    Оболочка спрашивает это перед тем, как решить «программа уже запущена, просто
+    покажу окно». Раньше она смотрела лишь на то, слушает ли кто-нибудь порт, —
+    и во время обновления новая копия принимала за живую старую, которую
+    установщик как раз закрывал: окно открывалось на её порт, свой сервер не
+    поднимался, а через мгновение там уже никого не было.
+
+    Поэтому здесь и версия: копия прицепляется только к своей ровеснице.
+    """
+    return JSONResponse({"app": "ai-job-search", "version": version.current(),
+                         "pid": os.getpid()})
 
 
 @app.get("/models/pull_status")

@@ -627,7 +627,20 @@ def call(prompt: str, provider: str, model: str, timeout: int = 600,
 
 
 def supports_web_search(provider: str) -> bool:
+    """Умеет ли ИСКАТЬ САМА программа-модель. Это только про её возможности."""
     return provider in ("", "claude_cli")
+
+
+def web_search_possible(cfg: dict) -> bool:
+    """Есть ли веб-поиск вообще — неважно, чьими силами.
+
+    Либо ищет сама модель (так умеет только Claude Code), либо приложение своим
+    ключом и отдаёт ей найденное текстом. Для человека разницы нет: разведка
+    новых компаний и зарплатные вилки работают или не работают.
+    """
+    from . import websearch
+    return supports_web_search(cfg.get("llm", {}).get("provider", "claude_cli")) \
+        or websearch.configured(cfg)
 
 
 # Downloading a model means gigabytes and minutes, so it runs in the background

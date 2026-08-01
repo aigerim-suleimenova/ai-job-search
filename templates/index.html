@@ -265,6 +265,30 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
     <input type="number" name="discover_ats_per_run" min="0" value="{{ cfg.search.discover_ats_per_run }}">
   </label>
   <p class="hint">{{ t('sources_hint') }}</p>
+
+  {# Поиск в интернете силами приложения. Веб-поиск умеет только Claude Code, и
+     со всеми остальными разведка новых компаний и зарплатные вилки отключались.
+     С ключом сюда они работают с любой моделью: ищет приложение, а модель
+     получает найденное текстом и в сеть не ходит вовсе. #}
+  <details {% if cfg.sources.web_search_provider %}open{% endif %}>
+    <summary>{{ t('websearch_title') }}</summary>
+    <p class="hint" style="margin:8px 0 12px">{{ t('websearch_hint') }}</p>
+    <div class="grid2">
+      <label>{{ t('websearch_service') }}
+        <select name="web_search_provider">
+          <option value="" {% if not cfg.sources.web_search_provider %}selected{% endif %}>{{ t('websearch_none') }}</option>
+          {% for code in ['brave', 'tavily', 'serper'] %}
+          <option value="{{ code }}" {% if cfg.sources.web_search_provider == code %}selected{% endif %}>{{ code|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>{{ t('websearch_key') }}
+        <input name="web_search_key" type="password" value="{{ cfg.sources.web_search_key }}"
+               autocomplete="off">
+      </label>
+    </div>
+  </details>
+
   <details>
     <summary>Adzuna &amp; Jooble (API keys)</summary>
     <div class="grid3">
