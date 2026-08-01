@@ -1,9 +1,10 @@
-"""Выбранный провайдер должен доезжать до каждого вызова модели.
+"""The chosen provider has to reach every call to the model.
 
-Триаж — единственный этап, который зовёт модель пачками, и он один забывал
-передать provider. Человек выбирал локальную модель, а приложение молча шло в
-claude CLI: на Windows тот падал на кодировке русского промпта, и в журнале
-вместо «локальная модель не отвечает» было «charmap codec can't encode».
+Triage is the one stage that calls the model in batches, and it was the one that
+forgot to pass provider along. A person picked a local model and the app went
+quietly to claude CLI: on Windows that fell over on the encoding of a Russian
+prompt, and the log said "charmap codec can't encode" instead of "the local
+model is not answering".
 """
 import subprocess
 import sys
@@ -22,7 +23,7 @@ def локальный(cfg):
 
 
 def _перехват(monkeypatch) -> list:
-    """Подменяет providers.call и запоминает, с чем его позвали."""
+    """Stands in for providers.call and remembers what it was called with."""
     вызовы = []
 
     def fake(prompt, provider, model, timeout=600, allowed_tools=None, claude_bin="claude"):
@@ -34,7 +35,7 @@ def _перехват(monkeypatch) -> list:
 
 
 def _claude_запрещён(monkeypatch) -> None:
-    """Любой уход в claude CLI — это провал теста, а не сетевой поход."""
+    """Any trip to claude CLI is a failed test, not a trip to the network."""
     def взрыв(*a, **kw):
         raise AssertionError("вызван claude CLI, хотя выбрана локальная модель")
 
@@ -73,11 +74,12 @@ def test_краулер_идёт_в_выбранного_провайдера(л
 
 
 def test_локальная_модель_не_трогает_кодировку_системы(локальный, monkeypatch):
-    """Русский промпт уходит в Ollama целиком: HTTP-путь мимо cp1252.
+    """A Russian prompt reaches Ollama whole: the HTTP path goes round cp1252.
 
-    Проверяем, что кириллица дошла, а не то, с какого слова промпт начинается:
-    впереди может стоять языковая шапка, если язык ответа отличается от языка
-    самого промпта. Именно на первых кириллических буквах и падал cp1252.
+    We check that the Cyrillic arrived, not which word the prompt starts with: a
+    language banner may stand in front of it when the answer's language differs
+    from the prompt's own. It was on those first Cyrillic letters that cp1252
+    used to fall over.
     """
     вызовы = _перехват(monkeypatch)
     scoring.triage([{"title": "Frontend Engineer", "company": "Northwind"}],
@@ -87,11 +89,11 @@ def test_локальная_модель_не_трогает_кодировку_
     assert any("А" <= c <= "я" for c in промпт)
 
 
-# --- Кодировка при вызове CLI ---------------------------------------------
+# --- Encoding when calling the CLI -----------------------------------------
 
 @pytest.mark.skipif(sys.platform != "win32", reason="cp1252 по умолчанию только на Windows")
 def test_системная_кодировка_действительно_ронялa_бы():
-    """Проверка самой проверки: без encoding= русский промпт не пережил бы stdin."""
+    """Checking the check: without encoding= a Russian prompt would not survive stdin."""
     with pytest.raises(UnicodeEncodeError):
         subprocess.run([sys.executable, "-c", "import sys; sys.stdin.read()"],
                        input=scoring.TRIAGE_PROMPT, capture_output=True,
@@ -99,7 +101,7 @@ def test_системная_кодировка_действительно_рон
 
 
 def test_cli_получает_русский_промпт_в_utf8(monkeypatch):
-    """Промпт должен дойти до CLI байт в байт, какой бы ни была локаль системы."""
+    """The prompt has to reach the CLI byte for byte, whatever the system locale is."""
     получено = {}
 
     class Готово:
@@ -109,7 +111,7 @@ def test_cli_получает_русский_промпт_в_utf8(monkeypatch):
 
     def fake_run(cmd, **kw):
         получено.update(kw)
-        # то же, что сделает настоящий subprocess: кодирует ввод указанной кодировкой
+        # the same thing a real subprocess does: encodes the input with the given encoding
         kw["input"].encode(kw["encoding"], kw.get("errors", "strict"))
         return Готово()
 

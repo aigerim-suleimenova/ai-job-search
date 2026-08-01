@@ -1,6 +1,7 @@
-"""Локализация: язык интерфейса и язык, на котором ИИ пишет результаты.
+"""Localisation: the interface language and the language the AI writes results in.
 
-Четыре языка живут в словаре TR ниже, остальные — в jobsearch/locales/<код>.py.
+Four languages live in the TR dictionary below; the rest are in
+jobsearch/locales/<code>.py.
 """
 import importlib
 import locale
@@ -9,14 +10,14 @@ import platform
 import subprocess
 from functools import lru_cache
 
-# Языки в переключателях — по алфавиту, как принято в системных списках.
+# Languages in the pickers, alphabetically, as system lists usually have them.
 UI_LANGS = {
     "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
     "fr": "Français", "hi": "हिन्दी", "it": "Italiano", "ja": "日本語",
     "pl": "Polski", "pt": "Português", "ru": "Русский", "tr": "Türkçe",
     "uk": "Українська", "zh": "中文",
 }
-# языки, которые пишутся справа налево — шаблоны ставят им dir="rtl"
+# languages written right to left — the templates give them dir="rtl"
 RTL_LANGS = {"ar"}
 OUTPUT_LANGS = {
     "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
@@ -27,10 +28,10 @@ OUTPUT_LANGS = {
 
 
 def system_lang(default: str = "en") -> str:
-    """Язык системы — чтобы при первом запуске не показывать чужой язык.
+    """The system language, so that first launch does not show a foreign one.
 
-    Приложение из Finder не получает LANG, поэтому на macOS спрашиваем систему
-    напрямую; на Windows — API языка интерфейса; иначе смотрим переменные среды.
+    An app started from Finder gets no LANG, so on macOS we ask the system
+    directly; on Windows, the UI-language API; otherwise the environment.
     """
     code = ""
     system = platform.system()
@@ -43,7 +44,7 @@ def system_lang(default: str = "en") -> str:
             import ctypes
             lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
             code = locale.windows_locale.get(lcid, "").split("_")[0]
-    except Exception:  # noqa: BLE001 — определение языка не должно ронять запуск
+    except Exception:  # noqa: BLE001 — detecting a language must not break the launch
         code = ""
     if not code:
         env = os.environ.get("LANG") or os.environ.get("LC_ALL") or ""
@@ -55,7 +56,7 @@ def system_lang(default: str = "en") -> str:
             code = ""
     return code if code in UI_LANGS else default
 
-# Инструкция модели, на каком языке писать результаты (оценки, правки, дайджест)
+# Telling the model which language to write results in (scores, edits, the digest)
 OUTPUT_INSTRUCTION = {
     "ru": "на русском языке",
     "en": "in English",
@@ -80,10 +81,18 @@ OUTPUT_INSTRUCTION = {
 
 
 def out_lang(cfg: dict) -> str:
-    return OUTPUT_INSTRUCTION.get(cfg.get("ui", {}).get("output_lang", "ru"), OUTPUT_INSTRUCTION["ru"])
+    """Which language the model writes its results in.
+
+    The fallback is English rather than Russian: an empty or unfamiliar value
+    used to make the model quietly write in Russian to someone whose every other
+    word was in a different language.
+    """
+    ui = cfg.get("ui", {})
+    code = ui.get("output_lang") or ui.get("lang") or "en"
+    return OUTPUT_INSTRUCTION.get(code, OUTPUT_INSTRUCTION["en"])
 
 
-# Строки интерфейса. Ключ → {ru, en}. Отсутствующий перевод падает на ru.
+# Interface strings. Key → {ru, en}. A missing translation falls back to English.
 TR = {
     "app_title": {"ru": "AI Job Search", "en": "AI Job Search", "it": "AI Job Search", "de": "AI Job Search"},
     "nav_settings": {"ru": "Настройки поиска", "en": "Search settings",
@@ -244,6 +253,111 @@ TR = {
     "models_selected": {"ru": "✓ Выбран", "en": "✓ Selected", "it": "✓ Selezionato", "de": "✓ Ausgewählt"},
     "models_your_device": {"ru": "Ваше устройство", "en": "Your device",
                            "it": "Il suo dispositivo", "de": "Ihr Gerät"},
+    # The model catalogue. Notes and origins used to sit in providers.py as
+    # finished Russian text and reach the page as they were — in every language.
+    "model_auto_cursor": {"ru": "Авто (выбирает Cursor)", "en": "Auto (Cursor decides)",
+                          "it": "Auto (decide Cursor)", "de": "Auto (Cursor entscheidet)"},
+    "model_note_strongest": {"ru": "самая сильная, дороже", "en": "the strongest, pricier",
+                             "it": "la più potente, più cara", "de": "die stärkste, teurer"},
+    "model_note_strong_fast": {"ru": "сильная, быстрее Opus", "en": "strong, faster than Opus",
+                               "it": "potente, più veloce di Opus", "de": "stark, schneller als Opus"},
+    "model_note_balanced": {"ru": "баланс цены и качества", "en": "a balance of price and quality",
+                            "it": "equilibrio tra prezzo e qualità",
+                            "de": "Balance aus Preis und Qualität"},
+    "model_note_fast_cheap": {"ru": "быстрая и дешёвая", "en": "fast and cheap",
+                              "it": "veloce ed economica", "de": "schnell und günstig"},
+    "model_note_reasoning": {"ru": "рассуждающая", "en": "reasoning",
+                             "it": "di ragionamento", "de": "mit Reasoning"},
+    "model_note_weak_machines": {"ru": "для слабых машин", "en": "for modest machines",
+                                 "it": "per macchine modeste", "de": "für schwächere Rechner"},
+    "model_note_very_weak": {"ru": "очень слабая, для проверки",
+                             "en": "very weak, for a smoke test",
+                             "it": "molto debole, per una prova",
+                             "de": "sehr schwach, nur zum Ausprobieren"},
+    "country_us": {"ru": "США", "en": "USA", "it": "USA", "de": "USA"},
+    "country_cn": {"ru": "Китай", "en": "China", "it": "Cina", "de": "China"},
+    "country_fr": {"ru": "Франция", "en": "France", "it": "Francia", "de": "Frankreich"},
+    # Downloading a local model: our own steps are kept apart from the ones Ollama
+    # sends (those arrive in English and are not ours to translate).
+    "pull_starting": {"ru": "начинаем", "en": "starting", "it": "avvio", "de": "Start"},
+    "pull_done": {"ru": "готово", "en": "done", "it": "fatto", "de": "fertig"},
+    "prov_err_ollama_down": {
+        "ru": "Ollama не отвечает. Убедитесь, что программа Ollama установлена и запущена, затем попробуйте снова.",
+        "en": "Ollama is not answering. Make sure the Ollama app is installed and running, then try again.",
+        "it": "Ollama non risponde. Verifichi che il programma Ollama sia installato e in esecuzione, poi riprovi.",
+        "de": "Ollama antwortet nicht. Stellen Sie sicher, dass die Ollama-App installiert ist und läuft, und versuchen Sie es erneut."},
+    "prov_err_pull_failed": {"ru": "Не удалось скачать модель: {error}",
+                             "en": "Could not download the model: {error}",
+                             "it": "Impossibile scaricare il modello: {error}",
+                             "de": "Das Modell konnte nicht geladen werden: {error}"},
+    "prov_err_no_cursor": {"ru": "Cursor CLI не найден: установите cursor-agent",
+                           "en": "Cursor CLI not found: install cursor-agent",
+                           "it": "Cursor CLI non trovato: installi cursor-agent",
+                           "de": "Cursor CLI nicht gefunden: cursor-agent installieren"},
+    "prov_err_no_claude": {"ru": "claude CLI не найден: {path}. Укажите путь в настройках модели.",
+                           "en": "claude CLI not found: {path}. Set the path in the model settings.",
+                           "it": "claude CLI non trovato: {path}. Indichi il percorso nelle impostazioni del modello.",
+                           "de": "claude CLI nicht gefunden: {path}. Pfad in den Modelleinstellungen angeben."},
+    "prov_err_exit_code": {"ru": "{tool} завершился с кодом {code} без вывода",
+                           "en": "{tool} exited with code {code} and no output",
+                           "it": "{tool} è terminato con codice {code} senza output",
+                           "de": "{tool} endete mit Code {code} ohne Ausgabe"},
+    "prov_err_killed": {"ru": "{tool} завершился с кодом {code} (убит сигналом)",
+                        "en": "{tool} exited with code {code} (killed by a signal)",
+                        "it": "{tool} è terminato con codice {code} (ucciso da un segnale)",
+                        "de": "{tool} endete mit Code {code} (durch ein Signal beendet)"},
+    "prov_err_timeout": {"ru": "{tool} не ответил за {seconds} с",
+                         "en": "{tool} did not answer within {seconds}s",
+                         "it": "{tool} non ha risposto entro {seconds} s",
+                         "de": "{tool} antwortete nicht innerhalb von {seconds} s"},
+    "prov_err_no_json": {"ru": "В ответе модели нет JSON: {text}",
+                         "en": "The model's answer contains no JSON: {text}",
+                         "it": "La risposta del modello non contiene JSON: {text}",
+                         "de": "Die Antwort des Modells enthält kein JSON: {text}"},
+    "prov_err_ollama_unreachable": {"ru": "Ollama недоступна: {error}",
+                                    "en": "Ollama is unreachable: {error}",
+                                    "it": "Ollama non è raggiungibile: {error}",
+                                    "de": "Ollama ist nicht erreichbar: {error}"},
+    "prov_err_ollama_not_json": {"ru": "Ollama вернула не JSON: {error}",
+                                 "en": "Ollama returned something other than JSON: {error}",
+                                 "it": "Ollama ha restituito qualcosa che non è JSON: {error}",
+                                 "de": "Ollama lieferte kein JSON: {error}"},
+    "tg_err_no_token": {"ru": "Не задан bot token", "en": "No bot token set",
+                        "it": "Bot token non impostato", "de": "Kein Bot-Token gesetzt"},
+    "tg_err_no_chat": {
+        "ru": "Не задан chat id — напишите боту сообщение и нажмите «Сохранить и определить chat id»",
+        "en": "No chat id — send your bot any message, then press “Save and detect chat id”",
+        "it": "Nessun chat id — scriva un messaggio al bot, poi prema «Salva e rileva chat id»",
+        "de": "Keine Chat-ID — schreiben Sie Ihrem Bot eine Nachricht und drücken Sie „Speichern und Chat-ID ermitteln“"},
+    "tg_err_no_updates": {
+        "ru": "Обновлений нет. Напишите вашему боту любое сообщение и попробуйте снова.",
+        "en": "No updates. Send your bot any message and try again.",
+        "it": "Nessun aggiornamento. Scriva un messaggio qualsiasi al bot e riprovi.",
+        "de": "Keine Updates. Schreiben Sie Ihrem Bot eine beliebige Nachricht und versuchen Sie es erneut."},
+    "err_cancelled": {"ru": "отменено", "en": "cancelled", "it": "annullato", "de": "abgebrochen"},
+    "err_search_stopped": {"ru": "поиск остановлен", "en": "the search was stopped",
+                           "it": "la ricerca è stata fermata", "de": "die Suche wurde gestoppt"},
+    "mail_preset_custom": {"ru": "Другая (укажу вручную)", "en": "Other (I will fill it in)",
+                           "it": "Altro (lo compilo io)", "de": "Andere (trage ich selbst ein)"},
+    "mail_digest_subject": {"ru": "AI Job Search: {count} вакансий для {name}",
+                            "en": "AI Job Search: {count} jobs for {name}",
+                            "it": "AI Job Search: {count} offerte per {name}",
+                            "de": "AI Job Search: {count} Stellen für {name}"},
+    "profile_default_name": {"ru": "Я", "en": "Me", "it": "Io", "de": "Ich"},
+    # The crash screen is shown before the server is up — and until now it was in
+    # Russian whatever language had been chosen.
+    "crash_title": {"ru": "{app} не смог запуститься", "en": "{app} could not start",
+                    "it": "{app} non è riuscito ad avviarsi", "de": "{app} konnte nicht starten"},
+    "crash_note": {
+        "ru": "Это сбой программы, а не ваших данных — они на месте. Подробности записаны в файл:",
+        "en": "This is a failure of the program, not of your data — that is safe. Details are written to the file:",
+        "it": "È un guasto del programma, non dei suoi dati — quelli sono al sicuro. I dettagli sono nel file:",
+        "de": "Das ist ein Fehler des Programms, nicht Ihrer Daten — die sind sicher. Einzelheiten stehen in der Datei:"},
+    "crash_in_browser": {
+        "ru": "Окно не открылось, поэтому программа открыта в браузере: {url}",
+        "en": "The window would not open, so the app has been opened in your browser: {url}",
+        "it": "La finestra non si è aperta, quindi il programma è stato aperto nel browser: {url}",
+        "de": "Das Fenster ließ sich nicht öffnen, daher wurde die App im Browser geöffnet: {url}"},
     "prov_claude_cli_about": {
         "ru": "Официальная командная строка Anthropic. Считает в облаке, умеет искать в интернете — так находятся новые компании.",
         "en": "Anthropic's official command line. Runs in the cloud and can search the web — that is how new companies are found.",
@@ -1351,10 +1465,10 @@ TR = {
 
 @lru_cache(maxsize=32)
 def _locale(lang: str) -> dict:
-    """Переводы отдельного языка из jobsearch/locales/<код>.py.
+    """One language's translations from jobsearch/locales/<code>.py.
 
-    Языков стало четырнадцать: держать их все в одном словаре — значит сделать
-    его нечитаемым. Четыре первых остались здесь, остальные лежат по файлам.
+    There are fourteen languages now: keeping them all in a single dictionary
+    would make it unreadable. The first four stayed here, the rest live in files.
     """
     try:
         module = importlib.import_module(f"{__package__}.locales.{lang}")
@@ -1363,15 +1477,34 @@ def _locale(lang: str) -> dict:
     return getattr(module, "STRINGS", {})
 
 
+def err(lang: str, exc) -> str:
+    """An exception's text in the interface language.
+
+    Our own errors carry a translation key (ClaudeError, ProviderError,
+    MailError, CVError) — those are the ones we translate. Everything else
+    arrived from an outside program as finished text, and there is nothing to
+    translate it with.
+    """
+    key = getattr(exc, "key", "")
+    if not key:
+        return str(exc)
+    fmt = getattr(exc, "fmt", None) or {}
+    text = t(lang, key)
+    try:
+        return text.format(**fmt)
+    except (KeyError, IndexError):
+        return text
+
+
 def t(lang: str, key: str) -> str:
-    lang = (lang or "en").split("-")[0]  # "it-en" → заголовки по-итальянски
+    lang = (lang or "en").split("-")[0]  # "it-en" → headings in Italian
     entry = TR.get(key)
     if entry and entry.get(lang):
         return entry[lang]
     text = _locale(lang).get(key)
     if text:
         return text
-    # Запасной вариант — английский: русский понятен меньшинству пользователей.
+    # The fallback is English: Russian is understood by a minority of users.
     if entry:
         return entry.get("en") or entry.get("ru") or key
     return key

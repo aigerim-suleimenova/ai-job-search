@@ -1,4 +1,4 @@
-"""Выгрузка результатов кандидату: CSV (для отслеживания) и HTML-отчёт (для чтения/печати в PDF)."""
+"""Exporting the results: CSV (to keep track) and an HTML report (to read or print to PDF)."""
 import csv
 import html
 import io
@@ -14,7 +14,7 @@ def _advice(job: dict) -> dict:
 
 def to_csv(jobs: list) -> str:
     buf = io.StringIO()
-    buf.write("﻿")  # BOM — чтобы кириллица открылась в Excel
+    buf.write("﻿")  # a BOM, so non-Latin text opens correctly in Excel
     w = csv.writer(buf)
     w.writerow(["Score %", "Verified", "Title", "Company", "Location", "Posted", "URL", "Source",
                 "Reason", "Salary", "CV changes", "LinkedIn changes", "Cover hint"])
@@ -90,7 +90,7 @@ tip: use your browser's Print → Save as PDF</p>
 
 
 def cv_html(cv: dict, job_title: str = "", company: str = "") -> str:
-    """Рендер структурированного адаптированного CV в аккуратный одностраничный HTML (печать в PDF)."""
+    """Renders the tailored CV into a tidy one-page HTML (for printing to PDF)."""
     skills = cv.get("skills") or []
     skills_html = " · ".join(_e(s) for s in skills) if skills else ""
     exp_html = []

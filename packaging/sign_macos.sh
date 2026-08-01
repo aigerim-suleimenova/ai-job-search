@@ -1,14 +1,14 @@
 #!/bin/bash
-# Подпись и нотаризация приложения для macOS.
+# Signing and notarising the macOS app.
 #
-# Без подписи приложение работает, но при скачивании система скажет «разработчик
-# не может быть проверен». Три уровня:
-#   1. ad-hoc (по умолчанию при сборке) — запускается только там, где собрано;
-#   2. Apple Development — запускается на устройствах вашей команды;
-#   3. Developer ID Application + нотаризация — запускается у кого угодно.
+# Unsigned the app works, but on download the system will say "the developer
+# cannot be verified". Three levels:
+#   1. ad-hoc (the default when building) — runs only where it was built;
+#   2. Apple Development — runs on your team's devices;
+#   3. Developer ID Application plus notarisation — runs for anybody.
 #
-# Использование:
-#   packaging/sign_macos.sh "Developer ID Application: Имя (TEAMID)"
+# Usage:
+#   packaging/sign_macos.sh "Developer ID Application: Name (TEAMID)"
 #   NOTARY_PROFILE=aijobsearch packaging/sign_macos.sh "Developer ID Application: ..."
 set -euo pipefail
 
@@ -16,9 +16,9 @@ APP="dist/AI Job Search.app"
 DMG="dist/AI Job Search.dmg"
 IDENTITY="${1:-}"
 
-# Раздавать приложение можно только сертификатом Developer ID Application.
-# Apple Development подписывает для своих устройств: у другого человека
-# Gatekeeper всё равно скажет «разработчик не может быть проверен».
+# An app may only be handed out under a Developer ID Application certificate.
+# Apple Development signs for your own devices: on somebody else's machine
+# Gatekeeper will still say "the developer cannot be verified".
 if [ -z "$IDENTITY" ]; then
   IDENTITY="$(security find-identity -v -p codesigning |
               sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
@@ -56,17 +56,20 @@ codesign --force --deep --timestamp --options runtime \
 echo "→ Проверяем подпись"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
-# Нотаризация нужна только для раздачи другим людям: Apple проверяет сборку и
-# ставит «штамп», после которого Gatekeeper пускает её молча.
+# Notarisation is needed only for handing the app to other people: Apple checks
+# the build and staples a "stamp" to it, after which Gatekeeper lets it through
+# without a word.
 #
-# Порядок важен. Штамп приложения нужно поставить ДО сборки образа, иначе внутри
-# образа окажется приложение без штампа: пока у человека есть интернет, Gatekeeper
-# спросит Apple и пустит, а без сети — откажет. Поэтому две отправки: сначала
-# приложение (архивом — notarytool не принимает каталог), потом готовый образ.
+# The order matters. The app has to be stapled BEFORE the disk image is built, or
+# the image will contain an unstapled app: while a person has internet Gatekeeper
+# will ask Apple and let it through, but offline it will refuse. Hence two
+# submissions: first the app (as an archive — notarytool will not take a
+# directory), then the finished image.
 #
-# Доступ к нотаризации задаётся двумя способами. На своей машине удобнее профиль
-# в связке ключей (NOTARY_PROFILE). На сборочной машине связки нет и заводить её
-# ради одного запуска незачем — там же данные приходят переменными окружения.
+# Access to notarisation is given in two ways. On your own machine a keychain
+# profile (NOTARY_PROFILE) is more convenient. A build machine has no keychain and
+# there is no point making one for a single run — there the details arrive as
+# environment variables.
 NOTARY_ARGS=()
 if [ -n "${NOTARY_PROFILE:-}" ]; then
   NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")

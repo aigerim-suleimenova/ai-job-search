@@ -1,17 +1,17 @@
-"""Общие правила хождения по чужим сайтам.
+"""The shared rules for visiting other people's sites.
 
-Раньше каждый сборщик ходил в сеть сам: представлялся браузером Mozilla,
-не спрашивал robots.txt и стучал без пауз. Для владельца сайта это выглядит
-как назойливый робот, который вдобавок скрывает, кто он такой.
+Every collector used to go to the network on its own: introducing itself as a
+Mozilla browser, never asking robots.txt, and knocking without pause. To the
+owner of a site that looks like a pushy robot which, on top of it, hides who it is.
 
-Теперь одно место на всех:
-  * честное имя с адресом проекта — по нему видно, кто пришёл и куда писать;
-  * пауза между запросами к одному хосту, чтобы не создавать нагрузку;
-  * robots.txt для обычных сайтов (allowed()).
+Now there is one place for all of them:
+  * an honest name with the project's address — it shows who came and where to write;
+  * a pause between requests to the same host, so as not to create load;
+  * robots.txt for ordinary sites (allowed()).
 
-Документированные API (Greenhouse, Lever, Adzuna и прочие) существуют ровно
-для того, чтобы к ним обращались программы, — их robots.txt не касается, но
-паузу и честное имя они получают наравне со всеми.
+Documented APIs (Greenhouse, Lever, Adzuna and the rest) exist precisely so that
+programs will call them — robots.txt does not concern them, but they get the
+pause and the honest name along with everyone else.
 """
 import threading
 import time
@@ -26,12 +26,12 @@ UA_STRING = f"ai-job-search/{VERSION} (+{PROJECT_URL})"
 UA = {"User-Agent": UA_STRING}
 
 TIMEOUT = 30
-DELAY = 1.5          # секунды между запросами к одному хосту
+DELAY = 1.5          # seconds between requests to the same host
 ROBOTS_TIMEOUT = 10
 
 _lock = threading.Lock()
-_last_hit: dict = {}     # хост → когда стучались в последний раз
-_robots: dict = {}       # хост → (парсер | None, задержка из robots.txt)
+_last_hit: dict = {}     # host → when we last knocked
+_robots: dict = {}       # host → (parser | None, the delay from robots.txt)
 
 
 def _host(url: str) -> str:
@@ -39,8 +39,8 @@ def _host(url: str) -> str:
 
 
 def _wait_turn(host: str, delay: float) -> None:
-    """Держит паузу перед обращением к тому же хосту. Считаем под замком:
-    запросы идут из нескольких потоков, и без него пауза ничего не значит."""
+    """Holds the pause before touching the same host again. Counted under a lock:
+    the requests come from several threads, and without it the pause means nothing."""
     while True:
         with _lock:
             now = time.monotonic()
@@ -52,8 +52,8 @@ def _wait_turn(host: str, delay: float) -> None:
 
 
 def _robots_for(host: str, scheme: str = "https"):
-    """robots.txt хоста. Недоступен или не читается — считаем, что можно:
-    так же ведут себя поисковые роботы."""
+    """A host's robots.txt. Unreachable or unreadable — we take it as permitted:
+    search engine robots behave the same way."""
     if host in _robots:
         return _robots[host]
     parser = None
@@ -63,10 +63,10 @@ def _robots_for(host: str, scheme: str = "https"):
         if r.status_code == 200 and len(r.text) < 500_000:
             parser = RobotFileParser()
             parser.parse(r.text.splitlines())
-            # crawl_delay() в стандартной библиотеке начинается с проверки
-            # mtime() и без неё всегда отдаёт None — отмечаем, что прочитали.
-            # Дробные задержки (Crawl-delay: 0.5) парсер игнорирует: он берёт
-            # только целые. Наша собственная пауза всё равно не даёт частить.
+            # crawl_delay() in the standard library starts by checking mtime()
+            # and without it always returns None — so we mark it as read.
+            # Fractional delays (Crawl-delay: 0.5) the parser ignores: it takes
+            # whole numbers only. Our own pause keeps us from hurrying anyway.
             parser.modified()
             try:
                 delay = parser.crawl_delay(UA_STRING)
@@ -80,7 +80,7 @@ def _robots_for(host: str, scheme: str = "https"):
 
 
 def allowed(url: str) -> bool:
-    """Разрешает ли сайт роботам читать эту страницу."""
+    """Does the site allow robots to read this page."""
     host = _host(url)
     if not host:
         return False
@@ -89,13 +89,13 @@ def allowed(url: str) -> bool:
         return True
     try:
         return parser.can_fetch(UA_STRING, url)
-    except Exception:  # noqa: BLE001 — кривой robots.txt не повод падать
+    except Exception:  # noqa: BLE001 — a malformed robots.txt is no reason to fall over
         return True
 
 
 def get(url: str, *, respect_robots: bool = False, **kw):
-    """GET с паузой и честным именем. respect_robots=True — для обычных сайтов;
-    при запрете возвращает None, а не бросает исключение."""
+    """A GET with the pause and the honest name. respect_robots=True is for ordinary
+    sites; when forbidden it returns None rather than raising."""
     if respect_robots and not allowed(url):
         return None
     host = _host(url)

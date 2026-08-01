@@ -2,21 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Python выполняет код из собственных модулей: без этих разрешений
-         hardened runtime не даст приложению запуститься. -->
+    <!-- Python runs code from its own modules: without these entitlements
+         the hardened runtime will not let the app start. -->
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
     <true/>
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
-    <!-- Приложение ходит в интернет: агрегаторы вакансий, сайты компаний, Telegram. -->
+    <!-- The app goes out to the internet: job aggregators, company sites, Telegram. -->
     <key>com.apple.security.network.client</key>
     <true/>
-    <!-- Внутри поднимается локальный сервер, к которому подключается окно. -->
+    <!-- A local server is started inside, and the window connects to it. -->
     <key>com.apple.security.network.server</key>
     <true/>
-    <!-- Пользователь выбирает CV из своих файлов. -->
+    <!-- The user picks a CV from their own files. -->
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
 </dict>

@@ -1,8 +1,8 @@
-"""Загрузка и сохранение настроек и CV для активного профиля.
+"""Loading and saving the settings and the CV of the active profile.
 
-Данные каждого человека — в своём каталоге data/profiles/<slug>/ (см. profiles.py).
-Пути вычисляются динамически по активному профилю, поэтому один сервер обслуживает
-несколько людей.
+Each person's data lives in its own directory, data/profiles/<slug>/ (see
+profiles.py). The paths are worked out on the fly from the active profile, which
+is how one server serves several people.
 """
 import copy
 import json
@@ -30,7 +30,7 @@ DEFAULTS = {
     "profile": {
         "summary": "",
         "roles": "",
-        "skills": "",               # ключевые навыки/технологии (напр. SAP PI/PO, Java, REST)
+        "skills": "",               # key skills and technologies (e.g. SAP PI/PO, Java, REST)
         "seniority": "",
         "salary": "",
         "work_format": "any",       # remote | hybrid | onsite | any
@@ -44,19 +44,19 @@ DEFAULTS = {
     "search": {
         "locations": "EU, USA",
         "threshold": 70,
-        "match_priority": "both",   # на что опираться: role | skills | both
-        "drop_off_target": True,    # отсеивать явно нерелевантные роли (продажи/HR/саппорт) до LLM
-        "triage_second_vote": True, # второй голос триажа для пограничных (ловит занижения)
+        "match_priority": "both",   # what to lean on: role | skills | both
+        "drop_off_target": True,    # drop plainly irrelevant roles (sales/HR/support) before the model
+        "triage_second_vote": True, # a second triage vote for borderline ones (catches underestimates)
         "keywords_include": "",
         "keywords_exclude": "",
         "include_remote": True,
-        "triage_limit": 400,         # верхний предел вакансий на LLM-триаж за прогон
-        "deep_during_run": True,     # разбирать глубоко прямо в прогоне
-        "deep_top_n": 15,            # для скольких лучших делать разбор CV
-        "discover_per_run": 5,       # сколько новых компаний искать веб-поиском за прогон
-        "discover_ats_per_run": 5,   # сколько вакансий искать веб-поиском прямо на доменах ATS
-        "parallelism": 5,            # сколько LLM-вызовов выполнять параллельно
-        "research_company": True,    # искать зарплату и факты о компании (Glassdoor/Kununu/...)
+        "triage_limit": 400,         # the most jobs the model will triage in one run
+        "deep_during_run": True,     # do the deep analysis during the run itself
+        "deep_top_n": 15,            # how many of the best get their CV worked out
+        "discover_per_run": 5,       # how many new companies to find by web search per run
+        "discover_ats_per_run": 5,   # how many jobs to find by web search on the ATS domains
+        "parallelism": 5,            # how many model calls to run at once
+        "research_company": True,    # look up the salary and facts about the company (Glassdoor/Kununu/…)
     },
     "sources": {
         "companies": [],             # [{"name": ..., "url": ...}]
@@ -69,12 +69,12 @@ DEFAULTS = {
         "use_himalayas": True,
         "use_themuse": True,
         "use_arbeitsagentur": True,
-        # Работодателей, найденных в ссылках уже собранных вакансий, добавляем
-        # в наблюдение: агрегатор показывает одну-две вакансии компании, а её
-        # доска — все. Модель и веб-поиск для этого не нужны, поэтому охват
-        # растёт и с локальной моделью.
+        # Employers found in the links of jobs already collected go onto the watch
+        # list: an aggregator shows one or two of a company's jobs, while its own
+        # board shows them all. Neither the model nor a web search is needed for
+        # this, so the reach grows with a local model too.
         "harvest_boards": True,
-        "harvest_per_run": 10,      # мягкий предел, чтобы охват рос постепенно
+        "harvest_per_run": 10,      # a soft limit, so the reach grows gradually
         "adzuna_app_id": "",
         "adzuna_app_key": "",
         "adzuna_countries": "de,nl,gb,fr,es,it,pl,at,us",
@@ -84,7 +84,7 @@ DEFAULTS = {
         "provider": "claude_cli",     # claude_cli | cursor_cli | ollama
         "claude_bin": "claude",
         "triage_model": "haiku",
-        "deep_model": "",            # пусто = модель по умолчанию из настроек claude
+        "deep_model": "",            # empty = claude's own default model
     },
     "telegram": {
         "bot_token": "",
@@ -92,25 +92,25 @@ DEFAULTS = {
     },
     "email": {
         "enabled": False,
-        "preset": "gmail",       # ключ из mailer.PRESETS
+        "preset": "gmail",       # a key from mailer.PRESETS
         "host": "smtp.gmail.com",
         "port": 587,
         "tls": True,
-        "username": "",          # адрес отправителя (он же логин)
-        "password": "",          # для Gmail/Яндекса/Mail.ru — «пароль приложения»
-        "from": "",              # пусто = username
-        "to": "",                # пусто = username (себе же)
+        "username": "",          # the sender's address (which is also the login)
+        "password": "",          # for Gmail/Yandex/Mail.ru this is an "app password"
+        "from": "",              # empty = username
+        "to": "",                # empty = username (to yourself)
     },
     "schedule": {
         "mode": "off",               # off | interval | continuous
         "every_value": 1,
-        "every_unit": "days",        # hours | days | weeks (для interval)
-        "continuous_cooldown_min": 20,  # пауза между прогонами в непрерывном режиме
+        "every_unit": "days",        # hours | days | weeks (for interval)
+        "continuous_cooldown_min": 20,  # the pause between runs in continuous mode
     },
     "ui": {
-        "background": False,         # продолжать поиск после закрытия окна
-        "lang": "",                  # пусто = взять язык системы при первом запуске
-        "output_lang": "",           # пусто = как язык интерфейса
+        "background": False,         # keep searching after the window is closed
+        "lang": "",                  # empty = take the system language on first launch
+        "output_lang": "",           # empty = same as the interface language
     },
 }
 
@@ -138,12 +138,12 @@ def load() -> dict:
         else:
             stored = {}
     cfg = _merge(DEFAULTS, stored)
-    # совместимость: старое schedule.enabled → schedule.mode
+    # compatibility: the old schedule.enabled → schedule.mode
     sched = stored.get("schedule", {})
     if "mode" not in sched and "enabled" in sched:
         cfg["schedule"]["mode"] = "interval" if sched.get("enabled") else "off"
     cfg["schedule"].pop("enabled", None)
-    # Язык не выбран (первый запуск) — берём системный, а не чужой по умолчанию.
+    # No language chosen (first launch) — take the system one, not a stranger's default.
     if not cfg["ui"].get("lang"):
         from . import i18n
         cfg["ui"]["lang"] = i18n.system_lang()
@@ -175,27 +175,27 @@ def cv_meta() -> dict:
 
 
 def _docx_text(path) -> str:
-    """Извлекает текст из .docx без внешних зависимостей (docx = zip с XML)."""
+    """Pulls the text out of a .docx with no outside dependencies (docx = a zip of XML)."""
     import re
     import zipfile
     with zipfile.ZipFile(path) as z:
         xml = z.read("word/document.xml").decode("utf-8", errors="ignore")
-    xml = re.sub(r"</w:p>", "\n", xml)          # конец абзаца → перенос строки
+    xml = re.sub(r"</w:p>", "\n", xml)          # end of paragraph → newline
     xml = re.sub(r"<w:tab/>", "\t", xml)
-    text = re.sub(r"<[^>]+>", "", xml)          # убрать теги
+    text = re.sub(r"<[^>]+>", "", xml)          # strip the tags
     import html as _html
     return _html.unescape(text)
 
 
 def _fix_letter_spacing(text: str) -> str:
-    """Некоторые PDF (дизайнерские шаблоны, напр. Canva) отдают текст с пробелом
-    после каждой буквы: «E l i s a b e t t a». Детектируем по доле односимвольных
-    токенов и склеиваем: буквы внутри слова разделены одним пробелом,
-    слова — двумя и более."""
+    """Some PDFs (designer templates, Canva for instance) hand back the text with a
+    space after every letter: "E l i s a b e t t a". We spot it by the share of
+    one-character tokens and glue it back: inside a word the letters are separated
+    by one space, words by two or more."""
     import re
     tokens = text.split()
     if not tokens or sum(1 for t in tokens if len(t) == 1) / len(tokens) < 0.6:
-        return text  # обычный текст — не трогаем
+        return text  # ordinary text — leave it alone
     lines = []
     for line in text.splitlines():
         words = re.split(r"\s{2,}", line.strip())
@@ -207,10 +207,11 @@ ALLOWED_CV_EXT = (".pdf", ".docx", ".txt", ".md", ".rtf")
 
 
 class CVError(ValueError):
-    """Файл не годится как резюме.
+    """The file will not do as a CV.
 
-    Несёт ключ перевода, а не готовый текст: модуль не знает языка интерфейса,
-    а сообщение показывается человеку — раньше оно всегда было русским.
+    It carries a translation key rather than finished text: the module does not
+    know the interface language, and the message is shown to a person — it used
+    to be in Russian always.
     """
 
     def __init__(self, key: str, **fmt):
@@ -224,7 +225,7 @@ def _extract_cv_text(path, ext: str, raw: bytes) -> str:
         try:
             reader = PdfReader(str(path))
             text = "\n".join((page.extract_text() or "") for page in reader.pages)
-        except Exception as e:  # noqa: BLE001 — библиотека бросает разное
+        except Exception as e:  # noqa: BLE001 — the library throws all sorts
             raise CVError("cv_err_pdf") from e
         return _fix_letter_spacing(text)
     if ext == ".docx":
@@ -239,10 +240,10 @@ def _extract_cv_text(path, ext: str, raw: bytes) -> str:
 
 
 def save_cv(filename: str, raw: bytes) -> str:
-    """Сохраняет CV, извлекает текст. Возвращает извлечённый текст.
+    """Saves the CV and extracts its text, which it returns.
 
-    Прежнее CV перезаписывается только после того, как новый файл разобран
-    успешно: иначе одна неудачная загрузка стирала бы уже работающее резюме.
+    The previous CV is overwritten only once the new file has been read
+    successfully: otherwise one failed upload would wipe a CV that worked.
     """
     import re
     from pathlib import Path
@@ -264,7 +265,7 @@ def save_cv(filename: str, raw: bytes) -> str:
         tmp.unlink(missing_ok=True)
         raise
 
-    # разбор удался — заменяем прежнее резюме
+    # it parsed — now replace the previous CV
     for old in d.glob("cv.*"):
         if old.suffix.lower() != ".txt" or old.name != "cv.txt":
             old.unlink(missing_ok=True)

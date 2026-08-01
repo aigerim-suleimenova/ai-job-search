@@ -1,11 +1,12 @@
-"""Версия программы — одна на всех, и её должно быть видно человеку.
+"""The program's version — one for everyone, and a person has to be able to see it.
 
-Раньше её негде было посмотреть: ни на одной странице, ни в журнале ошибок.
-Когда человек писал «не запускается», первым вопросом было «а какая у вас
-версия?» — и ответить на него он не мог.
+There used to be nowhere to look it up: not on any page, not in the error log.
+When someone wrote "it will not start", the first question was "which version do
+you have?" — and they could not answer it.
 
-Номер проставляется при сборке (см. packaging/aijobsearch.spec) в файл рядом
-с программой. Запуск из исходников версии не имеет и честно говорит «dev».
+The number is stamped in at build time (see packaging/aijobsearch.spec) into a
+file next to the program. Running from source has no version and says so
+honestly: "dev".
 """
 import sys
 from functools import lru_cache
@@ -15,8 +16,8 @@ FALLBACK = "dev"
 
 
 def _candidates():
-    """Где лежит VERSION.txt: в собранном приложении — рядом с данными сборки,
-    при запуске из исходников — в корне репозитория."""
+    """Where VERSION.txt lives: in a packaged app, next to the build's data; when
+    running from source, in the root of the repository."""
     here = Path(__file__).resolve().parent.parent
     yield here / "VERSION.txt"
     bundle = getattr(sys, "_MEIPASS", "")

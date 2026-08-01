@@ -1,4 +1,4 @@
-"""Оркестрация одного прогона поиска."""
+"""Orchestrating a single search run."""
 import json
 import os
 import threading
@@ -15,13 +15,13 @@ state = {"running": False, "stage": "", "log": [], "profile": ""}
 
 
 class Stopped(RuntimeError):
-    """Прогон прерван пользователем."""
+    """The run was interrupted by the user."""
 
 
 def request_stop() -> None:
-    """Просит текущий прогон остановиться на ближайшей контрольной точке."""
+    """Asks the current run to stop at the nearest check point."""
     _stop.set()
-    llm.set_cancel()   # длинные параллельные этапы прерываются, не дожидаясь конца
+    llm.set_cancel()   # long parallel stages break off without waiting for the end
 
 
 def stop_requested() -> bool:
@@ -40,37 +40,42 @@ def _log(msg: str) -> None:
 
 
 
-# Порядок этапов прогона: по нему страница показывает «шаг N из M».
-# Часть этапов пропускается (веб-поиск выключен, модель не умеет искать),
-# поэтому номера могут перескакивать — это честнее, чем рисовать проценты.
+# The order of the run's stages: the page shows "step N of M" from it. Some
+# stages are skipped (web search off, the model cannot search), so the numbers
+# may jump — which is more honest than drawing a percentage.
 STAGE_ORDER = ["stage_cv", "stage_start", "stage_discover", "stage_discover_ats",
                "stage_collect", "stage_dedupe", "stage_prepare", "stage_triage",
                "stage_deep", "stage_deep_research", "stage_save"]
-STAGE_COUNT = len(STAGE_ORDER) - 1   # deep и deep_research — одно и то же место
+STAGE_COUNT = len(STAGE_ORDER) - 1   # deep and deep_research are the same place
 
 def _logk(key: str, **fmt) -> None:
-    """Строка журнала на языке интерфейса.
+    """A log line in the interface language.
 
-    Журнал видит человек — значит, он не может быть всегда русским, как бы
-    удобно это ни было при написании кода.
+    A person reads this log — so it cannot always be in Russian, however
+    convenient that was while the code was being written.
     """
-    text = i18n.t(config.load()["ui"]["lang"], key)
+    lang = config.load()["ui"]["lang"]
+    # An exception in a substitution is text for a person too: our own errors
+    # carry a translation key, and without this the key's name would land in the log.
+    fmt = {k: (i18n.err(lang, v) if isinstance(v, BaseException) else v)
+           for k, v in fmt.items()}
+    text = i18n.t(lang, key)
     _log(text.format(**fmt) if fmt else text)
 
 
 def _stage(key: str) -> None:
-    """Отмечает этап. В state лежит ключ перевода, а не готовая строка: язык
-    подставит страница, которая её показывает."""
-    _check_stop()          # между этапами — самое безопасное место, чтобы прерваться
+    """Marks a stage. state holds a translation key rather than finished text:
+    the language is filled in by the page that shows it."""
+    _check_stop()          # between stages is the safest place to break off
     state["stage"] = key
     state["stage_started"] = time.time()
-    state["progress"] = None      # счётчик внутри этапа — только у длинных
+    state["progress"] = None      # only long stages count items inside themselves
     state["step"] = STAGE_ORDER.index(key) + 1 if key in STAGE_ORDER else state.get("step", 1)
     _log("— " + i18n.t(config.load()["ui"]["lang"], key))
 
 
 def run_async(trigger: str = "manual", profile: str = None) -> bool:
-    """Запускает прогон в фоновом потоке. False, если уже идёт."""
+    """Starts a run in a background thread. False if one is already going."""
     if state["running"]:
         return False
     profile = profile or profiles.active()
@@ -80,9 +85,10 @@ def run_async(trigger: str = "manual", profile: str = None) -> bool:
 
 
 def prepare_and_run(profile: str, trigger: str = "manual") -> bool:
-    """Разбор резюме моделью занимает до полутора минут. Раньше это делалось прямо
-    в обработчике формы, и человек всё это время смотрел на застывшую страницу без
-    единого признака жизни. Теперь подготовка — такая же видимая стадия прогона."""
+    """Having the model read the CV takes up to a minute and a half. This used to
+    happen right inside the form handler, and all that time a person stared at a
+    frozen page with no sign of life. Now the preparation is a visible stage of
+    the run like any other."""
     if state["running"]:
         return False
 
@@ -97,7 +103,7 @@ def prepare_and_run(profile: str, trigger: str = "manual") -> bool:
                 cfg = scoring.profile_from_cv(cfg, cv)
                 config.save(cfg)
                 _logk("log_cv_roles", roles=cfg["profile"].get("roles", "")[:80])
-        except Exception as e:  # noqa: BLE001 — не смогли разобрать, ищем по тому, что есть
+        except Exception as e:  # noqa: BLE001 — could not parse it; search on what we have
             _logk("log_cv_failed", error=e)
         finally:
             state.update(running=False)
@@ -111,7 +117,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
     if not _run_lock.acquire(blocking=False):
         return
     if profile:
-        profiles.set_active(profile)  # свой поток → задаём активный профиль явно
+        profiles.set_active(profile)  # our own thread → set the active profile explicitly
     _stop.clear()
     llm.clear_cancel()
     llm.mark_run_thread()
@@ -126,9 +132,9 @@ def run(trigger: str = "manual", profile: str = None) -> None:
     try:
         _logk("log_run", n=run_id, trigger=trigger)
 
-        # 0. Поиск новых компаний под профиль (веб-поиск через claude).
-        # Веб-поиск умеет только Claude Code CLI: на других провайдерах этот шаг
-        # пропускается, иначе модель начнёт выдумывать компании и ссылки.
+        # 0. Finding new companies for this profile (web search through claude).
+        # Only Claude Code CLI can search the web: on other providers this step is
+        # skipped, or the model would start inventing companies and links.
         web_ok = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
         n_disc = int(cfg["search"].get("discover_per_run", 0))
         if n_disc > 0 and not web_ok:
@@ -145,8 +151,8 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             else:
                 _logk("log_no_new_companies")
 
-        # 0b. Поиск вакансий прямо на доменах ATS (site:boards.greenhouse.io ...) —
-        # каждая находка даёт и вакансию, и новую компанию, чью доску забираем целиком.
+        # 0b. Searching for jobs on the ATS domains directly (site:boards.greenhouse.io …)
+        # — every hit gives both a job and a new company whose board we then take whole.
         n_ats = int(cfg["search"].get("discover_ats_per_run", 0))
         if n_ats > 0 and web_ok:
             _stage("stage_discover_ats")
@@ -157,7 +163,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             else:
                 _logk("log_no_new_boards")
 
-        # 1. Сбор
+        # 1. Collecting
         _stage("stage_collect")
         jobs = []
         def _company(comp):
@@ -173,13 +179,14 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                     got = ats.fetch(detected[0], detected[1], company_hint=name)
                 else:
                     got = crawler.crawl_company(name or url, url, cfg, _log)
-                for j in got:  # компании из списка пользователя всегда идут на LLM-оценку
+                for j in got:  # companies from the person's own list always go to the model
                     j["from_watchlist"] = True
                 entry["count"] = len(got)
                 _log(f"{name or url} [{entry['kind']}]: {len(got)}")
-            except Exception as e:  # noqa: BLE001 — один источник не должен ронять прогон
-                _log(f"{name or url}: {e}")
-                entry["error"] = str(e)[:300]
+            except Exception as e:  # noqa: BLE001 — one source must not bring down the run
+                reason = i18n.err(cfg["ui"]["lang"], e)
+                _log(f"{name or url}: {reason}")
+                entry["error"] = reason[:300]
                 got = []
             return entry, got
 
@@ -194,7 +201,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         found = len(jobs)
         _logk("log_collected", n=found)
 
-        # 2. Нормализация и дедупликация (прямые вакансии приоритетнее)
+        # 2. Normalising and de-duplicating (direct jobs win over the rest)
         _stage("stage_dedupe")
         by_key = {}
         for j in jobs:
@@ -204,7 +211,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 by_key[j["key"]] = j
         jobs = list(by_key.values())
 
-        # 3. Жёсткие фильтры (с примерами отсева в журнале — чтобы ловить ложные срабатывания)
+        # 3. Hard filters (with examples of what was dropped in the log, to catch false hits)
         wanted = filters.parse_locations(cfg["search"].get("locations", ""))
         exclude = [t.strip().lower() for t in cfg["search"].get("keywords_exclude", "").split(",") if t.strip()]
         include_remote = bool(cfg["search"].get("include_remote", True))
@@ -226,9 +233,10 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         for j in drop_kw[:5]:
             _logk("log_drop_keyword", title=j.get("title", "")[:60], company=j.get("company", "")[:40])
 
-        # 3a. Работодатели из ссылок: их адреса уже у нас, лишних запросов нет.
-        # Делается до отсева «только новых» — доска ценна и тогда, когда сама
-        # вакансия уже была: агрегатор показал одну, а на доске их двадцать.
+        # 3a. Employers from the links: we already hold their addresses, so no extra
+        # requests. Done before the "only new ones" filter — a board is worth having
+        # even when the job itself is old news: the aggregator showed one, the board
+        # has twenty.
         if cfg["sources"].get("harvest_boards", True):
             найдено = harvest.find_new(jobs, cfg["sources"].get("companies", []),
                                        limit=int(cfg["sources"].get("harvest_per_run", 10)))
@@ -239,26 +247,26 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                     _logk("log_harvest_board", name=c["name"], url=c["url"])
                 _logk("log_harvest_total", n=len(найдено))
 
-        # 4. Только новые
+        # 4. Only the new ones
         seen = db.seen_keys()
         jobs = [j for j in jobs if j["key"] not in seen]
         fresh = len(jobs)
         _logk("log_fresh", n=fresh)
 
-        # 5. Порядок и верхний предел на триаж (при параллельном триаже успеваем оценить всё).
-        # Приоритет — вакансиям компаний из списка мониторинга, затем по лексике.
+        # 5. Order and an upper bound on triage (running it in parallel, we get through
+        # everything). Jobs from watched companies come first, then by wording.
         _stage("stage_prepare")
         terms = scoring.profile_terms(cfg, cv)
 
-        # 5a. Дешёвый пре-фильтр: отсекаем заведомо не ту профессию (продажи/HR/саппорт)
-        # ДО дорогой LLM-оценки — освобождает бюджет триажа под реальных кандидатов.
+        # 5a. A cheap pre-filter: cut off the obviously wrong trade (sales/HR/support)
+        # BEFORE the expensive model call — it frees the triage budget for real candidates.
         if cfg["search"].get("drop_off_target", True):
             before = len(jobs)
             jobs = [j for j in jobs if not filters.off_target(j, terms)]
             dropped = before - len(jobs)
-            # Отсеянных НЕ помечаем виденными: проверка бесплатная (строки, без LLM)
-            # и повторится в следующем прогоне, зато при смене ролей/навыков профиля
-            # такие вакансии автоматически вернутся в рассмотрение.
+            # The dropped ones are NOT marked as seen: the check is free (strings, no
+            # model) and will happen again next run, and if the profile's roles or
+            # skills change those jobs come back into consideration by themselves.
             if dropped:
                 _logk("log_dropped_offtarget", n=dropped)
 
@@ -268,18 +276,19 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         watch = sorted((j for j in jobs if j.get("from_watchlist")), key=lambda j: -j["_lex"])
         others = sorted((j for j in jobs if not j.get("from_watchlist")), key=lambda j: -j["_lex"])
         candidates = (watch + others)[:limit]
-        deferred = (watch + others)[limit:]  # не помечаем виденными — дойдут в след. прогонах
+        deferred = (watch + others)[limit:]  # not marked seen — they get their turn next run
         _logk("log_to_triage", n=len(candidates), own=min(len(watch), limit))
         if deferred:
             _logk("log_deferred", n=len(deferred))
 
-        # 6. LLM-триаж (haiku, параллельно)
+        # 6. Model triage (haiku, in parallel)
         _stage("stage_triage")
         if not (cfg["profile"].get("roles") or cfg["profile"].get("summary") or cv):
             _logk("log_empty_profile")
             _logk("log_empty_profile_fix")
-        # Кладём в базу по мере оценки: человек мог открыть «Результаты» сразу
-        # после запуска, и ждать конца прогона, чтобы увидеть первую строку, — плохо.
+        # Saved to the database as they are scored: a person may have opened
+        # "Results" right after starting, and waiting out the whole run to see the
+        # first line would be poor.
         def _save_batch(batch, done=0, total=0):
             for j in batch:
                 if j.get("score") is not None:
@@ -291,10 +300,11 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         threshold = int(cfg["search"].get("threshold", 70))
         scored = [j for j in candidates if j.get("score") is not None]
 
-        # 6b. Второе мнение для «серой зоны». Триаж шумит ±15-20 п.п.; завышение потом
-        # исправит глубокий разбор, а ЗАНИЖЕНИЕ невосполнимо: вакансия сохранится с низким
-        # баллом и больше не пересматривается. Поэтому всем, кто попал заметно ниже порога,
-        # даём второй независимый голос и берём максимум из двух.
+        # 6b. A second opinion for the grey zone. Triage is noisy to ±15-20 points;
+        # an overestimate is corrected later by the deep analysis, but an
+        # UNDERestimate is beyond repair: the job is stored with a low score and
+        # never looked at again. So everything that landed noticeably below the
+        # threshold gets a second independent vote, and we take the higher of the two.
         if cfg["search"].get("triage_second_vote", True):
             band = [j for j in scored if threshold - 40 <= (j["score"] or 0) < threshold]
             if band:
@@ -304,28 +314,29 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                 rescued = 0
                 for j in band:
                     s1, r1 = first[j["key"]]
-                    if (j.get("score") or 0) < (s1 or 0):  # первый голос был выше — берём его
+                    if (j.get("score") or 0) < (s1 or 0):  # the first vote was higher — keep it
                         j["score"], j["reason"] = s1, r1
                     if (j.get("score") or 0) >= threshold and (s1 or 0) < threshold:
                         rescued += 1
                 if rescued:
                     _logk("log_second_vote_rescued", n=rescued)
 
-        # Триаж (haiku) систематически оптимистичен и шумит ±15-20 п.п.
-        # ВСЕ вакансии, которые триаж поднял до порога, проверяем глубоко — именно они
-        # формируют дайджест, и без проверки туда просачиваются ложные проходы.
-        # Плюс запас near-miss'ов чуть ниже порога — ловим занижения триажа (как Matcha 70→82).
+        # Triage (haiku) is systematically optimistic and noisy to ±15-20 points.
+        # EVERY job triage lifted to the threshold gets the deep check — those are
+        # what make up the digest, and without the check false passes seep into it.
+        # Plus a margin of near-misses just below the threshold, to catch triage's
+        # underestimates (as with Matcha, 70→82).
         keep_margin = 20
         above = sorted((j for j in scored if j["score"] >= threshold),
                        key=lambda j: (not j.get("from_watchlist"), -j["score"]))
         near = sorted((j for j in scored if threshold - keep_margin <= j["score"] < threshold),
                       key=lambda j: (not j.get("from_watchlist"), -j["score"]))
         top_n = int(cfg["search"].get("deep_top_n", 15))
-        max_deep = max(top_n, len(above)) + 5  # мягкий потолок, чтобы не разориться
-        # Разбор можно выключить: тогда прогон только оценивает, а разобрать
-        # конкретную вакансию человек попросит кнопкой у неё в списке.
+        max_deep = max(top_n, len(above)) + 5  # a soft ceiling, so as not to go broke
+        # The deep analysis can be turned off: then the run only scores, and a
+        # person asks for a particular job with the button next to it in the list.
         to_deep = (above + near[:top_n])[:max_deep] if cfg["search"].get("deep_during_run", True) else []
-        for j in scored:  # остальные сохраняем сразу с триажным баллом
+        for j in scored:  # the rest are stored straight away with their triage score
             if j not in to_deep:
                 db.save_job(j, run_id)
         if to_deep:
@@ -334,8 +345,8 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         else:
             _logk("log_triage_done_nodeep", n=len(scored), above=len(above))
 
-        # 7. Глубокий разбор (параллельно): точный %, правки CV и LinkedIn,
-        # плюс, если включено, зарплата и факты о компании из веб-поиска
+        # 7. Deep analysis (in parallel): the exact %, edits for the CV and LinkedIn,
+        # plus, if enabled, the salary and facts about the company from a web search
         research = bool(cfg["search"].get("research_company", True))
         _stage("stage_deep_research" if research else "stage_deep")
         deep_done = {"n": 0}
@@ -349,7 +360,7 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             _logk("log_deep_item", i=deep_done["n"], total=len(to_deep),
                   title=j.get("title"), company=j.get("company"), tail=tail)
 
-        # глубокие вызовы тяжёлые (запрос страницы + длинный промпт) — параллелим осторожнее
+        # deep calls are heavy (fetching a page plus a long prompt) — parallelise more carefully
         deep_workers = min(int(cfg["search"].get("parallelism", 5)), 3)
         for r in llm.pmap(_deep, to_deep, workers=deep_workers):
             if isinstance(r, Exception):
@@ -361,14 +372,14 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         matched = [j for j in scored if (j.get("score") or 0) >= threshold]
         matched.sort(key=lambda j: (not (j.get("is_direct") and not j.get("is_agency")), -(j.get("score") or 0)))
         final = matched
-        # «близко, но ниже порога» для дайджеста — только разобранные, чтобы не шуметь триажными
+        # "close but below the threshold" for the digest — analysed ones only, so triage does not add noise
         demoted = sorted(
             (j for j in to_deep if (j.get("score") or 0) < threshold and (j.get("score") or 0) >= threshold - 15),
             key=lambda j: -(j.get("score") or 0),
         )[:5]
         matched_count = len(final)
 
-        # 8. Сохранение и уведомление
+        # 8. Saving and notifying
         _stage("stage_save")
         for j in matched:
             db.save_job(j, run_id)
@@ -390,15 +401,15 @@ def run(trigger: str = "manual", profile: str = None) -> None:
                                    db.now(), threshold)
                 _logk("log_mail_sent")
             except mailer.MailError as e:
-                _logk("log_mail_error", error=i18n.t(cfg["ui"]["lang"], e.key).format(**e.fmt))
+                _logk("log_mail_error", error=e)
                 status = "warn"
         _logk("log_done")
     except (Stopped, llm.Cancelled):
         status = "stopped"
         _logk("log_stopped")
     except llm.AuthError as e:
-        # Вакансии собрать можно и без модели, но оценить их — нельзя, поэтому
-        # прогон останавливается здесь, а не молча доходит до конца с нулём.
+        # Jobs can be collected without a model, but not scored, so the run stops
+        # here rather than quietly reaching the end with nothing.
         status = "noauth"
         _logk("log_noauth", error=e)
         _logk("log_noauth_stop")

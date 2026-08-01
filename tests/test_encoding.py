@@ -1,9 +1,9 @@
-"""Файлы читаются и пишутся в UTF-8 явно, а не «как в системе».
+"""Files are read and written as UTF-8 explicitly, not "however the system does it".
 
-На macOS и Linux кодировка по умолчанию и так UTF-8, поэтому ошибка здесь
-невидима до тех пор, пока кто-нибудь не запустит программу на Windows: там
-по умолчанию cp1252, и первая же стрелка «→» в резюме роняет сохранение.
-Проверять это на своей машине бесполезно — поэтому проверяем сам код.
+On macOS and Linux the default encoding is UTF-8 anyway, so a mistake here stays
+invisible until somebody runs the program on Windows: there the default is
+cp1252, and the very first arrow "→" in a CV brings the save down. Checking this
+on your own machine is useless — so we check the code itself.
 """
 import ast
 from pathlib import Path
@@ -14,9 +14,9 @@ import pytest
 ПАПКИ = ["jobsearch", "packaging"]
 ФАЙЛЫ = ["app.py", "desktop.py"]
 
-# Эти вызовы работают с текстом, и без encoding= берут кодировку системы
+# These calls work with text, and without encoding= they take the system's
 ТЕКСТОВЫЕ = {"read_text", "write_text", "open"}
-# ...но open() есть не только у файлов: webbrowser.open открывает браузер
+# …but open() is not only a file thing: webbrowser.open opens a browser
 НЕ_ФАЙЛЫ = {"webbrowser", "os", "subprocess", "urllib", "request"}
 
 
@@ -28,7 +28,7 @@ def исходники():
 
 
 def двоичный_режим(call: ast.Call) -> bool:
-    """open(..., 'rb') и подобное — байты, кодировка им не нужна."""
+    """open(..., 'rb') and its like deal in bytes and need no encoding."""
     режимы = [a for a in call.args[1:2] if isinstance(a, ast.Constant)]
     режимы += [k.value for k in call.keywords
                if k.arg == "mode" and isinstance(k.value, ast.Constant)]
@@ -65,10 +65,10 @@ def test_кодировка_задана_явно(путь):
 
 
 def test_резюме_со_стрелками_и_кириллицей_переживает_запись(profile):
-    """Тот самый случай: в резюме «→», и сохранение падало на Windows.
+    """The very case: an arrow "→" in a CV, and saving fell over on Windows.
 
-    Текст длиннее сотни символов — короче программа считает разбор неудачным
-    и отказывается сохранять."""
+    The text is longer than a hundred characters — anything shorter and the
+    program treats the parse as failed and refuses to save."""
     from jobsearch import config
     текст = ("Виктор Лавров — фронтенд-инженер.\n"
              "Опыт: React → TypeScript → Python. Дизайн-системы, доступность.\n"

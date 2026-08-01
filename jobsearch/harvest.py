@@ -1,26 +1,27 @@
-"""Работодатели из ссылок, которые мы и так скачали.
+"""Employers found in links we had already downloaded.
 
-Агрегаторы отдают вакансии вместе с адресами, и большая часть этих адресов
-ведёт прямо на доску компании в ATS — boards.greenhouse.io/<кто-то>,
-jobs.lever.co/<кто-то> и так далее. В базе одного человека таких оказалось
-342 ссылки из 392, за двадцатью семью компаниями.
+Aggregators hand back a job together with its address, and most of those
+addresses lead straight to the company's own ATS board — boards.greenhouse.io/
+<someone>, jobs.lever.co/<someone> and so on. In one person's database that came
+to 342 links out of 392, standing for twenty-seven companies.
 
-Раньше программа опознавала ATS только у компаний, добавленных руками, а эти
-адреса выбрасывала. Теперь запоминает: на следующем прогоне доска читается
-целиком, а не теми одной-двумя вакансиями, которые попали в агрегатор.
+The program used to recognise an ATS only for companies added by hand and threw
+these addresses away. Now it remembers them: from the next run the board is read
+in full, instead of through the one or two jobs that reached the aggregator.
 
-Ни веб-поиска, ни модели, ни единого лишнего запроса — ссылки уже у нас.
-Поэтому охват растёт одинаково с Claude Code, с Cursor, с локальной моделью
-и вообще без модели.
+No web search, no model, not a single extra request — the links are already in
+hand. So the reach grows just the same with Claude Code, with Cursor, with a
+local model, and with no model at all.
 """
 from urllib.parse import urlparse
 
 from .collectors import ats
 
-# Адрес доски по виду ATS. Собранный адрес обязан опознаваться обратно тем же
-# detect() — иначе на следующем прогоне доска добавится второй раз. Проверка
-# круга стоит ниже, в _board_url(), и это не перестраховка: для personio slug
-# и есть готовый хост, и шаблон «{slug}.jobs.personio.de» слепил из него
+# The board address per kind of ATS. An assembled address has to be recognised
+# back by the same detect() — otherwise the board is added again on the next run.
+# The round-trip check sits below in _board_url(), and it is not belt-and-braces:
+# for personio the slug is already a complete host, and the template
+# "{slug}.jobs.personio.de" glued it into
 # «digacon-software.jobs.personio.com.jobs.personio.de».
 BOARD_URL = {
     "greenhouse": "https://boards.greenhouse.io/{slug}",
@@ -29,13 +30,13 @@ BOARD_URL = {
     "workable": "https://apply.workable.com/{slug}",
     "recruitee": "https://{slug}.recruitee.com",
     "smartrecruiters": "https://careers.smartrecruiters.com/{slug}",
-    "personio": "https://{slug}",          # slug здесь — уже полный хост
+    "personio": "https://{slug}",          # here the slug is already a complete host
 }
 
 
 def _board_url(kind: str, slug: str) -> str:
-    """Адрес доски, который заведомо читается обратно. Пустая строка — значит
-    такой вид ATS мы собрать не умеем, и лучше пропустить, чем накопить мусор."""
+    """A board address that is certain to be recognised back. An empty string means
+    we cannot assemble this kind of ATS, and skipping beats collecting rubbish."""
     шаблон = BOARD_URL.get(kind)
     if not шаблон or not slug:
         return ""
@@ -44,9 +45,9 @@ def _board_url(kind: str, slug: str) -> str:
 
 
 def _known(companies: list) -> set:
-    """Что уже под наблюдением — сравниваем по виду ATS и названию доски,
-    а не по строке адреса: один и тот же работодатель встречается под разными
-    ссылками (с www, со слэшем, со ссылкой на конкретную вакансию)."""
+    """What is already watched — compared by the kind of ATS and the board's name
+    rather than by the address string: the same employer turns up under different
+    links (with www, with a trailing slash, pointing at one particular job)."""
     известно = set()
     for c in companies:
         got = ats.detect(c.get("url", ""))
@@ -58,8 +59,8 @@ def _known(companies: list) -> set:
 
 
 def find_new(jobs: list, companies: list, limit: int = 10) -> list:
-    """Доски, которых ещё нет в наблюдении. Возвращает записи вида
-    {"name": ..., "url": ...} — те же, что человек добавляет руками."""
+    """Boards not yet watched. Returns entries of the form {"name": …, "url": …} —
+    the same ones a person adds by hand."""
     известно = _known(companies)
     новые, взято = [], set()
     for job in jobs:

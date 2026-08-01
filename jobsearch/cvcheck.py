@@ -1,12 +1,14 @@
-"""Проверка CV: машиночитаемость для ATS-роботов и визуальная читаемость для людей.
+"""Checking a CV: machine-readability for ATS robots and visual readability for people.
 
-Две части, потому что читают документ два разных «получателя»:
-- ATS (Greenhouse, Workable, Lever...) парсит текст. Ему безразличен дизайн, но
-  колонки, таблицы, текст внутри картинок и нестандартные заголовки секций ломают
-  разбор — поле «опыт» приезжает пустым, и человек резюме уже не увидит.
-- Рекрутер смотрит 6-10 секунд. Здесь важны иерархия, плотность, длина.
+Two parts, because two very different readers open the document:
+- An ATS (Greenhouse, Workable, Lever…) parses the text. The design means nothing
+  to it, but columns, tables, text inside images and unusual section headings
+  break the parse — the "experience" field arrives empty, and a person never sees
+  the CV at all.
+- A recruiter looks for six to ten seconds. Here hierarchy, density and length matter.
 
-Технические проверки считаются локально, визуальные — моделью по картинке страницы.
+The technical checks are computed locally; the visual ones by the model from a
+picture of the page.
 """
 import json
 import re
@@ -17,7 +19,7 @@ from pathlib import Path
 
 from . import config, i18n, llm, profiles
 
-# Заголовки ключевых секций на языках, которые встречаются в наших CV.
+# Headings of the key sections, in the languages our CVs turn up in.
 SECTION_PATTERNS = {
     "experience": r"(work\s+)?experience|employment|empleo|erfahrung|berufserfahrung|"
                   r"esperienz|expérience|опыт работы|опыт",
@@ -33,7 +35,7 @@ CONTACT_PATTERNS = {
 
 
 def cv_file():
-    """Оригинал CV (pdf/docx/txt) в каталоге профиля, если загружен."""
+    """The original CV (pdf/docx/txt) in the profile directory, if one was uploaded."""
     for path in sorted(profiles.dir().glob("cv.*")):
         if path.suffix.lower() not in (".txt", ".json"):
             return path
@@ -41,7 +43,7 @@ def cv_file():
 
 
 def _render_pages(pdf: Path, out_dir: Path, limit: int = 3) -> list:
-    """PDF → PNG постранично (sips умеет только первую страницу, поэтому режем)."""
+    """PDF → PNG page by page (sips can only do the first page, so we split first)."""
     try:
         from pypdf import PdfReader, PdfWriter
     except ImportError:
@@ -64,8 +66,8 @@ def _render_pages(pdf: Path, out_dir: Path, limit: int = 3) -> list:
 
 
 def raw_pdf_text(pdf: Path) -> str:
-    """Текст ровно так, как его достаёт обычный парсер — без наших исправлений.
-    Именно это увидит ATS: чинить извлечение на своей стороне он не будет."""
+    """The text exactly as an ordinary parser gets it — without our repairs.
+    This is what an ATS will see: it will not fix the extraction on its side."""
     try:
         from pypdf import PdfReader
         reader = PdfReader(str(pdf))
@@ -75,7 +77,7 @@ def raw_pdf_text(pdf: Path) -> str:
 
 
 def technical_checks(text: str, pdf: Path = None) -> dict:
-    """Проверки, которые считаются локально, без модели."""
+    """The checks that are computed locally, without the model."""
     issues, ok = [], []
     pages = 1
     images = 0
@@ -85,26 +87,26 @@ def technical_checks(text: str, pdf: Path = None) -> dict:
             reader = PdfReader(str(pdf))
             pages = len(reader.pages)
             images = sum(len(p.images) for p in reader.pages)
-        except Exception:  # noqa: BLE001 — битый PDF не должен ронять проверку
+        except Exception:  # noqa: BLE001 — a broken PDF must not bring the check down
             pass
         raw = raw_pdf_text(pdf)
         if raw:
-            text = raw  # оцениваем то, что получит робот, а не наш вычищенный текст
+            text = raw  # judge what the robot will get, not our cleaned-up text
     words = text.split()
 
-    # 1. Извлекается ли текст вообще — самый тяжёлый отказ: ATS увидит пустоту
+    # 1. Does any text come out at all — the worst failure: an ATS sees emptiness
     per_page = len(text) / max(pages, 1)
     if per_page < 200:
         issues.append(("critical", "no_text"))
     else:
         ok.append("text_extractable")
 
-    # 2. Разрядка букв (дизайнерские шаблоны) — текст парсится в кашу
+    # 2. Letter-spacing (designer templates) — the text parses into mush
     single = sum(1 for w in words if len(w) == 1)
     if words and single / len(words) > 0.4:
         issues.append(("critical", "letter_spacing"))
 
-    # 3. Объём и длина
+    # 3. Size and length
     if pages > 3:
         issues.append(("warn", "too_long"))
     elif len(words) < 150:
@@ -112,7 +114,7 @@ def technical_checks(text: str, pdf: Path = None) -> dict:
     else:
         ok.append("length_ok")
 
-    # 4. Ключевые секции — по ним ATS раскладывает резюме на поля
+    # 4. The key sections — an ATS lays the CV out into fields by them
     low = text.lower()
     missing = [name for name, pat in SECTION_PATTERNS.items() if not re.search(pat, low)]
     if missing:
@@ -120,7 +122,7 @@ def technical_checks(text: str, pdf: Path = None) -> dict:
     else:
         ok.append("sections_ok")
 
-    # 5. Контакты
+    # 5. Contacts
     no_contact = [name for name, pat in CONTACT_PATTERNS.items() if not re.search(pat, text, re.I)]
     if "email" in no_contact:
         issues.append(("critical", "no_email"))
@@ -129,13 +131,13 @@ def technical_checks(text: str, pdf: Path = None) -> dict:
     else:
         ok.append("contacts_ok")
 
-    # 6. Годы в опыте — без дат ATS не построит таймлайн
+    # 6. Years in the experience — without dates an ATS cannot build a timeline
     if len(re.findall(r"\b(19|20)\d{2}\b", text)) < 2:
         issues.append(("warn", "no_dates"))
     else:
         ok.append("dates_ok")
 
-    # 7. Картинки: фото и иконки часто уносят с собой текст
+    # 7. Images: photos and icons often carry text away with them
     if images > 3:
         issues.append(("warn", f"many_images:{images}"))
 
@@ -214,7 +216,7 @@ KEYWORDS_PROMPT = """Ты — ATS-система отбора резюме и о
 
 
 def keyword_check(cfg: dict, cv: str, jobs: list) -> dict:
-    """Пройдёт ли резюме отбор по ключевым словам под реальные вакансии кандидата."""
+    """Will the CV pass a keyword screen against the person's real target jobs."""
     if not jobs or not cv:
         return {}
     listing = "\n\n".join(
@@ -232,7 +234,7 @@ def keyword_check(cfg: dict, cv: str, jobs: list) -> dict:
 
 
 def analyze(cfg: dict) -> dict:
-    """Полная проверка загруженного CV: техническая + визуальная."""
+    """The full check of the uploaded CV: technical plus visual."""
     text = config.cv_text()
     pdf = cv_file()
     if not text and not pdf:
@@ -247,7 +249,8 @@ def analyze(cfg: dict) -> dict:
     keywords = keyword_check(cfg, text, db.matched_jobs(limit=5, min_score=0, sort="score"))
     result = {"tech": tech, "visual": visual, "keywords": keywords,
               "filename": (config.cv_meta() or {}).get("filename", "")}
-    # итоговый балл: техника и вёрстка важнее эстетики — ATS отсекает молча
+    # the final score: the mechanics and the layout matter more than the looks —
+    # an ATS cuts you off without a word
     ats_llm = visual.get("ats_score")
     ats = round((tech["score"] + ats_llm) / 2) if isinstance(ats_llm, (int, float)) else tech["score"]
     result["ats_total"] = ats

@@ -1,12 +1,12 @@
-"""Профили: поиск для нескольких людей в одном приложении.
+"""Profiles: searching for several people inside one app.
 
-Каждый профиль — отдельный каталог data/profiles/<slug>/ со своим config.json,
-CV и базой jobs.db. Активный профиль хранится в contextvar (задаётся на каждый
-веб-запрос из cookie и на каждый запуск пайплайна/расписания явно).
+Every profile is its own directory, data/profiles/<slug>/, with its own
+config.json, CV and jobs.db. The active profile is kept in a contextvar (set from
+the cookie on every web request, and explicitly on every pipeline or schedule run).
 
-Базовый каталог данных выбирается так: переменная AIJS_DATA_DIR, иначе data/
-рядом с исходниками (режим разработки), иначе — стандартный каталог приложения
-данной ОС (собранное приложение: рядом с ним писать нельзя).
+The base data directory is chosen like this: the AIJS_DATA_DIR variable,
+otherwise data/ next to the sources (development mode), otherwise the standard
+application directory of this OS (a packaged app cannot write next to itself).
 """
 import contextvars
 import json
@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def _os_data_dir() -> Path:
-    """Куда операционная система разрешает писать данные приложения."""
+    """Where the operating system lets an app write its data."""
     system = platform.system()
     if system == "Darwin":
         return Path.home() / "Library" / "Application Support" / "AI Job Search"
@@ -33,9 +33,9 @@ def _os_data_dir() -> Path:
 
 
 def _default_data_root() -> Path:
-    if getattr(sys, "frozen", False):        # собранное приложение
+    if getattr(sys, "frozen", False):        # a packaged app
         return _os_data_dir()
-    return BASE_DIR / "data"                 # запуск из исходников
+    return BASE_DIR / "data"                 # running from source
 
 
 DATA_ROOT = Path(os.environ.get("AIJS_DATA_DIR") or _default_data_root())
@@ -77,16 +77,27 @@ def _write_registry(reg: dict) -> None:
     REGISTRY_PATH.write_text(json.dumps(reg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _default_name() -> str:
+    """What to call a profile the program creates itself.
+
+    The name is visible in the picker on every page, so it has to be in the
+    person's language. There are no settings yet at this moment — we take the
+    system language, the same one first launch picks for the interface.
+    """
+    from . import i18n
+    return i18n.t(i18n.system_lang(), "profile_default_name")
+
+
 def ensure_migrated() -> None:
-    """Однократная миграция: старый плоский data/ → data/profiles/<slug>/."""
+    """A one-off migration: the old flat data/ → data/profiles/<slug>/."""
     with _lock:
         reg = _read_registry()
         if reg.get("profiles"):
-            return  # уже мигрировано
+            return  # already migrated
         PROFILES_DIR.mkdir(parents=True, exist_ok=True)
         profiles, taken = [], set()
 
-        # существующие плоские данные → профиль «Я»
+        # existing flat data → a profile of one's own
         legacy_files = ["config.json", "cv.txt", "cv_meta.json"] + \
                        [p.name for p in DATA_ROOT.glob("cv.*")] + \
                        (["jobs.db"] if (DATA_ROOT / "jobs.db").exists() else [])
@@ -99,13 +110,13 @@ def ensure_migrated() -> None:
                 src = DATA_ROOT / fn
                 if src.exists() and src.is_file():
                     shutil.move(str(src), str(dst / fn))
-            profiles.append({"slug": slug, "name": "Я"})
+            profiles.append({"slug": slug, "name": _default_name()})
 
-        # если ничего не было — создаём пустой профиль
+        # if there was nothing — create an empty profile
         if not profiles:
             slug = _slugify("me", taken)
             (PROFILES_DIR / slug).mkdir(parents=True, exist_ok=True)
-            profiles.append({"slug": slug, "name": "Я"})
+            profiles.append({"slug": slug, "name": _default_name()})
 
         _write_registry({"profiles": profiles, "default": profiles[0]["slug"]})
 
@@ -188,9 +199,9 @@ def set_default(slug: str) -> None:
             _write_registry(reg)
 
 
-# Миграция при первом импорте — гарантирует, что каталоги профилей готовы
-# ДО любого чтения config/db, независимо от точки входа (сервер или скрипт).
+# Migrating on first import guarantees the profile directories are ready BEFORE
+# anything reads config or db, whichever the entry point was (server or script).
 try:
     ensure_migrated()
-except Exception:  # noqa: BLE001 — никогда не ломаем импорт
+except Exception:  # noqa: BLE001 — never break the import
     pass

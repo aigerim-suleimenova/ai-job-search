@@ -1,8 +1,8 @@
-"""Автоматический поиск новых компаний под профиль кандидата.
+"""Finding new companies for a person's profile automatically.
 
-Claude с веб-поиском ищет компании/стартапы, которые сейчас нанимают на
-роли кандидата, и возвращает ссылки на их careers-страницы. Найденные
-компании добавляются в список мониторинга (sources.companies).
+Claude with web search looks for companies and start-ups hiring right now for
+this person's roles, and returns links to their careers pages. The companies it
+finds are added to the watch list (sources.companies).
 """
 from urllib.parse import urlparse
 
@@ -12,7 +12,7 @@ from .collectors import ats
 
 
 def _lk(log, key: str, **fmt) -> None:
-    """Строка журнала на языке интерфейса (log приходит из пайплайна)."""
+    """A log line in the interface language (log comes in from the pipeline)."""
     text = i18n.t(config.load()["ui"]["lang"], key)
     log(text.format(**fmt) if fmt else text)
 
@@ -38,7 +38,7 @@ jobs.lever.co/..., jobs.ashbyhq.com/..., apply.workable.com/..., *.recruitee.com
 
 Верни ТОЛЬКО JSON-массив: [{{"name": "...", "careers_url": "https://..."}}]"""
 
-# разные «углы» поиска по раундам — чтобы каждый заход давал новых работодателей
+# a different angle each round, so every pass brings up new employers
 _ANGLES = [
     "",
     "В этот раз ищи профильных отраслевых работодателей — тех, для кого эта профессия "
@@ -65,7 +65,7 @@ def _visa_note(p: dict) -> str:
 
 
 def _target(cfg: dict) -> str:
-    """Что ищем — роль, навыки или и то, и другое (общее для всех видов discovery)."""
+    """What we are looking for — role, skills or both (shared by every kind of discovery)."""
     p, s = cfg["profile"], cfg["search"]
     roles = p.get("roles") or "software engineer"
     skills = (p.get("skills") or "").strip()
@@ -80,13 +80,13 @@ def _target(cfg: dict) -> str:
     return f"роли: {roles}"
 
 
-_PER_CALL = 8  # надёжный размер за один веб-поиск; больше — набираем несколькими заходами
+_PER_CALL = 8  # a reliable haul from one web search; for more we make several passes
 
 
 def discover(cfg: dict, log, n: int = 5) -> list:
-    """Находит до n новых компаний под профиль. Один веб-поиск даёт ~5-8 штук,
-    поэтому для больших n делаем несколько заходов с разными «углами» поиска,
-    накапливая уникальные и останавливаясь, когда новые перестают находиться."""
+    """Finds up to n new companies for the profile. One web search yields about
+    five to eight, so for a larger n we make several passes from different angles,
+    collecting the unique ones and stopping when nothing new turns up."""
     p, s = cfg["profile"], cfg["search"]
     known = cfg["sources"].get("companies", [])
     known_domains = {_domain(c["url"]) for c in known if c.get("url")}
@@ -98,7 +98,7 @@ def discover(cfg: dict, log, n: int = 5) -> list:
     fresh = []
     rounds = max(1, -(-n // _PER_CALL))          # ceil(n / _PER_CALL)
     dry = 0
-    for r in range(rounds + 2):                  # +2 запасных захода на добор
+    for r in range(rounds + 2):                  # +2 spare passes to top up
         if len(fresh) >= n or dry >= 2:
             break
         want = min(_PER_CALL, n - len(fresh))
@@ -121,7 +121,7 @@ def discover(cfg: dict, log, n: int = 5) -> list:
                 allowed_tools=["WebSearch", "WebFetch"],
             )
         except llm.AuthError:
-            raise      # без входа в модель прогон смысла не имеет
+            raise      # without a signed-in model the run makes no sense
         except llm.ClaudeError as e:
             _lk(log, "log_disc_err", r=r + 1, error=e)
             dry += 1
@@ -148,13 +148,13 @@ def discover(cfg: dict, log, n: int = 5) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Поиск ВАКАНСИЙ (а не компаний) прямо на доменах ATS-систем.
+# Searching for JOBS (rather than companies) on the ATS domains directly.
 #
-# Тысячи компаний хостят вакансии на общих доменах (boards.greenhouse.io,
-# jobs.lever.co, ...). Поиск `site:boards.greenhouse.io <навыки> <регион>`
-# находит конкретные подходящие объявления у компаний, которые поиск
-# «по именам» никогда не выдал бы. Каждая находка конвертируется в компанию
-# для списка мониторинга — её доску мы затем целиком забираем через API ATS.
+# Thousands of companies host their jobs on shared domains (boards.greenhouse.io,
+# jobs.lever.co, …). A search for `site:boards.greenhouse.io <skills> <region>`
+# turns up particular matching postings at companies that a search "by name"
+# would never have produced. Every hit is converted into a company for the watch
+# list — and its board is then taken whole through the ATS API.
 # ---------------------------------------------------------------------------
 
 ATS_JOBS_PROMPT = """Найди через веб-поиск {n} ОТКРЫТЫХ вакансий, подходящих кандидату:
@@ -183,7 +183,7 @@ _BOARD_URL = {
     "workable": "https://apply.workable.com/{slug}",
     "smartrecruiters": "https://careers.smartrecruiters.com/{slug}",
     "recruitee": "https://{slug}.recruitee.com",
-    "personio": "https://{slug}",  # для personio slug — это целиком host
+    "personio": "https://{slug}",  # for personio the slug is the whole host
 }
 
 
@@ -193,8 +193,8 @@ def _ats_key(url: str):
 
 
 def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
-    """Ищет подходящие вакансии прямо на доменах ATS и возвращает их компании
-    (name + канонический URL доски) для добавления в список мониторинга."""
+    """Looks for matching jobs on the ATS domains directly and returns their
+    companies (name plus the canonical board URL) to add to the watch list."""
     known = cfg["sources"].get("companies", [])
     known_keys = {k for k in (_ats_key(c.get("url", "")) for c in known) if k}
     known_names = [(c.get("name") or _domain(c.get("url", ""))) for c in known[:80]]
@@ -218,7 +218,7 @@ def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
             allowed_tools=["WebSearch", "WebFetch"],
         )
     except llm.AuthError:
-        raise      # без входа в модель прогон смысла не имеет
+        raise      # without a signed-in model the run makes no sense
     except llm.ClaudeError as e:
         _lk(log, "log_ats_err", error=e)
         return []
@@ -228,7 +228,7 @@ def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
         url = str(it.get("url", "")).strip()
         det = ats.detect(url)
         if not det:
-            continue  # не ATS-ссылка — компанию не определить надёжно
+            continue  # not an ATS link — the company cannot be pinned down reliably
         platform, slug = det
         key = f"{platform}:{slug.lower()}"
         if key in known_keys:

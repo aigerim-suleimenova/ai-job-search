@@ -82,8 +82,8 @@
   <h1 data-t="hero_title"></h1>
   <p data-t="hero_sub"></p>
   <div class="downloads">
-    <!-- Прямо на файл последнего релиза: /latest/download/<имя> всегда указывает
-         на свежую версию, поэтому ссылки не надо править при каждом выпуске. -->
+    <!-- Straight at the latest release's file: /latest/download/<name> always points
+         at the newest version, so the links need no editing on every release. -->
     <a class="dl" id="dl-mac" href="https://github.com/mrWD/ai-job-search/releases/latest/download/AI.Job.Search.dmg">
       <span>🍎</span><span data-t="dl_mac"></span>
     </a>
@@ -95,8 +95,8 @@
     </a>
   </div>
   <p class="note" data-t="dl_note"></p>
-  <!-- Первое, обо что спотыкается человек на Windows: синее окно SmartScreen.
-       Лучше предупредить до скачивания, чем оставить гадать после. -->
+  <!-- The first thing a person trips over on Windows: the blue SmartScreen box.
+       Better to warn before the download than leave them guessing after. -->
   <details class="gate">
     <summary data-t="win_gate_t"></summary>
     <p data-t="win_gate_d"></p>
@@ -357,13 +357,13 @@ function apply(lang) {
   });
   document.querySelectorAll("nav button").forEach(b =>
     b.classList.toggle("on", b.dataset.lang === lang));
-  try { localStorage.setItem("aijs-lang", lang); } catch (e) { /* приватный режим */ }
+  try { localStorage.setItem("aijs-lang", lang); } catch (e) { /* private mode */ }
 }
 
 document.querySelectorAll("nav button").forEach(b =>
   b.addEventListener("click", () => apply(b.dataset.lang)));
 
-// язык: сохранённый выбор → язык браузера → русский
+// language: the saved choice → the browser's language → Russian
 let start = "ru";
 try { start = localStorage.getItem("aijs-lang") || start; } catch (e) { /* ignore */ }
 if (!localStorage.getItem?.("aijs-lang")) {

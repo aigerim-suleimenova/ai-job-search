@@ -1,13 +1,13 @@
-"""Агрегаторы вакансий с открытыми API: Remotive, Arbeitnow, WeWorkRemotely,
-HN Who is Hiring, Adzuna и Jooble (по ключам).
+"""Job aggregators with open APIs: Remotive, Arbeitnow, WeWorkRemotely,
+HN Who is Hiring, Adzuna and Jooble (the last two by key).
 
-ВАЖНО (проверено эмпирически): публичные API Remotive и Arbeitnow ИГНОРИРУЮТ
-параметры search/tags — при любом запросе отдают один и тот же общий поток
-вакансий (Remotive — фиксированные ~32 штуки, Arbeitnow — последние вакансии
-по всем профессиям, не только IT). Поэтому:
-- не тратим по вызову на каждый поисковый термин — он всё равно ничего не меняет;
-- у Arbeitnow фильтруем IT-теги на своей стороне и берём больше страниц,
-  чтобы компенсировать низкую долю релевантных вакансий в общем потоке.
+IMPORTANT (established empirically): the public APIs of Remotive and Arbeitnow
+IGNORE the search/tags parameters — whatever you ask for, they hand back the same
+general stream of jobs (Remotive a fixed ~32 of them, Arbeitnow the latest jobs
+across every trade, not only IT). So:
+- we do not spend a call per search term — it changes nothing anyway;
+- for Arbeitnow we filter the IT tags on our side and take more pages, to make up
+  for the low share of relevant jobs in the general stream.
 """
 import html
 import re
@@ -17,11 +17,11 @@ import requests
 
 from . import iso_date, web
 
-UA = web.UA   # честное имя вместо маскировки под браузер
+UA = web.UA   # an honest name rather than pretending to be a browser
 TIMEOUT = 30
 
-# Arbeitnow — общая биржа по всем профессиям; отбираем IT-теги на своей стороне,
-# т.к. API не фильтрует по tags/search на сервере (проверено).
+# Arbeitnow is a general exchange across every trade; we pick the IT tags on our
+# side, since the API does not filter by tags/search on the server (established).
 ARBEITNOW_IT_TAGS = {
     "engineering", "software development", "internet and software",
     "information systems", "system and network administration",
@@ -35,8 +35,8 @@ def _strip_html(raw: str, limit: int = 5000) -> str:
 
 
 def _search_terms(cfg: dict) -> list:
-    """Для Adzuna/Jooble — эти API (в отличие от Remotive/Arbeitnow) реально
-    фильтруют по ключевым словам на своей стороне. Учитываем навыки и приоритет."""
+    """For Adzuna/Jooble — these APIs, unlike Remotive/Arbeitnow, really do filter by
+    keyword on their side. We take the skills and the priority into account."""
     p, s = cfg["profile"], cfg["search"]
     prio = s.get("match_priority", "both")
     parts = []
@@ -77,7 +77,7 @@ def remotive(cfg: dict, log) -> list:
 
 def arbeitnow(cfg: dict, log) -> list:
     jobs, url = [], "https://www.arbeitnow.com/api/job-board-api"
-    for _ in range(8):  # API не фильтрует — берём больше страниц, отбираем IT сами
+    for _ in range(8):  # the API does not filter — take more pages, pick the IT ones ourselves
         try:
             r = web.get(url, timeout=TIMEOUT)
             r.raise_for_status()
@@ -88,7 +88,7 @@ def arbeitnow(cfg: dict, log) -> list:
         for j in data.get("data", []):
             tags = {t.lower() for t in (j.get("tags") or [])}
             if tags and not (tags & ARBEITNOW_IT_TAGS):
-                continue  # не-IT вакансия (маркетинг, продажи, HR и т.п.) — пропускаем
+                continue  # a non-IT job (marketing, sales, HR and the like) — skip it
             jobs.append({
                 "title": j.get("title", ""),
                 "company": j.get("company_name", ""),
@@ -106,7 +106,7 @@ def arbeitnow(cfg: dict, log) -> list:
 
 
 def wwr(cfg: dict, log) -> list:
-    """WeWorkRemotely — RSS категории 'programming', реально предфильтрован под IT."""
+    """WeWorkRemotely — the RSS of the 'programming' category, genuinely pre-filtered to IT."""
     jobs = []
     try:
         r = web.get(
@@ -118,7 +118,7 @@ def wwr(cfg: dict, log) -> list:
         for item in root.iter("item"):
             raw_title = (item.findtext("title") or "").strip()
             company, _, title = raw_title.partition(": ")
-            if not title:  # формат не «Компания: Роль» — оставляем как есть
+            if not title:  # not in "Company: Role" form — leave it as it is
                 company, title = "", raw_title
             jobs.append({
                 "title": title.strip(),
@@ -128,7 +128,7 @@ def wwr(cfg: dict, log) -> list:
                 "description": _strip_html(item.findtext("description") or ""),
                 "posted_at": iso_date(item.findtext("pubDate")),
                 "source": "wwr",
-                "is_direct": True,  # WWR — постят преимущественно сами компании
+                "is_direct": True,  # on WWR it is mostly the companies who post
             })
     except (requests.RequestException, ET.ParseError) as e:
         log(f"weworkremotely: {e}")
@@ -136,7 +136,7 @@ def wwr(cfg: dict, log) -> list:
 
 
 def hn_hiring(cfg: dict, log) -> list:
-    """Последний тред «Ask HN: Who is hiring?» — посты пишут сами компании."""
+    """The latest "Ask HN: Who is hiring?" thread — the posts are written by the companies."""
     jobs = []
     try:
         r = web.get(
@@ -165,7 +165,7 @@ def hn_hiring(cfg: dict, log) -> list:
                 "description": text,
                 "posted_at": iso_date(child.get("created_at")),
                 "source": "hn",
-                "is_direct": True,   # в этом треде постят сами компании
+                "is_direct": True,   # in this thread the companies post themselves
             })
     except requests.RequestException as e:
         log(f"hn_hiring: {e}")
@@ -173,12 +173,12 @@ def hn_hiring(cfg: dict, log) -> list:
 
 
 def remoteok(cfg: dict, log) -> list:
-    """RemoteOK — общий фид ~100 свежих remote-вакансий (почти все IT)."""
+    """RemoteOK — a general feed of ~100 fresh remote jobs (nearly all of them IT)."""
     jobs = []
     try:
         r = web.get("https://remoteok.com/api", timeout=TIMEOUT)
         r.raise_for_status()
-        for j in r.json()[1:]:  # нулевой элемент — legal notice, не вакансия
+        for j in r.json()[1:]:  # element zero is a legal notice, not a job
             if not j.get("position"):
                 continue
             jobs.append({
@@ -197,9 +197,9 @@ def remoteok(cfg: dict, log) -> list:
 
 
 def jobicy(cfg: dict, log) -> list:
-    """Jobicy — remote-вакансии; параметр tag реально фильтрует на сервере."""
+    """Jobicy — remote jobs; the tag parameter really does filter on the server."""
     jobs, seen = [], set()
-    # общий фид + по одному тегу на поисковый термин
+    # the general feed plus one tag per search term
     queries = [{}] + [{"tag": t} for t in _search_terms(cfg)[:2] if t]
     for q in queries:
         try:
@@ -228,9 +228,10 @@ def jobicy(cfg: dict, log) -> list:
 
 
 def himalayas(cfg: dict, log) -> list:
-    """Himalayas — remote-вакансии, общий фид (серверного поиска нет).
-    API отдаёт максимум 20 за запрос — листаем offset'ом. Иногда вместо
-    companyName приходит плейсхолдер «name» (баг API) — берём companySlug."""
+    """Himalayas — remote jobs, a general feed (there is no server-side search).
+    The API gives at most 20 per request, so we page through with an offset.
+    Sometimes the placeholder "name" arrives instead of companyName (an API bug) —
+    then we take companySlug."""
     jobs = []
     for offset in range(0, 100, 20):
         try:
@@ -263,7 +264,7 @@ def himalayas(cfg: dict, log) -> list:
 
 
 def themuse(cfg: dict, log) -> list:
-    """The Muse — бесплатный API с фильтром по категориям (постят сами компании)."""
+    """The Muse — a free API with a category filter (the companies post themselves)."""
     jobs = []
     for page in (1, 2):
         try:
@@ -287,7 +288,7 @@ def themuse(cfg: dict, log) -> list:
                 "description": _strip_html(j.get("contents", "")),
                 "posted_at": iso_date(j.get("publication_date")),
                 "source": "themuse",
-                "is_direct": True,  # вакансии размещают сами компании
+                "is_direct": True,  # the companies post the jobs themselves
             })
         if not results:
             break
@@ -295,9 +296,10 @@ def themuse(cfg: dict, log) -> list:
 
 
 def arbeitsagentur(cfg: dict, log) -> list:
-    """Официальная биржа труда Германии — настоящий полнотекстовый поиск
-    (публичный ключ клиента, бесплатно). Список без описаний — этого достаточно
-    для лексики и триажа, глубокий разбор дотянет страницу вакансии."""
+    """Germany's official employment exchange — a real full-text search (a public
+    client key, free of charge). The list comes without descriptions, which is
+    enough for the word-level sift and triage; the deep analysis fetches the
+    job's own page."""
     jobs, seen = [], set()
     for term in _search_terms(cfg):
         if not term:
@@ -406,7 +408,7 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
         got = fn(cfg, log)
         jobs.extend(got)
         if coverage is not None:
-            coverage.append({"name": name, "url": url, "kind": "агрегатор",
+            coverage.append({"name": name, "url": url, "kind": "aggregator",
                              "count": len(got), "error": None})
 
     track(src.get("use_remotive"), "Remotive", "https://remotive.com", remotive)

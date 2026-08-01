@@ -1,10 +1,10 @@
-"""Жёсткие фильтры: локация, стоп-слова, эвристика рекрутинговых агентств."""
+"""Hard filters: location, stop words, and a heuristic for recruiting agencies."""
 import hashlib
 import re
 
 EU_MARKERS = [
     "europe", "european union", " eu", "eu ", "emea",
-    # макрорегионы, которыми часто описывают локацию
+    # the broad regions a location is often described by
     "dach", "benelux", "nordics", "baltics", "cet timezone", "cet time",
     "germany", "berlin", "munich", "hamburg", "frankfurt", "cologne",
     "netherlands", "amsterdam", "rotterdam", "eindhoven",
@@ -17,7 +17,7 @@ EU_MARKERS = [
     "hungary", "budapest", "romania", "bucharest", "bulgaria", "sofia",
     "croatia", "zagreb", "slovakia", "bratislava", "slovenia", "ljubljana",
     "luxembourg", "malta", "cyprus",
-    # локальные написания (немецкие вакансии часто пишут город/страну по-немецки)
+    # local spellings (German postings often write the city or country in German)
     "deutschland", "münchen", "muenchen", "köln", "koeln", "düsseldorf", "duesseldorf",
     "stuttgart", "nürnberg", "nuernberg", "leipzig", "dresden", "hannover",
     "karlsruhe", "heidelberg", "aachen", "bremen", "essen", "dortmund", "bonn",
@@ -62,8 +62,8 @@ def parse_locations(raw: str) -> list:
     return [t.strip().lower() for t in re.split(r"[,;]", raw or "") if t.strip()]
 
 
-# отдельные страны: вакансии часто указывают только город («Milano», «München»)
-# без названия страны — токен страны должен матчить и города
+# individual countries: postings often name only the city ("Milano", "München")
+# without the country — so a country token has to match its cities too
 COUNTRY_MARKERS = {
     "italy": ["italy", "italia", "italien", "milan", "milano", "rome", "roma",
               "turin", "torino", "bologna", "naples", "napoli", "florence", "firenze",
@@ -87,7 +87,7 @@ def location_ok(location: str, wanted: list, include_remote: bool = True) -> boo
     if include_remote and any(m in loc for m in REMOTE_MARKERS):
         return True
     if not location:
-        return True  # неизвестную локацию не отсекаем — решит LLM-триаж
+        return True  # an unknown location is not cut off — triage will decide
     for token in wanted:
         if token in ("eu", "ес", "europe", "европа", "евросоюз"):
             if any(m in loc for m in EU_MARKERS):
@@ -107,8 +107,8 @@ def location_ok(location: str, wanted: list, include_remote: bool = True) -> boo
 
 
 def has_excluded(job: dict, exclude_terms: list) -> bool:
-    """Стоп-слова — по границам слов, а не подстрокой: исключение «java»
-    не должно убивать JavaScript, а «go» — Google."""
+    """Stop words match on word boundaries, not as substrings: excluding "java"
+    must not kill JavaScript, nor "go" kill Google."""
     if not exclude_terms:
         return False
     text = f"{job.get('title', '')} {job.get('company', '')}".lower()
@@ -123,9 +123,9 @@ def looks_like_agency(company: str) -> bool:
     return any(m in name for m in AGENCY_MARKERS)
 
 
-# заведомо не-инженерные/не-технические роли — их можно отсеять до дорогой LLM-оценки.
-# Автоадаптация: не режем, если заголовок совпадает с ролями/навыками профиля
-# (напр. профиль «Recruiter» → «Technical Recruiter» не отсеётся).
+# plainly non-engineering, non-technical roles — they can be dropped before the
+# expensive model call. Self-adjusting: we do not cut when the title matches the
+# profile's roles or skills (a "Recruiter" profile keeps "Technical Recruiter").
 OFF_TARGET_MARKERS = [
     "recruiter", "talent acquisition", "talent partner", "sourcer",
     "account executive", "account manager", "key account", "sales manager",
@@ -142,11 +142,11 @@ OFF_TARGET_MARKERS = [
 
 
 def off_target(job: dict, keep_terms: set) -> bool:
-    """Заведомо не та профессия? True — если заголовок явно нетехнический
-    и не пересекается с ролями/навыками кандидата."""
+    """Plainly the wrong trade? True if the title is clearly non-technical and does
+    not overlap with the person's roles or skills."""
     title = f" {(job.get('title') or '').lower()} "
     if not any(m in title for m in OFF_TARGET_MARKERS):
         return False
-    # заголовок совпадает с профилем (роли/навыки) — оставляем, пусть решит LLM
+    # the title matches the profile (roles or skills) — keep it, let the model decide
     title_words = set(re.findall(r"[a-zа-яё0-9+#.]{3,}", title))
     return not (title_words & keep_terms)

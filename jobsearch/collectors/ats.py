@@ -1,7 +1,7 @@
-"""Прямые вакансии через публичные API ATS-платформ.
+"""Jobs taken straight from the public APIs of the ATS platforms.
 
-По URL страницы вакансий компании определяем платформу и её slug,
-дальше забираем вакансии одним HTTP-запросом.
+From the URL of a company's jobs page we work out the platform and its slug, and
+then fetch the jobs in a single HTTP request.
 """
 import html
 import re
@@ -12,7 +12,7 @@ import requests
 
 from . import iso_date, web
 
-UA = web.UA   # честное имя вместо маскировки под браузер
+UA = web.UA   # an honest name rather than pretending to be a browser
 TIMEOUT = 25
 
 
@@ -22,7 +22,7 @@ def _strip_html(raw: str, limit: int = 6000) -> str:
 
 
 def detect(url: str):
-    """Возвращает (платформа, slug) или None."""
+    """Returns (platform, slug) or None."""
     p = urlparse(url if "://" in url else "https://" + url)
     host, path = p.netloc.lower(), [s for s in p.path.split("/") if s]
 
@@ -46,8 +46,8 @@ def detect(url: str):
     return None
 
 
-# поиск встроенного ATS прямо в HTML careers-страницы (когда сама страница на JS,
-# но вакансии подгружаются с greenhouse/lever/ashby/...)
+# finding an embedded ATS right in the careers page HTML (when the page itself is
+# JS but the jobs are pulled in from greenhouse/lever/ashby/…)
 _ATS_IN_HTML = [
     ("greenhouse", re.compile(r"greenhouse\.io/(?:embed/job_board(?:/js)?\?for=|[^\"'/]*?/)?([a-zA-Z0-9_]+)")),
     ("greenhouse", re.compile(r"(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io/(?:embed/job_board\?for=)?([a-zA-Z0-9_]+)")),
@@ -56,8 +56,8 @@ _ATS_IN_HTML = [
     ("ashby", re.compile(r"jobs\.ashbyhq\.com/([a-zA-Z0-9_-]+)")),
     ("ashby", re.compile(r"api\.ashbyhq\.com/posting-api/job-board/([a-zA-Z0-9_-]+)")),
     ("workable", re.compile(r"apply\.workable\.com/([a-zA-Z0-9_-]+)")),
-    # виджет Workable «whr_embed(<numeric account id>, ...)» — используется вместо
-    # прямой ссылки apply.workable.com/<slug>; API принимает и числовой ID как slug
+    # the Workable widget "whr_embed(<numeric account id>, …)" — used instead of a
+    # direct apply.workable.com/<slug> link; the API takes the numeric ID as a slug too
     ("workable", re.compile(r"whr_embed\(\s*(\d+)")),
     ("smartrecruiters", re.compile(r"(?:careers|jobs|api)\.smartrecruiters\.com/(?:v1/companies/)?([a-zA-Z0-9_-]+)")),
     ("recruitee", re.compile(r"([a-z0-9-]+)\.recruitee\.com")),
@@ -67,14 +67,14 @@ _ATS_SLUG_STOP = {"embed", "js", "job", "jobs", "board", "for", "api", "widget",
 
 
 def detect_in_html(html: str):
-    """Ищет встроенный ATS в HTML careers-страницы. Возвращает (платформа, slug) или None."""
+    """Looks for an embedded ATS in the careers page HTML. Returns (platform, slug) or None."""
     for platform, rx in _ATS_IN_HTML:
         m = rx.search(html)
         if not m:
             continue
         slug = m.group(1)
         if platform == "personio":
-            return "personio", slug  # тут slug — это host
+            return "personio", slug  # here the slug is the host
         if slug.lower() in _ATS_SLUG_STOP or len(slug) < 2:
             continue
         return platform, slug
@@ -95,9 +95,9 @@ def _slug_variants(name: str) -> list:
 
 
 def guess_by_name(name: str):
-    """Пробует угадать ATS-борд по названию компании (когда careers-страница на JS
-    без обнаружимого API). Возвращает (платформа, slug, jobs) или None.
-    Проверяет только реальным запросом к API — ложные срабатывания почти исключены."""
+    """Tries to guess the ATS board from the company name (for a JS careers page
+    with no detectable API). Returns (platform, slug, jobs) or None.
+    It only ever checks by a real API request, so false hits are all but ruled out."""
     for slug in _slug_variants(name):
         for platform in ("greenhouse", "lever", "ashby"):
             try:
@@ -148,8 +148,8 @@ def _greenhouse(slug: str) -> list:
 
 
 def _lever(slug: str) -> list:
-    # аккаунты бывают на глобальном и на EU-хосте (data residency);
-    # для EU-аккаунта глобальный хост отвечает 200 с пустым списком — тоже пробуем EU
+    # accounts live on either the global or the EU host (data residency);
+    # for an EU account the global host answers 200 with an empty list — so we try EU too
     try:
         data = _get_json(f"https://api.lever.co/v0/postings/{slug}?mode=json")
     except requests.HTTPError:

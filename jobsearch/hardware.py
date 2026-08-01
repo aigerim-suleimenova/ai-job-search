@@ -1,7 +1,7 @@
-"""Что за машина у пользователя — чтобы честно сказать, потянет ли она модель.
+"""What machine the user has, so we can say honestly whether it will run a model.
 
-Без внешних зависимостей: psutil в сборку тащить не хочется, а объём памяти
-и так доступен штатными средствами каждой ОС.
+No outside dependencies: dragging psutil into the build is not worth it, and the
+amount of memory is available through each OS's own facilities anyway.
 """
 import platform
 import re
@@ -63,13 +63,13 @@ def _gpu_name() -> str:
 
 @lru_cache(maxsize=1)
 def specs() -> dict:
-    """{ram_gb, cpu, gpu, apple_silicon, usable_gb} — usable_gb это то, что реально
-    можно отдать модели: часть памяти всегда занята системой и самим приложением."""
+    """{ram_gb, cpu, gpu, apple_silicon, usable_gb} — usable_gb is what can really be
+    given to a model: some memory is always taken by the system and the app itself."""
     system = platform.system()
     try:
         ram = {"Darwin": _macos_ram_gb, "Linux": _linux_ram_gb,
                "Windows": _windows_ram_gb}.get(system, lambda: 0.0)()
-    except Exception:  # noqa: BLE001 — определение железа не должно ронять приложение
+    except Exception:  # noqa: BLE001 — detecting the hardware must not bring the app down
         ram = 0.0
     cpu = platform.processor() or platform.machine()
     if system == "Darwin":
@@ -79,15 +79,16 @@ def specs() -> dict:
         except (OSError, subprocess.SubprocessError):
             pass
     apple = system == "Darwin" and platform.machine() == "arm64"
-    # На Apple Silicon память общая с GPU, поэтому доступно больше; на остальных
-    # системах модель в основном упирается в отдельную видеопамять или в CPU-режим.
+    # On Apple Silicon the memory is shared with the GPU, so more of it is
+    # available; on other systems a model mostly runs into separate video memory
+    # or into CPU mode.
     usable = max(0.0, ram * (0.75 if apple else 0.6) - 1.5)
     return {"ram_gb": round(ram, 1), "cpu": cpu, "gpu": _gpu_name(),
             "apple_silicon": apple, "usable_gb": round(usable, 1), "os": system}
 
 
 def fits(required_gb: float) -> str:
-    """Потянет ли машина модель: 'yes' | 'tight' | 'no'."""
+    """Will this machine run the model: 'yes' | 'tight' | 'no'."""
     usable = specs()["usable_gb"]
     if not usable:
         return "unknown"

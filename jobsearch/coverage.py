@@ -1,8 +1,8 @@
-"""Проверка покрытия: видит ли скрипт вакансии конкретной компании.
+"""A coverage check: does the program see a particular company's jobs at all?
 
-Отвечает на вопрос «а компанию X мы вообще просматриваем?» — принимает
-название/URL, определяет способ чтения (прямой ATS, встроенный ATS, краулинг)
-и сколько вакансий доступно. Это ручная проверка охвата для пользователя.
+It answers the question "are we even looking at company X?" — it takes a name or
+a URL, works out how the jobs can be read (a direct ATS, an embedded ATS,
+crawling) and how many are available. This is a reach check a person runs by hand.
 """
 from urllib.parse import urlparse
 
@@ -12,7 +12,7 @@ from . import config, i18n, llm
 from .collectors import web
 from .collectors import ats, crawler
 
-UA = web.UA   # честное имя вместо маскировки под браузер
+UA = web.UA   # an honest name rather than pretending to be a browser
 TIMEOUT = 25
 
 FIND_URL_PROMPT = """Найди через веб-поиск официальную страницу вакансий (careers/jobs) компании «{name}».
@@ -28,9 +28,9 @@ def _domain(url: str) -> str:
 
 
 def _identity(url: str) -> str:
-    """Идентичность компании: для общих ATS-хостов (greenhouse/lever/ashby/...)
-    это платформа+slug, иначе — домен. Иначе GitLab и Anthropic на общем
-    boards.greenhouse.io выглядели бы «одной компанией»."""
+    """A company's identity: for shared ATS hosts (greenhouse/lever/ashby/…) that is
+    platform+slug, otherwise the domain. Without this GitLab and Anthropic on the
+    shared boards.greenhouse.io would look like "one company"."""
     detected = ats.detect(url)
     if detected:
         return f"{detected[0]}:{detected[1].lower()}"
@@ -38,7 +38,7 @@ def _identity(url: str) -> str:
 
 
 def _resolve_url(name: str, cfg: dict) -> str:
-    """Для названия без URL — находит careers-страницу веб-поиском."""
+    """For a name with no URL — finds the careers page by web search."""
     try:
         data = llm.ask_json(
             FIND_URL_PROMPT.format(name=name),
@@ -48,7 +48,7 @@ def _resolve_url(name: str, cfg: dict) -> str:
             timeout=300, allowed_tools=["WebSearch", "WebFetch"],
         )
     except llm.AuthError:
-        raise      # без входа в модель прогон смысла не имеет
+        raise      # without a signed-in model the run makes no sense
     except llm.ClaudeError:
         return ""
     if isinstance(data, dict) and data.get("found") and str(data.get("careers_url", "")).startswith("http"):
@@ -57,13 +57,13 @@ def _resolve_url(name: str, cfg: dict) -> str:
 
 
 def _st(key: str, **fmt) -> str:
-    """Статус проверки на языке интерфейса."""
+    """The state of the check, in the interface language."""
     text = i18n.t(config.load()["ui"]["lang"], key)
     return text.format(**fmt) if fmt else text
 
 
 def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
-    """entry — 'Название | URL', либо просто URL, либо просто название."""
+    """entry — 'Name | URL', or just a URL, or just a name."""
     entry = entry.strip()
     name, url = "", ""
     if "|" in entry:
@@ -88,7 +88,7 @@ def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
 
     result["monitored"] = _identity(url) in monitored_domains
 
-    # 1. Прямая ATS-ссылка
+    # 1. A direct ATS link
     detected = ats.detect(url)
     if detected:
         try:
@@ -99,7 +99,7 @@ def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
             result.update(status=_st("cov_st_ats_fail", error=str(e)[:100]), platform=detected[0])
             return result
 
-    # 2. Встроенный ATS в HTML / переход на подстраницу — используем сам краулер
+    # 2. An ATS embedded in the HTML, or a jump to a sub-page — let the crawler do it
     try:
         jobs = crawler.crawl_company(name or _domain(url), url, cfg, lambda m: None)
         if jobs:
@@ -110,7 +110,7 @@ def check_one(entry: str, cfg: dict, monitored_domains: set) -> dict:
         result.update(status=_st("cov_st_error", error=str(e)[:120]))
         return result
 
-    # 3. Fallback: угадать ATS-борд по названию (careers-страница на JS без API)
+    # 3. Fallback: guess the ATS board from the name (a JS careers page with no API)
     guess_name = name or _domain(url).split(".")[0]
     guessed = ats.guess_by_name(guess_name)
     if guessed:

@@ -1,1 +1,1 @@
-"""Переводы интерфейса по языкам: один файл на язык."""
+"""The interface translations by language: one file per language."""

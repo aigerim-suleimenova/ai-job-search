@@ -59,9 +59,10 @@
         <option value="agency" {% if source == 'agency' %}selected{% endif %}>{{ t('badge_agency') }}</option>
       </select>
     </label>
-    {# Поле даты своё: системное показывает дату в порядке из настроек ОС
-       (у кого-то месяц первым), а порядок должен быть один и понятный. Календарь
-       остаётся системным — прозрачное поле лежит поверх значка. #}
+    {# The date field is our own: the system one shows the date in the order the OS
+       settings say (month first for some), while the order here should be one and
+       understandable. The calendar stays the system's — a transparent field lies
+       over the icon. #}
     {% for key, label, value in [('posted_from', t('filter_posted_from'), posted_from),
                                  ('posted_to', t('filter_posted_to'), posted_to)] %}
     <label>{{ label }}
@@ -196,8 +197,9 @@
     {% if j.advice_data %}
     <a href="/cv/{{ j.id }}" target="_blank" rel="noopener"><button type="button">{{ t('cv_button') }}</button></a>
     {% else %}
-    {# Разбор одной вакансии: кнопка есть у каждой находки без советов — и когда
-       разбор выключен в настройках, и когда прогон до неё просто не дошёл. #}
+    {# Analysing one job: the button is on every finding without advice — both when
+       the analysis is switched off in the settings and when the run simply never
+       reached it. #}
     <span class="analyse-slot" data-job="{{ j.id }}" {% if j.id in analysing %}data-busy="1"{% endif %}>
       <form method="post" action="/analyse/{{ j.id }}">
         <input type="hidden" name="back" value="{{ back_url }}">
@@ -225,8 +227,9 @@
 {% endif %}
 
 <script>
-// Пока идёт прогон, спрашиваем состояние и число находок по тому же порогу,
-// что показан на странице. Список не перезагружаем сами — предлагаем кнопкой.
+// While a run is going we poll for its state and the number of findings at the
+// same threshold shown on the page. We do not reload the list ourselves — we
+// offer a button.
 (() => {
   const strip = document.getElementById('live-strip');
   if (!strip) return;
@@ -246,8 +249,8 @@
       if (d.eta_min) parts.push('{{ t('run_eta') }}'.replace('{mins}', d.eta_min));
       else if (d.typical_min) parts.push('{{ t('run_typical') }}'.replace('{mins}', d.typical_min));
       if (tm) tm.textContent = parts.join(' · ');
-      // Полоса не только сообщает, но и даёт нажать: раньше она писала
-      // «обновите список» и не предлагала ничем это сделать.
+      // The strip does not only report, it can be clicked: it used to say
+      // "refresh the list" and offer nothing to do it with.
       const fresh = (d.found || 0) - shown;
       more.href = url;
       if (fresh > 0) {
@@ -258,7 +261,7 @@
         more.textContent = '{{ t('results_live_refresh') }}';
       }
       if (!d.running) { strip.classList.add('done'); clearInterval(timer); }
-    } catch (e) { /* сервер перезапускается — подождём */ }
+    } catch (e) { /* the server is restarting — we wait */ }
   };
   const timer = setInterval(tick, 5000);
   tick();
@@ -267,8 +270,9 @@
 
 
 <script>
-// Текстом человек вводит дд.мм.гггг, а форма отправляет то, что понимает сервер.
-// Календарь системный: прозрачное поле type=date лежит поверх значка справа.
+// A person types dd.mm.yyyy as text, while the form sends what the server
+// understands. The calendar is the system's: a transparent type=date field lies
+// over the icon on the right.
 (() => {
   const toText = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '';
   const toIso = text => {
@@ -290,7 +294,7 @@
       if (digits.length > 4) out += '.' + digits.slice(4, 8);
       text.value = out;
       const iso = toIso(out);
-      // отправляем только когда дата дописана целиком или стёрта совсем
+      // submit only once the date is complete, or wiped out entirely
       if (iso) { native.value = iso; text.form.submit(); }
       else if (!digits.length && native.value) { native.value = ''; text.form.submit(); }
     });
@@ -300,9 +304,9 @@
 </script>
 
 <script>
-// Разбор одной вакансии идёт в фоне (минута-другая). Пока он идёт, у карточки
-// стоит отметка «разбираем»; как только модель ответила — перечитываем страницу,
-// потому что меняются и оценка, и советы, и сама сортировка.
+// Analysing one job runs in the background (a minute or two). While it runs the
+// card carries an "analysing" mark; as soon as the model answers we reload the
+// page, because the score, the advice and the sorting itself all change.
 (() => {
   const slots = [...document.querySelectorAll('.analyse-slot')];
   if (!slots.length) return;
@@ -311,7 +315,7 @@
     if (!busy().length) { clearInterval(timer); return; }
     let d;
     try { d = await (await fetch('/analyse/status')).json(); }
-    catch (e) { return; }            // сервер перезапускается — подождём
+    catch (e) { return; }            // the server is restarting — we wait
     for (const s of busy()) {
       const id = s.dataset.job;
       if (d.running.includes(+id)) continue;

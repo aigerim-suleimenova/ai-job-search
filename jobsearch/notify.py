@@ -1,4 +1,4 @@
-"""Отправка дайджеста в Telegram."""
+"""Sending the digest to Telegram."""
 import html
 import json
 
@@ -9,6 +9,16 @@ from . import i18n
 TIMEOUT = 30
 
 
+class NotifyError(RuntimeError):
+    """A Telegram error. Carries a translation key: the module does not know the
+    interface language, and the text is shown to a person — it used to be in
+    Russian always."""
+
+    def __init__(self, key: str, **fmt):
+        self.key, self.fmt = key, fmt
+        super().__init__(key)
+
+
 def _api(token: str, method: str) -> str:
     return f"https://api.telegram.org/bot{token}/{method}"
 
@@ -17,10 +27,10 @@ def send_message(cfg: dict, text: str) -> None:
     tg = cfg["telegram"]
     token, chat_id = tg.get("bot_token", ""), tg.get("chat_id", "")
     if not token:
-        raise RuntimeError("Не задан bot token")
+        raise NotifyError("tg_err_no_token")
     if not chat_id:
-        raise RuntimeError("Не задан chat id — напишите боту сообщение и нажмите «Сохранить и определить chat id»")
-    # телеграм ограничивает сообщение 4096 символами — режем по абзацам
+        raise NotifyError("tg_err_no_chat")
+    # Telegram caps a message at 4096 characters — we cut on paragraph breaks
     chunks, current = [], ""
     for para in text.split("\n\n"):
         if len(current) + len(para) + 2 > 3900:
@@ -44,7 +54,7 @@ def send_message(cfg: dict, text: str) -> None:
 
 
 def detect_chat_id(token: str) -> str:
-    """Ищет chat_id в последних сообщениях боту (getUpdates)."""
+    """Looks for the chat_id among the bot's latest messages (getUpdates)."""
     r = requests.get(_api(token, "getUpdates"), timeout=TIMEOUT)
     data = r.json()
     if not data.get("ok"):
@@ -54,7 +64,7 @@ def detect_chat_id(token: str) -> str:
         chat = msg.get("chat") or {}
         if chat.get("id"):
             return str(chat["id"])
-    raise RuntimeError("Обновлений нет. Напишите вашему боту любое сообщение и попробуйте снова.")
+    raise NotifyError("tg_err_no_updates")
 
 
 def _esc(s: str) -> str:

@@ -1,12 +1,12 @@
-// Поиск по списку моделей и прогресс скачивания. Один файл на страницу
-// «Модель» и на знакомство при первом запуске.
+// Searching the model list and the download progress. One file for the "Model"
+// page and for the first-launch introduction.
 const SHOW_ALL_KEY = 'aijs-models-show-unsupported';
 
 function filterModels() {
   const q = document.getElementById('q').value.toLowerCase().trim();
   const box = document.getElementById('showall');
   const showAll = box.checked;
-  try { localStorage.setItem(SHOW_ALL_KEY, showAll ? '1' : ''); } catch (e) { /* приватный режим */ }
+  try { localStorage.setItem(SHOW_ALL_KEY, showAll ? '1' : ''); } catch (e) { /* private mode */ }
 
   const rows = document.querySelectorAll('.model-row');
   let shown = 0, hiddenByMemory = 0;
@@ -16,8 +16,8 @@ function filterModels() {
     const ok = matchQ && (showAll || fits);
     row.style.display = ok ? '' : 'none';
     if (ok) shown++;
-    // «ничего не найдено» из-за скрытого фильтра — худший вид пустого списка,
-    // поэтому считаем, сколько подходящих под запрос моделей мы утаили
+    // "nothing found" because of a hidden filter is the worst kind of empty list,
+    // so we count how many models matching the query we have kept back
     else if (matchQ && !fits) hiddenByMemory++;
   });
 
@@ -43,21 +43,21 @@ async function pollPull() {
     document.getElementById('pull-bar').style.width = (d.percent || 0) + '%';
     document.getElementById('pull-status').textContent =
       d.error ? d.error : (d.status || '') + (d.percent ? ' — ' + d.percent + '%' : '');
-  } catch (e) { /* сервер перезапускается — просто ждём */ }
+  } catch (e) { /* the server is restarting — we simply wait */ }
 }
 
-// Состояние галочки переживает перезагрузку страницы: после «Скачать» она
-// обновляется, и выбор фильтра иначе молча терялся.
+// The box's state survives a page reload: after "Download" the page refreshes,
+// and otherwise the filter choice was quietly lost.
 try {
   const box = document.getElementById('showall');
   if (box) box.checked = !!localStorage.getItem(SHOW_ALL_KEY);
-} catch (e) { /* приватный режим */ }
+} catch (e) { /* private mode */ }
 
 filterModels();
 
-// Браузер прыгает к якорю сразу после разбора страницы, а список фильтруется
-// уже потом: строки прячутся, высота меняется, и нужное место уезжает из виду.
-// Поэтому возвращаемся к нему сами, когда список принял окончательный вид.
+// The browser jumps to the anchor as soon as the page is parsed, while the list
+// is filtered afterwards: rows hide, the height changes, and the place you wanted
+// slides out of view. So we return to it ourselves once the list has settled.
 if (location.hash) {
   const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
   if (target) target.scrollIntoView({ block: 'center' });
