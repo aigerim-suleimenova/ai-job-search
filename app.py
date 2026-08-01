@@ -6,7 +6,7 @@ import traceback
 import webbrowser
 from datetime import date, datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -22,6 +22,57 @@ BASE = Path(__file__).resolve().parent
 app = FastAPI(title="AI Job Search")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
+
+
+# --- Кто вправе разговаривать с этим сервером ----------------------------------
+#
+# Сервер слушает только петлю (127.0.0.1), поэтому из сети до него не дотянуться.
+# Но «только с этого компьютера» — не то же самое, что «только из этой программы»:
+# любая страница, открытая в обычном браузере, живёт на том же компьютере и может
+# слать сюда запросы, пока человек просто читает.
+#
+# Отсюда две проверки, обе на заголовках, которые ставит сам браузер и которые со
+# страницы не подделать.
+#
+# Host — под каким именем к нам постучались. Имя, которое минуту назад вело на
+# чужой сервер, а теперь ведёт на 127.0.0.1, и есть вся суть подмены DNS: браузер
+# после этого считает чужой сценарий нашим и разрешает ему читать наши страницы.
+# Мы отзываемся только на свои имена, и подмена рассыпается.
+#
+# Sec-Fetch-Site / Origin — откуда пришёл запрос. Форма, отправленная с чужого
+# сайта, честно об этом сообщает. Проверяется на действиях, меняющих состояние:
+# их здесь три десятка, и до сих пор ни одно не спрашивало, кто просит.
+_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _hostname(raw: str) -> str:
+    """Имя без порта. IPv6 приходит в скобках: [::1]:8765."""
+    host = (raw or "").strip().lower()
+    if host.startswith("["):
+        return host[1:host.index("]")] if "]" in host else host.lstrip("[")
+    return host.rsplit(":", 1)[0] if ":" in host else host
+
+
+def _from_this_program(request: Request) -> bool:
+    """Пришёл ли запрос от страницы, которую мы сами и отдали.
+
+    Отсутствие заголовков — не повод отказывать: их не ставят ни curl, ни старые
+    встроенные браузеры, а разговаривать с собственным окном программа обязана.
+    Отказ только тогда, когда браузер прямо назвал чужое происхождение.
+    """
+    site = request.headers.get("sec-fetch-site", "")
+    if site and site not in ("same-origin", "none"):
+        return False
+    origin = request.headers.get("origin", "")
+    if origin:
+        return (urlparse(origin).hostname or "").lower() in _LOCAL_HOSTS
+    return True
+
+
+# Сама проверка зарегистрирована в самом низу файла: Starlette разворачивает
+# список middleware наизнанку, и первым срабатывает добавленный последним. Этой
+# надо быть первой — до профиля, до знакомства, до всего.
 
 
 def _activate_profile(request: Request) -> None:
@@ -214,7 +265,9 @@ def _redirect(msg: str = "") -> RedirectResponse:
 def _redirect_to(path: str, msg: str = "", anchor: str = "") -> RedirectResponse:
     """anchor — a place on the page: after an action a person should end up
     where they clicked, not at the top of a long list."""
-    url = f"{path}?msg={quote(msg)}" if msg else path
+    # «?» или «&» — смотря есть ли в адресе запрос: знакомство возвращает на
+    # /welcome?step=model, и второй вопросительный знак сделал бы адрес негодным.
+    url = f"{path}{'&' if '?' in path else '?'}msg={quote(msg)}" if msg else path
     if anchor:
         url += "#" + anchor
     return RedirectResponse(url, status_code=303)
@@ -842,8 +895,12 @@ async def models_set_provider(request: Request):
     # Choosing what powers the search answers only half the question; which model
     # is the other half, further down the same page. A person used to be thrown
     # to the very top instead, above everything they had already read.
-    where = _reachable(str(form.get("back") or "/models"))
-    anchor = "welcome-step2" if where == "/welcome" else str(form.get("anchor", ""))
+    back = str(form.get("back") or "/models")
+    where = _reachable(back)
+    # Куда возвращать, решает страница, с которой пришли: у знакомства это кнопка
+    # «Далее», у страницы моделей — список. А если гейт увёл нас в другое место,
+    # то и якорь оттуда там ничего не значит.
+    anchor = str(form.get("anchor", "")) if where == back else ""
     return _redirect_to(where, msg, anchor=anchor)
 
 
@@ -1342,6 +1399,19 @@ async def first_run_gate(request: Request, call_next):
     return await call_next(request)
 
 
+# Зарегистрирована последней и потому срабатывает первой — см. пояснение к
+# _from_this_program наверху файла.
+@app.middleware("http")
+async def only_from_here(request: Request, call_next):
+    if _hostname(request.headers.get("host", "")) not in _LOCAL_HOSTS:
+        return Response(content="Not this address.", status_code=403,
+                        media_type="text/plain")
+    if request.method not in _SAFE_METHODS and not _from_this_program(request):
+        return Response(content="Not from this program.", status_code=403,
+                        media_type="text/plain")
+    return await call_next(request)
+
+
 @app.post("/provider/install")
 async def provider_install(request: Request):
     """Opens the download page in the browser.
@@ -1401,7 +1471,14 @@ async def donate(request: Request):
 
 
 @app.get("/welcome")
-def welcome(request: Request, msg: str = ""):
+def welcome(request: Request, msg: str = "", step: str = ""):
+    """Знакомство идёт по шагам: сперва чем считать, потом какой моделью.
+
+    Оба вопроса стояли на одной странице, и человек читал их как один. Под
+    заголовком «Какой моделью» у выбранного Claude Code он видел кнопку
+    «Скачать» и подпись про Ollama — и спрашивал, надо ли скачивать модель на
+    компьютер. Это разные вопросы, и задавать их надо порознь.
+    """
     cfg = config.load()
     provider = cfg["llm"].get("provider", "claude_cli")
     provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
@@ -1414,8 +1491,12 @@ def welcome(request: Request, msg: str = ""):
     # the model inside it. The same answer decides whether the app opens at all,
     # so it is worked out in one place for both.
     blocked_by = providers.missing_piece(cfg["llm"])
+    # На второй шаг нечего идти, пока не решён первый: без установленной
+    # программы список моделей — это список того, чем всё равно не воспользуешься.
+    if step == "model" and blocked_by == "provider":
+        step = ""
     return render(request, "welcome.html", {
-        "msg": msg, "provs": provs, "current_provider": provider,
+        "msg": msg, "provs": provs, "current_provider": provider, "step": step,
         "current_model": current_model, "models": catalog,
         "current_model_name": chosen["name"] if chosen else current_model,
         "specs": hardware.specs(),

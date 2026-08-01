@@ -6,6 +6,8 @@
 перед скачиванием, и проверяется в том самом месте, которое лезет в сеть, — а не
 только там, где его выбирали.
 """
+import hashlib
+
 import pytest
 
 from jobsearch import update, version
@@ -45,12 +47,32 @@ def чужой(url):
     "https://github.com.evil.test/mrWD/ai-job-search/releases/download/v1/x.exe",
     "https://raw.githubusercontent.com/mrWD/ai-job-search/main/x.exe",
     "",
+    # Обход, который в первой редакции работал: сравнение началом строки
+    # проходило, а requests схлопывал «..» уже после проверки и уходил в чужой
+    # репозиторий. Проверять надо тот адрес, который увидит сеть.
+    update.DOWNLOAD_PREFIX + "../../../../evilcorp/evil/releases/download/v1/x.exe",
+    update.DOWNLOAD_PREFIX + "%2e%2e/%2e%2e/%2e%2e/evil/x/releases/download/v1/x.exe",
+    update.DOWNLOAD_PREFIX,                       # каталог без файла
 ])
 def test_скачиваем_только_из_своих_выпусков(адрес):
     """Ответ с подменённым адресом может назвать файл, но не место, откуда его брать."""
     with pytest.raises(update.UpdateError) as поймано:
         update.download(чужой(адрес))
     assert поймано.value.key == "update_err_bad_url"
+
+
+def test_проверка_адреса_не_расходится_с_тем_куда_пойдёт_запрос():
+    """Смысл проверки в том, чтобы совпадать с поведением сети, а не с догадкой
+    о нём. Расхождение допустимо лишь в одну сторону — отвергнуть лишнее."""
+    import requests as _r
+    for url in (update.DOWNLOAD_PREFIX + "v1/setup.exe",
+                update.DOWNLOAD_PREFIX + "../../../evil/x/releases/download/v1/x.exe",
+                "https://evil.example/x.exe",
+                "https://github.com.evil.test/x.exe"):
+        пропускаем = update._is_our_download(url)
+        реально_свой = _r.Request("GET", url).prepare().url.startswith(update.DOWNLOAD_PREFIX)
+        assert not (пропускаем and not реально_свой), \
+            f"пропустили адрес, уходящий на сторону: {url}"
 
 
 def test_свой_адрес_проходит_проверку(monkeypatch, tmp_path):
@@ -76,7 +98,7 @@ def test_свой_адрес_проходит_проверку(monkeypatch, tmp_
     monkeypatch.setattr(update.requests, "get",
                         lambda url, **kw: попытки.append(url) or Ответ())
 
-    path = update.download(чужой(свой))
+    path = update.download({"name": "AI Job Search Setup.exe", "url": свой, "size": 4})
 
     assert попытки == [свой], "пошли не по тому адресу"
     assert path.read_bytes() == b"data"
@@ -111,6 +133,110 @@ def test_имя_файла_из_ответа_не_уводит_из_папки(m
     # главное: файл лёг именно туда, куда мы его звали, а не куда указало имя
     assert path.resolve().parent == path.parent.resolve()
     assert path.parent.name.startswith("aijs-update-")
+
+
+# --- Скачанное сверяется с обещанным ---------------------------------------------
+
+def поддельная_сеть(monkeypatch, payload: bytes):
+    class Ответ:
+        headers = {"Content-Length": str(len(payload))}
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size=0):
+            yield payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(update.requests, "get", lambda url, **kw: Ответ())
+
+
+def свой(**поля):
+    base = {"name": "setup.exe", "url": update.DOWNLOAD_PREFIX + "v1/setup.exe"}
+    base.update(поля)
+    return base
+
+
+def test_целый_файл_принимается(monkeypatch):
+    данные = b"installer bytes"
+    поддельная_сеть(monkeypatch, данные)
+    asset = свой(size=len(данные), digest="sha256:" + hashlib.sha256(данные).hexdigest())
+
+    path = update.download(asset)
+
+    assert path.read_bytes() == данные
+
+
+def test_недокачанный_файл_не_запускается(monkeypatch):
+    """Обрыв связи оставлял огрызок, и он передавался установщику как есть."""
+    поддельная_сеть(monkeypatch, b"half")
+    asset = свой(size=999999)
+
+    with pytest.raises(update.UpdateError) as поймано:
+        update.download(asset)
+
+    assert поймано.value.key == "update_err_broken"
+
+
+def test_подменённое_содержимое_не_запускается(monkeypatch):
+    """Размер сошёлся, а байты другие: адрес ведёт на хранилище, куда нас
+    перенаправили, и доверять надо не ему, а самим байтам."""
+    данные = b"NOT the installer"
+    поддельная_сеть(monkeypatch, данные)
+    asset = свой(size=len(данные),
+                 digest="sha256:" + hashlib.sha256(b"the real installer").hexdigest())
+
+    with pytest.raises(update.UpdateError) as поймано:
+        update.download(asset)
+
+    assert поймано.value.key == "update_err_broken"
+
+
+def test_негодный_файл_стирается_а_не_остаётся_лежать(monkeypatch):
+    поддельная_сеть(monkeypatch, b"stub")
+    asset = свой(size=999999)
+    оставшиеся = []
+    настоящий_mkdtemp = update.tempfile.mkdtemp
+    monkeypatch.setattr(update.tempfile, "mkdtemp",
+                        lambda **kw: оставшиеся.append(настоящий_mkdtemp(**kw)) or оставшиеся[-1])
+
+    with pytest.raises(update.UpdateError):
+        update.download(asset)
+
+    from pathlib import Path
+    остатки = list(Path(оставшиеся[0]).glob("*"))
+    assert остатки == [], f"негодный файл остался на диске: {остатки}"
+
+
+def test_бесконечный_ответ_не_забьёт_диск(monkeypatch):
+    class Бесконечный:
+        headers = {}
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size=0):
+            while True:
+                yield b"x" * 1024 * 1024
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(update.requests, "get", lambda url, **kw: Бесконечный())
+    monkeypatch.setattr(update, "MAX_DOWNLOAD", 4 * 1024 * 1024)
+
+    with pytest.raises(update.UpdateError) as поймано:
+        update.download(свой())
+
+    assert поймано.value.key == "update_err_broken"
 
 
 # --- Выбор файла под систему ----------------------------------------------------

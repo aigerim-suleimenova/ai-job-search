@@ -5,20 +5,29 @@ versions, and getting one meant remembering to look at the site, downloading the
 installer by hand and uninstalling the old copy first — which nobody does, so
 people stayed on whatever they first installed for good.
 
-Where the files come from is not taken on trust. GitHub answers with a list of
-assets and their addresses, but an address in an answer is only a suggestion:
-before anything is downloaded it is checked to lead into the releases of this
-very repository over https. An answer that has been tampered with on the way can
-then name a file, but not a place to fetch it from.
+Where the file comes from is not taken on trust, and neither is the file. The
+answer names an address and a SHA-256; the address is checked to lead into the
+releases of this repository, and what arrives is weighed and hashed before it is
+allowed to run. A truncated download, a redirect that ends up somewhere else, an
+asset swapped after the answer was written — all three come out as a mismatch.
+
+Honest about what this does NOT cover: the address and the hash arrive over the
+same connection, so anyone able to forge both — GitHub itself, or somebody
+holding the maintainer's account — is trusted by this. Only a signature made
+with a key that never touches GitHub would close that, and the Windows installer
+is not signed at all today.
 """
+import hashlib
 import os
 import platform
+import posixpath
 import re
 import subprocess
 import tempfile
 import threading
 import time
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import requests
 
@@ -27,8 +36,27 @@ from . import appstate, version
 REPO = "mrWD/ai-job-search"
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES = f"https://github.com/{REPO}/releases"
-# Everything downloaded must start with this and nothing else.
 DOWNLOAD_PREFIX = f"https://github.com/{REPO}/releases/download/"
+_DOWNLOAD_PATH = f"/{REPO}/releases/download/"
+# Больше файла всё равно не бывает, а место на диске занимать нечем.
+MAX_DOWNLOAD = 400 * 1024 * 1024
+
+
+def _is_our_download(url: str) -> bool:
+    """Ведёт ли адрес в выпуски именно этого репозитория.
+
+    Сравнивать началом строки нельзя, и это была настоящая ошибка, а не
+    осторожность: requests схлопывает «..» уже ПОСЛЕ такой проверки, поэтому
+    .../ai-job-search/releases/download/../../../evilcorp/evil/... начало
+    проходило, а запрос уходил в чужой репозиторий. Адрес сначала приводится к
+    тому виду, в котором его увидит сеть, и лишь потом сверяется — и по частям,
+    а не по буквам: имя узла отдельно, путь отдельно.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or (parsed.hostname or "").lower() != "github.com":
+        return False
+    path = posixpath.normpath(unquote(parsed.path))
+    return path.startswith(_DOWNLOAD_PATH) and len(path) > len(_DOWNLOAD_PATH)
 
 CHECK_EVERY = 24 * 3600      # чаще незачем: релизы выходят не по часам
 
@@ -63,8 +91,10 @@ def _asset_for_this_os(assets: list) -> dict:
     for a in assets:
         name = str(a.get("name", ""))
         url = str(a.get("browser_download_url", ""))
-        if name.lower().endswith("setup.exe") and url.startswith(DOWNLOAD_PREFIX):
-            return {"name": name, "url": url, "size": int(a.get("size") or 0)}
+        if name.lower().endswith("setup.exe") and _is_our_download(url):
+            return {"name": name, "url": url, "size": int(a.get("size") or 0),
+                    # чем сверить скачанное; GitHub присылает "sha256:<hex>"
+                    "digest": str(a.get("digest") or "")}
     return {}
 
 
@@ -130,14 +160,20 @@ class UpdateError(RuntimeError):
 
 
 def download(asset: dict, progress=None) -> Path:
-    """Fetches the installer into a temporary directory and returns the path.
+    """Fetches the installer, checks it, and returns the path to it.
 
     The address is checked again here rather than only where it was chosen: this
     function is what actually reaches out to the network, and it must not depend
     on somebody else having looked first.
+
+    Redirects are followed — a GitHub download always ends up on a storage host —
+    so where the bytes finally come from is not the thing being trusted. What is
+    checked is the bytes themselves: the size and the hash the answer promised.
+    A file that does not match never becomes a path anybody can run; it is
+    deleted before this returns.
     """
     url = str((asset or {}).get("url") or "")
-    if not url.startswith(DOWNLOAD_PREFIX):
+    if not _is_our_download(url):
         raise UpdateError("update_err_bad_url")
     # Имя файла тоже пришло снаружи. Берётся только последняя часть пути, и в ней
     # остаются лишь безобидные знаки: скачанное должно лечь в нашу временную папку
@@ -145,19 +181,37 @@ def download(asset: dict, progress=None) -> Path:
     tail = re.split(r"[\\/]", str(asset.get("name") or ""))[-1]
     safe = re.sub(r"[^\w.-]", "_", tail).lstrip(".") or "setup.exe"
     target = Path(tempfile.mkdtemp(prefix="aijs-update-")) / safe
+    expected_size = int(asset.get("size") or 0)
+    expected_hash = str(asset.get("digest") or "")
+    ceiling = expected_size or MAX_DOWNLOAD
+    sha = hashlib.sha256()
+    done = 0
     try:
         with requests.get(url, stream=True, timeout=(5, 120)) as r:
             r.raise_for_status()
-            total = int(r.headers.get("Content-Length") or 0)
-            done = 0
+            total = expected_size or int(r.headers.get("Content-Length") or 0)
             with open(target, "wb") as fh:
                 for chunk in r.iter_content(chunk_size=256 * 1024):
-                    fh.write(chunk)
                     done += len(chunk)
+                    if done > ceiling:
+                        raise UpdateError("update_err_broken")
+                    fh.write(chunk)
+                    sha.update(chunk)
                     if progress and total:
-                        progress(done * 100 // total)
+                        progress(min(100, done * 100 // total))
     except requests.RequestException as e:
+        target.unlink(missing_ok=True)
         raise UpdateError("update_err_download", error=e) from e
+    except UpdateError:
+        target.unlink(missing_ok=True)
+        raise
+
+    if expected_size and done != expected_size:
+        target.unlink(missing_ok=True)      # обрыв связи оставлял огрызок, и он запускался
+        raise UpdateError("update_err_broken")
+    if expected_hash.startswith("sha256:") and sha.hexdigest() != expected_hash[7:].lower():
+        target.unlink(missing_ok=True)
+        raise UpdateError("update_err_broken")
     return target
 
 

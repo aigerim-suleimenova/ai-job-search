@@ -235,10 +235,13 @@ TR = {
                          "de": "Von ollama.com herunterladen und starten — danach lassen sich Modelle hier laden"},
     "models_provider": {"ru": "Чем думать", "en": "What powers the search",
                         "it": "Cosa alimenta la ricerca", "de": "Womit gesucht wird"},
-    "models_provider_hint": {"ru": "Приложение само не думает — оно обращается к модели. Выберите, к какой: облачную через Claude Code или Cursor, либо локальную на вашем компьютере (ничего не уходит наружу, но нужна память).",
-                             "en": "The app does not reason on its own — it calls a model. Choose which one: a cloud model via Claude Code or Cursor, or a local one on your machine (nothing leaves the computer, but it needs memory).",
-                             "it": "L'app non ragiona da sola — chiama un modello. Scelga quale: un modello cloud tramite Claude Code o Cursor, oppure uno locale sul suo computer (nulla esce dal dispositivo, ma serve memoria).",
-                             "de": "Die App denkt nicht selbst — sie ruft ein Modell auf. Wählen Sie: ein Cloud-Modell über Claude Code oder Cursor, oder ein lokales auf Ihrem Rechner (nichts verlässt das Gerät, benötigt aber Speicher)."},
+    # Провайдеры здесь больше не перечисляются поимённо: с появлением Codex этот
+    # список устарел молча, и никто бы не заметил, пока не сверил бы с картинками.
+    # Карточки ниже и так называют всех, кто есть.
+    "models_provider_hint": {"ru": "Приложение само не думает — оно обращается к модели. Выберите, к какой: облачной (считает на сервере, нужна подписка или оплата по мере использования) или локальной на вашем компьютере (ничего не уходит наружу и платить не нужно, но нужны память и время).",
+                             "en": "The app does not reason on its own — it calls a model. Choose which kind: a cloud one (runs on a server, needs a subscription or pay-as-you-go) or a local one on your machine (nothing leaves the computer and there is nothing to pay, but it wants memory and time).",
+                             "it": "L'app non ragiona da sola — chiama un modello. Scelga quale: uno cloud (lavora su un server, serve un abbonamento o il pagamento a consumo) oppure uno locale sul suo computer (nulla esce dal dispositivo e non c'è nulla da pagare, ma servono memoria e tempo).",
+                             "de": "Die App denkt nicht selbst — sie ruft ein Modell auf. Wählen Sie, welche Art: ein Cloud-Modell (rechnet auf einem Server, braucht ein Abo oder Pay-as-you-go) oder ein lokales auf Ihrem Rechner (nichts verlässt das Gerät und nichts ist zu bezahlen, verlangt aber Speicher und Zeit)."},
     "models_ready": {"ru": "установлен", "en": "installed", "it": "installato", "de": "installiert"},
     "models_not_installed": {"ru": "не установлен", "en": "not installed",
                              "it": "non installato", "de": "nicht installiert"},
@@ -1621,6 +1624,72 @@ TR = {
         "en": "On this system the update is installed by hand",
         "it": "Su questo sistema l'aggiornamento si installa a mano",
         "de": "Auf diesem System wird das Update von Hand installiert"},
+    "update_err_broken": {
+        "ru": "Скачанный файл не совпал с тем, что обещал GitHub, — обновление отменено.",
+        "en": "The downloaded file did not match what GitHub promised — the update has been called off.",
+        "it": "Il file scaricato non corrisponde a quanto promesso da GitHub — aggiornamento annullato.",
+        "de": "Die heruntergeladene Datei stimmt nicht mit dem überein, was GitHub angekündigt hat — das Update wurde abgebrochen."},
+    "tg_err_network": {
+        "ru": "Telegram недоступен: {error}",
+        "en": "Telegram is unreachable: {error}",
+        "it": "Telegram non è raggiungibile: {error}",
+        "de": "Telegram ist nicht erreichbar: {error}"},
+    # Codex CLI — третья облачная командная строка рядом с Claude Code и Cursor.
+    "prov_codex_cli": {"ru": "Codex", "en": "Codex", "it": "Codex", "de": "Codex"},
+    "prov_codex_cli_hint": {
+        "ru": "Установите Codex CLI с developers.openai.com/codex",
+        "en": "Install Codex CLI from developers.openai.com/codex",
+        "it": "Installi Codex CLI da developers.openai.com/codex",
+        "de": "Installieren Sie Codex CLI von developers.openai.com/codex"},
+    "prov_codex_cli_about": {
+        "ru": "Командная строка OpenAI Codex. Считает в облаке по вашей подписке ChatGPT.",
+        "en": "OpenAI's Codex command line. Runs in the cloud on your ChatGPT subscription.",
+        "it": "La riga di comando Codex di OpenAI. Lavora nel cloud con il suo abbonamento ChatGPT.",
+        "de": "Die Codex-Kommandozeile von OpenAI. Rechnet in der Cloud über Ihr ChatGPT-Abo."},
+    "prov_err_no_codex": {
+        "ru": "Codex CLI не найден: установите codex",
+        "en": "Codex CLI not found: install codex",
+        "it": "Codex CLI non trovato: installi codex",
+        "de": "Codex CLI nicht gefunden: codex installieren"},
+    "model_auto_codex": {
+        "ru": "Авто (выбирает Codex)", "en": "Auto (Codex decides)",
+        "it": "Auto (decide Codex)", "de": "Auto (Codex entscheidet)"},
+    # Знакомство по шагам. Тестировщик не мог отличить «установить программу» от
+    # «скачать модель», потому что оба вопроса стояли на одной странице разом.
+    "models_needs_cli": {
+        "ru": "Сначала установите {name} — без неё выбранная модель не заработает.",
+        "en": "Install {name} first — the chosen model will not work without it.",
+        "it": "Prima installi {name} — senza, il modello scelto non funzionerà.",
+        "de": "Installieren Sie zuerst {name} — ohne das funktioniert das gewählte Modell nicht."},
+    "welcome_next": {"ru": "Далее", "en": "Next", "it": "Avanti", "de": "Weiter"},
+    "welcome_back": {
+        "ru": "Назад, к выбору программы", "en": "Back to choosing the program",
+        "it": "Indietro, alla scelta del programma", "de": "Zurück zur Programmauswahl"},
+    "welcome_ready_provider": {
+        "ru": "{name} установлена — можно переходить к модели.",
+        "en": "{name} is installed — on to the model.",
+        "it": "{name} è installato — si può passare al modello.",
+        "de": "{name} ist installiert — weiter zum Modell."},
+    "welcome_step2_intro": {
+        "ru": "Программа {name} установлена. Теперь выберите, какой моделью она будет думать.",
+        "en": "{name} is installed. Now choose which model it will think with.",
+        "it": "{name} è installato. Ora scelga con quale modello lavorerà.",
+        "de": "{name} ist installiert. Wählen Sie nun, mit welchem Modell es denken soll."},
+    "welcome_step2_local": {
+        "ru": "Модель — это файл на несколько гигабайт, он останется на вашем компьютере. Нажмите «Скачать» у подходящей и дождитесь конца — это небыстро.",
+        "en": "A model is a file of several gigabytes and it stays on your computer. Press “Download” next to one that fits and wait for it to finish — it takes a while.",
+        "it": "Un modello è un file di diversi gigabyte e resta sul suo computer. Prema «Scarica» accanto a uno adatto e attenda la fine — non è veloce.",
+        "de": "Ein Modell ist eine Datei von mehreren Gigabyte und bleibt auf Ihrem Rechner. Klicken Sie bei einem passenden auf „Herunterladen“ und warten Sie ab — das dauert."},
+    "welcome_step2_cloud": {
+        "ru": "Эта модель считает на сервере — скачивать на компьютер ничего не нужно, просто выберите подходящую.",
+        "en": "This model runs on a server — there is nothing to download, just pick the one you want.",
+        "it": "Questo modello lavora su un server — non c'è nulla da scaricare, scelga semplicemente quello che preferisce.",
+        "de": "Dieses Modell läuft auf einem Server — es gibt nichts herunterzuladen, wählen Sie einfach eines aus."},
+    "welcome_cost_hint": {
+        "ru": "Claude Code, Cursor и Codex считают на своих серверах — для них нужна подписка или оплата по мере использования. Локальная модель (Ollama) бесплатна, но ей нужны память компьютера и время.",
+        "en": "Claude Code, Cursor and Codex do the thinking on their own servers — those need a subscription or pay-as-you-go. A local model (Ollama) is free, but it wants your computer's memory and time.",
+        "it": "Claude Code, Cursor e Codex lavorano sui propri server — servono un abbonamento o il pagamento a consumo. Il modello locale (Ollama) è gratuito, ma vuole memoria del computer e tempo.",
+        "de": "Claude Code, Cursor und Codex rechnen auf ihren eigenen Servern — dafür braucht es ein Abo oder Pay-as-you-go. Ein lokales Modell (Ollama) ist kostenlos, verlangt aber Arbeitsspeicher und Zeit."},
 
 }
 

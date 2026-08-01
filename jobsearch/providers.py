@@ -42,6 +42,17 @@ CURSOR_MODELS = [
     {"id": "auto", "name": "Auto", "name_key": "model_auto_cursor", "power": 80},
 ]
 
+# Названия моделей у Codex меняются чаще, чем выходят наши версии: gpt-5.4
+# уступает место семейству gpt-5.6. Поэтому «Авто» стоит первым и выбрано по
+# умолчанию — при нём мы вообще не называем модель, и Codex берёт ту, что
+# настроена у него самого. Устаревшее имя в списке сломает поиск, «Авто» — нет.
+CODEX_MODELS = [
+    {"id": "auto", "name": "Auto", "name_key": "model_auto_codex", "power": 95},
+    {"id": "gpt-5.6-terra", "name": "GPT-5.6 Terra", "power": 97},
+    {"id": "gpt-5.6-luna", "name": "GPT-5.6 Luna", "power": 88,
+     "note_key": "model_note_strong_fast"},
+]
+
 # Local models: the Ollama name → metadata. brand/country are there so the list
 # can be filtered by origin (some people do care about it).
 LOCAL_MODELS = [
@@ -246,6 +257,15 @@ def available(claude_bin: str = "claude") -> dict:
             "web_search": False, "kind": "cloud",
             "install_url": "https://cursor.com/cli",
         },
+        "codex_cli": {
+            # Codex умеет ходить в сеть, но по умолчанию заперт в песочнице
+            # только на чтение — и это ровно то, чего мы хотим от запуска без
+            # человека. Поиск новых компаний с ним пропускается: обещать
+            # веб-поиск, которого может не оказаться, хуже, чем не обещать.
+            "ready": _bin_exists("codex"),
+            "web_search": False, "kind": "cloud",
+            "install_url": "https://developers.openai.com/codex/cli/",
+        },
         "ollama": {
             "ready": ollama_running(),
             "web_search": False, "kind": "local",
@@ -296,6 +316,8 @@ def models_for(provider: str, installed: set = None, lang: str = "en") -> list:
         return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in CLOUD_MODELS]
     if provider == "cursor_cli":
         return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in CURSOR_MODELS]
+    if provider == "codex_cli":
+        return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in CODEX_MODELS]
     if provider == "ollama":
         installed = installed if installed is not None else ollama_installed_models()
         out = []
@@ -376,6 +398,38 @@ def call_cursor(prompt: str, model: str, timeout: int) -> str:
     return proc.stdout.strip()
 
 
+def call_codex(prompt: str, model: str, timeout: int) -> str:
+    """Codex CLI без интерактива.
+
+    `codex exec -` читает задание из stdin и печатает в stdout только последний
+    ответ агента — ровно то, что нам нужно; ход работы уходит в stderr и нас не
+    касается. Песочница по умолчанию только на чтение, так что запуск без
+    человека ничего на диске не тронет.
+
+    «auto» означает «не называть модель»: тогда Codex берёт настроенную у себя.
+    Имена моделей у него меняются быстрее наших версий, и это единственный
+    выбор, который не устареет.
+    """
+    exe = resolve_bin("codex")
+    if not exe:
+        raise ProviderError(key="prov_err_no_codex")
+    cmd = [exe, "exec"]
+    if model and model != "auto":
+        cmd += ["--model", model]
+    cmd.append("-")
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace",
+                          cwd=work_dir(), env=login_env(),
+                          timeout=timeout, close_fds=False)
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()[:800]
+        if not detail:
+            raise ProviderError(key="prov_err_exit_code", tool="codex",
+                                code=proc.returncode)
+        raise ProviderError(detail)
+    return proc.stdout.strip()
+
+
 def call_ollama(prompt: str, model: str, timeout: int) -> str:
     try:
         r = requests.post(f"{OLLAMA_URL}/api/generate",
@@ -394,6 +448,8 @@ def call(prompt: str, provider: str, model: str, timeout: int = 600,
     """The single place a model is called. allowed_tools matters only to Claude Code CLI."""
     if provider == "cursor_cli":
         return call_cursor(prompt, model, timeout)
+    if provider == "codex_cli":
+        return call_codex(prompt, model, timeout)
     if provider == "ollama":
         return call_ollama(prompt, model, timeout)
     return call_claude(prompt, model, timeout, allowed_tools, claude_bin)

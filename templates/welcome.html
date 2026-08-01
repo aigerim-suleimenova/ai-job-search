@@ -20,26 +20,61 @@
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
 
-<section class="card">
-  <h2>{{ t('welcome_title') }}</h2>
-  <p>{{ t('welcome_intro') }}</p>
+{# Знакомство идёт по одному шагу за раз.
+   Раньше оба стояли на странице разом, и человек читал их как одно целое: под
+   заголовком «Какой моделью» у выбранного Claude Code он видел кнопку «Скачать»
+   и подпись про Ollama — и спрашивал, надо ли скачивать модель на компьютер и
+   почему она недоступна. Это два разных вопроса, и задавать их надо порознь:
+   сперва какой программой считать, потом какой моделью. #}
+{# Заголовки уже несут в себе «Шаг 1.» и «Шаг 2.» — отдельный счётчик рядом с
+   ними был бы повторением, да ещё и в четырнадцати переводах. #}
+<section class="card welcome-head">
+  <h2>{% if step == 'model' %}{{ t('welcome_step2') }}{% else %}{{ t('welcome_step1') }}{% endif %}</h2>
+  <p>{% if step == 'model' %}{{ t('welcome_step2_intro').format(name=t('prov_' + current_provider)) }}{% else %}{{ t('welcome_intro') }}{% endif %}</p>
 </section>
 
 {% include "_pull_card.html" %}
 
+{% if step != 'model' %}
+{# --- Шаг 1: какой программой считать ------------------------------------- #}
 <section class="card">
-  <h2>{{ t('welcome_step1') }}</h2>
-  <p class="hint">{{ t('models_provider_hint') }}</p>
+  {# Первый вопрос тестировщика был «а там шо, платить надо?». Отвечаем до того,
+     как его зададут: у облачных в списке моделей написано «дороже», и без этой
+     строчки цена выглядит неожиданностью.
+     Отдельной подсказки models_provider_hint здесь больше нет: она повторяла
+     вступление своими словами, да ещё и перечисляла провайдеров поимённо — с
+     появлением Codex список в ней устарел. На странице «Модель» она осталась. #}
+  <p class="hint">{{ t('welcome_cost_hint') }}</p>
   {% set back = '/welcome' %}
   {% include "_provider_grid.html" %}
 </section>
 
+<section class="card welcome-done" id="welcome-continue">
+  {% if provider_ready %}
+  <form method="get" action="/welcome" style="margin:0">
+    <input type="hidden" name="step" value="model">
+    <button class="primary">{{ t('welcome_next') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0">{{ t('welcome_ready_provider').format(
+       name=t('prov_' + current_provider)) }}</p>
+  {% else %}
+  <button class="primary" disabled>{{ t('welcome_next') }}</button>
+  <p class="hint" style="margin:8px 0 0; color:var(--warn)">{{ t('welcome_blocked') }}</p>
+  {% endif %}
+</section>
+
+{% else %}
+{# --- Шаг 2: какой моделью ------------------------------------------------- #}
 <section class="card" id="welcome-step2">
-  <h2>{{ t('welcome_step2') }} — {{ t('prov_' + current_provider) }}</h2>
-  <p class="meta" style="margin-bottom:14px">{{ specs.cpu }} · {{ t('models_ram') }}
+  {% if current_provider == 'ollama' %}
+  <p class="hint">{{ t('welcome_step2_local') }}</p>
+  <p class="meta" style="margin:10px 0 14px">{{ specs.cpu }} · {{ t('models_ram') }}
      {{ specs.ram_gb }} {{ t('unit_gb') }} · {{ t('models_usable') }} ≈
      {{ specs.usable_gb }} {{ t('unit_gb') }}{% if specs.gpu and specs.gpu != specs.cpu %} · {{ specs.gpu }}{% endif %}</p>
-  {% set back = '/welcome' %}
+  {% else %}
+  <p class="hint">{{ t('welcome_step2_cloud') }}</p>
+  {% endif %}
+  {% set back = '/welcome?step=model' %}
   {% include "_model_list.html" %}
 </section>
 
@@ -52,15 +87,16 @@
        provider=t('prov_' + current_provider), model=current_model_name) }}</p>
   {% else %}
   <button class="primary" disabled>{{ t('welcome_continue') }}</button>
-  <p class="hint" style="margin:8px 0 0; color:var(--warn)">
-    {{ t('welcome_blocked_model') if blocked_by == 'model' else t('welcome_blocked') }}</p>
+  <p class="hint" style="margin:8px 0 0; color:var(--warn)">{{ t('welcome_blocked_model') }}</p>
   {% endif %}
+  <p style="margin:14px 0 0"><a class="hint" href="/welcome">← {{ t('welcome_back') }}</a></p>
 </section>
+{% endif %}
 
 {# Сюда попадают и те, кто переустановил программу: их прежние данные пережили
    удаление, и это выглядит так, будто ничего не удалялось. Предложение стереть
    всё показывается только им — тому, кто здесь впервые, стирать нечего. #}
-{% if can_reset %}
+{% if can_reset and step != 'model' %}
 <section class="card">
   <h2>{{ t('reset_title') }}</h2>
   <p class="hint">{{ t('reset_hint') }}</p>

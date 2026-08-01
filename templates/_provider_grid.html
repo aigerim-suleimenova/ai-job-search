@@ -11,7 +11,7 @@
    Раньше его отсюда бросало в самый верх, к началу всего, что он уже прочёл.
    А «Проверить снова» и «Скачать» возвращают к своей же карточке: человек
    спрашивал про конкретную программу и остаться должен возле неё. #}
-{% set step2 = 'welcome-step2' if back == '/welcome' else 'models-choose' %}
+{% set step2 = 'welcome-continue' if back.startswith('/welcome') else 'models-choose' %}
 <div class="provider-grid" style="margin-top:12px">
   {% for key, p in provs.items() %}
   <div class="provider-card {% if current_provider == key %}on{% endif %}"

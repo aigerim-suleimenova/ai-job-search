@@ -23,6 +23,32 @@ def _api(token: str, method: str) -> str:
     return f"https://api.telegram.org/bot{token}/{method}"
 
 
+def _without_token(text: str, token: str) -> str:
+    """Тот же текст, но без токена.
+
+    Telegram требует держать токен прямо в адресе, а requests вкладывает адрес в
+    текст своего исключения. Дальше это исключение попадало в журнал прогона —
+    тот, что хранится в базе и показывается на странице результатов, — и в
+    errors.log. То есть токен оседал открытым текстом ровно в тех файлах,
+    которые человек прикладывает к жалобе на ошибку. А токен — это полная власть
+    над ботом и вся его переписка.
+    """
+    return text.replace(token, "***") if token else text
+
+
+def _call(what, token: str):
+    """Запрос к Telegram, чья неудача не выносит наружу ни токена, ни лишнего.
+
+    Ещё и тип важен: requests.RequestException — это OSError, а не RuntimeError,
+    так что мимо всех наших `except RuntimeError` он пролетал прямо в общий
+    обработчик, а тот пишет traceback целиком.
+    """
+    try:
+        return what()
+    except requests.RequestException as e:
+        raise NotifyError("tg_err_network", error=_without_token(str(e), token)[:300]) from e
+
+
 def send_message(cfg: dict, text: str) -> None:
     tg = cfg["telegram"]
     token, chat_id = tg.get("bot_token", ""), tg.get("chat_id", "")
@@ -42,12 +68,12 @@ def send_message(cfg: dict, text: str) -> None:
     if current:
         chunks.append(current)
     for chunk in chunks:
-        r = requests.post(
+        r = _call(lambda: requests.post(
             _api(token, "sendMessage"),
             json={"chat_id": chat_id, "text": chunk, "parse_mode": "HTML",
                   "disable_web_page_preview": True},
             timeout=TIMEOUT,
-        )
+        ), token)
         data = r.json()
         if not data.get("ok"):
             raise RuntimeError(f"Telegram: {data.get('description', r.text[:200])}")
@@ -55,7 +81,7 @@ def send_message(cfg: dict, text: str) -> None:
 
 def detect_chat_id(token: str) -> str:
     """Looks for the chat_id among the bot's latest messages (getUpdates)."""
-    r = requests.get(_api(token, "getUpdates"), timeout=TIMEOUT)
+    r = _call(lambda: requests.get(_api(token, "getUpdates"), timeout=TIMEOUT), token)
     data = r.json()
     if not data.get("ok"):
         raise RuntimeError(f"Telegram: {data.get('description', r.text[:200])}")

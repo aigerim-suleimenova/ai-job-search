@@ -14,8 +14,16 @@
   <span class="hint" id="count" data-hidden-note="{{ t('models_hidden_note') }}"></span>
 </div>
 
+{# Эта строчка была написана про Ollama, а показывалась при любом неустановленном
+   провайдере: человек с выбранным Claude Code читал «сначала установите и
+   запустите Ollama» и не понимал, при чём тут она вообще. Скачивать модели
+   отсюда можно только у локального провайдера — остальным нужна сама программа,
+   и сказать об этом надо про неё, а не про чужую. #}
 {% if not provider_ready %}
-<p class="hint" style="margin:-4px 0 14px; color:var(--warn)">{{ t('models_needs_provider') }}</p>
+<p class="hint" style="margin:-4px 0 14px; color:var(--warn)">
+  {% if current_provider == 'ollama' %}{{ t('models_needs_provider') }}
+  {% else %}{{ t('models_needs_cli').format(name=t('prov_' + current_provider)) }}{% endif %}
+</p>
 {% endif %}
 
 <div id="list">
@@ -75,7 +83,7 @@
           <input type="hidden" name="model" value="{{ m.id }}">
           <input type="hidden" name="back" value="{{ back }}">
           <input type="hidden" name="anchor"
-                 value="{{ 'welcome-continue' if back == '/welcome' else anchor }}">
+                 value="{{ 'welcome-continue' if back.startswith('/welcome') else anchor }}">
           <button {% if m.id == current_model %}class="primary"{% endif %}
                   {% if m.kind == 'local' and not m.installed %}disabled{% endif %}>
             {% if m.id == current_model %}{{ t('models_in_use') }}{% else %}{{ t('models_use') }}{% endif %}

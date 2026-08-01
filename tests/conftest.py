@@ -69,6 +69,24 @@ def cfg(profile):
     return config.load()
 
 
+BASE_URL = "http://127.0.0.1:8765"
+
+
+def client_for(app, profile: str = ""):
+    """TestClient, стучащийся по тому адресу, по которому программа и живёт.
+
+    По умолчанию он представляется как «testserver», а сервер теперь отзывается
+    только на свои имена — иначе подмену DNS не остановить. Настоящее окно
+    программы всегда приходит на 127.0.0.1, и тесты должны приходить так же:
+    иначе они проверяли бы не то приложение, которое видит человек.
+    """
+    from fastapi.testclient import TestClient
+    c = TestClient(app, base_url=BASE_URL)
+    if profile:
+        c.cookies.set("profile", profile)
+    return c
+
+
 def job(key: str, **over) -> dict:
     """A job with sensible fields — we override only what the test is about."""
     base = dict(key=key, title="Senior Frontend Engineer", company="Northwind",

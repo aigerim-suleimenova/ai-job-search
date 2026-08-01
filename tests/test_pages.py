@@ -23,7 +23,7 @@ from conftest import job  # noqa: E402
 @pytest.fixture
 def client(profile):
     import app as app_module
-    with TestClient(app_module.app) as c:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as c:
         c.cookies.set("profile", profile)
         yield c
 
@@ -96,9 +96,9 @@ def test_выбор_провайдера_ведёт_к_следующему_во
     он уже прочитал."""
     доступны(monkeypatch, claude_cli=True)
     r = client.post("/models/provider",
-                    data={"provider": "claude_cli", "back": "/welcome", "anchor": "welcome-step2"},
+                    data={"provider": "claude_cli", "back": "/welcome", "anchor": "welcome-continue"},
                     follow_redirects=False)
-    assert r.headers["location"].endswith("#welcome-step2"), r.headers["location"]
+    assert r.headers["location"].endswith("#welcome-continue"), r.headers["location"]
 
     r = client.post("/models/provider",
                     data={"provider": "claude_cli", "back": "/models", "anchor": "models-choose"},
@@ -116,7 +116,9 @@ def test_проверка_программы_возвращает_к_её_же_�
     assert r.headers["location"].endswith("#provider-ollama"), r.headers["location"]
 
 
-@pytest.mark.parametrize("path,anchor", [("/welcome", "welcome-step2"), ("/models", "models-choose")])
+@pytest.mark.parametrize("path,anchor", [("/welcome", "welcome-continue"),
+                                         ("/welcome?step=model", "welcome-step2"),
+                                         ("/models", "models-choose")])
 def test_якорь_есть_на_самой_странице(client, profile, monkeypatch, path, anchor):
     """Якорь в адресе без якоря на странице — это просто прокрутка наверх."""
     доступны(monkeypatch, claude_cli=True)
@@ -318,7 +320,7 @@ def test_знакомство_различает_нет_программы_и_н
     cfg["llm"].update(provider="ollama", triage_model="llama3.3:70b")
     config.save(cfg)
 
-    хвост = client.get("/welcome").text
+    хвост = client.get("/welcome?step=model").text
     хвост = хвост[хвост.index('id="welcome-continue"'):]
 
     assert "disabled" in хвост.split("</button>")[0]
@@ -335,7 +337,7 @@ def test_знакомство_пускает_когда_модель_на_мес
     cfg["llm"].update(provider="ollama", triage_model="llama3.3:70b")
     config.save(cfg)
 
-    хвост = client.get("/welcome").text
+    хвост = client.get("/welcome?step=model").text
     хвост = хвост[хвост.index('id="welcome-continue"'):]
 
     assert "disabled" not in хвост.split("</button>")[0], "пройти дальше не дают"

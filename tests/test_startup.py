@@ -22,7 +22,7 @@ def test_упавшее_расписание_не_мешает_открытьс�
 
     monkeypatch.setattr(app_module.scheduler, "start", взорваться)
 
-    with TestClient(app_module.app) as client:      # runs the startup handler
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as client:      # runs the startup handler
         client.cookies.set("profile", profile)
         assert client.get("/").status_code == 200, "приложение не открылось из-за расписания"
 
@@ -35,7 +35,7 @@ def test_упавший_перенос_профилей_не_мешает(profil
     monkeypatch.setattr(app_module, "LOG_PATH", tmp_path / "errors.log")
     monkeypatch.setattr(app_module.profiles, "ensure_migrated",
                         lambda: (_ for _ in ()).throw(OSError("диск только для чтения")))
-    with TestClient(app_module.app) as client:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as client:
         client.cookies.set("profile", profile)
         assert client.get("/simple").status_code == 200
     assert "перенос профилей" in (tmp_path / "errors.log").read_text(encoding="utf-8")
@@ -50,7 +50,7 @@ def test_все_шаги_падают_а_программа_живёт(profile, 
     for имя in ("start", "reschedule_all"):
         monkeypatch.setattr(app_module.scheduler, имя,
                             lambda: (_ for _ in ()).throw(RuntimeError("нет")))
-    with TestClient(app_module.app) as client:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as client:
         client.cookies.set("profile", profile)
         assert client.get("/").status_code == 200
 
@@ -63,7 +63,7 @@ def test_версия_видна_на_странице(profile, monkeypatch):
     """Someone whose program misbehaves needs a way to name their build."""
     from jobsearch import version
     monkeypatch.setattr(version, "current", lambda: "9.9.9")
-    with TestClient(app_module.app) as client:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as client:
         client.cookies.set("profile", profile)
         html = client.get("/simple").text
     assert "9.9.9" in html, "версия не показана в интерфейсе"
@@ -74,6 +74,6 @@ def test_без_файла_версии_не_падает(profile):
     from jobsearch import version
     version.current.cache_clear()
     assert version.current()          # a non-empty string, even if only "dev"
-    with TestClient(app_module.app) as client:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as client:
         client.cookies.set("profile", profile)
         assert client.get("/").status_code == 200

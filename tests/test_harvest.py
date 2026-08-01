@@ -83,7 +83,7 @@ def test_галочка_видна_и_выключается(profile):
     from jobsearch import appstate, config, i18n
 
     appstate.mark_setup_done(config.load()["llm"])   # or first launch sends us to the introduction
-    with TestClient(app_module.app) as c:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as c:
         c.cookies.set("profile", profile)
         страница = c.get("/").text
         assert 'name="harvest_boards"' in страница

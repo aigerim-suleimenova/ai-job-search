@@ -225,7 +225,25 @@ CV кандидата:
   "cover_hint": "<1-2 предложения: на что сделать упор в отклике>"
 }}"""
 
-RESEARCH_BLOCK = """
+# Изучение компании идёт отдельным запросом, и в нём НЕТ ни CV, ни профиля.
+#
+# Причина простая. Описание вакансии пишет посторонний человек — разместить
+# объявление на агрегаторе может кто угодно, и его текст попадает в запрос как
+# есть, до шести тысяч знаков. Раньше в том же запросе лежали резюме, зарплатные
+# ожидания и виза, а модели были разрешены WebSearch и WebFetch — и разрешены
+# без единого вопроса, потому что запуск идёт без человека. Указание, спрятанное
+# в объявлении, могло увести всё это в адрес чужого сайта, и человек увидел бы
+# обычную карточку вакансии.
+#
+# Теперь в сеть ходит запрос, где кроме названия компании и должности красть
+# нечего, а всё личное разбирается вторым запросом, которому инструменты не даны
+# вовсе. Разделение стоит одного лишнего вызова модели.
+RESEARCH_PROMPT = """Найди в интернете сведения о компании и вилке зарплат.
+
+Компания: {company}
+Должность: {title}
+Локация: {location}
+
 Дополнительно поищи в интернете то, чего обычно нет в самом объявлении о вакансии:
 - вилку зарплаты для этой роли/уровня/локации у этой компании, а если по компании
   ничего нет — вилку по рынку (укажи явно, что это оценка по рынку, а не по компании);
@@ -239,10 +257,17 @@ RESEARCH_BLOCK = """
 пункту ничего надёжного не нашлось — так и напиши («данные не найдены»), не выдумывай
 цифры и факты. Текст в salary_estimate и company_insights пиши {lang}.
 
-К JSON-объекту выше добавь поля:
+Верни ТОЛЬКО JSON-объект:
+{{
   "salary_estimate": "<вилка с валютой и явной пометкой company-specific/рыночная оценка, или 'не найдено'>",
   "company_insights": ["<факт о компании с опорой на найденное: размер, стадия, финансирование, рейтинг, культура>", ...],
   "sources": ["<URL, на которые опирался>", ...]
+}}"""
+
+# Что нашлось про компанию, передаётся во второй запрос уже готовым текстом.
+FOUND_BLOCK = """
+Уже известно о компании (найдено отдельно, можешь опираться):
+{facts}
 """
 
 
@@ -258,6 +283,29 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         if len(fetched) > len(description):
             description = fetched
     lang = i18n.out_lang(cfg)
+    ask = dict(model=cfg["llm"].get("deep_model", ""),
+               claude_bin=cfg["llm"].get("claude_bin", "claude"),
+               provider=cfg["llm"].get("provider", "claude_cli"))
+
+    # 1. В сеть — без единой личной строчки. Красть отсюда нечего: название
+    #    компании и должность злоумышленник и так знает, он их сам и написал.
+    found = {}
+    if research:
+        try:
+            found = llm.ask_json(
+                _lang_banner(cfg) + RESEARCH_PROMPT.format(
+                    company=job.get("company", ""), title=job.get("title", ""),
+                    location=job.get("location", ""), lang=lang),
+                timeout=900, allowed_tools=["WebSearch", "WebFetch"], **ask)
+        except llm.AuthError:
+            raise
+        except llm.ClaudeError as e:
+            # без сведений о компании разбор всё равно имеет смысл — идём дальше
+            _lk(log, "log_deep_job_err", title=job.get("title"), error=e)
+        if not isinstance(found, dict):
+            found = {}
+
+    # 2. С CV и профилем — но без инструментов, так что уводить их некуда.
     prompt = _lang_banner(cfg) + DEEP_PROMPT.format(
         profile=_profile_block(cfg),
         cv=cv[:6000] or "(CV не загружено)",
@@ -266,17 +314,13 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         description=description[:6000] or "(описания нет)",
         lang=lang,
     )
-    if research:
-        prompt += RESEARCH_BLOCK.format(lang=lang)
+    facts = "\n".join(str(x) for x in (found.get("company_insights") or []))
+    if found.get("salary_estimate"):
+        facts = f"{found['salary_estimate']}\n{facts}".strip()
+    if facts:
+        prompt += FOUND_BLOCK.format(facts=facts[:2000])
     try:
-        result = llm.ask_json(
-            prompt,
-            model=cfg["llm"].get("deep_model", ""),
-            claude_bin=cfg["llm"].get("claude_bin", "claude"),
-            provider=cfg["llm"].get("provider", "claude_cli"),
-            timeout=900 if research else 600,
-            allowed_tools=["WebSearch", "WebFetch"] if research else None,
-        )
+        result = llm.ask_json(prompt, timeout=600, allowed_tools=None, **ask)
     except llm.AuthError:
         raise      # without a signed-in model the run makes no sense
     except llm.ClaudeError as e:
@@ -284,6 +328,10 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         return
     if not isinstance(result, dict):
         return
+    # то, что нашла первая часть, кладём рядом с оценкой второй
+    for поле in ("salary_estimate", "company_insights", "sources"):
+        if found.get(поле):
+            result.setdefault(поле, found[поле])
     job["verified"] = True  # the score is confirmed by the deep analysis, not triage alone
     if isinstance(result.get("match"), (int, float)):
         job["score"] = max(0, min(100, int(result["match"])))
@@ -299,7 +347,13 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
             "cover_hint": result.get("cover_hint", ""),
             "salary_estimate": str(result.get("salary_estimate", ""))[:500 * k],
             "company_insights": [str(x)[:300 * k] for x in (result.get("company_insights") or [])][:8],
-            "sources": [str(x)[:300] for x in (result.get("sources") or [])][:8],
+            # Ссылки от модели уходят прямо в href на странице результатов.
+            # Экранирование там есть, но оно бережёт от разрыва атрибута, а не от
+            # схемы: «javascript:...» — совершенно законное значение href, и один
+            # щелчок по номеру источника выполнил бы чужой сценарий на нашей же
+            # странице. Соседний разбор вакансий схему проверяет; здесь не проверял.
+            "sources": [u for u in (str(x)[:300] for x in (result.get("sources") or []))
+                        if u.lower().startswith(("http://", "https://"))][:8],
         },
         ensure_ascii=False,
     )

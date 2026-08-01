@@ -30,7 +30,7 @@ def отдельный_дом(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client(отдельный_дом):
-    with TestClient(app_module.app) as c:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as c:
         c.cookies.set("profile", отдельный_дом)
         yield c
 

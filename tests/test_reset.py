@@ -25,7 +25,7 @@ from conftest import job  # noqa: E402
 @pytest.fixture
 def client(profile):
     import app as app_module
-    with TestClient(app_module.app) as c:
+    with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as c:
         c.cookies.set("profile", profile)
         yield c
 
