@@ -139,3 +139,24 @@ def test_повтор_вызова_не_зависит_от_языка_сооб�
     assert llm._is_transient(таймаут)
     assert not llm._is_transient(llm.ClaudeError(key="prov_err_no_claude", path="claude"))
     assert llm._is_transient(llm.ClaudeError("API Error: overloaded"))
+
+
+@pytest.mark.parametrize("lang", sorted(i18n.UI_LANGS))
+def test_подсказка_без_адреса_обходится_без_пустых_скобок(lang):
+    """В подсказку подставляется адрес, которого на первом заходе ещё нет, и
+    посреди предложения повисало «(—)». Проверяем на всех языках разом: по-японски
+    и по-китайски скобки полноширинные, и обычный поиск их не находит."""
+    from app import _drop_empty_parens
+    готово = _drop_empty_parens(i18n.t(lang, "api_model_hint").format(base=""))
+    for скобки in ("()", "（）", "( )", "（ ）"):
+        assert скобки not in готово, f"{lang}: остались пустые скобки"
+    assert "  " not in готово, f"{lang}: остался двойной пробел"
+
+
+@pytest.mark.parametrize("lang", sorted(i18n.UI_LANGS))
+def test_с_адресом_подсказка_его_называет(lang):
+    """Обратная сторона: убрать лишнее нельзя ценой того, что нужное тоже пропадёт."""
+    from app import _drop_empty_parens
+    готово = _drop_empty_parens(
+        i18n.t(lang, "api_model_hint").format(base="https://openrouter.ai/api/v1"))
+    assert "https://openrouter.ai/api/v1" in готово, f"{lang}: адрес пропал"

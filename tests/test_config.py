@@ -62,3 +62,56 @@ def test_профили_не_видят_чужие_настройки(profile):
 
     profiles.set_active(profile)
     assert config.load()["search"]["locations"] == "Berlin"
+
+
+# --- Язык, выбранный в установщике ---------------------------------------------
+
+def _установщик_выбрал(monkeypatch, tmp_path, содержимое: str):
+    """Кладёт installer.json туда, куда его пишет установщик."""
+    from jobsearch import profiles
+    (tmp_path / "installer.json").write_text(содержимое, encoding="utf-8")
+    monkeypatch.setattr(profiles, "DATA_ROOT", tmp_path)
+
+
+def test_язык_установщика_доходит_до_программы(monkeypatch, tmp_path, profile):
+    """Человек ставит программу по-английски на русской Windows и получает её
+    по-русски: язык у него спрашивали и тут же выбрасывали, беря язык системы."""
+    from jobsearch import i18n
+    _установщик_выбрал(monkeypatch, tmp_path, '{"lang": "en"}')
+    monkeypatch.setattr(i18n, "system_lang", lambda default="en": "ru")
+
+    assert config.load()["ui"]["lang"] == "en"
+
+
+def test_без_установщика_остаётся_язык_системы(monkeypatch, tmp_path, profile):
+    """Портативная сборка и сборки для Mac и Linux ставятся без нашего
+    установщика — им по-прежнему отвечает система."""
+    from jobsearch import i18n
+    monkeypatch.setattr(i18n, "system_lang", lambda default="en": "ru")
+    from jobsearch import profiles
+    monkeypatch.setattr(profiles, "DATA_ROOT", tmp_path)   # installer.json нет
+
+    assert config.load()["ui"]["lang"] == "ru"
+
+
+def test_свой_выбор_не_перебивается_переустановкой(monkeypatch, tmp_path, profile):
+    """Установщик спрашивает язык каждый раз. Если человек с тех пор поменял его
+    в самой программе, переустановка не должна возвращать всё назад."""
+    from jobsearch import i18n
+    cfg = config.load()
+    cfg["ui"]["lang"] = "it"
+    config.save(cfg)
+    _установщик_выбрал(monkeypatch, tmp_path, '{"lang": "en"}')
+    monkeypatch.setattr(i18n, "system_lang", lambda default="en": "ru")
+
+    assert config.load()["ui"]["lang"] == "it"
+
+
+def test_мусор_в_файле_не_роняет_запуск(monkeypatch, tmp_path, profile):
+    """Файл пишет установщик, а не мы, и читается он на самом первом запуске:
+    сломанный или чужой язык в нём не должен быть последним, что видит человек."""
+    from jobsearch import i18n
+    monkeypatch.setattr(i18n, "system_lang", lambda default="en": "ru")
+    for мусор in ('не json', '{}', '{"lang": ""}', '{"lang": "клингонский"}', '[]'):
+        _установщик_выбрал(monkeypatch, tmp_path, мусор)
+        assert config.load()["ui"]["lang"] == "ru", мусор

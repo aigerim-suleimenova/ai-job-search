@@ -309,7 +309,11 @@ def available(claude_bin: str = "claude", llm: dict = None) -> dict:
         # и первым в списке он сбивал бы с толку тех, кому подойдёт любой из
         # обычных вариантов выше.
         "openai_api": {
-            "ready": bool((llm.get("api_base") or "").strip()),
+            # Устанавливать нечего: это не программа, а адрес. Поэтому «готов»
+            # всегда — выбрать его можно сразу, а настраивается он вторым шагом,
+            # там, где на поля есть ширина. В узкой карточке они не помещались:
+            # «Адрес» и «Ключ» вставали в строку и обрезались на середине.
+            "ready": True,
             "web_search": False, "kind": "custom",
             "install_url": "",
         },
@@ -332,13 +336,29 @@ def missing_piece(llm: dict) -> str:
     if not available(llm.get("claude_bin", "claude"), llm).get(provider, {}).get("ready"):
         return "provider"
     if provider == "openai_api":
-        # адрес есть, дело за именем модели — это ровно второй шаг знакомства
-        return "" if (llm.get("api_model") or "").strip() else "model"
+        # Адрес и модель спрашиваются вместе, на втором шаге: без любого из них
+        # думать нечем, и разделять их на два экрана было бы придиркой.
+        есть = (llm.get("api_base") or "").strip() and (llm.get("api_model") or "").strip()
+        return "" if есть else "model"
     if provider == "ollama":
         model = llm.get("triage_model") or ""
         if not model or model not in ollama_installed_models():
             return "model"
     return ""
+
+
+def current_model(llm: dict) -> str:
+    """Чем сейчас считаем — так, как это называет сам провайдер.
+
+    У всех, кроме своего адреса, модель лежит в triage_model. У своего адреса —
+    в api_model, потому что имя ей даёт чужая служба и в наш каталог оно не
+    ложится. Пока это не различали, карточка «Свой адрес» писала «используется:
+    haiku»: показывалось triage_model, оставшееся от Claude Code, то есть имя
+    модели, к которой этот адрес не имеет никакого отношения.
+    """
+    if (llm.get("provider") or "claude_cli") == "openai_api":
+        return (llm.get("api_model") or "").strip()
+    return llm.get("triage_model") or "haiku"
 
 
 def _localized(model: dict, lang: str) -> dict:

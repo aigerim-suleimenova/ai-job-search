@@ -1,6 +1,7 @@
 """Web interface: the settings page, the results, starting a search."""
 import json
 import os
+import re
 import sys
 import threading
 import traceback
@@ -24,6 +25,23 @@ BASE = Path(__file__).resolve().parent
 app = FastAPI(title="AI Job Search")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
+
+
+def _drop_empty_parens(text: str) -> str:
+    """Убирает скобки, в которых ничего не оказалось.
+
+    Часть подсказок вставляет в скобки то, что человек ещё не вписал: «как оно
+    указано в документации выбранной службы ({base})». Пока адреса нет, в
+    предложении посреди строки повисает «(—)». Пустые скобки — это не текст, а
+    след от подстановки, и показывать его незачем.
+
+    Скобки берутся и обычные, и полноширинные: по-японски и по-китайски пишут
+    （）, и они бы уцелели.
+    """
+    return re.sub(r"\s*[(（]\s*[)）]", "", text)
+
+
+templates.env.filters["tidy"] = _drop_empty_parens
 
 
 # --- Кто вправе разговаривать с этим сервером ----------------------------------
@@ -875,7 +893,7 @@ def models_page(request: Request, msg: str = ""):
     cfg = config.load()
     provider = cfg["llm"].get("provider", "claude_cli")
     provs = providers.available(cfg["llm"].get("claude_bin", "claude"), cfg["llm"])
-    current_model = cfg["llm"].get("triage_model", "haiku")
+    current_model = providers.current_model(cfg["llm"])
     catalog = providers.models_for(provider, lang=_lang(cfg))
     return render(request, "models.html", {
         "cfg": cfg, "msg": msg, "provs": provs, "current_provider": provider,
@@ -1574,7 +1592,7 @@ def welcome(request: Request, msg: str = "", step: str = ""):
     provider = cfg["llm"].get("provider", "claude_cli")
     provs = providers.available(cfg["llm"].get("claude_bin", "claude"), cfg["llm"])
     catalog = providers.models_for(provider, lang=_lang(cfg))
-    current_model = cfg["llm"].get("triage_model", "haiku")
+    current_model = providers.current_model(cfg["llm"])
     chosen = next((m for m in catalog if m["id"] == current_model), None)
     # Which of the two is missing, so the page can say so. Both used to be
     # explained as "the tool is not installed" — and that sent a person off to
@@ -1587,8 +1605,8 @@ def welcome(request: Request, msg: str = "", step: str = ""):
     if step == "model" and blocked_by == "provider":
         step = ""
     return render(request, "welcome.html", {
-        # cfg нужен самой странице: у своего адреса поля показываются прямо в
-        # карточке провайдера, а значения берутся из настроек
+        # cfg нужен самой странице: у своего адреса на втором шаге вместо списка
+        # моделей стоят поля, и значения в них берутся из настроек
         "cfg": cfg,
         "msg": msg, "provs": provs, "current_provider": provider, "step": step,
         "current_model": current_model, "models": catalog,

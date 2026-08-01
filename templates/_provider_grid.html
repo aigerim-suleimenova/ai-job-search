@@ -26,32 +26,18 @@
     <p class="hint">{{ t('prov_' + key + '_about') }}</p>
     {% if not p.ready %}
     <p class="hint">{{ t('prov_' + key + '_hint') }}</p>
-    {% elif current_provider == key %}
+    {# «используется: …» — только когда есть что назвать. У своего адреса имя
+       модели вписывается руками на втором шаге, и до этого строка выходила
+       обрубком: «используется:» и пустота. #}
+    {% elif current_provider == key and current_model_name %}
     <p class="hint">{{ t('models_current') }}: {{ current_model_name }}</p>
     {% endif %}
 
     <div class="provider-actions">
-      {# У своего адреса нечего искать на диске: он готов ровно тогда, когда
-         адрес вписан. Поэтому вместо «Установить» и «Выбрать» — поля.
-         Ключ можно оставить пустым: у LM Studio и llama.cpp на своём
-         компьютере его попросту нет. #}
-      {% if key == 'openai_api' %}
-      <form method="post" action="/models/api" class="api-form">
-        <input type="hidden" name="back" value="{{ back }}">
-        <input type="hidden" name="anchor" value="{{ step2 }}">
-        <label>{{ t('api_base') }}
-          <input name="api_base" value="{{ cfg.llm.api_base }}"
-                 placeholder="https://openrouter.ai/api/v1" autocomplete="off">
-        </label>
-        <label>{{ t('api_key') }}
-          <input name="api_key" type="password" value="{{ cfg.llm.api_key }}"
-                 placeholder="{{ t('api_key_ph') }}" autocomplete="off">
-        </label>
-        <button {% if current_provider == key %}class="primary"{% endif %}>
-          {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
-        </button>
-      </form>
-      {% else %}
+      {# Своему адресу здесь только кнопка «Выбрать», как у всех: устанавливать
+         нечего, а поля живут на втором шаге. Раньше они стояли прямо тут — и в
+         узкой карточке «Адрес» и «Ключ» вставали в строку, обрезаясь на
+         середине: от подсказки было видно «https://ope». #}
       {% if not p.ready %}
       <form method="post" action="/provider/install">
         <input type="hidden" name="provider" value="{{ key }}">
@@ -74,7 +60,6 @@
           {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
         </button>
       </form>
-      {% endif %}
     </div>
   </div>
   {% endfor %}

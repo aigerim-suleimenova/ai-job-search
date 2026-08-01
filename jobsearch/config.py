@@ -143,6 +143,27 @@ def _merge(base: dict, override: dict) -> dict:
     return out
 
 
+def _installer_lang() -> str:
+    """Язык, выбранный в установщике, — если он у нас спрашивался.
+
+    Спрашивался он всегда, а вот доходил до программы нет: при первом запуске
+    она брала язык системы и открывалась по-русски у того, кто в установщике
+    выбрал английский. Заданный вопрос с брошенным ответом — хуже, чем
+    незаданный.
+
+    Читается только когда язык в самой программе ещё не выбран, то есть на
+    первом запуске: переустановка не должна перебивать то, что человек с тех пор
+    поменял руками.
+    """
+    from . import i18n
+    try:
+        код = json.loads((profiles.DATA_ROOT / "installer.json")
+                         .read_text(encoding="utf-8")).get("lang", "")
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return ""
+    return код if код in i18n.UI_LANGS else ""
+
+
 def load() -> dict:
     path = config_path()
     with _lock:
@@ -162,7 +183,7 @@ def load() -> dict:
     # No language chosen (first launch) — take the system one, not a stranger's default.
     if not cfg["ui"].get("lang"):
         from . import i18n
-        cfg["ui"]["lang"] = i18n.system_lang()
+        cfg["ui"]["lang"] = _installer_lang() or i18n.system_lang()
     if not cfg["ui"].get("output_lang"):
         cfg["ui"]["output_lang"] = cfg["ui"]["lang"]
     return cfg

@@ -134,6 +134,29 @@ begin
   Result := (Pos('/RELAUNCH', Uppercase(GetCmdTail)) > 0) or (not WizardSilent);
 end;
 
+{ Язык, выбранный в установщике, — программе.
+
+  Он у неё спрашивался и тут же выбрасывался: при первом запуске программа
+  брала язык системы и открывалась по-русски у того, кто в установщике выбрал
+  английский. Ответ на заданный вопрос игнорировать нельзя.
+
+  Кладём рядом с данными, а не в реестр: там же, где всё остальное, и «удалить
+  все данные» уносит это вместе с прочим — как и должно. Читается только при
+  первом запуске, когда язык ещё не выбран в самой программе, так что
+  переустановка чужой выбор не перебьёт. }
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  dir: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    dir := ExpandConstant('{userappdata}\{#AppName}');
+    CreateDir(dir);
+    SaveStringToFile(dir + '\installer.json',
+                     '{"lang": "' + ExpandConstant('{language}') + '"}', False);
+  end;
+end;
+
 { Спрашиваем один раз, до удаления.
 
   Здесь была своя форма с галочкой, но CreateCustomForm этот компилятор не

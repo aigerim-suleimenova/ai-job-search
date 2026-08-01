@@ -123,9 +123,18 @@ header {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  /* Фон был полупрозрачным (88%) с размытием: сквозь шапку просвечивало то, что
+     уезжает под неё, и оттенок полосы менялся, когда под ней проходила белая
+     карточка. Отсюда «цвет у шапки другой». Теперь фон непрозрачный.
+
+     А «бордеры слева и справа» — это тени карточек. Шапка шириной с колонку в
+     940px, а тень карточки выходит за колонку в боковые отступы страницы, и при
+     прокрутке два серых мазка появлялись ровно по краям шапки. Поэтому фон
+     растягивается тенью до краёв окна, а clip-path обрезает её сверху и снизу,
+     чтобы она не легла на всю страницу. */
+  background: var(--bg);
+  box-shadow: 0 0 0 100vmax var(--bg);
+  clip-path: inset(0 -100vmax);
   z-index: 10;
 }
 header > .toolbar-right {
@@ -658,10 +667,11 @@ button.linklike:hover { background: none; text-decoration: underline; }
 /* The date field: the text one is visible in day-month-year order, while the
    system one lies transparent over the icon on the right — clicking it opens the
    native calendar. */
-/* Поля своего адреса стоят прямо в карточке провайдера — она узкая, поэтому
-   поля идут в столбик и во всю её ширину. */
-.api-form { display: block; width: 100%; }
-.api-form label { display: block; margin-bottom: 8px; }
+/* Адрес, ключ и название модели — в столбик и во всю ширину. Втискивать их
+   рядом нельзя: в адрес и в имя модели вставляют длинные строки, и человек
+   должен видеть их целиком, а не «https://ope». */
+.api-form { display: block; width: 100%; max-width: 560px; }
+.api-form label { display: block; margin-bottom: 12px; }
 .api-form input { width: 100%; }
 
 /* Кнопка, которой не место среди кнопок: «очистить даты» стоит внутри подсказки

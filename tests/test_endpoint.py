@@ -124,21 +124,33 @@ def test_не_json_объясняется(monkeypatch):
 
 # --- Как он выглядит для остальной программы -----------------------------------
 
-def test_готовность_определяется_адресом():
-    """Искать на диске нечего: провайдер готов ровно тогда, когда адрес вписан."""
+def test_ставить_нечего_поэтому_он_готов_всегда():
+    """Первый шаг спрашивает, что установить. Своему адресу устанавливать нечего.
+
+    Готовность тут значила «адрес уже вписан», и карточка до этого висела с
+    красной пометкой «не установлено» — рядом с кнопкой «Установить», которой
+    нечего было делать. Ставить нечего, значит готов."""
     пусто = providers.available("claude", {})["openai_api"]
     заполнено = providers.available("claude", {"api_base": "https://a.example/v1"})["openai_api"]
-    assert пусто["ready"] is False
+    assert пусто["ready"] is True
     assert заполнено["ready"] is True
 
 
-def test_адрес_это_первый_шаг_а_модель_второй():
-    """Ложится ровно на два шага знакомства: сперва куда ходить, потом чем думать."""
-    без_адреса = {"provider": "openai_api"}
+def test_и_адрес_и_модель_спрашиваются_на_втором_шаге():
+    """Адрес, ключ и имя модели — это один вопрос «куда ходить», и задаётся он
+    целиком на втором шаге.
+
+    Раньше адрес жил в карточке на первом шаге, где на него не было ширины: поля
+    вставали в строку и обрезались на середине подсказки — от https://openrouter…
+    было видно «https://ope». Пока не вписано и то и другое, второй шаг не
+    пройден."""
+    пусто = {"provider": "openai_api"}
     без_модели = {"provider": "openai_api", "api_base": "https://a.example/v1"}
+    без_адреса = {"provider": "openai_api", "api_model": "gpt-4o"}
     целиком = dict(без_модели, api_model="gpt-4o")
-    assert providers.missing_piece(без_адреса) == "provider"
+    assert providers.missing_piece(пусто) == "model"
     assert providers.missing_piece(без_модели) == "model"
+    assert providers.missing_piece(без_адреса) == "model"
     assert providers.missing_piece(целиком) == ""
 
 
@@ -155,3 +167,28 @@ def test_общий_вызов_доводит_настройки(monkeypatch):
 def test_веб_поиска_у_него_нет():
     """Обещать веб-поиск, которого может не быть, хуже, чем не обещать."""
     assert providers.supports_web_search("openai_api") is False
+
+
+def test_имя_модели_берётся_у_своего_адреса_а_не_у_соседа():
+    """triage_model остаётся от прежнего провайдера, и карточка «Свой адрес»
+    писала «используется: haiku» — имя модели Claude Code, к которой этот адрес
+    отношения не имеет."""
+    from jobsearch import providers as p
+    прежнее = {"provider": "openai_api", "triage_model": "haiku"}
+    assert p.current_model(прежнее) == ""
+    assert p.current_model(dict(прежнее, api_model="gpt-4o")) == "gpt-4o"
+    assert p.current_model({"provider": "claude_cli", "triage_model": "haiku"}) == "haiku"
+
+
+def test_страница_моделей_не_называет_чужую_модель(profile):
+    """Ровно то же, но через страницу: значение доезжает до шаблона."""
+    from conftest import client_for
+    from jobsearch import config
+    import app as приложение
+
+    cfg = config.load()
+    cfg["llm"].update(provider="openai_api", triage_model="haiku", api_model="")
+    config.save(cfg)
+
+    страница = client_for(приложение.app, profile).get("/models").text
+    assert "haiku" not in страница, "показано имя модели прежнего провайдера"
