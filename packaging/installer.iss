@@ -109,16 +109,16 @@ Type: dirifempty; Name: "{app}"
 [CustomMessages]
 ; Без префикса языка — значение по умолчанию для всех, у кого своего перевода нет.
 DataPrompt=Your data — profiles, CVs, the jobs found and the settings — is kept separately and is not removed with the program. Reinstalling picks it up again.
-DataCheckbox=Delete my data as well. This cannot be undone.
+DataQuestion=Delete your data as well? This cannot be undone.
 Leftovers=Some things were left in the program folder and can be removed by hand:
 ru.DataPrompt=Ваши данные — профили, CV, найденные вакансии и настройки — хранятся отдельно и вместе с программой не удаляются. При следующей установке они найдутся снова.
-ru.DataCheckbox=Удалить и мои данные. Отменить будет нельзя.
+ru.DataQuestion=Удалить заодно и ваши данные? Отменить будет нельзя.
 ru.Leftovers=В папке программы кое-что осталось, это можно удалить вручную:
 de.DataPrompt=Ihre Daten — Profile, Lebensläufe, gefundene Stellen und Einstellungen — liegen getrennt und werden mit dem Programm nicht entfernt. Eine erneute Installation findet sie wieder.
-de.DataCheckbox=Meine Daten ebenfalls löschen. Das lässt sich nicht rückgängig machen.
+de.DataQuestion=Ihre Daten ebenfalls löschen? Das lässt sich nicht rückgängig machen.
 de.Leftovers=Im Programmordner ist etwas zurückgeblieben, das von Hand entfernt werden kann:
 it.DataPrompt=I suoi dati — profili, CV, offerte trovate e impostazioni — sono conservati a parte e non vengono rimossi con il programma. Una nuova installazione li ritrova.
-it.DataCheckbox=Eliminare anche i miei dati. Non sarà possibile annullare.
+it.DataQuestion=Eliminare anche i suoi dati? Non sarà possibile annullare.
 it.Leftovers=Nella cartella del programma è rimasto qualcosa, che può essere rimosso a mano:
 
 [Code]
@@ -134,79 +134,21 @@ begin
   Result := (Pos('/RELAUNCH', Uppercase(GetCmdTail)) > 0) or (not WizardSilent);
 end;
 
-{ Спрашиваем один раз, до удаления: галочка и есть ответ. }
-function AskAboutData(): Boolean;
-var
-  Form: TSetupForm;
-  Text: TNewStaticText;
-  Box: TNewCheckBox;
-  Ok, Cancel: TNewButton;
-begin
-  Result := False;
-  RemoveData := False;
-  Form := CreateCustomForm;
-  try
-    Form.Caption := '{#AppName}';
-    Form.ClientWidth := ScaleX(440);
-    Form.ClientHeight := ScaleY(190);
-    Form.Position := poScreenCenter;
+{ Спрашиваем один раз, до удаления.
 
-    Text := TNewStaticText.Create(Form);
-    Text.Parent := Form;
-    Text.Left := ScaleX(16);
-    Text.Top := ScaleY(16);
-    Text.Width := Form.ClientWidth - ScaleX(32);
-    Text.WordWrap := True;
-    Text.AutoSize := True;
-    Text.Caption := CustomMessage('DataPrompt');
-
-    Box := TNewCheckBox.Create(Form);
-    Box.Parent := Form;
-    Box.Left := ScaleX(16);
-    Box.Top := Text.Top + Text.Height + ScaleY(16);
-    Box.Width := Form.ClientWidth - ScaleX(32);
-    Box.Height := ScaleY(36);
-    Box.WordWrap := True;
-    Box.Checked := False;
-    Box.Caption := CustomMessage('DataCheckbox');
-
-    Ok := TNewButton.Create(Form);
-    Ok.Parent := Form;
-    Ok.Width := ScaleX(96);
-    Ok.Height := ScaleY(28);
-    Ok.Top := Form.ClientHeight - ScaleY(42);
-    Ok.Left := Form.ClientWidth - ScaleX(218);
-    Ok.Caption := SetupMessage(msgButtonOK);
-    Ok.ModalResult := mrOk;
-    Ok.Default := True;
-
-    Cancel := TNewButton.Create(Form);
-    Cancel.Parent := Form;
-    Cancel.Width := ScaleX(96);
-    Cancel.Height := ScaleY(28);
-    Cancel.Top := Ok.Top;
-    Cancel.Left := Form.ClientWidth - ScaleX(112);
-    Cancel.Caption := SetupMessage(msgButtonCancel);
-    Cancel.ModalResult := mrCancel;
-    Cancel.Cancel := True;
-
-    if Form.ShowModal = mrOk then
-    begin
-      RemoveData := Box.Checked;
-      Result := True;
-    end;
-  finally
-    Form.Free;
-  end;
-end;
-
+  Здесь была своя форма с галочкой, но CreateCustomForm этот компилятор не
+  принимает, а гадать о чужом API дальше дороже, чем спросить прямо. Ответ тот
+  же, окно проще. По умолчанию выделено «Нет»: данные — это CV и вся история
+  поиска, и случайный Enter не должен их стирать. }
 function InitializeUninstall(): Boolean;
 begin
+  Result := True;
+  RemoveData := False;
   { В тихом режиме спрашивать некого: данные тогда остаются, как и раньше. }
-  if UninstallSilent then
-    Result := True
-  else
-    Result := AskAboutData;
+  if not UninstallSilent then
+    RemoveData := MsgBox(CustomMessage('DataPrompt') + #13#10 + #13#10
+                         + CustomMessage('DataQuestion'),
+                         mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
 end;
 
 { Что осталось в папке программы — по именам, а не «часть элементов». }
