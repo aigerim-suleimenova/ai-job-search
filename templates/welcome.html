@@ -52,7 +52,8 @@
        provider=t('prov_' + current_provider), model=current_model_name) }}</p>
   {% else %}
   <button class="primary" disabled>{{ t('welcome_continue') }}</button>
-  <p class="hint" style="margin:8px 0 0; color:var(--warn)">{{ t('welcome_blocked') }}</p>
+  <p class="hint" style="margin:8px 0 0; color:var(--warn)">
+    {{ t('welcome_blocked_model') if blocked_by == 'model' else t('welcome_blocked') }}</p>
   {% endif %}
 </section>
 

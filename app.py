@@ -1241,15 +1241,22 @@ def welcome(request: Request, msg: str = ""):
     catalog = providers.models_for(provider, lang=_lang(cfg))
     current_model = cfg["llm"].get("triage_model", "haiku")
     chosen = next((m for m in catalog if m["id"] == current_model), None)
+    provider_ready = bool(provs.get(provider, {}).get("ready"))
+    model_ready = bool(not chosen or chosen.get("kind") != "local" or chosen.get("installed"))
     return render(request, "welcome.html", {
         "msg": msg, "provs": provs, "current_provider": provider,
         "current_model": current_model, "models": catalog,
         "current_model_name": chosen["name"] if chosen else current_model,
         "specs": hardware.specs(),
-        "provider_ready": bool(provs.get(provider, {}).get("ready")),
+        "provider_ready": provider_ready,
         # going on makes sense only if the chosen provider can really do the thinking
-        "ready": bool(provs.get(provider, {}).get("ready")
-                      and (not chosen or chosen.get("kind") != "local" or chosen.get("installed"))),
+        "ready": provider_ready and model_ready,
+        # Which of the two is missing, so the page can say so. Both used to be
+        # explained as "the tool is not installed" — and that sent a person off to
+        # install Ollama, which was running perfectly well; what was missing was
+        # the model inside it.
+        "blocked_by": "" if provider_ready and model_ready
+                      else ("provider" if not provider_ready else "model"),
     }, cfg=cfg)
 
 
