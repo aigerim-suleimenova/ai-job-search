@@ -39,6 +39,13 @@ def main() -> int:
         if not (bundle / needed).exists():
             problems.append(f"нет {needed} — интерфейс не отрисуется")
 
+    # Окно на Windows рисует .NET, а мост к нему — эта библиотека. Без неё
+    # программа собирается как ни в чём не бывало и падает уже у человека,
+    # при открытии окна: проверить состав дешевле, чем узнавать по скриншоту.
+    if sys.platform == "win32":
+        if not (bundle / "pythonnet" / "runtime" / "Python.Runtime.dll").exists():
+            problems.append("нет pythonnet/runtime/Python.Runtime.dll — окно не откроется")
+
     if problems:
         print("Проверка сборки не пройдена:")
         for p in problems:

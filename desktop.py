@@ -14,6 +14,7 @@ import socket
 import sys
 import threading
 import time
+import webbrowser
 from contextlib import closing
 from pathlib import Path
 
@@ -42,6 +43,7 @@ APP_NAME = "AI Job Search"
 _server_error = ""
 _server = None
 _window = None
+_window_shown = False
 
 
 def _state_dir() -> Path:
@@ -152,7 +154,16 @@ white-space:pre-wrap;max-height:320px;overflow:auto">{safe[-4000:]}</pre>
     try:
         webview.create_window(APP_NAME, html=html, width=760, height=520)
         webview.start()
+        return
     except Exception:                         # noqa: BLE001 — окна может не быть вовсе
+        pass
+    # Окно не открылось — а рассказать о беде тем более надо: кладём ту же
+    # страницу файлом и отдаём браузеру.
+    try:
+        page = _state_dir() / "error.html"
+        page.write_text(html, encoding="utf-8")
+        webbrowser.open(page.as_uri())
+    except Exception:                         # noqa: BLE001 — браузера тоже может не быть
         print(reason, file=sys.stderr)
 
 
@@ -190,16 +201,118 @@ def _on_closing() -> bool:
     return True
 
 
+def _unblock_bundled_libraries() -> int:
+    """Снимает с библиотек сборки метку «файл скачан из интернета».
+
+    Windows ставит такую метку всему, что распаковано из скачанного архива, а
+    .NET помеченные библиотеки загружать отказывается. Именно на этом падал
+    переносимый вариант: окно рисует .NET, а Python.Runtime.dll внутри сборки
+    для него был чужим файлом. Удалить метку — это ровно то, что делает
+    «Разблокировать» в свойствах файла.
+
+    Возвращает число библиотек, с которых метку снять не удалось.
+    """
+    bundle = getattr(sys, "_MEIPASS", "")
+    if not bundle:
+        return 0                       # запуск из исходников: скачивать было нечего
+    осталось = 0
+    for dll in Path(bundle).rglob("*.dll"):
+        метка = f"{dll}:Zone.Identifier"
+        if not os.path.exists(метка):
+            continue
+        try:
+            os.remove(метка)
+        except OSError:
+            осталось += 1              # папка только для чтения — метка остаётся
+    return осталось
+
+
+def _trust_marked_libraries() -> Path:
+    """Разрешение .NET доверять помеченным библиотекам.
+
+    Запасной путь для случая, когда метку снять не дают: тем же самым файлам
+    можно выдать доверие настройкой, не трогая их на диске. Файл кладём к
+    данным программы — туда писать можно всегда, в отличие от папки установки.
+    """
+    path = _state_dir() / "dotnet.config"
+    path.write_text('<?xml version="1.0" encoding="utf-8"?>\n'
+                    "<configuration>\n"
+                    "  <runtime>\n"
+                    '    <loadFromRemoteSources enabled="true" />\n'
+                    "  </runtime>\n"
+                    "</configuration>\n", encoding="utf-8")
+    return path
+
+
+def _prepare_windows_gui() -> None:
+    """Окно на Windows рисует .NET — убираем то, что мешает ему стартовать.
+
+    На чистой сборке не делаем ничего: настройка загрузчика нужна только там,
+    где метка действительно есть и не снимается, а лишний раз менять условия
+    запуска у тех, у кого всё работает, — верный способ это сломать.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        if not _unblock_bundled_libraries():
+            return
+        if "PYTHONNET_NETFX_CONFIG_FILE" in os.environ:
+            return                     # человек настроил сам — не перебиваем
+        os.environ["PYTHONNET_NETFX_CONFIG_FILE"] = str(_trust_marked_libraries())
+    except Exception:                  # noqa: BLE001 — подготовка необязательна,
+        pass                           # не вышло — остаётся показ в браузере
+
+
+def _remember_window_shown() -> None:
+    global _window_shown
+    _window_shown = True
+
+
+def _open_in_browser(port: int, own_server: bool) -> None:
+    """Своего окна нет — показываем программу в браузере.
+
+    Внутри это обычный сайт на 127.0.0.1, так что вкладка — полноценная замена
+    окну. Отказывать человеку в программе целиком из-за одной оконной
+    библиотеки не за что.
+    """
+    url = f"http://127.0.0.1:{port}/simple"
+    try:
+        webbrowser.open(url)
+    except Exception:                  # noqa: BLE001 — браузера может не быть вовсе
+        pass
+    print(f"{APP_NAME}: окно не открылось, программа доступна по адресу {url}",
+          file=sys.stderr)
+    if not own_server:
+        return                         # сервер чужой, держать его живым не нам
+    try:
+        while True:
+            time.sleep(3600)           # окна нет — держим сервер, пока нужна вкладка
+    except KeyboardInterrupt:
+        pass
+
+
 def _open_window(port: int, own_server: bool) -> None:
+    """Своё окно, а если система его не даёт — вкладка в браузере."""
     global _window
-    _window = webview.create_window(APP_NAME, f"http://127.0.0.1:{port}/simple",
-                                    width=1180, height=860, min_size=(900, 600))
-    if own_server:
-        _window.events.closing += _on_closing
-    webview.start()
+    try:
+        _window = webview.create_window(APP_NAME, f"http://127.0.0.1:{port}/simple",
+                                        width=1180, height=860, min_size=(900, 600))
+        _window.events.shown += _remember_window_shown
+        if own_server:
+            _window.events.closing += _on_closing
+        webview.start()
+        return
+    except Exception:                  # noqa: BLE001 — важна любая причина
+        reason = traceback.format_exc()
+    _log_crash("Своё окно не открылось — показываем в браузере", reason)
+    if _window_shown:
+        return                         # окном уже пользовались: беда на выходе, не на входе
+    _open_in_browser(port, own_server)
 
 
 def main() -> int:
+    _prepare_windows_gui()
+
     # Уже запущено? Тогда это «второй клик по иконке» — просто показываем окно.
     lock = _read_lock()
     if _alive(lock.get("port", 0)):
