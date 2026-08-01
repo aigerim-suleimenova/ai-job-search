@@ -658,6 +658,12 @@ button.linklike:hover { background: none; text-decoration: underline; }
 /* The date field: the text one is visible in day-month-year order, while the
    system one lies transparent over the icon on the right — clicking it opens the
    native calendar. */
+/* Поля своего адреса стоят прямо в карточке провайдера — она узкая, поэтому
+   поля идут в столбик и во всю её ширину. */
+.api-form { display: block; width: 100%; }
+.api-form label { display: block; margin-bottom: 8px; }
+.api-form input { width: 100%; }
+
 /* Кнопка, которой не место среди кнопок: «очистить даты» стоит внутри подсказки
    и должна читаться как продолжение фразы, а не спорить за внимание с «Искать». */
 button.link-like {

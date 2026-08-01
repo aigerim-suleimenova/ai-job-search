@@ -1685,6 +1685,103 @@ TR = {
         "en": "This model runs on a server — there is nothing to download, just pick the one you want.",
         "it": "Questo modello lavora su un server — non c'è nulla da scaricare, scelga semplicemente quello che preferisce.",
         "de": "Dieses Modell läuft auf einem Server — es gibt nichts herunterzuladen, wählen Sie einfach eines aus."},
+    "model_auto_generic": {"ru": "Авто (как настроено в программе)",
+                           "en": "Auto (as the program is set up)",
+                           "it": "Auto (come impostato nel programma)",
+                           "de": "Auto (wie im Programm eingestellt)"},
+    "prov_copilot_cli": {"ru": "GitHub Copilot", "en": "GitHub Copilot",
+                         "it": "GitHub Copilot", "de": "GitHub Copilot"},
+    "prov_copilot_cli_hint": {
+        "ru": "Установите Copilot CLI: npm install -g @github/copilot",
+        "en": "Install Copilot CLI: npm install -g @github/copilot",
+        "it": "Installi Copilot CLI: npm install -g @github/copilot",
+        "de": "Installieren Sie Copilot CLI: npm install -g @github/copilot"},
+    "prov_copilot_cli_about": {
+        "ru": "Командная строка GitHub Copilot. Считает в облаке по вашей подписке Copilot — у многих она уже есть.",
+        "en": "GitHub's Copilot command line. Runs in the cloud on your Copilot subscription — many people already have one.",
+        "it": "La riga di comando Copilot di GitHub. Lavora nel cloud con il suo abbonamento Copilot — molti ce l'hanno già.",
+        "de": "Die Copilot-Kommandozeile von GitHub. Rechnet in der Cloud über Ihr Copilot-Abo — viele haben eines bereits."},
+    "prov_goose_cli": {"ru": "Goose", "en": "Goose", "it": "Goose", "de": "Goose"},
+    "prov_goose_cli_hint": {
+        "ru": "Установите Goose с goose-docs.ai и дайте ему ключ от вашей модели",
+        "en": "Install Goose from goose-docs.ai and give it a key for your model",
+        "it": "Installi Goose da goose-docs.ai e gli dia una chiave per il suo modello",
+        "de": "Installieren Sie Goose von goose-docs.ai und geben Sie ihm einen Schlüssel für Ihr Modell"},
+    "prov_goose_cli_about": {
+        "ru": "Открытая программа под крылом Linux Foundation. Сама по себе моделей не имеет: вы даёте ей ключ от той службы, которой пользуетесь.",
+        "en": "An open program under the Linux Foundation. It has no models of its own: you give it a key for whichever service you use.",
+        "it": "Un programma aperto sotto la Linux Foundation. Non ha modelli propri: gli si dà una chiave del servizio che si usa.",
+        "de": "Ein offenes Programm unter der Linux Foundation. Es hat keine eigenen Modelle: Sie geben ihm einen Schlüssel für den Dienst, den Sie nutzen."},
+    "prov_qwen_cli": {"ru": "Qwen Code", "en": "Qwen Code",
+                      "it": "Qwen Code", "de": "Qwen Code"},
+    "prov_qwen_cli_hint": {
+        "ru": "Установите: npm install -g @qwen-code/qwen-code — и дайте ключ от вашей модели",
+        "en": "Install: npm install -g @qwen-code/qwen-code — and give it a key for your model",
+        "it": "Installi: npm install -g @qwen-code/qwen-code — e gli dia una chiave del suo modello",
+        "de": "Installieren: npm install -g @qwen-code/qwen-code — und geben Sie ihm einen Schlüssel für Ihr Modell"},
+    "prov_qwen_cli_about": {
+        "ru": "Командная строка Qwen. Работает по вашему ключу — от Alibaba или от любой другой службы, которую вы ей укажете. Бесплатного входа у неё больше нет.",
+        "en": "The Qwen command line. Runs on a key of yours — from Alibaba or any other service you point it at. Its free tier is gone.",
+        "it": "La riga di comando di Qwen. Funziona con una sua chiave — di Alibaba o di qualsiasi altro servizio che le indichi. Il livello gratuito non c'è più.",
+        "de": "Die Qwen-Kommandozeile. Läuft mit einem Schlüssel von Ihnen — von Alibaba oder einem anderen Dienst Ihrer Wahl. Ein kostenloser Zugang besteht nicht mehr."},
+    "prov_err_no_copilot": {
+        "ru": "Copilot CLI не найден: установите copilot",
+        "en": "Copilot CLI not found: install copilot",
+        "it": "Copilot CLI non trovato: installi copilot",
+        "de": "Copilot CLI nicht gefunden: copilot installieren"},
+    "prov_err_no_goose": {
+        "ru": "Goose не найден: установите goose", "en": "Goose not found: install goose",
+        "it": "Goose non trovato: installi goose", "de": "Goose nicht gefunden: goose installieren"},
+    "prov_err_no_qwen": {
+        "ru": "Qwen Code не найден: установите qwen", "en": "Qwen Code not found: install qwen",
+        "it": "Qwen Code non trovato: installi qwen", "de": "Qwen Code nicht gefunden: qwen installieren"},
+    # Свой адрес, говорящий на языке OpenAI: одним провайдером накрываются
+    # OpenRouter, LM Studio, vLLM, llama.cpp, корпоративный шлюз и сам OpenAI.
+    "prov_openai_api": {"ru": "Свой адрес (OpenAI API)", "en": "Your own endpoint (OpenAI API)",
+                        "it": "Indirizzo proprio (API OpenAI)", "de": "Eigene Adresse (OpenAI-API)"},
+    "prov_openai_api_hint": {
+        "ru": "Впишите адрес — например, OpenRouter, LM Studio или ваш собственный сервер",
+        "en": "Enter an address — OpenRouter, LM Studio or a server of your own",
+        "it": "Inserisca un indirizzo — OpenRouter, LM Studio o un suo server",
+        "de": "Tragen Sie eine Adresse ein — OpenRouter, LM Studio oder Ihr eigener Server"},
+    "prov_openai_api_about": {
+        "ru": "Любая служба, говорящая на языке OpenAI: OpenRouter с сотнями моделей, LM Studio или llama.cpp на вашем компьютере, свой сервер, рабочий шлюз. Подойдёт и сам OpenAI.",
+        "en": "Any service that speaks the OpenAI protocol: OpenRouter with hundreds of models, LM Studio or llama.cpp on your own computer, your own server, a work gateway. OpenAI itself will do too.",
+        "it": "Qualsiasi servizio che parli il protocollo OpenAI: OpenRouter con centinaia di modelli, LM Studio o llama.cpp sul suo computer, un suo server, un gateway aziendale. Va bene anche OpenAI stesso.",
+        "de": "Jeder Dienst, der das OpenAI-Protokoll spricht: OpenRouter mit Hunderten Modellen, LM Studio oder llama.cpp auf Ihrem Rechner, ein eigener Server, ein Firmen-Gateway. Auch OpenAI selbst."},
+    "api_base": {"ru": "Адрес", "en": "Address", "it": "Indirizzo", "de": "Adresse"},
+    "api_key": {"ru": "Ключ", "en": "Key", "it": "Chiave", "de": "Schlüssel"},
+    "api_key_ph": {"ru": "если нужен", "en": "if one is needed",
+                   "it": "se necessaria", "de": "falls nötig"},
+    "api_model": {"ru": "Название модели", "en": "Model name",
+                  "it": "Nome del modello", "de": "Name des Modells"},
+    "api_model_ph": {"ru": "например, anthropic/claude-sonnet-5",
+                     "en": "for example, anthropic/claude-sonnet-5",
+                     "it": "ad esempio, anthropic/claude-sonnet-5",
+                     "de": "zum Beispiel anthropic/claude-sonnet-5"},
+    "api_model_hint": {
+        "ru": "Впишите название так, как оно указано в документации выбранной службы ({base}). Списка здесь нет: какие модели доступны, знает только она.",
+        "en": "Write the name exactly as the service documents it ({base}). There is no list here: only that service knows which models it offers.",
+        "it": "Scriva il nome esattamente come lo indica il servizio ({base}). Qui non c'è un elenco: solo quel servizio sa quali modelli offre.",
+        "de": "Schreiben Sie den Namen genau so, wie der Dienst ihn angibt ({base}). Eine Liste gibt es hier nicht: welche Modelle es gibt, weiß nur dieser Dienst."},
+    "prov_err_no_api_base": {
+        "ru": "Не указан адрес службы", "en": "No address for the service",
+        "it": "Indirizzo del servizio non indicato", "de": "Keine Adresse für den Dienst"},
+    "prov_err_no_api_model": {
+        "ru": "Не указано название модели", "en": "No model name given",
+        "it": "Nome del modello non indicato", "de": "Kein Modellname angegeben"},
+    "prov_err_api_base_bad": {
+        "ru": "Адрес должен начинаться с http:// или https://",
+        "en": "The address has to start with http:// or https://",
+        "it": "L'indirizzo deve iniziare con http:// o https://",
+        "de": "Die Adresse muss mit http:// oder https:// beginnen"},
+    "prov_err_api_unreachable": {
+        "ru": "Служба не отвечает: {error}", "en": "The service is not answering: {error}",
+        "it": "Il servizio non risponde: {error}", "de": "Der Dienst antwortet nicht: {error}"},
+    "prov_err_api_not_json": {
+        "ru": "Служба вернула не JSON: {error}", "en": "The service returned something other than JSON: {error}",
+        "it": "Il servizio ha restituito qualcosa che non è JSON: {error}",
+        "de": "Der Dienst lieferte kein JSON: {error}"},
     "welcome_cost_hint": {
         "ru": "Claude Code, Cursor и Codex считают на своих серверах — для них нужна подписка или оплата по мере использования. Локальная модель (Ollama) бесплатна, но ей нужны память компьютера и время.",
         "en": "Claude Code, Cursor and Codex do the thinking on their own servers — those need a subscription or pay-as-you-go. A local model (Ollama) is free, but it wants your computer's memory and time.",

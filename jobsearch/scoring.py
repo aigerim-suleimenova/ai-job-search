@@ -149,7 +149,8 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
         )
         result = llm.ask_json(
             _lang_banner(cfg) + TRIAGE_PROMPT.format(profile=profile, cv=cv_excerpt, jobs=listing, lang=lang),
-            model=model, claude_bin=claude_bin, provider=provider, timeout=300,
+            model=model, claude_bin=claude_bin, provider=provider,
+            llm=cfg["llm"], timeout=300,
         )
         for item in result if isinstance(result, list) else []:
             try:
@@ -194,6 +195,7 @@ def profile_from_cv(cfg: dict, cv: str) -> dict:
         model=cfg["llm"].get("triage_model", "haiku"),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
         provider=cfg["llm"].get("provider", "claude_cli"),
+        llm=cfg["llm"],
         timeout=300,
     )
     if isinstance(data, dict):
@@ -285,7 +287,8 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
     lang = i18n.out_lang(cfg)
     ask = dict(model=cfg["llm"].get("deep_model", ""),
                claude_bin=cfg["llm"].get("claude_bin", "claude"),
-               provider=cfg["llm"].get("provider", "claude_cli"))
+               provider=cfg["llm"].get("provider", "claude_cli"),
+               llm=cfg["llm"])
 
     # 1. В сеть — без единой личной строчки. Красть отсюда нечего: название
     #    компании и должность злоумышленник и так знает, он их сам и написал.
@@ -416,6 +419,7 @@ def generate_cv(job: dict, cfg: dict, cv: str) -> dict:
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
         provider=cfg["llm"].get("provider", "claude_cli"),
+        llm=cfg["llm"],
         timeout=600,
     )
     return data if isinstance(data, dict) else {}

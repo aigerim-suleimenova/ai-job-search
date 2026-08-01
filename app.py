@@ -96,7 +96,8 @@ def _provider_status(cfg: dict) -> dict:
     Russian — "The app relies on “Локальная модель (Ollama)”".
     """
     key = cfg.get("llm", {}).get("provider", "claude_cli")
-    provs = providers.available(cfg.get("llm", {}).get("claude_bin", "claude"))
+    provs = providers.available(cfg.get("llm", {}).get("claude_bin", "claude"),
+                                cfg.get("llm", {}))
     p = provs.get(key, {})
     lang = cfg.get("ui", {}).get("lang", "en")
     return {"key": key, "ready": bool(p.get("ready")), "name": i18n.t(lang, f"prov_{key}")}
@@ -861,7 +862,7 @@ async def notify_email(request: Request, then: str = ""):
 def models_page(request: Request, msg: str = ""):
     cfg = config.load()
     provider = cfg["llm"].get("provider", "claude_cli")
-    provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
+    provs = providers.available(cfg["llm"].get("claude_bin", "claude"), cfg["llm"])
     current_model = cfg["llm"].get("triage_model", "haiku")
     catalog = providers.models_for(provider, lang=_lang(cfg))
     return render(request, "models.html", {
@@ -878,7 +879,7 @@ async def models_set_provider(request: Request):
     form = await request.form()
     key = str(form.get("provider", "claude_cli"))
     cfg = config.load()
-    if key in providers.available(cfg["llm"].get("claude_bin", "claude")):
+    if key in providers.available(cfg["llm"].get("claude_bin", "claude"), cfg["llm"]):
         cfg["llm"]["provider"] = key
         # the old provider's model means nothing to the new one — take the strongest available
         catalog = providers.models_for(key, lang=_lang(cfg))
@@ -927,6 +928,31 @@ async def models_pull(request: Request):
         return _redirect_to(str(form.get("back") or "/models"), _msg("msg_pull_busy"))
     providers.pull_async(model)
     return _redirect_to(str(form.get("back") or "/models"), _msg("msg_pull_started", model=model))
+
+
+@app.post("/models/api")
+async def models_set_api(request: Request):
+    """Свой адрес, говорящий на языке OpenAI: адрес, ключ и имя модели.
+
+    У этого провайдера нечего искать на диске и нечего перечислять списком —
+    вместо кнопки «Выбрать» у него поля. Пустой ключ оставлен возможным: у
+    LM Studio и llama.cpp на своём компьютере его попросту нет.
+    """
+    form = await request.form()
+    cfg = config.load()
+    base = str(form.get("api_base", "")).strip()
+    if base and not base.startswith(("http://", "https://")):
+        return _redirect_to(str(form.get("back") or "/models"), _msg("prov_err_api_base_bad"))
+    cfg["llm"]["api_base"] = base.rstrip("/")
+    cfg["llm"]["api_key"] = str(form.get("api_key", "")).strip()
+    cfg["llm"]["api_model"] = str(form.get("api_model", "")).strip()
+    if base:
+        cfg["llm"]["provider"] = "openai_api"
+    config.save(cfg)
+    back = str(form.get("back") or "/models")
+    where = _reachable(back)
+    return _redirect_to(where, _msg("msg_saved"),
+                        anchor=str(form.get("anchor", "")) if where == back else "")
 
 
 @app.post("/models/delete")
@@ -1424,7 +1450,8 @@ async def provider_install(request: Request):
     form = await request.form()
     key = str(form.get("provider", ""))
     back = str(form.get("back") or "/models")
-    provs = providers.available(config.load()["llm"].get("claude_bin", "claude"))
+    cfg_ = config.load()
+    provs = providers.available(cfg_["llm"].get("claude_bin", "claude"), cfg_["llm"])
     url = provs.get(key, {}).get("install_url", "")
     anchor = str(form.get("anchor", ""))
     if not url:
@@ -1441,7 +1468,7 @@ async def provider_recheck(request: Request):
     back = str(form.get("back") or "/models")
     providers.forget_binaries()
     cfg = config.load()
-    provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
+    provs = providers.available(cfg["llm"].get("claude_bin", "claude"), cfg["llm"])
     key = str(form.get("provider") or cfg["llm"].get("provider", "claude_cli"))
     ready = bool(provs.get(key, {}).get("ready"))
     name = _msg("prov_" + key)
@@ -1481,7 +1508,7 @@ def welcome(request: Request, msg: str = "", step: str = ""):
     """
     cfg = config.load()
     provider = cfg["llm"].get("provider", "claude_cli")
-    provs = providers.available(cfg["llm"].get("claude_bin", "claude"))
+    provs = providers.available(cfg["llm"].get("claude_bin", "claude"), cfg["llm"])
     catalog = providers.models_for(provider, lang=_lang(cfg))
     current_model = cfg["llm"].get("triage_model", "haiku")
     chosen = next((m for m in catalog if m["id"] == current_model), None)
@@ -1496,6 +1523,9 @@ def welcome(request: Request, msg: str = "", step: str = ""):
     if step == "model" and blocked_by == "provider":
         step = ""
     return render(request, "welcome.html", {
+        # cfg нужен самой странице: у своего адреса поля показываются прямо в
+        # карточке провайдера, а значения берутся из настроек
+        "cfg": cfg,
         "msg": msg, "provs": provs, "current_provider": provider, "step": step,
         "current_model": current_model, "models": catalog,
         "current_model_name": chosen["name"] if chosen else current_model,

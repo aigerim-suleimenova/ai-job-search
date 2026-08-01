@@ -256,7 +256,12 @@ def test_старое_покрытие_с_русским_типом_источн
 ПРОВАЙДЕРЫ = {
     "claude_cli": {"ready": False, "web_search": True, "kind": "cloud", "install_url": ""},
     "cursor_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
+    "codex_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
+    "copilot_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
+    "goose_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
+    "qwen_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
     "ollama": {"ready": False, "web_search": False, "kind": "local", "install_url": ""},
+    "openai_api": {"ready": False, "web_search": False, "kind": "custom", "install_url": ""},
 }
 
 
@@ -267,7 +272,10 @@ def доступны(monkeypatch, **готовы):
     avail = {k: dict(v) for k, v in ПРОВАЙДЕРЫ.items()}
     for key, ready in готовы.items():
         avail[key]["ready"] = ready
-    monkeypatch.setattr(providers, "available", lambda claude_bin="claude": avail)
+    # второй аргумент — блок настроек: он нужен своему адресу, у которого
+    # готовность определяется не файлом на диске, а вписанным адресом
+    monkeypatch.setattr(providers, "available",
+                        lambda claude_bin="claude", llm=None: avail)
     monkeypatch.setattr(app_module.providers, "available", providers.available)
 
 

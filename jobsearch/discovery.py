@@ -125,6 +125,7 @@ def discover(cfg: dict, log, n: int = 5) -> list:
                 model=cfg["llm"].get("triage_model", "haiku"),
                 claude_bin=cfg["llm"].get("claude_bin", "claude"),
                 provider=cfg["llm"].get("provider", "claude_cli"),
+                llm=cfg["llm"],
                 timeout=600,
                 allowed_tools=["WebSearch", "WebFetch"],
             )
@@ -222,6 +223,7 @@ def discover_ats_jobs(cfg: dict, log, n: int = 5) -> list:
             model=cfg["llm"].get("triage_model", "haiku"),
             claude_bin=cfg["llm"].get("claude_bin", "claude"),
             provider=cfg["llm"].get("provider", "claude_cli"),
+            llm=cfg["llm"],
             timeout=600,
             allowed_tools=["WebSearch", "WebFetch"],
         )

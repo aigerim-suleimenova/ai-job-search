@@ -45,6 +45,7 @@ def _resolve_url(name: str, cfg: dict) -> str:
             model=cfg["llm"].get("triage_model", "haiku"),
             claude_bin=cfg["llm"].get("claude_bin", "claude"),
             provider=cfg["llm"].get("provider", "claude_cli"),
+            llm=cfg["llm"],
             timeout=300, allowed_tools=["WebSearch", "WebFetch"],
         )
     except llm.AuthError:

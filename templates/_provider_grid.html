@@ -31,6 +31,27 @@
     {% endif %}
 
     <div class="provider-actions">
+      {# У своего адреса нечего искать на диске: он готов ровно тогда, когда
+         адрес вписан. Поэтому вместо «Установить» и «Выбрать» — поля.
+         Ключ можно оставить пустым: у LM Studio и llama.cpp на своём
+         компьютере его попросту нет. #}
+      {% if key == 'openai_api' %}
+      <form method="post" action="/models/api" class="api-form">
+        <input type="hidden" name="back" value="{{ back }}">
+        <input type="hidden" name="anchor" value="{{ step2 }}">
+        <label>{{ t('api_base') }}
+          <input name="api_base" value="{{ cfg.llm.api_base }}"
+                 placeholder="https://openrouter.ai/api/v1" autocomplete="off">
+        </label>
+        <label>{{ t('api_key') }}
+          <input name="api_key" type="password" value="{{ cfg.llm.api_key }}"
+                 placeholder="{{ t('api_key_ph') }}" autocomplete="off">
+        </label>
+        <button {% if current_provider == key %}class="primary"{% endif %}>
+          {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
+        </button>
+      </form>
+      {% else %}
       {% if not p.ready %}
       <form method="post" action="/provider/install">
         <input type="hidden" name="provider" value="{{ key }}">
@@ -53,6 +74,7 @@
           {% if current_provider == key %}{{ t('models_selected') }}{% else %}{{ t('models_select') }}{% endif %}
         </button>
       </form>
+      {% endif %}
     </div>
   </div>
   {% endfor %}

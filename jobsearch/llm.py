@@ -147,11 +147,12 @@ def pmap(fn, items: list, workers: int = 5) -> list:
 
 
 def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_tools,
-              provider: str = "claude_cli") -> str:
+              provider: str = "claude_cli", llm: dict = None) -> str:
     from . import providers
     if provider and provider != "claude_cli":
         try:
-            return providers.call(prompt, provider, model, timeout, allowed_tools, claude_bin)
+            return providers.call(prompt, provider, model, timeout, allowed_tools,
+                                  claude_bin, llm)
         except providers.ProviderError as e:
             # the translation key has to be carried on, or its name lands in the log
             raise ClaudeError("" if e.key else str(e), key=e.key, **e.fmt) from e
@@ -206,7 +207,8 @@ def _ask_once(prompt: str, model: str, claude_bin: str, timeout: int, allowed_to
 
 
 def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int = 600,
-        allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli") -> str:
+        allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli",
+        llm: dict = None) -> str:
     """Calls claude, retrying on temporary errors (connection closed, overload, 429/5xx)."""
     # A break point: stages such as discovery make their calls in a plain loop
     # rather than through pmap, and without this check "Stop" would wait for the
@@ -216,7 +218,7 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
     last = None
     for attempt in range(retries + 1):
         try:
-            return _ask_once(prompt, model, claude_bin, timeout, allowed_tools, provider)
+            return _ask_once(prompt, model, claude_bin, timeout, allowed_tools, provider, llm)
         except AuthError:
             raise          # we cannot sign in for them — retries only waste time
         except ClaudeError as e:
@@ -229,7 +231,8 @@ def ask(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int =
 
 
 def ask_json(prompt: str, model: str = "", claude_bin: str = "claude", timeout: int = 600,
-             allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli"):
+             allowed_tools: list = None, retries: int = 2, provider: str = "claude_cli",
+             llm: dict = None):
     """Like ask, but requires JSON back. If the model answered in prose, it retries."""
     last = None
     for attempt in range(retries + 1):
@@ -237,7 +240,7 @@ def ask_json(prompt: str, model: str = "", claude_bin: str = "claude", timeout: 
         # three attempts here times three inside ask meant up to nine calls to the
         # model. With a local model at ten minutes each, that looked like a hang.
         text = ask(prompt, model=model, claude_bin=claude_bin, timeout=timeout,
-                   allowed_tools=allowed_tools, retries=0, provider=provider)
+                   allowed_tools=allowed_tools, retries=0, provider=provider, llm=llm)
         try:
             return extract_json(text)
         except ClaudeError as e:

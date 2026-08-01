@@ -53,6 +53,21 @@ CODEX_MODELS = [
      "note_key": "model_note_strong_fast"},
 ]
 
+COPILOT_MODELS = [
+    {"id": "auto", "name": "Auto", "name_key": "model_auto_generic", "power": 95},
+    {"id": "gpt-5.2", "name": "GPT-5.2", "power": 96},
+    {"id": "claude-sonnet-4.6", "name": "Claude Sonnet 4.6", "power": 92},
+    {"id": "claude-haiku-4.5", "name": "Claude Haiku 4.5", "power": 70,
+     "note_key": "model_note_fast_cheap"},
+]
+
+# Goose и Qwen Code не привязаны к одной модели: какая доступна, решает ключ,
+# который человек им дал. Перечислять чужой список здесь нечестно — «Авто»
+# означает «не называть модель», и тогда берётся настроенная у самой программы.
+BYOK_MODELS = [
+    {"id": "auto", "name": "Auto", "name_key": "model_auto_generic", "power": 90},
+]
+
 # Local models: the Ollama name → metadata. brand/country are there so the list
 # can be filtered by origin (some people do care about it).
 LOCAL_MODELS = [
@@ -239,13 +254,17 @@ def forget_binaries() -> None:
     forget_ollama()
 
 
-def available(claude_bin: str = "claude") -> dict:
+def available(claude_bin: str = "claude", llm: dict = None) -> dict:
     """Which providers are actually ready to work on this machine.
 
     Names and hints are not kept here: they live in the translations under the
     keys prov_<code> and prov_<code>_hint — otherwise the provider's name would
     arrive on the page in Russian in the middle of an English sentence.
+
+    llm — настройки модели. Нужны одному провайдеру: у своего адреса нечего
+    искать на диске, он готов ровно тогда, когда адрес вписан.
     """
+    llm = llm or {}
     return {
         "claude_cli": {
             "ready": _bin_exists(claude_bin or "claude"),
@@ -266,10 +285,33 @@ def available(claude_bin: str = "claude") -> dict:
             "web_search": False, "kind": "cloud",
             "install_url": "https://developers.openai.com/codex/cli/",
         },
+        "copilot_cli": {
+            "ready": _bin_exists("copilot"),
+            "web_search": False, "kind": "cloud",
+            "install_url": "https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli",
+        },
+        "goose_cli": {
+            "ready": _bin_exists("goose"),
+            "web_search": False, "kind": "cloud",
+            "install_url": "https://goose-docs.ai/docs/getting-started/installation",
+        },
+        "qwen_cli": {
+            "ready": _bin_exists("qwen"),
+            "web_search": False, "kind": "cloud",
+            "install_url": "https://github.com/QwenLM/qwen-code",
+        },
         "ollama": {
             "ready": ollama_running(),
             "web_search": False, "kind": "local",
             "install_url": "https://ollama.com/download",
+        },
+        # Последним — он для тех, кто знает, чего хочет: вместо кнопки здесь поля,
+        # и первым в списке он сбивал бы с толку тех, кому подойдёт любой из
+        # обычных вариантов выше.
+        "openai_api": {
+            "ready": bool((llm.get("api_base") or "").strip()),
+            "web_search": False, "kind": "custom",
+            "install_url": "",
         },
     }
 
@@ -287,8 +329,11 @@ def missing_piece(llm: dict) -> str:
     call their working setup broken.
     """
     provider = llm.get("provider") or "claude_cli"
-    if not available(llm.get("claude_bin", "claude")).get(provider, {}).get("ready"):
+    if not available(llm.get("claude_bin", "claude"), llm).get(provider, {}).get("ready"):
         return "provider"
+    if provider == "openai_api":
+        # адрес есть, дело за именем модели — это ровно второй шаг знакомства
+        return "" if (llm.get("api_model") or "").strip() else "model"
     if provider == "ollama":
         model = llm.get("triage_model") or ""
         if not model or model not in ollama_installed_models():
@@ -318,6 +363,10 @@ def models_for(provider: str, installed: set = None, lang: str = "en") -> list:
         return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in CURSOR_MODELS]
     if provider == "codex_cli":
         return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in CODEX_MODELS]
+    if provider == "copilot_cli":
+        return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in COPILOT_MODELS]
+    if provider in ("goose_cli", "qwen_cli"):
+        return [_localized(dict(m, fits="yes", kind="cloud"), lang) for m in BYOK_MODELS]
     if provider == "ollama":
         installed = installed if installed is not None else ollama_installed_models()
         out = []
@@ -430,6 +479,116 @@ def call_codex(prompt: str, model: str, timeout: int) -> str:
     return proc.stdout.strip()
 
 
+def _run_cli(cmd: list, prompt: str, timeout: int, tool: str) -> str:
+    """Запускает командную строку, отдавая задание через stdin.
+
+    Через stdin, а не аргументом, — и это не придирка: наши запросы бывают в
+    тысячи знаков, с переносами, кавычками и кириллицей. Длина командной строки
+    ограничена (на Linux около двух мегабайт), и как раз на таких запросах она и
+    кончается. Отсюда же выбор самих программ: те, что умеют читать только
+    аргумент, сюда не годятся.
+    """
+    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace",
+                          cwd=work_dir(), env=login_env(),
+                          timeout=timeout, close_fds=False)
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()[:800]
+        if not detail:
+            raise ProviderError(key="prov_err_exit_code", tool=tool, code=proc.returncode)
+        raise ProviderError(detail)
+    return proc.stdout.strip()
+
+
+def call_copilot(prompt: str, model: str, timeout: int) -> str:
+    """GitHub Copilot CLI по подписке, которая у многих уже есть.
+
+    Задание идёт трубой, а не через -p: в документации прямо сказано, что при
+    -p поданное на вход просто игнорируется. -s убирает украшения и оставляет в
+    выводе один ответ.
+    """
+    exe = resolve_bin("copilot")
+    if not exe:
+        raise ProviderError(key="prov_err_no_copilot")
+    cmd = [exe, "-s", "--no-ask-user", "--allow-all-tools"]
+    if model and model != "auto":
+        cmd += [f"--model={model}"]
+    return _run_cli(cmd, prompt, timeout, "copilot")
+
+
+def call_goose(prompt: str, model: str, timeout: int) -> str:
+    """Goose — из всех проверенных лучше всего ложится на нашу задачу.
+
+    `-i -` читает задание из stdin, `-q` печатает только ответ модели,
+    `--no-session` не оставляет за собой файлов сеанса: нам нужен один вопрос и
+    один ответ, а не переписка.
+    """
+    exe = resolve_bin("goose")
+    if not exe:
+        raise ProviderError(key="prov_err_no_goose")
+    cmd = [exe, "run", "--no-session", "-q", "-i", "-"]
+    if model and model != "auto":
+        cmd += ["--model", model]
+    return _run_cli(cmd, prompt, timeout, "goose")
+
+
+def call_qwen(prompt: str, model: str, timeout: int) -> str:
+    """Qwen Code. Задание через трубу, ответ обычным текстом."""
+    exe = resolve_bin("qwen")
+    if not exe:
+        raise ProviderError(key="prov_err_no_qwen")
+    cmd = [exe, "--yolo", "--output-format", "text"]
+    if model and model != "auto":
+        cmd += ["--model", model]
+    return _run_cli(cmd, prompt, timeout, "qwen")
+
+
+def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
+    """Любая служба, говорящая на языке OpenAI: /chat/completions.
+
+    Одна эта веточка накрывает столько же, сколько все командные строки вместе:
+    OpenRouter с сотнями моделей, LM Studio и llama.cpp на своём компьютере,
+    vLLM, корпоративный шлюз, сам OpenAI. Добавлять их по одной пришлось бы
+    бесконечно, а протокол у них общий.
+
+    Ключ уходит в заголовке, а не в адресе: адрес попадает в текст исключения
+    при обрыве связи, а оттуда — в журнал прогона, который человек показывает
+    другим. На токене Telegram мы это уже проходили.
+    """
+    base = (cfg_llm.get("api_base") or "").strip().rstrip("/")
+    key = (cfg_llm.get("api_key") or "").strip()
+    model = (cfg_llm.get("api_model") or "").strip()
+    if not base:
+        raise ProviderError(key="prov_err_no_api_base")
+    if not model:
+        raise ProviderError(key="prov_err_no_api_model")
+    headers = {"Content-Type": "application/json"}
+    if key:                      # у местных служб ключа может не быть вовсе
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        r = requests.post(f"{base}/chat/completions", headers=headers, timeout=timeout,
+                          json={"model": model, "stream": False,
+                                "messages": [{"role": "user", "content": prompt}]})
+        r.raise_for_status()
+        data = r.json()
+    except requests.RequestException as e:
+        raise ProviderError(key="prov_err_api_unreachable",
+                            error=_without_key(str(e), key)) from e
+    except ValueError as e:
+        raise ProviderError(key="prov_err_api_not_json", error=e) from e
+    try:
+        return str(data["choices"][0]["message"]["content"]).strip()
+    except (KeyError, IndexError, TypeError) as e:
+        # у службы может быть своя форма ответа или своя ошибка в теле
+        detail = str(data.get("error") or data)[:300] if isinstance(data, dict) else str(data)[:300]
+        raise ProviderError(_without_key(detail, key)) from e
+
+
+def _without_key(text: str, key: str) -> str:
+    """Ключ не должен доехать до журнала, даже если служба вернула его в ошибке."""
+    return text.replace(key, "***") if key else text
+
+
 def call_ollama(prompt: str, model: str, timeout: int) -> str:
     try:
         r = requests.post(f"{OLLAMA_URL}/api/generate",
@@ -444,12 +603,24 @@ def call_ollama(prompt: str, model: str, timeout: int) -> str:
 
 
 def call(prompt: str, provider: str, model: str, timeout: int = 600,
-         allowed_tools=None, claude_bin: str = "claude") -> str:
-    """The single place a model is called. allowed_tools matters only to Claude Code CLI."""
+         allowed_tools=None, claude_bin: str = "claude", llm: dict = None) -> str:
+    """The single place a model is called. allowed_tools matters only to Claude Code CLI.
+
+    llm — весь блок настроек модели. Нужен своему адресу: у него, в отличие от
+    командных строк, кроме имени модели есть ещё адрес и ключ.
+    """
     if provider == "cursor_cli":
         return call_cursor(prompt, model, timeout)
     if provider == "codex_cli":
         return call_codex(prompt, model, timeout)
+    if provider == "copilot_cli":
+        return call_copilot(prompt, model, timeout)
+    if provider == "goose_cli":
+        return call_goose(prompt, model, timeout)
+    if provider == "qwen_cli":
+        return call_qwen(prompt, model, timeout)
+    if provider == "openai_api":
+        return call_openai_api(prompt, llm or {}, timeout)
     if provider == "ollama":
         return call_ollama(prompt, model, timeout)
     return call_claude(prompt, model, timeout, allowed_tools, claude_bin)

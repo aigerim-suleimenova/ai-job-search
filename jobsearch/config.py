@@ -86,10 +86,16 @@ DEFAULTS = {
         "jooble_key": "",
     },
     "llm": {
-        "provider": "claude_cli",     # claude_cli | cursor_cli | ollama
+        "provider": "claude_cli",     # см. providers.available()
         "claude_bin": "claude",
         "triage_model": "haiku",
         "deep_model": "",            # empty = claude's own default model
+        # Свой адрес, говорящий на языке OpenAI. Этим одним провайдером
+        # накрываются разом OpenRouter, LM Studio, vLLM, llama.cpp, корпоративные
+        # шлюзы и сам OpenAI — добавлять их по одному пришлось бы бесконечно.
+        "api_base": "",              # https://.../v1
+        "api_key": "",
+        "api_model": "",             # имя модели у выбранной службы
     },
     "telegram": {
         "bot_token": "",

@@ -26,8 +26,12 @@ def _перехват(monkeypatch) -> list:
     """Stands in for providers.call and remembers what it was called with."""
     вызовы = []
 
-    def fake(prompt, provider, model, timeout=600, allowed_tools=None, claude_bin="claude"):
-        вызовы.append({"provider": provider, "model": model, "prompt": prompt})
+    # llm — весь блок настроек: своему адресу нужны не только имя модели,
+    # но и адрес с ключом, и они доезжают именно этим аргументом
+    def fake(prompt, provider, model, timeout=600, allowed_tools=None,
+             claude_bin="claude", llm=None):
+        вызовы.append({"provider": provider, "model": model, "prompt": prompt,
+                       "llm": llm})
         return "[]"
 
     monkeypatch.setattr(providers, "call", fake)

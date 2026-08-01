@@ -185,6 +185,7 @@ def visual_review(pages: list, cfg: dict) -> dict:
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
         provider=cfg["llm"].get("provider", "claude_cli"),
+        llm=cfg["llm"],
         timeout=600,
         allowed_tools=["Read"],
     )
@@ -228,6 +229,7 @@ def keyword_check(cfg: dict, cv: str, jobs: list) -> dict:
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
         provider=cfg["llm"].get("provider", "claude_cli"),
+        llm=cfg["llm"],
         timeout=600,
     )
     return data if isinstance(data, dict) else {}
