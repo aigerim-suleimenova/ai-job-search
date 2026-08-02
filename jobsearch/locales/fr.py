@@ -645,4 +645,5 @@ STRINGS = {
 "prov_err_api_bad_key": "La clé contient des caractères qu'une clé ne contient pas — quelque chose a sans doute été copié avec elle. Ne collez que la clé.",
 "log_all_sources_failed": "Aucune des {n} sources n'a répondu — les connexions ne semblent pas passer. Regardez « Couverture » : on y voit ce que chacune a répondu. Une cause fréquente est un antivirus ou une passerelle d'entreprise qui inspecte les connexions sécurisées.",
 "person_add_prompt": "Qui ajoutons-nous ? Cette personne aura ses propres réglages, CV et liste d'offres.",
+"sources_trades_hint": "La plupart des sources ci-dessus sont des sites d'emploi informatique. Les métiers manuels et les professions non informatiques se trouvent sur EURES (toute l'UE, recherche par sens — vous pouvez nommer votre métier dans n'importe quelle langue), sur Arbeitsagentur (Allemagne, mots allemands uniquement) et sur JobTech (Suède).",
 }

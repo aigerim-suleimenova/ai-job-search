@@ -252,7 +252,13 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
     <label class="check"><input type="checkbox" name="use_himalayas" {% if cfg.sources.use_himalayas %}checked{% endif %}> Himalayas (remote)</label>
     <label class="check"><input type="checkbox" name="use_themuse" {% if cfg.sources.use_themuse %}checked{% endif %}> The Muse</label>
     <label class="check"><input type="checkbox" name="use_arbeitsagentur" {% if cfg.sources.use_arbeitsagentur %}checked{% endif %}> Arbeitsagentur (DE)</label>
+    <label class="check"><input type="checkbox" name="use_eures" {% if cfg.sources.use_eures %}checked{% endif %}> EURES (EU)</label>
+    <label class="check"><input type="checkbox" name="use_jobtech" {% if cfg.sources.use_jobtech %}checked{% endif %}> JobTech (SE)</label>
   </div>
+  {# Восемь из десяти источников выше — доски для программистов, и по ним швея,
+     бариста или слесарь не находятся вовсе. Об этом надо сказать прямо: человек
+     иначе решит, что вакансий по его профессии нет. #}
+  <p class="hint">{{ t('sources_trades_hint') }}</p>
   <div class="grid2" style="align-items:end">
     <label>{{ t('discover_per_run') }}
       <input type="number" name="discover_per_run" min="0" value="{{ cfg.search.discover_per_run }}">

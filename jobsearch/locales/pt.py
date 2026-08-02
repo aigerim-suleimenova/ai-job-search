@@ -645,4 +645,5 @@ STRINGS = {
 "prov_err_api_bad_key": "A chave contém caracteres que as chaves não têm — provavelmente foi copiado algo a mais. Cole apenas a chave.",
 "log_all_sources_failed": "Nenhuma das {n} fontes respondeu — parece que as ligações não chegam. Veja «Cobertura»: ali diz o que cada uma respondeu. Uma causa frequente é um antivírus ou um gateway da empresa que inspeciona ligações seguras.",
 "person_add_prompt": "Quem estamos a adicionar? Terá as suas próprias definições, CV e lista de vagas.",
+"sources_trades_hint": "A maioria das fontes acima são portais de informática. Os ofícios e as profissões não informáticas encontram-se no EURES (toda a UE, procura por significado — pode escrever a sua profissão em qualquer língua), na Arbeitsagentur (Alemanha, só palavras alemãs) e no JobTech (Suécia).",
 }

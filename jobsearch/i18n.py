@@ -891,6 +891,13 @@ TR = {
         "de": "Insgesamt gesammelt: {n}"},
     # Отказали все до единого — это не ответ рынка, а общая внешняя причина:
     # антивирус, перехватывающий соединения, корпоративный шлюз, нет сети.
+    # Восемь источников из десяти — доски для программистов. Человек, ищущий
+    # работу руками, иначе решит, что вакансий по его профессии просто нет.
+    "sources_trades_hint": {
+        "ru": "Большинство источников выше — доски для IT. Рабочие и не-компьютерные профессии находятся в EURES (весь ЕС, ищет по смыслу — можно писать профессию на любом языке), в Arbeitsagentur (Германия, только немецкие слова) и в JobTech (Швеция).",
+        "en": "Most of the sources above are IT job boards. Trades and non-computer professions are found in EURES (the whole EU, matches by meaning — you can name your trade in any language), in Arbeitsagentur (Germany, German words only) and in JobTech (Sweden).",
+        "it": "La maggior parte delle fonti qui sopra sono bacheche per l'informatica. I mestieri e le professioni non informatiche si trovano in EURES (tutta l'UE, cerca per significato — può scrivere la professione in qualsiasi lingua), in Arbeitsagentur (Germania, solo parole tedesche) e in JobTech (Svezia).",
+        "de": "Die meisten Quellen oben sind IT-Jobbörsen. Handwerk und nicht-computerbezogene Berufe finden sich in EURES (die ganze EU, sucht nach Bedeutung — Sie können den Beruf in jeder Sprache schreiben), in der Arbeitsagentur (Deutschland, nur deutsche Wörter) und in JobTech (Schweden)."},
     "log_all_sources_failed": {
         "ru": "Ни один из {n} источников не ответил — похоже, до них не доходят соединения. Загляните в «Покрытие»: там сказано, что ответил каждый. Частая причина — антивирус или рабочий шлюз, проверяющий защищённые соединения.",
         "en": "Not one of the {n} sources answered — the connections seem not to be getting through. Look at “Coverage”: it says what each one replied. A common cause is an antivirus or a work gateway inspecting secure connections.",

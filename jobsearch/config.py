@@ -75,6 +75,11 @@ DEFAULTS = {
         "use_himalayas": True,
         "use_themuse": True,
         "use_arbeitsagentur": True,
+        # Все профессии, а не только IT: EURES — по всему ЕС и ищет по смыслу,
+        # а не по буквам (запрос по-английски приводит голландские вакансии);
+        # JobTech — биржа труда Швеции, отдаёт описание сразу в выдаче.
+        "use_eures": True,
+        "use_jobtech": True,
         # Employers found in the links of jobs already collected go onto the watch
         # list: an aggregator shows one or two of a company's jobs, while its own
         # board shows them all. Neither the model nor a web search is needed for

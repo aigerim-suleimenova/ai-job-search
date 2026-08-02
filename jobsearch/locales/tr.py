@@ -645,4 +645,5 @@ STRINGS = {
 "prov_err_api_bad_key": "Anahtarda, anahtarlarda bulunmayan karakterler var — büyük olasılıkla fazladan bir şey kopyalandı. Yalnızca anahtarı yapıştırın.",
 "log_all_sources_failed": "{n} kaynağın hiçbiri yanıt vermedi — bağlantılar ulaşmıyor gibi görünüyor. «Kapsam»a bakın: orada her birinin ne yanıtladığı yazıyor. Sık görülen sebep, güvenli bağlantıları inceleyen bir antivirüs ya da kurumsal ağ geçididir.",
 "person_add_prompt": "Kimi ekliyoruz? Kendi ayarları, CV'si ve iş listesi olacak.",
+"sources_trades_hint": "Yukarıdaki kaynakların çoğu bilişim iş ilanı sitesidir. Zanaat ve bilgisayar dışı meslekler EURES'te (tüm AB, anlama göre arar — mesleğinizi herhangi bir dilde yazabilirsiniz), Arbeitsagentur'da (Almanya, yalnızca Almanca kelimeler) ve JobTech'te (İsveç) bulunur.",
 }

@@ -144,6 +144,20 @@ def allowed(url: str) -> bool:
         return True
 
 
+def post(url: str, **kw):
+    """POST с теми же правилами, что и GET: пауза, честное имя, проверка адреса.
+
+    Нужен одному источнику — общеевропейскому EURES, который принимает запрос
+    только телом. Переходов у него не бывает, поэтому и вести их тут нечего.
+    """
+    check(url)
+    host = _host(url)
+    _, robots_delay = _robots.get(host, (None, None))
+    _wait_turn(host, max(DELAY, float(robots_delay or 0)))
+    headers = {**UA, **kw.pop("headers", {})}
+    return requests.post(url, headers=headers, timeout=kw.pop("timeout", TIMEOUT), **kw)
+
+
 def get(url: str, *, respect_robots: bool = False, **kw):
     """A GET with the pause and the honest name. respect_robots=True is for ordinary
     sites; when forbidden it returns None rather than raising.

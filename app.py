@@ -490,6 +490,8 @@ async def save(request: Request, then: str = ""):
             use_remoteok=flag("use_remoteok"), use_jobicy=flag("use_jobicy"),
             use_himalayas=flag("use_himalayas"), use_themuse=flag("use_themuse"),
             use_arbeitsagentur=flag("use_arbeitsagentur"),
+            use_eures=flag("use_eures"),
+            use_jobtech=flag("use_jobtech"),
             adzuna_app_id=val("adzuna_app_id"), adzuna_app_key=val("adzuna_app_key"),
             adzuna_countries=val("adzuna_countries"), jooble_key=val("jooble_key"),
             # Поиск в интернете силами приложения: служба выбирается из списка,

@@ -309,6 +309,115 @@ def themuse(cfg: dict, log) -> list:
     return jobs
 
 
+def eures(cfg: dict, log) -> list:
+    """EURES — общеевропейский портал вакансий, все тридцать одна страна и все
+    профессии.
+
+    Ради него всё и затевалось. Восемь наших источников из девяти — только IT, и
+    девятый, немецкая биржа, знает все профессии, но одну страну и понимает
+    только немецкие слова. Швея, написавшая роль по-русски и по-английски,
+    получала ноль.
+
+    EURES ищет по смыслу, а не по буквам: у него под спудом европейский
+    справочник профессий ESCO, и запрос «electrician» приводит голландские
+    «Elektricien» и «Bordenbouwer». Значит человеку больше не нужно угадывать,
+    на каком языке написать свою профессию.
+
+    Взамен выдача шире, чем спрашивали: по «seamstress» приезжает и инженер-
+    расчётчик. Это не беда — дальше вакансии всё равно смотрит модель, и лишнее
+    она отсеивает. Пустой список отсеять нечем.
+
+    Адрес не значится в открытой росписи: им пользуется сам сайт EURES. Тот же
+    род, что и ключ немецкой биржи, — работает сегодня, а завтра может
+    перестать, и тогда источник просто отдаст ноль с записью в журнал.
+    """
+    jobs, seen = [], set()
+    for term in _search_terms(cfg):
+        if not term:
+            continue
+        try:
+            r = web.post(
+                "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search",
+                json={
+                    "resultsPerPage": 50, "page": 1, "sortSearch": "MOST_RECENT",
+                    "keywords": [{"keyword": term, "specificSearchCode": "EVERYWHERE"}],
+                    "occupationUris": [], "skillUris": [], "requiredExperienceCodes": [],
+                    "positionScheduleCodes": [], "sectorCodes": [],
+                    "educationAndQualificationLevelCodes": [], "positionOfferingCodes": [],
+                    "locationCodes": [], "euresFlagCodes": [], "otherBenefitsCodes": [],
+                    "requiredLanguages": [], "requestLanguage": "en",
+                },
+                headers={"Content-Type": "application/json"}, timeout=TIMEOUT)
+            r.raise_for_status()
+            data = r.json()
+        except (requests.RequestException, ValueError) as e:
+            log(f"eures: {e}")
+            continue
+        for j in data.get("jvs") or []:
+            ref = j.get("id", "")
+            if not ref or ref in seen:
+                continue
+            seen.add(ref)
+            страны = list((j.get("locationMap") or {}).keys())
+            jobs.append({
+                "title": j.get("title", ""),
+                "company": (j.get("employer") or {}).get("name", ""),
+                "location": ", ".join(страны) or "EU",
+                "url": f"https://europa.eu/eures/portal/jv-se/jv-details/{ref}?lang=en",
+                "description": _strip_html(j.get("description") or "")[:6000],
+                "posted_at": _from_millis(j.get("creationDate")),
+                "source": "eures",
+                "is_direct": j.get("positionOfferingCode") == "directhire",
+            })
+    return jobs
+
+
+def jobtech(cfg: dict, log) -> list:
+    """Биржа труда Швеции. Ключа не просит вовсе, знает все профессии и —
+    в отличие от прочих — отдаёт описание сразу в выдаче, а не отдельным
+    запросом за каждой вакансией."""
+    jobs, seen = [], set()
+    for term in _search_terms(cfg):
+        if not term:
+            continue
+        try:
+            r = web.get("https://jobsearch.api.jobtechdev.se/search",
+                        params={"q": term, "limit": 50}, timeout=TIMEOUT)
+            r.raise_for_status()
+            data = r.json()
+        except (requests.RequestException, ValueError) as e:
+            log(f"jobtech: {e}")
+            continue
+        for j in data.get("hits") or []:
+            ref = j.get("id", "")
+            if not ref or ref in seen:
+                continue
+            seen.add(ref)
+            место = ((j.get("workplace_address") or {}).get("municipality")
+                     or (j.get("workplace_address") or {}).get("region") or "")
+            jobs.append({
+                "title": j.get("headline", ""),
+                "company": (j.get("employer") or {}).get("name", ""),
+                "location": (f"{место}, Sweden" if место else "Sweden"),
+                "url": (j.get("webpage_url")
+                        or (j.get("application_details") or {}).get("url") or ""),
+                "description": ((j.get("description") or {}).get("text") or "")[:6000],
+                "posted_at": iso_date(j.get("publication_date")),
+                "source": "jobtech",
+                "is_direct": True,
+            })
+    return jobs
+
+
+def _from_millis(v) -> str:
+    """Дата из миллисекунд эпохи — так их отдаёт EURES."""
+    from datetime import datetime, timezone
+    try:
+        return datetime.fromtimestamp(int(v) / 1000, timezone.utc).strftime("%Y-%m-%d")
+    except (TypeError, ValueError, OSError):
+        return ""
+
+
 def arbeitsagentur(cfg: dict, log) -> list:
     """Germany's official employment exchange — a real full-text search (a public
     client key, free of charge). The list comes without descriptions, which is
@@ -452,6 +561,10 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
     track(src.get("use_himalayas", True), "Himalayas", "https://himalayas.app", himalayas)
     track(src.get("use_themuse", True), "The Muse", "https://themuse.com", themuse)
     track(src.get("use_arbeitsagentur", True), "Arbeitsagentur (DE)", "https://arbeitsagentur.de", arbeitsagentur)
+    # Два источника, знающих все профессии, а не только IT. Восемь остальных —
+    # доски для программистов, и на них швея, бариста и слесарь не находятся.
+    track(src.get("use_eures", True), "EURES (EU)", "https://europa.eu/eures", eures)
+    track(src.get("use_jobtech", True), "JobTech (SE)", "https://jobtechdev.se", jobtech)
     track(bool(src.get("adzuna_app_id")), "Adzuna", "https://adzuna.com", adzuna)
     track(bool(src.get("jooble_key")), "Jooble", "https://jooble.org", jooble)
     return jobs
