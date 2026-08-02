@@ -4,7 +4,7 @@ import json
 
 import requests
 
-from . import i18n
+from . import i18n, net
 
 TIMEOUT = 30
 
@@ -81,7 +81,7 @@ def send_message(cfg: dict, text: str) -> None:
 
 def detect_chat_id(token: str) -> str:
     """Looks for the chat_id among the bot's latest messages (getUpdates)."""
-    r = _call(lambda: requests.get(_api(token, "getUpdates"), timeout=TIMEOUT), token)
+    r = _call(lambda: net.get(_api(token, "getUpdates"), timeout=TIMEOUT), token)
     data = r.json()
     if not data.get("ok"):
         raise RuntimeError(f"Telegram: {data.get('description', r.text[:200])}")

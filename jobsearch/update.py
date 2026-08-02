@@ -31,7 +31,7 @@ from urllib.parse import unquote, urlparse
 
 import requests
 
-from . import appstate, version
+from . import appstate, net, version
 
 REPO = "mrWD/ai-job-search"
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -101,7 +101,7 @@ def _asset_for_this_os(assets: list) -> dict:
 def fetch_latest() -> dict:
     """Asks GitHub about the newest release. {} if it cannot be reached."""
     try:
-        r = requests.get(API, timeout=(3, 10),
+        r = net.get(API, timeout=(3, 10),
                          headers={"Accept": "application/vnd.github+json"})
         r.raise_for_status()
         data = r.json()
@@ -197,7 +197,7 @@ def download(asset: dict, progress=None) -> Path:
     sha = hashlib.sha256()
     done = 0
     try:
-        with requests.get(url, stream=True, timeout=(5, 120)) as r:
+        with net.get(url, stream=True, timeout=(5, 120)) as r:
             r.raise_for_status()
             total = expected_size or int(r.headers.get("Content-Length") or 0)
             with open(target, "wb") as fh:

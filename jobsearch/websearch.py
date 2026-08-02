@@ -19,6 +19,8 @@
 """
 import requests
 
+from . import net
+
 TIMEOUT = 20
 
 # Службы, говорящие каждая по-своему. Ответ приводится к одному виду:
@@ -46,7 +48,7 @@ def configured(cfg: dict) -> bool:
 
 
 def _brave(query: str, key: str, n: int) -> list:
-    r = requests.get("https://api.search.brave.com/res/v1/web/search",
+    r = net.get("https://api.search.brave.com/res/v1/web/search",
                      params={"q": query, "count": n},
                      headers={"Accept": "application/json", "X-Subscription-Token": key},
                      timeout=TIMEOUT)
@@ -60,7 +62,7 @@ def _brave(query: str, key: str, n: int) -> list:
 
 
 def _tavily(query: str, key: str, n: int) -> list:
-    r = requests.post("https://api.tavily.com/search",
+    r = net.post("https://api.tavily.com/search",
                       json={"api_key": key, "query": query, "max_results": n},
                       timeout=TIMEOUT)
     r.raise_for_status()
@@ -70,7 +72,7 @@ def _tavily(query: str, key: str, n: int) -> list:
 
 
 def _serper(query: str, key: str, n: int) -> list:
-    r = requests.post("https://google.serper.dev/search",
+    r = net.post("https://google.serper.dev/search",
                       json={"q": query, "num": n},
                       headers={"X-API-KEY": key, "Content-Type": "application/json"},
                       timeout=TIMEOUT)

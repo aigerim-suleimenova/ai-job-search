@@ -335,3 +335,83 @@ def test_запись_от_более_старой_версии_тоже_не_п
     monkeypatch.setattr(update.version, "current", lambda: "0.8.20")
 
     assert update.state()["version"] == ""
+
+
+# --- Когда соединения проверяет посредник ---------------------------------------
+
+def test_при_перехвате_соединений_переходим_на_хранилище_системы(monkeypatch):
+    """Виктор увидел это дважды за день. Сперва все девять источников вакансий
+    отдали ноль, и прогон отчитался успешным. Потом программа перестала замечать
+    новые версии: сидел на 0.8.28, когда вышли 0.8.29 и 0.8.30.
+
+    Причина одна: антивирус на машине сам открывает защищённое соединение, читает
+    его и подписывает своим корнем. Корень стоит в хранилище системы — иначе не
+    работал бы браузер, — но requests хранилищем системы не пользуется, у него
+    свой набор. Проверка молча возвращала пустоту."""
+    import requests
+
+    from jobsearch import net
+    net.забыть()
+    пошло_через = []
+
+    class Ответ:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"ok": True}
+
+    def обычный(url, **kw):
+        пошло_через.append("свой набор")
+        raise requests.exceptions.SSLError("certificate verify failed")
+
+    class Сессия:
+        def get(self, url, **kw):
+            пошло_через.append("хранилище системы")
+            return Ответ()
+
+    monkeypatch.setattr(net.requests, "get", обычный)
+    monkeypatch.setattr(net, "_сессия_системы", lambda: Сессия())
+
+    assert net.get("https://api.github.com/x").json() == {"ok": True}
+    assert пошло_через == ["свой набор", "хранилище системы"]
+    assert net.через_хранилище_системы() is True
+
+    # и дальше ходим сразу туда: второй попытки на каждый запрос не надо
+    пошло_через.clear()
+    net.get("https://api.github.com/y")
+    assert пошло_через == ["хранилище системы"]
+    net.забыть()
+
+
+def test_без_перехвата_ничего_не_меняется(monkeypatch):
+    """У кого соединения не проверяют — для того всё как было."""
+    from jobsearch import net
+    net.забыть()
+    звали = []
+
+    monkeypatch.setattr(net.requests, "get",
+                        lambda url, **kw: звали.append(url) or "ответ")
+    monkeypatch.setattr(net, "_сессия_системы",
+                        lambda: (_ for _ in ()).throw(AssertionError("зря полезли в хранилище")))
+
+    assert net.get("https://example.com") == "ответ"
+    assert net.через_хранилище_системы() is False
+    net.забыть()
+
+
+def test_другие_беды_сети_на_хранилище_не_списываются(monkeypatch):
+    """Нет связи — это нет связи, а не чужой корень. Молча подменять одно другим
+    значило бы прятать настоящую причину."""
+    import requests
+
+    from jobsearch import net
+    net.забыть()
+    monkeypatch.setattr(net.requests, "get",
+                        lambda url, **kw: (_ for _ in ()).throw(
+                            requests.exceptions.ConnectionError("нет связи")))
+
+    with pytest.raises(requests.exceptions.ConnectionError):
+        net.get("https://example.com")
+    assert net.через_хранилище_системы() is False
+    net.забыть()

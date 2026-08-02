@@ -15,7 +15,7 @@ from pathlib import Path
 
 import requests
 
-from . import hardware, profiles
+from . import hardware, net, profiles
 
 OLLAMA_URL = "http://127.0.0.1:11434"
 
@@ -685,7 +685,7 @@ def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
             raise ProviderError(key="prov_err_api_bad_key") from e
         headers["Authorization"] = f"Bearer {key}"
     try:
-        r = requests.post(f"{base}/chat/completions", headers=headers, timeout=timeout,
+        r = net.post(f"{base}/chat/completions", headers=headers, timeout=timeout,
                           json={"model": model, "stream": False,
                                 "messages": [{"role": "user", "content": prompt}]})
     except requests.RequestException as e:

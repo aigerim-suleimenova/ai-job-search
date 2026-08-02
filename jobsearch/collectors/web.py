@@ -22,6 +22,8 @@ from urllib.robotparser import RobotFileParser
 
 import requests
 
+from .. import net
+
 VERSION = "0.8"
 PROJECT_URL = "https://github.com/mrWD/ai-job-search"
 UA_STRING = f"ai-job-search/{VERSION} (+{PROJECT_URL})"
@@ -110,7 +112,7 @@ def _robots_for(host: str, scheme: str = "https"):
         # к вам?» у 127.0.0.1 — это уже сходить к 127.0.0.1.
         адрес = f"{scheme}://{host}/robots.txt"
         check(адрес)
-        r = requests.get(адрес, headers=UA, timeout=ROBOTS_TIMEOUT)
+        r = net.get(адрес, headers=UA, timeout=ROBOTS_TIMEOUT)
         if r.status_code == 200 and len(r.text) < 500_000:
             parser = RobotFileParser()
             parser.parse(r.text.splitlines())
@@ -155,7 +157,7 @@ def post(url: str, **kw):
     _, robots_delay = _robots.get(host, (None, None))
     _wait_turn(host, max(DELAY, float(robots_delay or 0)))
     headers = {**UA, **kw.pop("headers", {})}
-    return requests.post(url, headers=headers, timeout=kw.pop("timeout", TIMEOUT), **kw)
+    return net.post(url, headers=headers, timeout=kw.pop("timeout", TIMEOUT), **kw)
 
 
 def get(url: str, *, respect_robots: bool = False, **kw):
@@ -176,7 +178,7 @@ def get(url: str, *, respect_robots: bool = False, **kw):
         host = _host(url)
         _, robots_delay = _robots.get(host, (None, None))
         _wait_turn(host, max(DELAY, float(robots_delay or 0)))
-        r = requests.get(url, headers=headers, timeout=timeout, allow_redirects=False, **kw)
+        r = net.get(url, headers=headers, timeout=timeout, allow_redirects=False, **kw)
         куда = r.headers.get("location", "")
         if r.status_code not in (301, 302, 303, 307, 308) or not куда:
             return r
