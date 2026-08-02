@@ -96,6 +96,14 @@ OTHER_PLACE_MARKERS = [
 ]
 
 
+_REMOTE_TOKENS = ("remote", "удаленно", "удалённо", "anywhere", "везде")
+
+
+def _only_remote(wanted: list) -> bool:
+    """Человек назвал «удалённо» и больше ничего — значит и правда откуда угодно."""
+    return all(t in _REMOTE_TOKENS for t in wanted)
+
+
 def _names_a_place(loc: str) -> bool:
     """Названо ли в строке хоть какое-то место, кроме слова «удалённо»."""
     return (any(m in loc for m in US_MARKERS) or any(m in loc for m in EU_MARKERS)
@@ -129,7 +137,19 @@ def location_ok(location: str, wanted: list, include_remote: bool = True) -> boo
             if any(m in loc for m in US_MARKERS):
                 return True
         elif token in ("remote", "удаленно", "удалённо"):
-            if any(m in loc for m in REMOTE_MARKERS):
+            # То же правило, что и для галочки «удалённые тоже»: «удалённо» —
+            # не «откуда угодно». Прошлая починка закрыла только галочку, а это
+            # слово человек часто пишет ещё и сам, среди своих мест, — и дыра
+            # открывалась снова. На прогоне для фронтендера, ищущего в России,
+            # наверху списка стояли «USA, Remote» и «Sunnyvale, CA»: он написал
+            # «Россия, Москва, Санкт-Петербург, удалённо», и последнее слово
+            # пропускало всё подряд.
+            #
+            # Если человек не назвал никаких мест, кроме «удалённо», он и правда
+            # готов работать откуда угодно — тогда пропускаем любую удалённую.
+            # А если места названы, они и решают, куда эта удалённая годится.
+            if any(m in loc for m in REMOTE_MARKERS) and (
+                    not _names_a_place(loc) or _only_remote(wanted)):
                 return True
         elif token in COUNTRY_MARKERS:
             if any(m in loc for m in COUNTRY_MARKERS[token]):
