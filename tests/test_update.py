@@ -8,6 +8,8 @@
 """
 import hashlib
 
+import time
+
 import pytest
 
 from jobsearch import update, version
@@ -415,3 +417,56 @@ def test_другие_беды_сети_на_хранилище_не_списы�
         net.get("https://example.com")
     assert net.через_хранилище_системы() is False
     net.забыть()
+
+
+# --- Когда спрашиваем про новую версию -------------------------------------------
+#
+# Настоящую функцию берём до того, как общая заглушка её подменит: conftest
+# затыкает проверку обновления во всех тестах, чтобы они не ходили в сеть.
+from jobsearch.update import check_in_background as _настоящая_проверка
+
+def test_спрашиваем_не_только_при_запуске(monkeypatch, profile):
+    """Проверка шла ровно один раз, при запуске. Виктор открыл программу до
+    выхода 0.8.32, она ничего не нашла — и больше не спрашивала. А закрывать её
+    незачем: у неё фоновый режим и расписание, она и должна стоять открытой."""
+    from jobsearch import appstate, update
+    заводили = []
+    monkeypatch.setattr(update.threading, "Thread",
+                        lambda **kw: type("П", (), {"start": lambda s: заводили.append(1)})())
+
+    # прошлый раз был давно
+    st = appstate.load()
+    st["update"] = {"checked_at": time.time() - update.CHECK_EVERY - 60, "version": ""}
+    appstate.save(st)
+    assert update.due() is True
+    _настоящая_проверка()
+    assert заводили == [1], "срок вышел, а спрашивать не пошли"
+
+
+def test_чаще_срока_не_беспокоим(monkeypatch, profile):
+    """Иначе на каждую отрисовку страницы приходился бы свой поток."""
+    from jobsearch import appstate, update
+    заводили = []
+    monkeypatch.setattr(update.threading, "Thread",
+                        lambda **kw: type("П", (), {"start": lambda s: заводили.append(1)})())
+
+    st = appstate.load()
+    st["update"] = {"checked_at": time.time() - 60, "version": ""}
+    appstate.save(st)
+    assert update.due() is False
+    _настоящая_проверка()
+    assert заводили == [], "спросили раньше срока"
+
+
+def test_страница_заводит_проверку(monkeypatch, profile):
+    """Ровно то место, где это и должно случаться: человек открыл страницу."""
+    import app as приложение
+    from conftest import client_for
+    from jobsearch import update
+    звали = []
+    monkeypatch.setattr(приложение.update_mod, "check_in_background",
+                        lambda: звали.append(1))
+
+    client_for(приложение.app, profile).get("/results")
+
+    assert звали, "страница отрисовалась, а спросить не пошли"

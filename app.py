@@ -246,6 +246,13 @@ def render(request, template: str, ctx: dict, cfg: dict = None):
     """Render with the interface language and the profile data."""
     cfg_ = cfg or config.load()
     lang = cfg_.get("ui", {}).get("lang", "ru")
+    # Раз в сутки заодно спрашиваем, не вышла ли новая версия. Раньше спрашивали
+    # только при запуске, и человек, у которого программа стоит открытой сутками
+    # (для того у неё и фоновый режим, и расписание), про новую версию так и не
+    # узнавал: при запуске её ещё не было, а потом никто не переспрашивал.
+    # Страницу это не задерживает — поток заводится, только когда вышел срок, и
+    # ответа его тут никто не ждёт; страница читает, что записал прошлый.
+    update_mod.check_in_background()
     ctx = {**ctx, "provider_status": _provider_status(cfg_), "asset_v": _asset_version(),
            "lang": lang, "t": lambda key: i18n.t(lang, key), "theme": appstate.theme(),
            "app_version": version.current(),

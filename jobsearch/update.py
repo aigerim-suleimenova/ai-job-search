@@ -149,8 +149,26 @@ def check(force: bool = False) -> dict:
     return found
 
 
+def due() -> bool:
+    """Пора ли спрашивать заново."""
+    было = (appstate.load().get("update") or {}).get("checked_at")
+    return not было or time.time() - было >= CHECK_EVERY
+
+
 def check_in_background() -> None:
-    """A check must never hold up the program starting, nor a page being drawn."""
+    """A check must never hold up the program starting, nor a page being drawn.
+
+    Спрашиваем не только при запуске. Раньше — только при нём, и выходило вот
+    что: человек открыл программу утром, днём вышла новая версия, а он о ней не
+    узнал, потому что программа больше не спрашивала. А закрывать её незачем —
+    у неё фоновый режим и расписание, она и должна стоять открытой сутками.
+
+    Отдельного расписания для этого не нужно: сама check() спрашивает не чаще
+    раза в сутки, а здесь мы лишь не заводим поток впустую, когда срок ещё не
+    вышел. Иначе на каждую отрисовку страницы приходился бы свой.
+    """
+    if not due():
+        return
     threading.Thread(target=lambda: _quietly(check), daemon=True).start()
 
 
