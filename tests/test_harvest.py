@@ -236,3 +236,50 @@ def test_предел_на_слова_остаётся():
     cfg["profile"]["skills"] = ", ".join(f"навык{i}" for i in range(30))
 
     assert len(aggregators._search_terms(cfg)) == aggregators.MAX_SEARCH_TERMS
+
+
+# --- Доски работодателей ищутся и в тексте вакансии -----------------------------
+
+def test_доска_из_текста_вакансии():
+    """Одного адреса мало, и это измерено: на полутора тысячах собранных
+    вакансий ни один адрес не вёл на доску работодателя — все возвращали на
+    агрегатор. Иначе и быть не может: отправить человека мимо себя ему незачем.
+
+    А в тексте ссылки есть — там, где вакансию писала сама компания. В одной
+    ветке «Ask HN: Who is hiring?» их нашлось восемьдесят две, и список
+    работодателей вырос с нуля до сорока восьми."""
+    пост = {
+        "url": "https://news.ycombinator.com/item?id=123",
+        "company": "Nova Credit",
+        "description": ("Nova Credit | Senior Engineer | Remote\n"
+                        "We are hiring. Apply at "
+                        "https://boards.greenhouse.io/novacredit/jobs/4012 — "
+                        "or write to jobs@example.com"),
+    }
+    новые = harvest.find_new([пост], [])
+    assert новые == [{"name": "Nova Credit",
+                      "url": "https://boards.greenhouse.io/novacredit"}]
+
+
+def test_из_одного_поста_берётся_каждая_доска():
+    пост = {"url": "https://news.ycombinator.com/item?id=1", "company": "Две конторы",
+            "description": ("https://jobs.ashbyhq.com/rho and "
+                            "https://jobs.lever.co/xsolla/abc")}
+    адреса = {c["url"] for c in harvest.find_new([пост], [], limit=99)}
+    assert адреса == {"https://jobs.ashbyhq.com/rho", "https://jobs.lever.co/xsolla"}
+
+
+def test_чужие_ссылки_из_текста_не_берутся():
+    """В тексте вакансии полно ссылок — на сайт компании, на статью, на LinkedIn.
+    Доской работодателя они не являются."""
+    пост = {"url": "https://news.ycombinator.com/item?id=2", "company": "Acme",
+            "description": ("https://acme.com https://linkedin.com/company/acme "
+                            "https://twitter.com/acme https://blog.acme.com/hiring")}
+    assert harvest.find_new([пост], []) == []
+
+
+def test_уже_наблюдаемую_доску_из_текста_не_дублируем():
+    свои = [{"name": "Nova Credit", "url": "https://boards.greenhouse.io/novacredit/"}]
+    пост = {"url": "https://news.ycombinator.com/item?id=3", "company": "Nova Credit",
+            "description": "https://boards.greenhouse.io/novacredit/jobs/9"}
+    assert harvest.find_new([пост], свои) == []

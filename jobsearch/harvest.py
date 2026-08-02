@@ -13,6 +13,7 @@ No web search, no model, not a single extra request — the links are already in
 hand. So the reach grows just the same with Claude Code, with Cursor, with a
 local model, and with no model at all.
 """
+import re
 from urllib.parse import urlparse
 
 from .collectors import ats
@@ -58,6 +59,27 @@ def _known(companies: list) -> set:
     return известно
 
 
+_ССЫЛКА = re.compile(r'https?://[^\s"\'<>)\]]+', re.I)
+
+
+def _boards_in(job: dict):
+    """Доски работодателей, упомянутые в этой вакансии.
+
+    Смотрим и на адрес, и в текст. Одного адреса оказалось мало — и это не
+    предположение: на полутора тысячах собранных вакансий ни один адрес не вёл
+    на доску работодателя, все возвращали на агрегатор. Иначе и быть не может,
+    отправить человека мимо себя агрегатору незачем.
+
+    А вот в тексте ссылки есть — там, где вакансию писала сама компания. В одной
+    ветке «Ask HN: Who is hiring?» их нашлось восемьдесят две: Ashby, Greenhouse,
+    Lever, Workable, Personio. С них доска читается целиком, то есть все открытые
+    места этой компании — прямо у неё, без посредника.
+    """
+    yield ats.detect(job.get("url", ""))
+    for u in _ССЫЛКА.findall(job.get("description") or ""):
+        yield ats.detect(u)
+
+
 def find_new(jobs: list, companies: list, limit: int = 10) -> list:
     """Boards not yet watched. Returns entries of the form {"name": …, "url": …} —
     the same ones a person adds by hand."""
@@ -66,14 +88,16 @@ def find_new(jobs: list, companies: list, limit: int = 10) -> list:
     for job in jobs:
         if len(новые) >= max(0, limit):
             break
-        got = ats.detect(job.get("url", ""))
-        if not got or got in известно or got in взято:
-            continue
-        url = _board_url(*got)
-        if not url:
-            continue
-        взято.add(got)
-        новые.append({"name": job.get("company") or got[1], "url": url})
+        for got in _boards_in(job):
+            if len(новые) >= max(0, limit):
+                break
+            if not got or got in известно or got in взято:
+                continue
+            url = _board_url(*got)
+            if not url:
+                continue
+            взято.add(got)
+            новые.append({"name": job.get("company") or got[1], "url": url})
     return новые
 
 
