@@ -80,6 +80,9 @@ DEFAULTS = {
         # JobTech — биржа труда Швеции, отдаёт описание сразу в выдаче.
         "use_eures": True,
         "use_jobtech": True,
+        # Доски самих работодателей: у Workable есть открытый поиск по всем
+        # доскам её клиентов разом. Ключа не нужно, посредника нет.
+        "use_workable": True,
         # Employers found in the links of jobs already collected go onto the watch
         # list: an aggregator shows one or two of a company's jobs, while its own
         # board shows them all. Neither the model nor a web search is needed for

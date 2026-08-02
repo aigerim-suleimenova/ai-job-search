@@ -309,6 +309,75 @@ def themuse(cfg: dict, log) -> list:
     return jobs
 
 
+def workable(cfg: dict, log) -> list:
+    """Вакансии с досок самих работодателей — без ключа и без веб-поиска.
+
+    Замысел программы в том, чтобы брать вакансии прямо у компаний, минуя
+    посредников, которым те и так платят за поиск людей. Путь для этого был
+    один: модель идёт в интернет, ищет компании, программа читает их доски. Но
+    в интернет умеет ходить только Claude Code, а всем прочим — и всем местным
+    моделям — нужен ключ поисковой службы. Без него шаг молча пропускался, и от
+    замысла не оставалось ничего: программа пересказывала агрегаторы.
+
+    Workable — не агрегатор, а система, в которой компании ведут наём сами, и у
+    неё есть открытый поиск по всем их доскам разом. Значит до работодателя
+    можно дойти напрямую и без всякого поиска в интернете: ни ключа, ни модели,
+    ни подписки. Профессии все — на «electrician» находится шестьсот с лишним
+    мест, на «barista» сотня.
+
+    Это не заменяет разведку моделью: та ищет по всему интернету, а здесь одна
+    система найма, пусть и большая. Но цели замысла — вакансия от работодателя,
+    а не от посредника — она достигает и с местной моделью.
+    """
+    jobs, seen = [], set()
+    for term in _search_terms(cfg):
+        if not term:
+            continue
+        # По двадцать за раз: на двадцати пяти служба отвечает отказом, и это
+        # выяснено пробой, а не вычитано — предел нигде не написан. Берём
+        # несколько страниц подряд, пока они есть.
+        страницы, метка = [], None
+        for _ in range(5):
+            запрос = {"query": term, "limit": 20}
+            if метка:
+                запрос["pageToken"] = метка
+            try:
+                r = web.get("https://jobs.workable.com/api/v1/jobs",
+                            params=запрос, timeout=TIMEOUT)
+                r.raise_for_status()
+                data = r.json()
+            except (requests.RequestException, ValueError) as e:
+                log(f"workable: {e}")
+                break
+            страницы += data.get("jobs") or []
+            метка = data.get("nextPageToken")
+            if not метка:
+                break
+        for j in страницы:
+            ref = j.get("id", "")
+            if not ref or ref in seen:
+                continue
+            seen.add(ref)
+            место = j.get("location") or {}
+            куски = [место.get("city"), место.get("countryName")]
+            если_удалённо = ", Remote" if j.get("workplace") == "remote" else ""
+            описание = " ".join(x for x in (j.get("description"),
+                                            j.get("requirementsSection")) if x)
+            jobs.append({
+                "title": j.get("title", ""),
+                "company": (j.get("company") or {}).get("title", ""),
+                "location": (", ".join(x for x in куски if x) or "Remote") + если_удалённо,
+                "url": j.get("url", ""),
+                "description": _strip_html(описание, limit=6000),
+                "posted_at": iso_date(j.get("created")),
+                "source": "workable",
+                # Объявление размещает сама компания в своей же системе найма —
+                # посредника между ней и человеком здесь нет.
+                "is_direct": True,
+            })
+    return jobs
+
+
 def eures(cfg: dict, log) -> list:
     """EURES — общеевропейский портал вакансий, все тридцать одна страна и все
     профессии.
@@ -565,6 +634,9 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
     # доски для программистов, и на них швея, бариста и слесарь не находятся.
     track(src.get("use_eures", True), "EURES (EU)", "https://europa.eu/eures", eures)
     track(src.get("use_jobtech", True), "JobTech (SE)", "https://jobtechdev.se", jobtech)
+    # Доски самих работодателей: объявление размещает компания в своей же
+    # системе найма, посредника между ней и человеком нет.
+    track(src.get("use_workable", True), "Workable (employers)", "https://jobs.workable.com", workable)
     track(bool(src.get("adzuna_app_id")), "Adzuna", "https://adzuna.com", adzuna)
     track(bool(src.get("jooble_key")), "Jooble", "https://jooble.org", jooble)
     return jobs

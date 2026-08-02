@@ -283,3 +283,88 @@ def test_уже_наблюдаемую_доску_из_текста_не_дуб�
     пост = {"url": "https://news.ycombinator.com/item?id=3", "company": "Nova Credit",
             "description": "https://boards.greenhouse.io/novacredit/jobs/9"}
     assert harvest.find_new([пост], свои) == []
+
+
+# --- Вакансии от самих работодателей, без ключа ----------------------------------
+
+def только_workable() -> dict:
+    from jobsearch import config
+    cfg = config._merge(config.DEFAULTS, {})
+    for ключ in list(cfg["sources"]):
+        if ключ.startswith("use_"):
+            cfg["sources"][ключ] = False
+    cfg["sources"]["use_workable"] = True
+    cfg["profile"]["roles"] = "Electrician"
+    cfg["profile"]["skills"] = ""
+    cfg["search"]["match_priority"] = "role"
+    return cfg
+
+
+def test_вакансии_от_работодателя_помечены_прямыми(monkeypatch):
+    """Замысел программы — брать вакансии у компаний, минуя посредников,
+    которым те и так платят за поиск людей. Здесь объявление размещает сама
+    компания в своей же системе найма, и это не «почти напрямую», а напрямую."""
+    from jobsearch.collectors import aggregators
+
+    class Ответ:
+        status_code = 200
+
+        @staticmethod
+        def raise_for_status():
+            pass
+
+        @staticmethod
+        def json():
+            return {"jobs": [{
+                "id": "abc", "title": "Elektriker (m/w/d)",
+                "company": {"title": "Skeleton Technologies"},
+                "location": {"city": "Markranstädt", "countryName": "Germany"},
+                "url": "https://jobs.workable.com/view/x/elektriker",
+                "description": "<p>Wartung und Instandhaltung</p>",
+                "requirementsSection": "<p>Ausbildung als Elektriker</p>",
+                "created": "2026-07-29T17:24:17.324Z", "workplace": "onsite",
+            }]}
+
+    monkeypatch.setattr(aggregators.web, "get", lambda *a, **kw: Ответ())
+    вак = aggregators.workable(только_workable(), lambda m: None)
+
+    assert len(вак) == 1
+    v = вак[0]
+    assert v["is_direct"] is True, "вакансия от компании помечена как от посредника"
+    assert v["company"] == "Skeleton Technologies"
+    assert "Markranstädt" in v["location"] and "Germany" in v["location"]
+    assert "Wartung" in v["description"] and "Ausbildung" in v["description"], \
+        "требования потерялись — они лежат отдельным полем"
+
+
+def test_страницы_берутся_подряд(monkeypatch):
+    """По двадцать за раз: на двадцати пяти служба отвечает отказом, и это
+    выяснено пробой — предел нигде не написан."""
+    from jobsearch.collectors import aggregators
+    запрошено = []
+
+    class Ответ:
+        def __init__(self, метка, ид):
+            self._метка, self._ид = метка, ид
+
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"jobs": [{"id": self._ид, "title": "x", "company": {"title": "A"},
+                              "location": {}, "url": "u", "description": "d"}],
+                    "nextPageToken": self._метка}
+
+    страницы = [Ответ("вторая", "1"), Ответ(None, "2")]
+
+    def fake(url, params=None, timeout=None):
+        запрошено.append((params or {}).get("pageToken"))
+        return страницы[len(запрошено) - 1]
+
+    monkeypatch.setattr(aggregators.web, "get", fake)
+    вак = aggregators.workable(только_workable(), lambda m: None)
+
+    assert запрошено == [None, "вторая"], "вторая страница не запрошена"
+    assert len(вак) == 2
