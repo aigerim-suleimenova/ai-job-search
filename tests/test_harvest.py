@@ -191,3 +191,37 @@ def test_неизвестное_место_по_прежнему_не_режет
     """Пустое место — не повод выбрасывать: разберётся триаж."""
     from jobsearch import filters
     assert filters.location_ok("", ["germany"]) is True
+
+
+# --- Какими словами мы спрашиваем ------------------------------------------------
+
+def test_слов_для_поиска_хватает_на_несколько_языков():
+    """Было три, и три оказалось мало. Швея, написавшая «Швея, Портная,
+    Seamstress, Näherin», получала ноль вакансий: Näherin — единственное слово,
+    по которому немецкая биржа что-то находит (466 мест), — оказывалось
+    четвёртым и отбрасывалось молча. Решал порядок, в котором человек написал
+    свои роли, а он о таком последствии не подозревает."""
+    from jobsearch import config
+    from jobsearch.collectors import aggregators
+
+    cfg = config._merge(config.DEFAULTS, {})
+    cfg["profile"]["roles"] = "Швея, Портная, Seamstress, Näherin"
+    cfg["profile"]["skills"] = ""
+    cfg["search"]["match_priority"] = "role"
+
+    слова = aggregators._search_terms(cfg)
+
+    assert "Näherin" in слова, "слово, по которому только и находится, отброшено"
+
+
+def test_предел_на_слова_остаётся():
+    """Совсем без предела каждое слово стоило бы отдельного запроса к чужому
+    серверу, а навыков человек может перечислить и тридцать."""
+    from jobsearch import config
+    from jobsearch.collectors import aggregators
+
+    cfg = config._merge(config.DEFAULTS, {})
+    cfg["profile"]["roles"] = ", ".join(f"роль{i}" for i in range(30))
+    cfg["profile"]["skills"] = ", ".join(f"навык{i}" for i in range(30))
+
+    assert len(aggregators._search_terms(cfg)) == aggregators.MAX_SEARCH_TERMS

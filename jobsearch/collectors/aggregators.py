@@ -34,6 +34,20 @@ def _strip_html(raw: str, limit: int = 5000) -> str:
     return re.sub(r"\s+", " ", text).strip()[:limit]
 
 
+# Сколько слов из профиля уходит в поиск. Было три — и три оказалось мало.
+#
+# Каждое слово стоит одного запроса, поэтому предел нужен. Но при трёх решал
+# порядок, в котором человек написал свои роли, а он о таком последствии не
+# подозревает. Швея, написавшая «Швея, Портная, Seamstress, Näherin», получала
+# ноль вакансий: Näherin — единственное слово, по которому немецкая биржа что-то
+# находит (466 мест), — оказывалось четвёртым и отбрасывалось молча. Русские же
+# слова этой бирже не говорят ничего.
+#
+# Шесть — потому что между хостами держится пауза в полторы секунды: шесть слов
+# добавляют к прогону девять секунд, а прогон идёт минуты.
+MAX_SEARCH_TERMS = 6
+
+
 def _search_terms(cfg: dict) -> list:
     """For Adzuna/Jooble — these APIs, unlike Remotive/Arbeitnow, really do filter by
     keyword on their side. We take the skills and the priority into account."""
@@ -47,7 +61,7 @@ def _search_terms(cfg: dict) -> list:
     parts.append(s.get("keywords_include", ""))
     raw = ",".join(x for x in parts if x)
     terms = [t.strip() for t in raw.split(",") if t.strip()]
-    return terms[:3] or [""]
+    return terms[:MAX_SEARCH_TERMS] or [""]
 
 
 def remotive(cfg: dict, log) -> list:
