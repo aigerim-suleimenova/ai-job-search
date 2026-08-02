@@ -1,0 +1,223 @@
+name: Build desktop apps
+
+# An app has to be built on the same OS it is meant for, so three parallel jobs
+# rather than cross-compilation.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  # The build starts only after the tests: the pipeline publishes the release
+  # itself, and without this barrier a breakage would go straight out to people.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests
+        run: python -m pytest
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: AI Job Search-macos
+          - os: windows-latest
+            artifact: AI Job Search-windows
+          - os: ubuntu-latest
+            artifact: AI Job Search-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # on Linux pywebview draws its window through GTK/WebKit — a bare runner has neither
+      - name: Install Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 \
+            gir1.2-webkit2-4.1 libcairo2-dev libgirepository1.0-dev
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pywebview
+          # PyGObject 3.52+ needs girepository-2.0, which Ubuntu 24.04 does not have:
+          # we pin the last version that works with girepository-1.0.
+          if [ "${{ runner.os }}" = "Linux" ]; then pip install "pygobject<3.52"; fi
+        shell: bash
+
+      - name: Build
+        run: pyinstaller --clean --noconfirm packaging/aijobsearch.spec
+
+      # Check the build is not empty and holds what the app cannot start without.
+      - name: Verify build
+        run: python packaging/verify_build.py
+        shell: bash
+
+      # The certificate lives in the repository secrets: a runner has no keychain of
+      # its own, so we make a temporary one, put the key in it and delete it at the
+      # end. Without the secrets (a fork, someone else's PR) the step is quietly
+      # skipped — the build still happens, only unsigned.
+      - name: Import signing certificate
+        if: runner.os == 'macOS'
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          if [ -z "$CERT_P12" ]; then
+            echo "Сертификата в секретах нет — сборка останется неподписанной."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # without this codesign would ask for a password per binary, and there is nobody to ask
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          # A silent import failure is the worst outcome: the build would go out
+          # unsigned and the users would be the ones to find out. Better to fail here.
+          if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+            echo "Сертификат импортировался, но Developer ID не виден — проверьте MACOS_CERT_P12 и пароль."
+            exit 1
+          fi
+
+      - name: Package macOS disk image
+        if: runner.os == 'macOS'
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        run: |
+          # With a certificate we sign and notarise properly; without one we simply
+          # build the image as before, so the build does not fail for outsiders.
+          if security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+            packaging/sign_macos.sh
+          else
+            stage="$(mktemp -d)"
+            cp -R "dist/AI Job Search.app" "$stage/"
+            ln -s /Applications "$stage/Applications"
+            hdiutil create -volname "AI Job Search" -srcfolder "$stage" \
+              -ov -format UDZO "dist/AI Job Search.dmg"
+          fi
+
+      # An unverified signature is useless: spoiling one silently is the easiest thing there is.
+      - name: Проверяем, что образ примет Gatekeeper
+        if: runner.os == 'macOS'
+        env:
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        run: |
+          if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+            echo "Сборка без подписи — проверять нечего."
+            exit 0
+          fi
+          codesign --verify --deep --strict "dist/AI Job Search.app"
+          if [ -n "$NOTARY_PASSWORD" ]; then
+            spctl -a -vvv -t exec "dist/AI Job Search.app"
+            spctl -a -vvv -t open --context context:primary-signature "dist/AI Job Search.dmg"
+            xcrun stapler validate "dist/AI Job Search.app"
+            xcrun stapler validate "dist/AI Job Search.dmg"
+          else
+            echo "Подписано, но не нотаризовано: нет данных для notarytool."
+          fi
+
+      # The temporary keychain must not outlive the build, even if something failed above.
+      - name: Remove signing keychain
+        if: always() && runner.os == 'macOS'
+        run: |
+          security list-keychain -d user -s login.keychain-db || true
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+
+      # Windows used to be handed out as an archive with a folder inside: a person
+      # unpacked it, hunted for the right .exe among the service files — and mostly
+      # gave up. The installer puts the program into the user profile (no
+      # administrator rights), makes a Start menu shortcut and an entry in the list
+      # of installed programs.
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $env:GITHUB_REF_NAME.TrimStart('v')
+          } else { '0.0.0' }
+          Write-Host "Версия установщика: $version"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc "/DAppVersion=$version" packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Установщик не собрался" }
+          Get-ChildItem dist\*.exe | ForEach-Object { "{0}  {1:N1} МБ" -f $_.Name, ($_.Length / 1MB) }
+
+      - name: Package Linux archive
+        if: runner.os == 'Linux'
+        run: tar -czf "dist/AI Job Search-linux.tar.gz" -C dist "AI Job Search"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.dmg
+            dist/*.tar.gz
+            dist/AI Job Search Setup.exe
+            dist/AI Job Search/
+          if-no-files-found: warn
+
+  # Built apps must not be left as build artifacts: those live 90 days and require
+  # signing in to GitHub. On a tag we put them into a release.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - name: Собрать список файлов
+        run: |
+          mkdir -p release
+          # Only files ready to be handed out. A bare "AI Job Search.exe" does not
+          # go here: the Windows build is a directory, and the loader run without the
+          # _internal folder beside it simply dies. And of course it is the .exe
+          # people download — so the only .exe in a release must be the installer.
+          find artifacts \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*Setup.exe" \) |
+            while read -r f; do cp "$f" release/; done
+          # The portable variant, for those who would rather install nothing. Only
+          # the program goes into the archive: the installer already sits next to it
+          # as its own file, and duplicating it inside is pointless.
+          win="artifacts/AI Job Search-windows"
+          if [ -d "$win/AI Job Search" ]; then
+            (cd "$win" && zip -qr "$GITHUB_WORKSPACE/release/AI Job Search-windows-portable.zip" "AI Job Search")
+          fi
+          ls -lh release
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: release/*
+          generate_release_notes: true

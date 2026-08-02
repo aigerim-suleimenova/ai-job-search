@@ -1,0 +1,12 @@
+{# One <head> for every page — it used to be copied into eight templates, and any
+   change (the stylesheet stamp, the theme) meant eight identical edits.
+   A page sets its title like this: {% set page_title = t('nav_results') %} #}
+<!doctype html>
+<html lang="{{ lang }}"{% if rtl %} dir="rtl"{% endif %} data-theme="{{ theme }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — {{ page_title }}</title>
+<link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
+</head>
+<body>

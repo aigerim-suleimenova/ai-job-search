@@ -1,0 +1,492 @@
+{% set page_title = t('nav_settings') %}{% include "_head.html" %}
+{% include "_header.html" %}
+
+{% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+
+{% if not provider_status.ready %}
+<section class="card" style="border-left:4px solid var(--warn)">
+  <h2>{{ t('setup_needed') }}</h2>
+  <p>{{ t('setup_no_provider').format(name=provider_status.name) }}</p>
+  {% if provider_status.key == 'claude_cli' %}
+  <ol class="steps">
+    <li>{{ t('setup_claude_1') }}</li>
+    <li>{{ t('setup_claude_2') }}</li>
+    <li>{{ t('setup_claude_3') }}</li>
+  </ol>
+  {% endif %}
+  <div class="row" style="margin-top:12px">
+    <a href="{{ request.url.path }}"><button type="button" class="primary">{{ t('setup_recheck') }}</button></a>
+    <a href="/models"><button type="button">{{ t('setup_other_model') }}</button></a>
+  </div>
+</section>
+{% endif %}
+
+<section class="card status" id="status-card">
+  <div class="state-line">
+    <b>{{ t('status') }}</b>
+    <span id="status-text" class="state-text">{% if state.running %}{{ t('status_running') }} {{ state.stage }}{% if state.step %} · {{ t('run_step').format(n=state.step, m=state.steps) }}{% endif %}{% elif busy_with %}{{ t('status_busy').format(name=busy_with) }}{% else %}{{ t('status_idle') }}{% endif %}</span>
+    {% if continuous %}<span class="state-mode">{{ t('status_continuous') }}</span>
+    {% elif next_run %}<span class="state-mode">{{ t('next_run') }} {{ next_run }}</span>{% endif %}
+  </div>
+  <div class="row" style="margin:0; gap:8px">
+    <form method="post" action="/run" style="margin:0" onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = '{{ t('simple_starting') }}'">
+      <button class="primary" {% if state.running %}disabled{% endif %}>{{ t('run_now') }}</button>
+    </form>
+    {% if state.running %}
+    <form method="post" action="/stop" style="margin:0">
+      <button class="danger">{{ t('stop_now') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% if state.running %}
+<details class="card" style="padding:12px 16px">
+  <summary>{{ t('run_journal') }}</summary>
+  <pre id="live-log" class="log" style="margin-top:8px"></pre>
+</details>
+{% endif %}
+
+<section class="card">
+  <h2>{{ t('manage_people') }} — {{ active_name }}</h2>
+  <p class="hint">{{ t('manage_hint') }}</p>
+  <div class="people-actions">
+    <form method="post" action="/profile/create" class="row">
+      <input name="name" placeholder="{{ t('new_person_name') }}">
+      <button>{{ t('add_person') }}</button>
+    </form>
+    <form method="post" action="/profile/rename" class="row">
+      <input name="name" value="{{ active_name }}">
+      <button>{{ t('rename_person') }}</button>
+    </form>
+    {% if profiles|length > 1 %}
+    {# Вопрос — в data-атрибуте: по-французски в нём есть апостроф, и внутри
+       строки в кавычках он обрывал её на середине. Кнопка не спрашивала и не
+       удаляла — она просто ничего не делала, и только на одном языке. #}
+    <form method="post" action="/profile/delete"
+          data-confirm="{{ t('delete_confirm') }}"
+          onsubmit="return confirm(this.dataset.confirm)">
+      <input type="hidden" name="slug" value="{{ active_profile }}">
+      <button class="danger">{{ t('delete_person') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+
+{# Про новые версии человек иначе не узнаёт вовсе: программа о них молчала, а
+   ходить на сайт и проверять никто не станет. Проверка идёт в фоне при запуске,
+   сюда попадает уже готовый ответ. #}
+<section class="card" id="update">
+  <h2>{{ t('update_title') }}</h2>
+  {% if update.version %}
+  <p>{{ t('update_available').format(version=update.version, current=app_version) }}</p>
+  <div class="row" style="gap:10px; margin-top:12px">
+    {% if update.asset and update.asset.url %}
+    <form method="post" action="/app/update/install" style="margin:0">
+      <button class="primary">{{ t('update_install') }}</button>
+    </form>
+    {% endif %}
+    <a class="hint" href="{{ update.notes_url }}" target="_blank" rel="noopener noreferrer">{{ t('update_notes') }}</a>
+  </div>
+  {% if not (update.asset and update.asset.url) %}
+  <p class="hint" style="margin-top:10px">{{ t('update_manual_hint') }}</p>
+  {% endif %}
+  <p class="hint update-progress" id="update-progress" hidden></p>
+  {% else %}
+  <p class="hint">{{ t('update_current').format(version=app_version) }}</p>
+  {% endif %}
+  <form method="post" action="/app/update/check" style="margin-top:12px">
+    <button>{{ t('update_check') }}</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>{{ t('app_behavior') }}</h2>
+  <form method="post" action="/app_settings">
+    <label class="check">
+      <input type="checkbox" name="background" {% if cfg.ui.background %}checked{% endif %}>
+      {{ t('app_background') }}
+    </label>
+    <p class="hint" style="margin:4px 0 14px 26px">{{ t('app_background_hint') }}</p>
+
+    {% if autostart_supported %}
+    <label class="check">
+      <input type="checkbox" name="autostart" {% if autostart_on %}checked{% endif %}>
+      {{ t('app_autostart') }}
+    </label>
+    <p class="hint" style="margin:4px 0 14px 26px">{{ t('app_autostart_hint') }}</p>
+    {% endif %}
+
+    <button class="primary">{{ t('save') }}</button>
+  </form>
+</section>
+
+<form method="post" action="/save">
+
+<section class="card">
+  <h2>{{ t('language') }}</h2>
+  <div class="grid2">
+    <label>{{ t('ui_lang') }}
+      <select name="ui_lang">
+        {% for code, lname in ui_langs.items() %}
+        <option value="{{ code }}" {% if cfg.ui.lang == code %}selected{% endif %}>{{ lname }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t('output_lang') }}
+      <select name="output_lang">
+        {% for code, lname in output_langs.items() %}
+        <option value="{{ code }}" {% if cfg.ui.output_lang == code %}selected{% endif %}>{{ lname }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <p class="hint">{{ t('lang_hint') }}</p>
+</section>
+
+<section class="card">
+  <h2>{{ t('profile') }}</h2>
+  <div class="row" style="margin-bottom:12px">
+    <button formaction="/save?then=profile_from_cv">{{ t('profile_from_cv') }}</button>
+    <span class="hint">{{ t('profile_from_cv_hint') }}</span>
+  </div>
+  <label>{{ t('about') }}
+    <textarea name="summary" rows="5" placeholder="{{ t('about_ph') }}">{{ cfg.profile.summary }}</textarea>
+  </label>
+  <div class="grid2">
+    <label>{{ t('roles') }}
+      <input name="roles" value="{{ cfg.profile.roles }}" placeholder="Backend Engineer, Platform Engineer">
+    </label>
+    <label>{{ t('level') }}
+      <input name="seniority" value="{{ cfg.profile.seniority }}" placeholder="Senior / Staff / Lead">
+    </label>
+    <label class="grid-span2">{{ t('skills') }}
+      <input name="skills" value="{{ cfg.profile.skills }}" placeholder="{{ t('skills_ph') }}">
+    </label>
+    <label>{{ t('salary_exp') }}
+      <input name="salary" value="{{ cfg.profile.salary }}" placeholder="€90k / $140k">
+    </label>
+    <label>{{ t('work_format') }}
+      <select name="work_format">
+        {% for v, lbl in [("any", t('fmt_any')),("remote", t('fmt_remote')),("hybrid", t('fmt_hybrid')),("onsite", t('fmt_onsite'))] %}
+        <option value="{{ v }}" {% if cfg.profile.work_format == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t('langs') }}
+      <input name="languages" value="{{ cfg.profile.languages }}" placeholder="English C1, German A2">
+    </label>
+    <label class="check"><input type="checkbox" name="visa_required" {% if cfg.profile.visa_required %}checked{% endif %}> {{ t('visa_required') }}</label>
+    <label>{{ t('visa_note') }}
+      <input name="visa_note" value="{{ cfg.profile.visa_note }}" placeholder="Blue Card / US sponsorship">
+    </label>
+  </div>
+  <div class="grid3">
+    <label>Email <input name="email" value="{{ cfg.profile.email }}" placeholder="you@example.com"></label>
+    <label>Telegram <input name="telegram_user" value="{{ cfg.profile.telegram }}" placeholder="@username"></label>
+    <label>LinkedIn <input name="linkedin" value="{{ cfg.profile.linkedin }}" placeholder="https://linkedin.com/in/..."></label>
+  </div>
+</section>
+
+<section class="card">
+  <h2>{{ t('search_params') }}</h2>
+  <div class="grid2">
+    <label>{{ t('locations') }}
+      <input name="locations" value="{{ cfg.search.locations }}">
+    </label>
+    <label>{{ t('threshold') }}
+      <input type="number" name="threshold" min="0" max="100" value="{{ cfg.search.threshold }}">
+    </label>
+    <label>{{ t('match_priority') }}
+      <select name="match_priority">
+        {% for v, lbl in [("role", t('prio_role')),("skills", t('prio_skills')),("both", t('prio_both'))] %}
+        <option value="{{ v }}" {% if cfg.search.match_priority == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <p class="hint grid-span2" style="margin:0">{{ t('prio_hint') }}</p>
+    <label>{{ t('kw_include') }}
+      <input name="keywords_include" value="{{ cfg.search.keywords_include }}" placeholder="python, kubernetes">
+    </label>
+    <label>{{ t('kw_exclude') }}
+      <input name="keywords_exclude" value="{{ cfg.search.keywords_exclude }}" placeholder="php, 1c, intern">
+    </label>
+    <label class="check"><input type="checkbox" name="include_remote" {% if cfg.search.include_remote %}checked{% endif %}> {{ t('incl_remote') }}</label>
+    <span></span>
+    <label class="check grid-span2"><input type="checkbox" name="drop_off_target" {% if cfg.search.drop_off_target %}checked{% endif %}> {{ t('drop_off_target') }}</label>
+    <label class="check grid-span2"><input type="checkbox" name="triage_second_vote" {% if cfg.search.triage_second_vote %}checked{% endif %}> {{ t('triage_second_vote') }}</label>
+    <label>{{ t('triage_limit') }}
+      <input type="number" name="triage_limit" min="5" value="{{ cfg.search.triage_limit }}">
+    </label>
+    <label>{{ t('deep_top_n') }}
+      <input type="number" name="deep_top_n" min="0" value="{{ cfg.search.deep_top_n }}">
+    </label>
+    <label>{{ t('parallelism') }}
+      <input type="number" name="parallelism" min="1" max="10" value="{{ cfg.search.parallelism }}">
+    </label>
+  </div>
+  <p class="hint">{{ t('parallelism_hint') }}</p>
+  <label class="check"><input type="checkbox" name="deep_during_run" {% if cfg.search.deep_during_run %}checked{% endif %}> {{ t('deep_during_run') }}</label>
+  <p class="hint">{{ t('deep_during_run_hint') }}</p>
+  <label class="check"><input type="checkbox" name="research_company" {% if cfg.search.research_company %}checked{% endif %}> {{ t('research_company') }}</label>
+  <p class="hint">{{ t('research_hint') }}</p>
+</section>
+
+<section class="card">
+  <h2>{{ t('sources') }}</h2>
+  <label class="check"><input type="checkbox" name="harvest_boards"
+         {% if cfg.sources.harvest_boards %}checked{% endif %}> {{ t('harvest_boards') }}</label>
+  <p class="hint">{{ t('harvest_boards_hint') }}</p>
+
+  <label>{{ t('companies_label') }}
+    <textarea name="companies" rows="6" placeholder="Anthropic | https://boards.greenhouse.io/anthropic
+Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
+  </label>
+  <div class="grid3">
+    <label class="check"><input type="checkbox" name="use_remotive" {% if cfg.sources.use_remotive %}checked{% endif %}> Remotive (remote)</label>
+    <label class="check"><input type="checkbox" name="use_arbeitnow" {% if cfg.sources.use_arbeitnow %}checked{% endif %}> Arbeitnow (EU)</label>
+    <label class="check"><input type="checkbox" name="use_wwr" {% if cfg.sources.use_wwr %}checked{% endif %}> WeWorkRemotely</label>
+    <label class="check"><input type="checkbox" name="use_hnhiring" {% if cfg.sources.use_hnhiring %}checked{% endif %}> HN Who is Hiring</label>
+    <label class="check"><input type="checkbox" name="use_remoteok" {% if cfg.sources.use_remoteok %}checked{% endif %}> RemoteOK</label>
+    <label class="check"><input type="checkbox" name="use_jobicy" {% if cfg.sources.use_jobicy %}checked{% endif %}> Jobicy (remote)</label>
+    <label class="check"><input type="checkbox" name="use_himalayas" {% if cfg.sources.use_himalayas %}checked{% endif %}> Himalayas (remote)</label>
+    <label class="check"><input type="checkbox" name="use_themuse" {% if cfg.sources.use_themuse %}checked{% endif %}> The Muse</label>
+    <label class="check"><input type="checkbox" name="use_arbeitsagentur" {% if cfg.sources.use_arbeitsagentur %}checked{% endif %}> Arbeitsagentur (DE)</label>
+    <label class="check"><input type="checkbox" name="use_eures" {% if cfg.sources.use_eures %}checked{% endif %}> EURES (EU)</label>
+    <label class="check"><input type="checkbox" name="use_jobtech" {% if cfg.sources.use_jobtech %}checked{% endif %}> JobTech (SE)</label>
+    <label class="check"><input type="checkbox" name="use_workable" {% if cfg.sources.use_workable %}checked{% endif %}> Workable (employers)</label>
+  </div>
+  {# Восемь из десяти источников выше — доски для программистов, и по ним швея,
+     бариста или слесарь не находятся вовсе. Об этом надо сказать прямо: человек
+     иначе решит, что вакансий по его профессии нет. #}
+  <p class="hint">{{ t('sources_trades_hint') }}</p>
+  <div class="grid2" style="align-items:end">
+    <label>{{ t('discover_per_run') }}
+      <input type="number" name="discover_per_run" min="0" value="{{ cfg.search.discover_per_run }}">
+    </label>
+    <div class="row" style="margin-bottom:10px">
+      <button formaction="/save?then=discover">{{ t('discover_now') }}</button>
+    </div>
+  </div>
+  <label>{{ t('discover_ats_per_run') }}
+    <input type="number" name="discover_ats_per_run" min="0" value="{{ cfg.search.discover_ats_per_run }}">
+  </label>
+  <p class="hint">{{ t('sources_hint') }}</p>
+
+  {# Поиск в интернете силами приложения. Веб-поиск умеет только Claude Code, и
+     со всеми остальными разведка новых компаний и зарплатные вилки отключались.
+     С ключом сюда они работают с любой моделью: ищет приложение, а модель
+     получает найденное текстом и в сеть не ходит вовсе. #}
+  <details {% if cfg.sources.web_search_provider %}open{% endif %}>
+    <summary>{{ t('websearch_title') }}</summary>
+    <p class="hint" style="margin:8px 0 12px">{{ t('websearch_hint') }}</p>
+    <div class="grid2">
+      <label>{{ t('websearch_service') }}
+        <select name="web_search_provider">
+          <option value="" {% if not cfg.sources.web_search_provider %}selected{% endif %}>{{ t('websearch_none') }}</option>
+          {% for code in ['brave', 'tavily', 'serper'] %}
+          <option value="{{ code }}" {% if cfg.sources.web_search_provider == code %}selected{% endif %}>{{ code|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>{{ t('websearch_key') }}
+        <input name="web_search_key" type="password" value="{{ cfg.sources.web_search_key }}"
+               autocomplete="off">
+      </label>
+    </div>
+  </details>
+
+  {# Раздел был свёрнут и молчал о том, что даёт. Человек, ищущий работу за
+     пределами ЕС и США, до него не добирался: он просто получал десяток
+     вакансий и решал, что программа не работает. Считано на 1511 собранных
+     вакансиях — по Украине их было восемь, по ОАЭ семь, по России одна. #}
+  <details>
+    <summary>{{ t('keys_title') }}</summary>
+    <p class="hint" style="margin:8px 0 12px">{{ t('keys_hint') }}</p>
+    <div class="grid3">
+      <label>Adzuna app_id <input name="adzuna_app_id" value="{{ cfg.sources.adzuna_app_id }}"></label>
+      <label>Adzuna app_key <input name="adzuna_app_key" value="{{ cfg.sources.adzuna_app_key }}"></label>
+      <label>Adzuna countries <input name="adzuna_countries" value="{{ cfg.sources.adzuna_countries }}"></label>
+      <label>Jooble key <input name="jooble_key" value="{{ cfg.sources.jooble_key }}"></label>
+    </div>
+  </details>
+</section>
+
+<section class="card">
+  <h2>{{ t('llm') }}</h2>
+  <div class="grid3">
+    <label>{{ t('claude_bin') }}
+      <input name="claude_bin" value="{{ cfg.llm.claude_bin }}">
+    </label>
+    <label>{{ t('triage_model') }}
+      <input name="triage_model" value="{{ cfg.llm.triage_model }}" placeholder="haiku">
+    </label>
+    <label>{{ t('deep_model') }}
+      <input name="deep_model" value="{{ cfg.llm.deep_model }}" placeholder="opus">
+    </label>
+  </div>
+</section>
+
+<section class="card">
+  <h2>{{ t('telegram') }}</h2>
+  <div class="grid2">
+    <label>{{ t('bot_token') }}
+      <input name="bot_token" value="{{ cfg.telegram.bot_token }}" placeholder="1234567890:AA...">
+    </label>
+    <label>{{ t('chat_id') }}
+      <input name="chat_id" value="{{ cfg.telegram.chat_id }}">
+    </label>
+  </div>
+  <div class="row">
+    <button formaction="/save?then=tg_detect">{{ t('tg_detect') }}</button>
+    <button formaction="/save?then=tg_test">{{ t('tg_test') }}</button>
+  </div>
+  <p class="hint">{{ t('tg_hint') }}</p>
+</section>
+
+<section class="card">
+  <h2>{{ t('schedule') }}</h2>
+  <div class="grid3">
+    <label>{{ t('sched_mode') }}
+      <select name="schedule_mode" onchange="schedFields(this.value)">
+        {% for v, lbl in [("off", t('mode_off')),("interval", t('mode_interval')),("continuous", t('mode_continuous'))] %}
+        <option value="{{ v }}" {% if cfg.schedule.mode == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="sched-interval">{{ t('sched_every') }}
+      <input type="number" name="every_value" min="1" value="{{ cfg.schedule.every_value }}">
+    </label>
+    <label class="sched-interval">{{ t('sched_unit') }}
+      <select name="every_unit">
+        {% for v, lbl in [("hours", t('unit_hours')),("days", t('unit_days')),("weeks", t('unit_weeks'))] %}
+        <option value="{{ v }}" {% if cfg.schedule.every_unit == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="sched-cont">{{ t('cooldown') }}
+      <input type="number" name="continuous_cooldown_min" min="1" value="{{ cfg.schedule.continuous_cooldown_min }}">
+    </label>
+  </div>
+  <p class="hint">{{ t('sched_hint') }}</p>
+</section>
+
+<div class="actions">
+  <button class="primary" type="submit">{{ t('save') }}</button>
+</div>
+</form>
+
+<section class="card">
+  <h2>{{ t('cv') }}</h2>
+  {% if cv.filename %}
+  <p>{{ t('cv_loaded') }} <b>{{ cv.filename }}</b> ({{ cv.chars }} {{ t('cv_chars') }})</p>
+  {% else %}
+  <p class="hint">{{ t('cv_none') }}</p>
+  {% endif %}
+  <form method="post" action="/upload_cv" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept=".pdf,.docx,.txt,.md">
+    <button>{{ t('upload') }}</button>
+  </form>
+</section>
+
+{% if runs %}
+<section class="card">
+  <h2>{{ t('recent_runs') }}</h2>
+  <table>
+    <tr><th>#</th><th>{{ t('col_start') }}</th><th>{{ t('col_finish') }}</th><th>{{ t('col_found') }}</th><th>{{ t('col_fresh') }}</th><th>{{ t('col_matched') }}</th><th>{{ t('col_status') }}</th></tr>
+    {% for r in runs %}
+    <tr>
+      <td>{{ r.id }}</td><td>{{ r.started }}</td><td>{{ r.finished or "…" }}</td>
+      <td>{{ r.found }}</td><td>{{ r.fresh }}</td><td>{{ r.matched }}</td>
+      <td class="st-{{ r.status }}">{{ r.status }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+
+{# Внизу страницы и последним по порядку: это единственное действие здесь, после
+   которого нечего восстанавливать. Вопрос лежит в data-атрибуте, а не в самом
+   onsubmit — в некоторых языках в нём есть апостроф, и внутри строки в кавычках
+   он оборвал бы её, а кнопка молча перестала бы работать. #}
+<section class="card">
+  <h2>{{ t('reset_title') }}</h2>
+  <p class="hint">{{ t('reset_hint') }}</p>
+  <form method="post" action="/app/reset" style="margin-top:12px"
+        data-confirm="{{ t('reset_confirm') }}"
+        onsubmit="return confirm(this.dataset.confirm)">
+    <button class="danger">{{ t('reset_button') }}</button>
+  </form>
+</section>
+
+{# Удаление самой программы.
+   На Windows это делает установщик — там достаточно сказать, где его искать.
+   На macOS и Linux установщика нет вовсе: образ перетаскивают в корзину, и
+   данные с автозапуском остаются навсегда. Убрать их может только сама
+   программа — до того, как её удалят, о чём никто не догадывается. Поэтому
+   здесь она называет всё поимённо и предлагает убрать за собой сама. #}
+<section class="card" id="uninstall">
+  <h2>{{ t('uninstall_title') }}</h2>
+  {% if removal.has_uninstaller %}
+  <p class="hint">{{ t('uninstall_windows') }}</p>
+  {% else %}
+  <p class="hint">{{ t('uninstall_manual') }}</p>
+  <ul class="hint" style="margin:10px 0 0">
+    {% if removal.program %}<li><code>{{ removal.program }}</code> — {{ t('uninstall_is_program') }}</li>{% endif %}
+    {% for path in removal.leftovers %}<li><code>{{ path }}</code></li>{% endfor %}
+  </ul>
+  <form method="post" action="/app/uninstall" style="margin-top:14px"
+        data-confirm="{{ t('uninstall_confirm') }}"
+        onsubmit="return confirm(this.dataset.confirm)">
+    <button class="danger">{{ t('uninstall_button') }}</button>
+  </form>
+  {% endif %}
+</section>
+
+<script>
+// Скачивание установщика — это десятки мегабайт. Без счётчика человек видит
+// нажатую кнопку и ничего больше, и не знает, идёт ли что-нибудь вообще.
+const UPDATE_DOWNLOADING = {{ t('update_downloading')|tojson }};
+async function updateProgress() {
+  const box = document.getElementById("update-progress");
+  if (!box) return;
+  try {
+    const s = await (await fetch("/app/update/status")).json();
+    if (s.error) { box.hidden = false; box.textContent = s.error; return; }
+    if (!s.running) { box.hidden = s.percent !== 100; return; }
+    box.hidden = false;
+    box.textContent = UPDATE_DOWNLOADING + " " + s.percent + "%";
+    setTimeout(updateProgress, 700);
+  } catch (e) { /* программа уже закрывается — установщик перехватил работу */ }
+}
+updateProgress();
+
+const RUNNING_PREFIX = {{ t('status_running')|tojson }};
+async function poll() {
+  try {
+    const r = await fetch("/status");
+    const s = await r.json();
+    const text = document.getElementById("status-text");
+    const log = document.getElementById("live-log");
+    if (s.running) {
+      text.textContent = RUNNING_PREFIX + " " + s.stage;
+      log.hidden = false;
+      log.textContent = s.log.join("\n");
+      log.scrollTop = log.scrollHeight;
+      setTimeout(poll, 2500);
+    } else if (text.textContent.startsWith(RUNNING_PREFIX)) {
+      location.reload();
+    }
+  } catch (e) { setTimeout(poll, 5000); }
+}
+{% if state.running %}poll();{% endif %}
+
+function schedFields(mode) {
+  document.querySelectorAll(".sched-interval").forEach(e => e.style.display = mode === "interval" ? "" : "none");
+  document.querySelectorAll(".sched-cont").forEach(e => e.style.display = mode === "continuous" ? "" : "none");
+}
+schedFields(document.querySelector('select[name="schedule_mode"]').value);
+</script>
+{% include "_footer.html" %}
+</body>
+</html>

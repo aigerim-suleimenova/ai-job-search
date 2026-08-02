@@ -1,0 +1,22 @@
+{# This line used to sit right at the bottom — below a list of three hundred jobs
+   nobody ever saw it. Now it is just under the header: a quiet single-line strip
+   rather than a banner. The links open in the browser, not inside the window: in
+   a packaged app the window is a webview, and an outside page in it would look as
+   though the program had broken and turned into a website. #}
+<div class="support">
+  <span class="support-text">{{ t('donate_short') }}</span>
+  <span class="support-links">
+    {% for key, label in [('bmc', 'Buy Me a Coffee'), ('kofi', 'Ko-fi'), ('paypal', 'PayPal')] %}
+    <form method="post" action="/donate">
+      <input type="hidden" name="target" value="{{ key }}">
+      <input type="hidden" name="back" value="{{ request.url.path }}">
+      <button type="submit">{{ label }}</button>
+    </form>
+    {% endfor %}
+  </span>
+  <form method="post" action="/donate" class="support-projects">
+    <input type="hidden" name="target" value="projects">
+    <input type="hidden" name="back" value="{{ request.url.path }}">
+    <button type="submit" class="linklike">{{ t('more_projects') }} ↗</button>
+  </form>
+</div>

@@ -1,0 +1,137 @@
+{% set page_title = t('nav_cvcheck') %}{% include "_head.html" %}
+{% include "_header.html" %}
+
+{% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+
+<section class="card">
+  <h2>{{ t('cvcheck_title') }}</h2>
+  <p class="hint">{{ t('cvcheck_hint') }}</p>
+  {# The check calls the model and takes minutes. The button submits the form, the
+     work goes to the background, and here it is visible that it is running: a
+     person used to click and see nothing at all. #}
+  <div class="row" style="margin-top:10px" id="check-row" {% if checking %}data-running="1"{% endif %}>
+    <form method="post" action="/cv/check/run" style="margin:0" id="check-form">
+      <button class="primary" {% if checking %}disabled{% endif %}>{{ t('cvcheck_run') }}</button>
+    </form>
+    <span class="hint">{{ cv.filename or t('cvcheck_no_cv') }}{% if cv.chars %} · {{ cv.chars }} {{ t('chars') }}{% endif %}</span>
+  </div>
+  <p class="hint check-progress" id="check-progress" {% if not checking %}hidden{% endif %}>
+    <span class="live-dot"></span> {{ t('cvcheck_running') }}
+  </p>
+  {% if check_error %}
+  <p class="hint" style="color:var(--danger-text)">{{ t('cvcheck_failed').format(error=check_error) }}</p>
+  {% endif %}
+</section>
+
+{% if result and not result.error %}
+{# Часть проверки могла не выполниться: она спрашивает модель, а модели может не
+   быть. Остальное при этом посчитано здесь же, на этом компьютере, и остаётся в
+   силе — но промолчать о недостающем нельзя, иначе человек прочтёт неполный
+   разбор как полный. #}
+{% if result.unfinished %}
+<p class="hint" style="color:var(--warn)">{{ t('cvcheck_partial').format(error=result.unfinished[0]) }}</p>
+{% endif %}
+<section class="card">
+  <div class="row" style="gap:24px; flex-wrap:wrap">
+    <div>
+      <div class="hint">{{ t('cvcheck_ats') }}</div>
+      <div class="score" style="font-size:28px">{{ result.ats_total }}%</div>
+    </div>
+    {% if result.visual_total %}
+    <div>
+      <div class="hint">{{ t('cvcheck_visual') }}</div>
+      <div class="score" style="font-size:28px">{{ result.visual_total }}%</div>
+    </div>
+    {% endif %}
+    {% if result.keywords and result.keywords.keyword_score %}
+    <div>
+      <div class="hint">{{ t('cvcheck_keywords') }}</div>
+      <div class="score" style="font-size:28px">{{ result.keywords.keyword_score }}%</div>
+    </div>
+    {% endif %}
+  </div>
+  {% if result.visual and result.visual.verdict %}
+  <p style="margin-top:14px">{{ result.visual.verdict }}</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>{{ t('cvcheck_parsing') }}</h2>
+  <p class="hint">{{ t('cvcheck_parsing_hint') }}</p>
+  <p class="meta">{{ t('cvcheck_pages') }} {{ result.tech.pages }} ·
+     {{ t('cvcheck_words') }} {{ result.tech.words }} ·
+     {{ t('cvcheck_images') }} {{ result.tech.images }}</p>
+  {% if result.tech.issues %}
+  <ul>
+    {% for severity, code in result.tech.issues %}
+    <li>
+      {% if severity == 'critical' %}<span class="badge warn">{{ t('cvcheck_critical') }}</span>
+      {% else %}<span class="badge">{{ t('cvcheck_warn') }}</span>{% endif %}
+      {{ t('cvissue_' + code.split(':')[0]) }}{% if ':' in code %} <span class="hint">({{ code.split(':')[1] }})</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>✅ {{ t('cvcheck_parsing_ok') }}</p>
+  {% endif %}
+</section>
+
+{% if result.visual %}
+<section class="card">
+  <h2>{{ t('cvcheck_layout') }}{% if result.visual.layout %} — {{ result.visual.layout }}{% endif %}</h2>
+  {% if result.visual.ats_risks %}
+  <p><b>{{ t('cvcheck_ats_risks') }}</b></p>
+  <ul>{% for r in result.visual.ats_risks %}<li>{{ r }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if result.visual.visual_issues %}
+  <p><b>{{ t('cvcheck_visual_issues') }}</b></p>
+  <ul>{% for r in result.visual.visual_issues %}<li>{{ r }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if result.visual.strengths %}
+  <p><b>{{ t('cvcheck_strengths') }}</b></p>
+  <ul>{% for r in result.visual.strengths %}<li>{{ r }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if result.visual.fixes %}
+  <p><b>{{ t('cvcheck_fixes') }}</b></p>
+  <ol>{% for r in result.visual.fixes %}<li>{{ r }}</li>{% endfor %}</ol>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if result.keywords %}
+<section class="card">
+  <h2>{{ t('cvcheck_keywords_block') }}</h2>
+  <p class="hint">{{ t('cvcheck_keywords_hint') }}</p>
+  {% if result.keywords.verdict %}<p>{{ result.keywords.verdict }}</p>{% endif %}
+  {% if result.keywords.missing %}
+  <p><b>{{ t('cvcheck_missing') }}</b></p>
+  <ul>{% for k in result.keywords.missing %}<li>{{ k }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if result.keywords.present %}
+  <p><b>{{ t('cvcheck_present') }}</b> <span class="hint">{{ result.keywords.present|join(' · ') }}</span></p>
+  {% endif %}
+  {% if result.keywords.cannot_claim %}
+  <p><b>{{ t('cvcheck_cannot') }}</b> <span class="hint">{{ result.keywords.cannot_claim|join(' · ') }}</span></p>
+  {% endif %}
+</section>
+{% endif %}
+{% elif result.error %}
+<section class="card"><p>{{ t('cvcheck_no_cv') }}</p></section>
+{% endif %}
+<script>
+// While the check runs we poll for its state and reload the page when it is done.
+(() => {
+  const row = document.getElementById('check-row');
+  if (!row || !row.dataset.running) return;
+  const timer = setInterval(async () => {
+    try {
+      const d = await (await fetch('/cv/check/status')).json();
+      if (!d.running) { clearInterval(timer); location.reload(); }
+    } catch (e) { /* the server is restarting — we wait */ }
+  }, 3000);
+})();
+</script>
+
+{% include "_footer.html" %}
+</body>
+</html>

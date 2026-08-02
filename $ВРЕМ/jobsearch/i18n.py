@@ -1,0 +1,1985 @@
+"""Localisation: the interface language and the language the AI writes results in.
+
+Four languages live in the TR dictionary below; the rest are in
+jobsearch/locales/<code>.py.
+"""
+import importlib
+import locale
+import os
+import platform
+import subprocess
+from functools import lru_cache
+
+# Languages in the pickers, alphabetically, as system lists usually have them.
+UI_LANGS = {
+    "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
+    "fr": "Français", "hi": "हिन्दी", "it": "Italiano", "ja": "日本語",
+    "pl": "Polski", "pt": "Português", "ru": "Русский", "tr": "Türkçe",
+    "uk": "Українська", "zh": "中文",
+}
+# languages written right to left — the templates give them dir="rtl"
+RTL_LANGS = {"ar"}
+OUTPUT_LANGS = {
+    "ar": "العربية", "de": "Deutsch", "en": "English", "es": "Español",
+    "fr": "Français", "hi": "हिन्दी", "it": "Italiano", "it-en": "Italiano + English",
+    "ja": "日本語", "pl": "Polski", "pt": "Português", "ru": "Русский",
+    "tr": "Türkçe", "uk": "Українська", "zh": "中文",
+}
+
+
+def system_lang(default: str = "en") -> str:
+    """The system language, so that first launch does not show a foreign one.
+
+    An app started from Finder gets no LANG, so on macOS we ask the system
+    directly; on Windows, the UI-language API; otherwise the environment.
+    """
+    code = ""
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            out = subprocess.run(["defaults", "read", "-g", "AppleLocale"],
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5).stdout.strip()
+            code = out.split("@")[0].split("_")[0]
+        elif system == "Windows":
+            import ctypes
+            lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+            code = locale.windows_locale.get(lcid, "").split("_")[0]
+    except Exception:  # noqa: BLE001 — detecting a language must not break the launch
+        code = ""
+    if not code:
+        env = os.environ.get("LANG") or os.environ.get("LC_ALL") or ""
+        code = env.split(".")[0].split("_")[0]
+    if not code:
+        try:
+            code = (locale.getdefaultlocale()[0] or "").split("_")[0]
+        except Exception:  # noqa: BLE001
+            code = ""
+    return code if code in UI_LANGS else default
+
+# Telling the model which language to write results in (scores, edits, the digest)
+OUTPUT_INSTRUCTION = {
+    "ru": "на русском языке",
+    "en": "in English",
+    "de": "auf Deutsch",
+    "it": "in italiano",
+    "es": "en español",
+    "fr": "en français",
+    "pt": "em português",
+    "pl": "po polsku",
+    "uk": "українською мовою",
+    "tr": "Türkçe",
+    "zh": "用简体中文",
+    "ja": "日本語で",
+    "ar": "بالعربية",
+    "hi": "हिन्दी में",
+    "it-en": ("in italiano E POI in inglese — ogni testo prima in italiano, poi la "
+              "stessa frase in inglese, separati da « / ». Esempio: «Ottima "
+              "corrispondenza con il profilo / Great match for the profile». "
+              "NON scrivere in russo. Sii CONCISO: ogni metà max 2 frasi brevi, "
+              "perché il testo bilingue è lungo il doppio"),
+}
+
+
+def out_lang(cfg: dict) -> str:
+    """Which language the model writes its results in.
+
+    The fallback is English rather than Russian: an empty or unfamiliar value
+    used to make the model quietly write in Russian to someone whose every other
+    word was in a different language.
+    """
+    ui = cfg.get("ui", {})
+    code = ui.get("output_lang") or ui.get("lang") or "en"
+    return OUTPUT_INSTRUCTION.get(code, OUTPUT_INSTRUCTION["en"])
+
+
+# Interface strings. Key → {ru, en}. A missing translation falls back to English.
+TR = {
+    "app_title": {"ru": "AI Job Search", "en": "AI Job Search", "it": "AI Job Search", "de": "AI Job Search"},
+    "nav_settings": {"ru": "Настройки поиска", "en": "Search settings",
+                     "it": "Impostazioni ricerca", "de": "Sucheinstellungen"},
+    "nav_results": {"ru": "Результаты", "en": "Results", "it": "Risultati", "de": "Ergebnisse"},
+    "nav_coverage": {"ru": "Покрытие", "en": "Coverage", "it": "Copertura", "de": "Abdeckung"},
+    "nav_cvcheck": {"ru": "Проверка CV", "en": "CV check", "it": "Verifica CV", "de": "CV-Prüfung"},
+    "nav_simple": {"ru": "Быстрый поиск", "en": "Quick search",
+                   "it": "Ricerca rapida", "de": "Schnellsuche"},
+    "app_behavior": {"ru": "Поведение программы", "en": "App behaviour",
+                     "it": "Comportamento del programma", "de": "Verhalten des Programms"},
+    "app_background": {"ru": "Продолжать поиск после закрытия окна",
+                       "en": "Keep searching after the window is closed",
+                       "it": "Continuare la ricerca dopo la chiusura della finestra",
+                       "de": "Weitersuchen, nachdem das Fenster geschlossen wurde"},
+    "app_background_hint": {"ru": "Окно можно закрыть, а поиск продолжится в фоне. Чтобы вернуться к результатам, снова откройте программу — она покажет то же окно. Полностью выйти можно из меню программы.",
+                            "en": "You can close the window and the search keeps going in the background. To come back, open the app again — it shows the same window. Quit fully from the app menu.",
+                            "it": "Può chiudere la finestra e la ricerca prosegue in background. Per tornare, riapra il programma — mostrerà la stessa finestra. Per uscire del tutto usi il menu del programma.",
+                            "de": "Sie können das Fenster schließen, die Suche läuft im Hintergrund weiter. Zum Zurückkehren die App erneut öffnen — sie zeigt dasselbe Fenster. Vollständig beenden über das Programm-Menü."},
+    "app_autostart": {"ru": "Запускать при входе в систему",
+                      "en": "Start when I log in",
+                      "it": "Avviare all'accesso al sistema",
+                      "de": "Beim Anmelden starten"},
+    "app_autostart_hint": {"ru": "Программа будет открываться сама после включения компьютера — вместе с фоновым режимом это даёт по-настоящему непрерывный поиск.",
+                           "en": "The app will open by itself after the computer starts — together with background mode this gives a genuinely continuous search.",
+                           "it": "Il programma si aprirà da solo all'avvio del computer — insieme alla modalità in background dà una ricerca davvero continua.",
+                           "de": "Das Programm öffnet sich nach dem Hochfahren von selbst — zusammen mit dem Hintergrundmodus ergibt das eine wirklich durchgehende Suche."},
+    "nav_notify": {"ru": "Уведомления", "en": "Notifications", "it": "Notifiche", "de": "Benachrichtigungen"},
+    "setup_needed": {"ru": "Осталось одно действие", "en": "One thing left to set up",
+                     "it": "Manca un passaggio", "de": "Noch ein Schritt fehlt"},
+    "setup_no_provider": {"ru": "Приложение обращается к модели «{name}», но она пока не установлена на этом компьютере. Без неё поиск не запустится.",
+                          "en": "The app relies on “{name}”, but it is not installed on this computer yet. The search cannot run without it.",
+                          "it": "L'app si appoggia a «{name}», ma non è ancora installato su questo computer. Senza, la ricerca non parte.",
+                          "de": "Die App nutzt „{name}“, aber es ist auf diesem Rechner noch nicht installiert. Ohne das startet die Suche nicht."},
+    "setup_claude_1": {"ru": "Откройте claude.com/claude-code и установите Claude Code — это отдельная бесплатная программа, через неё приложение обращается к модели.",
+                       "en": "Open claude.com/claude-code and install Claude Code — a separate free program the app uses to reach the model.",
+                       "it": "Apra claude.com/claude-code e installi Claude Code — un programma gratuito separato che l'app usa per raggiungere il modello.",
+                       "de": "Öffnen Sie claude.com/claude-code und installieren Sie Claude Code — ein separates kostenloses Programm, über das die App das Modell erreicht."},
+    "setup_claude_2": {"ru": "Запустите его один раз и войдите в свою учётную запись Anthropic — нужна подписка или оплата по мере использования.",
+                       "en": "Run it once and sign in to your Anthropic account — a subscription or pay-as-you-go is required.",
+                       "it": "Lo avvii una volta e acceda al suo account Anthropic — serve un abbonamento o il pagamento a consumo.",
+                       "de": "Starten Sie es einmal und melden Sie sich bei Ihrem Anthropic-Konto an — ein Abo oder Pay-as-you-go ist nötig."},
+    "setup_claude_3": {"ru": "Вернитесь сюда и нажмите «Проверить снова».",
+                       "en": "Come back here and press “Check again”.",
+                       "it": "Torni qui e prema «Controlla di nuovo».",
+                       "de": "Kehren Sie hierher zurück und klicken Sie auf „Erneut prüfen“."},
+    "setup_recheck": {"ru": "Проверить снова", "en": "Check again",
+                      "it": "Controlla di nuovo", "de": "Erneut prüfen"},
+    "setup_other_model": {"ru": "Выбрать другую модель", "en": "Choose a different model",
+                          "it": "Scegli un altro modello", "de": "Anderes Modell wählen"},
+    "notify_title": {"ru": "Куда присылать найденное", "en": "Where to send what we find",
+                     "it": "Dove inviare ciò che troviamo", "de": "Wohin die Funde gehen"},
+    "notify_hint": {"ru": "Поиск идёт сам по себе, поэтому результаты удобнее получать сообщением, а не заходить и проверять. Можно включить и Telegram, и почту — или что-то одно.",
+                    "en": "The search runs on its own, so it is easier to receive results as a message than to keep checking. You can enable Telegram, email, or both.",
+                    "it": "La ricerca va avanti da sola, quindi conviene ricevere i risultati come messaggio invece di controllare ogni volta. Può attivare Telegram, l'email o entrambi.",
+                    "de": "Die Suche läuft von allein, daher ist es bequemer, Ergebnisse als Nachricht zu erhalten, statt selbst nachzusehen. Telegram, E-Mail oder beides sind möglich."},
+    "notify_connected": {"ru": "настроено", "en": "connected", "it": "configurato", "de": "eingerichtet"},
+    "notify_not_set": {"ru": "не настроено", "en": "not set up", "it": "non configurato", "de": "nicht eingerichtet"},
+    "notify_test": {"ru": "Отправить проверку", "en": "Send a test", "it": "Invia una prova", "de": "Test senden"},
+    "notify_tg_how": {"ru": "Как подключить Telegram — 5 шагов",
+                      "en": "How to connect Telegram — 5 steps",
+                      "it": "Come collegare Telegram — 5 passaggi",
+                      "de": "Telegram verbinden — 5 Schritte"},
+    "notify_tg_1": {"ru": "Откройте Telegram и найдите в поиске @BotFather (у него синяя галочка).",
+                    "en": "Open Telegram and find @BotFather in the search (it has a blue check mark).",
+                    "it": "Apra Telegram e cerchi @BotFather (ha la spunta blu).",
+                    "de": "Öffnen Sie Telegram und suchen Sie @BotFather (mit blauem Haken)."},
+    "notify_tg_2": {"ru": "Отправьте ему команду /newbot и придумайте имя — это ваш личный бот, он будет присылать вакансии.",
+                    "en": "Send it /newbot and pick a name — this is your own bot, it will send you the jobs.",
+                    "it": "Gli invii /newbot e scelga un nome — è il suo bot personale, le invierà le offerte.",
+                    "de": "Senden Sie /newbot und wählen Sie einen Namen — das ist Ihr eigener Bot, er schickt Ihnen die Stellen."},
+    "notify_tg_3": {"ru": "BotFather пришлёт строку вида 123456789:AA... — это токен. Скопируйте его в поле ниже.",
+                    "en": "BotFather replies with a line like 123456789:AA... — that is the token. Copy it into the field below.",
+                    "it": "BotFather risponde con una riga tipo 123456789:AA... — è il token. Lo copi nel campo qui sotto.",
+                    "de": "BotFather antwortet mit einer Zeile wie 123456789:AA... — das ist der Token. Kopieren Sie ihn unten ins Feld."},
+    "notify_tg_4": {"ru": "Найдите своего бота по имени и напишите ему любое сообщение — хоть «привет». Без этого он не имеет права вам писать.",
+                    "en": "Find your bot by name and send it any message — even just “hi”. Without that it is not allowed to write to you.",
+                    "it": "Trovi il suo bot per nome e gli scriva un messaggio qualsiasi — anche solo «ciao». Senza questo non può scriverle.",
+                    "de": "Suchen Sie Ihren Bot per Name und schreiben Sie ihm irgendetwas — auch nur „hallo“. Sonst darf er Ihnen nicht schreiben."},
+    "notify_tg_5": {"ru": "Нажмите «Определить chat id» — приложение само найдёт ваш номер чата. Затем «Отправить проверку».",
+                    "en": "Press “Detect chat id” — the app will find your chat number itself. Then press “Send a test”.",
+                    "it": "Prema «Rileva chat id» — l'app troverà da sola il numero della chat. Poi «Invia una prova».",
+                    "de": "Klicken Sie auf „Chat-ID ermitteln“ — die App findet Ihre Chat-Nummer selbst. Dann „Test senden“."},
+    "notify_tg_token": {"ru": "Токен бота", "en": "Bot token", "it": "Token del bot", "de": "Bot-Token"},
+    "notify_tg_chat": {"ru": "Chat id", "en": "Chat id", "it": "Chat id", "de": "Chat-ID"},
+    "notify_tg_chat_ph": {"ru": "заполнится кнопкой ниже", "en": "filled by the button below",
+                          "it": "si compila col pulsante sotto", "de": "wird per Button unten gefüllt"},
+    "notify_tg_detect": {"ru": "Определить chat id", "en": "Detect chat id",
+                         "it": "Rileva chat id", "de": "Chat-ID ermitteln"},
+    "notify_email": {"ru": "Почта", "en": "Email", "it": "Email", "de": "E-Mail"},
+    "notify_mail_how": {"ru": "Как настроить почту — 3 шага", "en": "How to set up email — 3 steps",
+                        "it": "Come configurare l'email — 3 passaggi", "de": "E-Mail einrichten — 3 Schritte"},
+    "notify_mail_1": {"ru": "Выберите свою почтовую службу из списка — адрес сервера подставится сам.",
+                      "en": "Pick your mail service from the list — the server address fills in automatically.",
+                      "it": "Scelga il suo servizio di posta dalla lista — l'indirizzo del server si compila da solo.",
+                      "de": "Wählen Sie Ihren Mail-Dienst aus der Liste — die Serveradresse wird automatisch gesetzt."},
+    "notify_mail_2": {"ru": "Впишите свой адрес и пароль приложения, а также адрес получателя, если письма должны идти не вам.",
+                      "en": "Enter your address and app password, plus a recipient address if the letters should go to someone else.",
+                      "it": "Inserisca il suo indirizzo e la password per app, più l'indirizzo del destinatario se le mail devono andare ad altri.",
+                      "de": "Tragen Sie Ihre Adresse und das App-Passwort ein, dazu eine Empfängeradresse, falls die Mails an jemand anderen gehen sollen."},
+    "notify_mail_3": {"ru": "Нажмите «Отправить проверку» — если письмо пришло, всё готово.",
+                      "en": "Press “Send a test” — if the letter arrives, you are done.",
+                      "it": "Prema «Invia una prova» — se la mail arriva, è tutto pronto.",
+                      "de": "Klicken Sie auf „Test senden“ — kommt die Mail an, ist alles fertig."},
+    "notify_mail_apppass": {"ru": "Важно: Gmail, Яндекс и Mail.ru не принимают обычный пароль от ящика. Нужен «пароль приложения» — он создаётся в настройках безопасности почты за пару минут и выглядит как набор из 16 букв.",
+                            "en": "Important: Gmail, Yandex and Mail.ru do not accept your normal mailbox password. You need an “app password” — it is created in the mail security settings in a couple of minutes and looks like 16 letters.",
+                            "it": "Importante: Gmail, Yandex e Mail.ru non accettano la password normale della casella. Serve una «password per app» — si crea nelle impostazioni di sicurezza in un paio di minuti ed è composta da 16 lettere.",
+                            "de": "Wichtig: Gmail, Yandex und Mail.ru akzeptieren Ihr normales Postfach-Passwort nicht. Sie brauchen ein „App-Passwort“ — es wird in den Sicherheitseinstellungen in wenigen Minuten erstellt und besteht aus 16 Buchstaben."},
+    "notify_mail_enable": {"ru": "Присылать результаты на почту", "en": "Send results by email",
+                           "it": "Invia i risultati via email", "de": "Ergebnisse per E-Mail senden"},
+    "notify_mail_service": {"ru": "Почтовая служба", "en": "Mail service",
+                            "it": "Servizio di posta", "de": "Mail-Dienst"},
+    "notify_mail_address": {"ru": "Ваш адрес (он же логин)", "en": "Your address (also the login)",
+                            "it": "Il suo indirizzo (anche login)", "de": "Ihre Adresse (zugleich Login)"},
+    "notify_mail_password": {"ru": "Пароль приложения", "en": "App password",
+                             "it": "Password per app", "de": "App-Passwort"},
+    "notify_mail_to": {"ru": "Кому присылать", "en": "Send to",
+                       "it": "Destinatario", "de": "Empfänger"},
+    "notify_mail_to_ph": {"ru": "пусто = себе", "en": "empty = to yourself",
+                          "it": "vuoto = a sé stesso", "de": "leer = an sich selbst"},
+    "notify_mail_advanced": {"ru": "Настройки сервера вручную", "en": "Server settings by hand",
+                             "it": "Impostazioni server manuali", "de": "Servereinstellungen manuell"},
+    "notify_mail_port": {"ru": "Порт", "en": "Port", "it": "Porta", "de": "Port"},
+    "nav_models": {"ru": "Модель", "en": "Model", "it": "Modello", "de": "Modell"},
+    "prov_claude_cli": {"ru": "Claude Code", "en": "Claude Code", "it": "Claude Code", "de": "Claude Code"},
+    "prov_cursor_cli": {"ru": "Cursor", "en": "Cursor", "it": "Cursor", "de": "Cursor"},
+    "prov_ollama": {"ru": "Локальная модель (Ollama)", "en": "Local model (Ollama)",
+                    "it": "Modello locale (Ollama)", "de": "Lokales Modell (Ollama)"},
+    "prov_claude_cli_hint": {"ru": "Установите с claude.com/claude-code",
+                             "en": "Install from claude.com/claude-code",
+                             "it": "Installi da claude.com/claude-code",
+                             "de": "Installieren von claude.com/claude-code"},
+    "prov_cursor_cli_hint": {"ru": "Установите Cursor и его командную строку (cursor-agent)",
+                             "en": "Install Cursor and its CLI (cursor-agent)",
+                             "it": "Installi Cursor e la sua CLI (cursor-agent)",
+                             "de": "Installieren Sie Cursor und dessen CLI (cursor-agent)"},
+    "prov_ollama_hint": {"ru": "Скачайте с ollama.com, запустите — и модели можно будет качать прямо отсюда",
+                         "en": "Download from ollama.com and run it — then models can be downloaded right here",
+                         "it": "Scarichi da ollama.com e lo avvii — poi i modelli si scaricano da qui",
+                         "de": "Von ollama.com herunterladen und starten — danach lassen sich Modelle hier laden"},
+    "models_provider": {"ru": "Чем думать", "en": "What powers the search",
+                        "it": "Cosa alimenta la ricerca", "de": "Womit gesucht wird"},
+    # Провайдеры здесь больше не перечисляются поимённо: с появлением Codex этот
+    # список устарел молча, и никто бы не заметил, пока не сверил бы с картинками.
+    # Карточки ниже и так называют всех, кто есть.
+    "models_provider_hint": {"ru": "Приложение само не думает — оно обращается к модели. Выберите, к какой: облачной (считает на сервере, нужна подписка или оплата по мере использования) или локальной на вашем компьютере (ничего не уходит наружу и платить не нужно, но нужны память и время).",
+                             "en": "The app does not reason on its own — it calls a model. Choose which kind: a cloud one (runs on a server, needs a subscription or pay-as-you-go) or a local one on your machine (nothing leaves the computer and there is nothing to pay, but it wants memory and time).",
+                             "it": "L'app non ragiona da sola — chiama un modello. Scelga quale: uno cloud (lavora su un server, serve un abbonamento o il pagamento a consumo) oppure uno locale sul suo computer (nulla esce dal dispositivo e non c'è nulla da pagare, ma servono memoria e tempo).",
+                             "de": "Die App denkt nicht selbst — sie ruft ein Modell auf. Wählen Sie, welche Art: ein Cloud-Modell (rechnet auf einem Server, braucht ein Abo oder Pay-as-you-go) oder ein lokales auf Ihrem Rechner (nichts verlässt das Gerät und nichts ist zu bezahlen, verlangt aber Speicher und Zeit)."},
+    "models_ready": {"ru": "установлен", "en": "installed", "it": "installato", "de": "installiert"},
+    "models_not_installed": {"ru": "не установлен", "en": "not installed",
+                             "it": "non installato", "de": "nicht installiert"},
+    "models_websearch": {"ru": "умеет веб-поиск", "en": "web search", "it": "ricerca web", "de": "Websuche"},
+    "models_no_websearch": {"ru": "без веб-поиска", "en": "no web search",
+                            "it": "senza ricerca web", "de": "keine Websuche"},
+    # Тестировщик прочёл прежнюю редакцию — «поиск новых компаний отключится» —
+    # и спросил: «это что, теперь только вручную отслеживать конкретные компании?»
+    # Нет, и это ровно то, что надо было сказать первым делом: настраивать ничего
+    # не нужно, вакансии идут с агрегаторов, а список работодателей пополняется
+    # сам — по ссылкам внутри уже найденных вакансий, без всякой модели.
+    "models_websearch_warning": {"ru": "Выбранная модель не умеет искать в интернете. Настраивать компании вручную из-за этого не придётся: вакансии по-прежнему собираются с девяти агрегаторов, а список работодателей пополняется сам — по ссылкам внутри уже найденных вакансий. Не будет двух вещей: модель не пойдёт искать компании, которых никто ещё не упоминал, и не соберёт зарплатные вилки и сведения о компаниях.",
+                                 "en": "The selected model cannot search the web. That does not leave you setting up companies by hand: jobs still come from nine aggregators, and the list of employers still grows on its own, from the links inside the jobs already found. Two things are lost: the model will not go looking for companies nobody has mentioned yet, and it will not gather salary ranges and facts about companies.",
+                                 "it": "Il modello scelto non può cercare sul web. Non per questo dovrà configurare le aziende a mano: le offerte continuano ad arrivare da nove aggregatori e l'elenco dei datori di lavoro cresce da sé, dai link dentro le offerte già trovate. Si perdono due cose: il modello non andrà a cercare aziende che nessuno ha ancora nominato e non raccoglierà fasce salariali e informazioni sulle aziende.",
+                                 "de": "Das gewählte Modell kann nicht im Web suchen. Unternehmen von Hand einzutragen bleibt Ihnen dennoch erspart: Stellen kommen weiterhin von neun Aggregatoren, und die Liste der Arbeitgeber wächst von selbst — aus den Links in den bereits gefundenen Stellen. Zweierlei entfällt: Das Modell sucht nicht nach Unternehmen, die noch niemand genannt hat, und es sammelt keine Gehaltsspannen und Angaben zu Unternehmen."},
+    # Поиск в интернете силами приложения — тем, у кого модель искать не умеет.
+    "websearch_title": {"ru": "Поиск в интернете (ключ)", "en": "Web search (a key)",
+                        "it": "Ricerca sul web (chiave)", "de": "Websuche (Schlüssel)"},
+    "websearch_hint": {
+        "ru": "Искать в интернете умеет только Claude Code — с остальными разведка новых компаний и зарплатные вилки отключаются. Впишите ключ любой из этих служб, и искать будет само приложение, а модель получит найденное текстом. Тогда это работает с любой моделью, а у всех трёх служб есть бесплатный уровень — нескольких поисков за прогон он с запасом покрывает.",
+        "en": "Only Claude Code can search the web — with anything else, hunting for new companies and looking up salary ranges are switched off. Put in a key from any of these services and the app will do the searching itself, handing the model what it found as text. That works with any model, and all three have a free tier which covers the few searches a run needs several times over.",
+        "it": "Solo Claude Code sa cercare sul web — con gli altri la scoperta di nuove aziende e le fasce salariali si disattivano. Inserisca una chiave di uno di questi servizi e a cercare sarà l'app stessa, passando al modello ciò che ha trovato come testo. Così funziona con qualsiasi modello, e tutti e tre hanno un livello gratuito che copre ampiamente le poche ricerche di un'esecuzione.",
+        "de": "Im Web suchen kann nur Claude Code — bei allen anderen entfallen das Finden neuer Unternehmen und die Gehaltsspannen. Tragen Sie einen Schlüssel eines dieser Dienste ein, dann sucht die App selbst und reicht dem Modell das Gefundene als Text weiter. Das funktioniert mit jedem Modell, und alle drei haben ein kostenloses Kontingent, das die wenigen Suchen eines Durchlaufs um ein Vielfaches deckt."},
+    "websearch_service": {"ru": "Служба", "en": "Service",
+                          "it": "Servizio", "de": "Dienst"},
+    "websearch_key": {"ru": "Ключ", "en": "Key", "it": "Chiave", "de": "Schlüssel"},
+    "websearch_none": {"ru": "не использовать", "en": "do not use one",
+                       "it": "non usarla", "de": "keinen verwenden"},
+    "search_err_not_set": {
+        "ru": "Поиск в интернете не настроен: выберите службу и впишите ключ",
+        "en": "Web search is not set up: pick a service and enter a key",
+        "it": "La ricerca sul web non è configurata: scelga un servizio e inserisca una chiave",
+        "de": "Die Websuche ist nicht eingerichtet: Dienst wählen und Schlüssel eintragen"},
+    "search_err_failed": {
+        "ru": "Поиск в интернете не удался: {error}",
+        "en": "The web search failed: {error}",
+        "it": "La ricerca sul web non è riuscita: {error}",
+        "de": "Die Websuche ist fehlgeschlagen: {error}"},
+    "log_research_skipped": {
+        "ru": "Сведения о компаниях и зарплатах пропускаем: выбранная модель не ходит в интернет",
+        "en": "Skipping company facts and salaries: the chosen model does not go online",
+        "it": "Saltiamo dati aziendali e stipendi: il modello scelto non va in rete",
+        "de": "Firmenangaben und Gehälter entfallen: Das gewählte Modell geht nicht ins Netz"},
+    "models_select": {"ru": "Выбрать", "en": "Select", "it": "Seleziona", "de": "Auswählen"},
+    "models_selected": {"ru": "✓ Выбран", "en": "✓ Selected", "it": "✓ Selezionato", "de": "✓ Ausgewählt"},
+    "models_your_device": {"ru": "Ваше устройство", "en": "Your device",
+                           "it": "Il suo dispositivo", "de": "Ihr Gerät"},
+    # The model catalogue. Notes and origins used to sit in providers.py as
+    # finished Russian text and reach the page as they were — in every language.
+    "model_auto_cursor": {"ru": "Авто (выбирает Cursor)", "en": "Auto (Cursor decides)",
+                          "it": "Auto (decide Cursor)", "de": "Auto (Cursor entscheidet)"},
+    "model_note_strongest": {"ru": "самая сильная, дороже", "en": "the strongest, pricier",
+                             "it": "la più potente, più cara", "de": "die stärkste, teurer"},
+    "model_note_strong_fast": {"ru": "сильная, быстрее Opus", "en": "strong, faster than Opus",
+                               "it": "potente, più veloce di Opus", "de": "stark, schneller als Opus"},
+    "model_note_balanced": {"ru": "баланс цены и качества", "en": "a balance of price and quality",
+                            "it": "equilibrio tra prezzo e qualità",
+                            "de": "Balance aus Preis und Qualität"},
+    "model_note_fast_cheap": {"ru": "быстрая и дешёвая", "en": "fast and cheap",
+                              "it": "veloce ed economica", "de": "schnell und günstig"},
+    "model_note_reasoning": {"ru": "рассуждающая", "en": "reasoning",
+                             "it": "di ragionamento", "de": "mit Reasoning"},
+    "model_note_weak_machines": {"ru": "для слабых машин", "en": "for modest machines",
+                                 "it": "per macchine modeste", "de": "für schwächere Rechner"},
+    "model_note_very_weak": {"ru": "очень слабая, для проверки",
+                             "en": "very weak, for a smoke test",
+                             "it": "molto debole, per una prova",
+                             "de": "sehr schwach, nur zum Ausprobieren"},
+    "country_us": {"ru": "США", "en": "USA", "it": "USA", "de": "USA"},
+    "country_cn": {"ru": "Китай", "en": "China", "it": "Cina", "de": "China"},
+    "country_fr": {"ru": "Франция", "en": "France", "it": "Francia", "de": "Frankreich"},
+    # Downloading a local model: our own steps are kept apart from the ones Ollama
+    # sends (those arrive in English and are not ours to translate).
+    "pull_starting": {"ru": "начинаем", "en": "starting", "it": "avvio", "de": "Start"},
+    "pull_done": {"ru": "готово", "en": "done", "it": "fatto", "de": "fertig"},
+    "prov_err_ollama_down": {
+        "ru": "Ollama не отвечает. Убедитесь, что программа Ollama установлена и запущена, затем попробуйте снова.",
+        "en": "Ollama is not answering. Make sure the Ollama app is installed and running, then try again.",
+        "it": "Ollama non risponde. Verifichi che il programma Ollama sia installato e in esecuzione, poi riprovi.",
+        "de": "Ollama antwortet nicht. Stellen Sie sicher, dass die Ollama-App installiert ist und läuft, und versuchen Sie es erneut."},
+    "prov_err_pull_failed": {"ru": "Не удалось скачать модель: {error}",
+                             "en": "Could not download the model: {error}",
+                             "it": "Impossibile scaricare il modello: {error}",
+                             "de": "Das Modell konnte nicht geladen werden: {error}"},
+    "prov_err_no_cursor": {"ru": "Cursor CLI не найден: установите cursor-agent",
+                           "en": "Cursor CLI not found: install cursor-agent",
+                           "it": "Cursor CLI non trovato: installi cursor-agent",
+                           "de": "Cursor CLI nicht gefunden: cursor-agent installieren"},
+    "prov_err_no_claude": {"ru": "claude CLI не найден: {path}. Укажите путь в настройках модели.",
+                           "en": "claude CLI not found: {path}. Set the path in the model settings.",
+                           "it": "claude CLI non trovato: {path}. Indichi il percorso nelle impostazioni del modello.",
+                           "de": "claude CLI nicht gefunden: {path}. Pfad in den Modelleinstellungen angeben."},
+    "prov_err_exit_code": {"ru": "{tool} завершился с кодом {code} без вывода",
+                           "en": "{tool} exited with code {code} and no output",
+                           "it": "{tool} è terminato con codice {code} senza output",
+                           "de": "{tool} endete mit Code {code} ohne Ausgabe"},
+    "prov_err_killed": {"ru": "{tool} завершился с кодом {code} (убит сигналом)",
+                        "en": "{tool} exited with code {code} (killed by a signal)",
+                        "it": "{tool} è terminato con codice {code} (ucciso da un segnale)",
+                        "de": "{tool} endete mit Code {code} (durch ein Signal beendet)"},
+    "prov_err_timeout": {"ru": "{tool} не ответил за {seconds} с",
+                         "en": "{tool} did not answer within {seconds}s",
+                         "it": "{tool} non ha risposto entro {seconds} s",
+                         "de": "{tool} antwortete nicht innerhalb von {seconds} s"},
+    "prov_err_no_json": {"ru": "В ответе модели нет JSON: {text}",
+                         "en": "The model's answer contains no JSON: {text}",
+                         "it": "La risposta del modello non contiene JSON: {text}",
+                         "de": "Die Antwort des Modells enthält kein JSON: {text}"},
+    "prov_err_ollama_unreachable": {"ru": "Ollama недоступна: {error}",
+                                    "en": "Ollama is unreachable: {error}",
+                                    "it": "Ollama non è raggiungibile: {error}",
+                                    "de": "Ollama ist nicht erreichbar: {error}"},
+    "prov_err_ollama_not_json": {"ru": "Ollama вернула не JSON: {error}",
+                                 "en": "Ollama returned something other than JSON: {error}",
+                                 "it": "Ollama ha restituito qualcosa che non è JSON: {error}",
+                                 "de": "Ollama lieferte kein JSON: {error}"},
+    "tg_err_no_token": {"ru": "Не задан bot token", "en": "No bot token set",
+                        "it": "Bot token non impostato", "de": "Kein Bot-Token gesetzt"},
+    "tg_err_no_chat": {
+        "ru": "Не задан chat id — напишите боту сообщение и нажмите «Сохранить и определить chat id»",
+        "en": "No chat id — send your bot any message, then press “Save and detect chat id”",
+        "it": "Nessun chat id — scriva un messaggio al bot, poi prema «Salva e rileva chat id»",
+        "de": "Keine Chat-ID — schreiben Sie Ihrem Bot eine Nachricht und drücken Sie „Speichern und Chat-ID ermitteln“"},
+    "tg_err_no_updates": {
+        "ru": "Обновлений нет. Напишите вашему боту любое сообщение и попробуйте снова.",
+        "en": "No updates. Send your bot any message and try again.",
+        "it": "Nessun aggiornamento. Scriva un messaggio qualsiasi al bot e riprovi.",
+        "de": "Keine Updates. Schreiben Sie Ihrem Bot eine beliebige Nachricht und versuchen Sie es erneut."},
+    "err_cancelled": {"ru": "отменено", "en": "cancelled", "it": "annullato", "de": "abgebrochen"},
+    "err_search_stopped": {"ru": "поиск остановлен", "en": "the search was stopped",
+                           "it": "la ricerca è stata fermata", "de": "die Suche wurde gestoppt"},
+    "mail_preset_custom": {"ru": "Другая (укажу вручную)", "en": "Other (I will fill it in)",
+                           "it": "Altro (lo compilo io)", "de": "Andere (trage ich selbst ein)"},
+    "mail_digest_subject": {"ru": "AI Job Search: {count} вакансий для {name}",
+                            "en": "AI Job Search: {count} jobs for {name}",
+                            "it": "AI Job Search: {count} offerte per {name}",
+                            "de": "AI Job Search: {count} Stellen für {name}"},
+    # Новым профилям это имя больше не даётся — profiles.DEFAULT_NAME одинаков на
+    # всех языках, потому что язык системы и язык программы сплошь и рядом разные.
+    # Переводы остаются, чтобы узнать в profiles.json имя, выданное старой
+    # версией, и не принять его за то, которое человек вписал сам.
+    "profile_default_name": {"ru": "Я", "en": "Me", "it": "Io", "de": "Ich"},
+    # The crash screen is shown before the server is up — and until now it was in
+    # Russian whatever language had been chosen.
+    "crash_title": {"ru": "{app} не смог запуститься", "en": "{app} could not start",
+                    "it": "{app} non è riuscito ad avviarsi", "de": "{app} konnte nicht starten"},
+    "crash_note": {
+        "ru": "Это сбой программы, а не ваших данных — они на месте. Подробности записаны в файл:",
+        "en": "This is a failure of the program, not of your data — that is safe. Details are written to the file:",
+        "it": "È un guasto del programma, non dei suoi dati — quelli sono al sicuro. I dettagli sono nel file:",
+        "de": "Das ist ein Fehler des Programms, nicht Ihrer Daten — die sind sicher. Einzelheiten stehen in der Datei:"},
+    "crash_in_browser": {
+        "ru": "Окно не открылось, поэтому программа открыта в браузере: {url}",
+        "en": "The window would not open, so the app has been opened in your browser: {url}",
+        "it": "La finestra non si è aperta, quindi il programma è stato aperto nel browser: {url}",
+        "de": "Das Fenster ließ sich nicht öffnen, daher wurde die App im Browser geöffnet: {url}"},
+    "prov_claude_cli_about": {
+        "ru": "Официальная командная строка Anthropic. Считает в облаке, умеет искать в интернете — так находятся новые компании.",
+        "en": "Anthropic's official command line. Runs in the cloud and can search the web — that is how new companies are found.",
+        "it": "La riga di comando ufficiale di Anthropic. Lavora nel cloud e sa cercare sul web — così si trovano nuove aziende.",
+        "de": "Die offizielle Kommandozeile von Anthropic. Rechnet in der Cloud und kann im Web suchen — so werden neue Unternehmen gefunden."},
+    "prov_cursor_cli_about": {
+        "ru": "Командная строка редактора Cursor. Считает в облаке по вашей подписке Cursor.",
+        "en": "The command line of the Cursor editor. Runs in the cloud on your Cursor subscription.",
+        "it": "La riga di comando dell'editor Cursor. Lavora nel cloud con il vostro abbonamento Cursor.",
+        "de": "Die Kommandozeile des Cursor-Editors. Rechnet in der Cloud über Ihr Cursor-Abo."},
+    "prov_ollama_about": {
+        "ru": "Модель работает на вашем компьютере: ничего не уходит наружу и платить не нужно. Взамен нужна память и время — и нет веб-поиска.",
+        "en": "The model runs on your own computer: nothing leaves it and there is nothing to pay. In exchange it needs memory and time — and there is no web search.",
+        "it": "Il modello gira sul vostro computer: nulla esce e non c'è nulla da pagare. In cambio servono memoria e tempo — e non c'è ricerca web.",
+        "de": "Das Modell läuft auf Ihrem Rechner: nichts verlässt ihn, nichts ist zu bezahlen. Dafür braucht es Speicher und Zeit — und es gibt keine Websuche."},
+    "msg_person_name_needed": {
+        "ru": "Укажите имя человека", "en": "Enter the person's name",
+        "it": "Indicate il nome della persona", "de": "Geben Sie den Namen der Person ein"},
+    "msg_person_created": {
+        "ru": "Профиль «{name}» создан — заполните CV и настройки",
+        "en": "Profile “{name}” created — add a CV and settings",
+        "it": "Profilo «{name}» creato — caricate un CV e le impostazioni",
+        "de": "Profil „{name}“ erstellt — Lebenslauf und Einstellungen ergänzen"},
+    "msg_person_renamed": {
+        "ru": "Имя профиля обновлено", "en": "Profile name updated",
+        "it": "Nome del profilo aggiornato", "de": "Profilname aktualisiert"},
+    "msg_person_last": {
+        "ru": "Нельзя удалить единственный профиль",
+        "en": "The only profile cannot be deleted",
+        "it": "Non si può eliminare l'unico profilo",
+        "de": "Das einzige Profil kann nicht gelöscht werden"},
+    "msg_saved": {"ru": "Сохранено", "en": "Saved", "it": "Salvato", "de": "Gespeichert"},
+    "msg_settings_saved": {
+        "ru": "Настройки сохранены", "en": "Settings saved",
+        "it": "Impostazioni salvate", "de": "Einstellungen gespeichert"},
+    "msg_app_settings_saved": {
+        "ru": "Настройки программы сохранены", "en": "App settings saved",
+        "it": "Impostazioni dell'app salvate", "de": "App-Einstellungen gespeichert"},
+    "msg_saved_need_token": {
+        "ru": "Сохранено. Вставьте bot token и попробуйте снова",
+        "en": "Saved. Paste the bot token and try again",
+        "it": "Salvato. Incollate il token del bot e riprovate",
+        "de": "Gespeichert. Fügen Sie den Bot-Token ein und versuchen Sie es erneut"},
+    "msg_saved_tg_error": {
+        "ru": "Сохранено. Telegram: {error}", "en": "Saved. Telegram: {error}",
+        "it": "Salvato. Telegram: {error}", "de": "Gespeichert. Telegram: {error}"},
+    "msg_saved_chat_found": {
+        "ru": "Сохранено. Найден chat id: {chat_id}",
+        "en": "Saved. Found chat id: {chat_id}",
+        "it": "Salvato. Trovato chat id: {chat_id}",
+        "de": "Gespeichert. Chat-ID gefunden: {chat_id}"},
+    "msg_saved_tg_sent": {
+        "ru": "Сохранено. Тестовое сообщение отправлено",
+        "en": "Saved. Test message sent",
+        "it": "Salvato. Messaggio di prova inviato",
+        "de": "Gespeichert. Testnachricht gesendet"},
+    "msg_saved_discover_error": {
+        "ru": "Сохранено. Поиск компаний: {error}",
+        "en": "Saved. Company search: {error}",
+        "it": "Salvato. Ricerca aziende: {error}",
+        "de": "Gespeichert. Unternehmenssuche: {error}"},
+    "msg_saved_discover_none": {
+        "ru": "Сохранено. Новых компаний не нашлось — попробуйте ещё раз",
+        "en": "Saved. No new companies found — try again",
+        "it": "Salvato. Nessuna nuova azienda trovata — riprovate",
+        "de": "Gespeichert. Keine neuen Unternehmen gefunden — versuchen Sie es erneut"},
+    "msg_companies_added": {
+        "ru": "Добавлены компании: {names}", "en": "Companies added: {names}",
+        "it": "Aziende aggiunte: {names}", "de": "Unternehmen hinzugefügt: {names}"},
+    "msg_saved_need_cv": {
+        "ru": "Сохранено. Сначала загрузите CV", "en": "Saved. Upload a CV first",
+        "it": "Salvato. Prima caricate un CV", "de": "Gespeichert. Laden Sie zuerst einen Lebenslauf hoch"},
+    "msg_saved_llm_error": {
+        "ru": "Сохранено. Модель: {error}", "en": "Saved. Model: {error}",
+        "it": "Salvato. Modello: {error}", "de": "Gespeichert. Modell: {error}"},
+    "msg_profile_from_cv": {
+        "ru": "Пустые поля профиля заполнены из CV — проверьте и поправьте",
+        "en": "Empty profile fields filled in from the CV — check and correct them",
+        "it": "I campi vuoti del profilo sono stati compilati dal CV — controllate e correggete",
+        "de": "Leere Profilfelder aus dem Lebenslauf ausgefüllt — bitte prüfen und korrigieren"},
+    "msg_cv_unreadable": {
+        "ru": "Не удалось прочитать CV: {error}", "en": "Could not read the CV: {error}",
+        "it": "Impossibile leggere il CV: {error}", "de": "Der Lebenslauf konnte nicht gelesen werden: {error}"},
+    "msg_cv_needed": {
+        "ru": "Загрузите CV — по нему определяются роли и навыки",
+        "en": "Upload a CV — roles and skills are taken from it",
+        "it": "Caricate un CV — da lì si ricavano ruoli e competenze",
+        "de": "Laden Sie einen Lebenslauf hoch — daraus ergeben sich Rollen und Fähigkeiten"},
+    "msg_no_file": {
+        "ru": "Файл не выбран", "en": "No file selected",
+        "it": "Nessun file selezionato", "de": "Keine Datei ausgewählt"},
+    "msg_cv_uploaded": {
+        "ru": "CV загружено: {name}, извлечено {chars} символов",
+        "en": "CV uploaded: {name}, {chars} characters extracted",
+        "it": "CV caricato: {name}, estratti {chars} caratteri",
+        "de": "Lebenslauf geladen: {name}, {chars} Zeichen ausgelesen"},
+    "msg_search_started": {
+        "ru": "Поиск запущен", "en": "Search started",
+        "it": "Ricerca avviata", "de": "Suche gestartet"},
+    "msg_search_already": {
+        "ru": "Поиск уже идёт", "en": "A search is already running",
+        "it": "Una ricerca è già in corso", "de": "Es läuft bereits eine Suche"},
+    "msg_busy_next": {
+        "ru": "Сейчас идёт поиск для «{name}» — ваш начнётся следом",
+        "en": "A search for “{name}” is running — yours starts next",
+        "it": "È in corso la ricerca per «{name}» — la vostra parte subito dopo",
+        "de": "Es läuft die Suche für „{name}“ — Ihre startet danach"},
+    "msg_busy_wait": {
+        "ru": "Сейчас идёт поиск для «{name}» — ваш начнётся, как только тот закончится",
+        "en": "A search for “{name}” is running — yours starts as soon as it finishes",
+        "it": "È in corso la ricerca per «{name}» — la vostra partirà appena finisce",
+        "de": "Es läuft die Suche für „{name}“ — Ihre startet, sobald diese fertig ist"},
+    "msg_busy_switch": {
+        "ru": "Сейчас идёт поиск для «{name}» — переключитесь на этого человека, чтобы остановить",
+        "en": "A search for “{name}” is running — switch to that person to stop it",
+        "it": "È in corso la ricerca per «{name}» — passate a quella persona per fermarla",
+        "de": "Es läuft die Suche für „{name}“ — wechseln Sie zu dieser Person, um sie zu stoppen"},
+    "msg_not_running": {
+        "ru": "Поиск и так не идёт", "en": "No search is running",
+        "it": "Nessuna ricerca in corso", "de": "Es läuft keine Suche"},
+    "msg_stopping": {
+        "ru": "Останавливаем: текущие проверки договорят, новые не начнутся",
+        "en": "Stopping: checks already under way will finish, no new ones will start",
+        "it": "Interruzione: i controlli già avviati finiranno, non ne partiranno di nuovi",
+        "de": "Wird gestoppt: laufende Prüfungen enden noch, neue starten nicht"},
+    "msg_need_token": {
+        "ru": "Сначала вставьте токен бота", "en": "Paste the bot token first",
+        "it": "Prima incollate il token del bot", "de": "Fügen Sie zuerst den Bot-Token ein"},
+    "msg_tg_error": {
+        "ru": "Telegram: {error}", "en": "Telegram: {error}",
+        "it": "Telegram: {error}", "de": "Telegram: {error}"},
+    "msg_chat_found": {
+        "ru": "Готово, ваш chat id: {chat_id}", "en": "Done, your chat id: {chat_id}",
+        "it": "Fatto, il vostro chat id: {chat_id}", "de": "Fertig, Ihre Chat-ID: {chat_id}"},
+    "msg_tg_sent": {
+        "ru": "Тестовое сообщение отправлено — проверьте Telegram",
+        "en": "Test message sent — check Telegram",
+        "it": "Messaggio di prova inviato — controllate Telegram",
+        "de": "Testnachricht gesendet — prüfen Sie Telegram"},
+    "msg_mail_sent": {
+        "ru": "Письмо отправлено — проверьте почту", "en": "Email sent — check your inbox",
+        "it": "Email inviata — controllate la posta", "de": "E-Mail gesendet — prüfen Sie Ihr Postfach"},
+    "msg_autostart_unsupported": {
+        "ru": "Автозапуск не поддерживается на этой системе",
+        "en": "Start at login is not supported on this system",
+        "it": "L'avvio all'accesso non è supportato su questo sistema",
+        "de": "Start bei der Anmeldung wird auf diesem System nicht unterstützt"},
+    "cv_err_pdf": {
+        "ru": "Не удалось открыть PDF — возможно, файл повреждён или это не настоящий PDF.",
+        "en": "Could not open the PDF — the file may be damaged, or it is not really a PDF.",
+        "it": "Impossibile aprire il PDF — il file potrebbe essere danneggiato o non essere un vero PDF.",
+        "de": "PDF konnte nicht geöffnet werden — die Datei ist womöglich beschädigt oder kein echtes PDF."},
+    "cv_err_docx": {
+        "ru": "Не удалось открыть DOCX — возможно, файл повреждён.",
+        "en": "Could not open the DOCX — the file may be damaged.",
+        "it": "Impossibile aprire il DOCX — il file potrebbe essere danneggiato.",
+        "de": "DOCX konnte nicht geöffnet werden — die Datei ist womöglich beschädigt."},
+    "cv_err_not_text": {
+        "ru": "Это не текстовый файл. Подойдут PDF, DOCX, TXT или MD.",
+        "en": "This is not a text file. PDF, DOCX, TXT or MD will work.",
+        "it": "Questo non è un file di testo. Vanno bene PDF, DOCX, TXT o MD.",
+        "de": "Das ist keine Textdatei. PDF, DOCX, TXT oder MD funktionieren."},
+    "cv_err_format": {
+        "ru": "Формат {ext} не поддерживается. Загрузите резюме в PDF, DOCX, TXT или MD.",
+        "en": "The {ext} format is not supported. Upload the CV as PDF, DOCX, TXT or MD.",
+        "it": "Il formato {ext} non è supportato. Caricate il CV in PDF, DOCX, TXT o MD.",
+        "de": "Das Format {ext} wird nicht unterstützt. Laden Sie den Lebenslauf als PDF, DOCX, TXT oder MD hoch."},
+    "cv_err_format_none": {
+        "ru": "У файла нет расширения. Загрузите резюме в PDF, DOCX, TXT или MD.",
+        "en": "The file has no extension. Upload the CV as PDF, DOCX, TXT or MD.",
+        "it": "Il file non ha estensione. Caricate il CV in PDF, DOCX, TXT o MD.",
+        "de": "Die Datei hat keine Endung. Laden Sie den Lebenslauf als PDF, DOCX, TXT oder MD hoch."},
+    "cv_err_empty": {
+        "ru": "Файл пустой.", "en": "The file is empty.",
+        "it": "Il file è vuoto.", "de": "Die Datei ist leer."},
+    "cv_err_no_text": {
+        "ru": "В файле почти нет текста. Если резюме — картинка или скан, сохраните его как PDF с текстовым слоем.",
+        "en": "There is almost no text in the file. If the CV is an image or a scan, save it as a PDF with a text layer.",
+        "it": "Nel file non c'è quasi testo. Se il CV è un'immagine o una scansione, salvatelo come PDF con livello di testo.",
+        "de": "In der Datei steht fast kein Text. Ist der Lebenslauf ein Bild oder Scan, speichern Sie ihn als PDF mit Textebene."},
+    "mail_err_incomplete": {
+        "ru": "Не заполнены сервер, логин или адрес получателя",
+        "en": "Server, login or recipient address is missing",
+        "it": "Mancano il server, il login o l'indirizzo del destinatario",
+        "de": "Server, Login oder Empfängeradresse fehlen"},
+    "mail_err_auth": {
+        "ru": "Почта не приняла логин или пароль. Для Gmail, Яндекса и Mail.ru нужен «пароль приложения», а не обычный пароль от ящика.",
+        "en": "The mail server rejected the login or password. Gmail, Yandex and Mail.ru need an “app password”, not your normal mailbox password.",
+        "it": "Il server di posta ha rifiutato login o password. Gmail, Yandex e Mail.ru richiedono una «password per app», non quella normale della casella.",
+        "de": "Der Mailserver hat Login oder Passwort abgelehnt. Gmail, Yandex und Mail.ru brauchen ein „App-Passwort“, nicht Ihr normales Postfach-Passwort."},
+    "mail_err_send": {
+        "ru": "Не удалось отправить письмо: {error}", "en": "Could not send the email: {error}",
+        "it": "Impossibile inviare l'email: {error}", "de": "E-Mail konnte nicht gesendet werden: {error}"},
+    "mail_body_fallback": {
+        "ru": "Откройте письмо в HTML-виде, чтобы увидеть вакансии.",
+        "en": "Open this email in HTML view to see the jobs.",
+        "it": "Aprite questa email in versione HTML per vedere le offerte.",
+        "de": "Öffnen Sie diese E-Mail in der HTML-Ansicht, um die Stellen zu sehen."},
+    "tg_test_message": {
+        "ru": "✅ AI Job Search: тестовое сообщение. Бот настроен.",
+        "en": "✅ AI Job Search: test message. The bot is set up.",
+        "it": "✅ AI Job Search: messaggio di prova. Il bot è configurato.",
+        "de": "✅ AI Job Search: Testnachricht. Der Bot ist eingerichtet."},
+    "mail_test_subject": {
+        "ru": "AI Job Search: проверка связи", "en": "AI Job Search: connection test",
+        "it": "AI Job Search: prova di collegamento", "de": "AI Job Search: Verbindungstest"},
+    "mail_test_body": {
+        "ru": "Письма с вакансиями для «{name}» будут приходить сюда.",
+        "en": "Emails with jobs for “{name}” will arrive here.",
+        "it": "Le email con le offerte per «{name}» arriveranno qui.",
+        "de": "E-Mails mit Stellen für „{name}“ kommen hier an."},
+    "models_install": {
+        "ru": "Скачать", "en": "Download", "it": "Scarica", "de": "Herunterladen"},
+    "models_recheck": {
+        "ru": "Проверить снова", "en": "Check again", "it": "Verifica di nuovo", "de": "Erneut prüfen"},
+    "msg_install_opened": {
+        "ru": "Страница загрузки {name} открыта в браузере. Установите, запустите — и нажмите «Проверить снова».",
+        "en": "The {name} download page is open in your browser. Install it, start it, then press “Check again”.",
+        "it": "La pagina di download di {name} è aperta nel browser. Installatelo, avviatelo e premete «Verifica di nuovo».",
+        "de": "Die Download-Seite von {name} ist im Browser geöffnet. Installieren, starten — dann „Erneut prüfen“ drücken."},
+    "msg_install_unknown": {
+        "ru": "Для этого способа нет страницы загрузки",
+        "en": "There is no download page for this option",
+        "it": "Per questa opzione non c'è una pagina di download",
+        "de": "Für diese Option gibt es keine Download-Seite"},
+    "msg_recheck_found": {
+        "ru": "{name} найден — можно продолжать",
+        "en": "{name} found — you can continue",
+        "it": "{name} trovato — potete continuare",
+        "de": "{name} gefunden — Sie können fortfahren"},
+    "msg_recheck_none": {
+        "ru": "{name} пока не видно. Если только что установили — запустите программу и нажмите ещё раз.",
+        "en": "{name} is still not visible. If you have just installed it, start it and press again.",
+        "it": "{name} non è ancora visibile. Se l'avete appena installato, avviatelo e premete di nuovo.",
+        "de": "{name} ist noch nicht sichtbar. Falls gerade installiert — starten Sie es und drücken Sie erneut."},
+    "models_needs_provider": {
+        "ru": "Сначала установите и запустите Ollama — тогда модели можно будет скачать отсюда",
+        "en": "Install and start Ollama first — then models can be downloaded from here",
+        "it": "Prima installate e avviate Ollama — poi i modelli si potranno scaricare da qui",
+        "de": "Installieren und starten Sie zuerst Ollama — dann lassen sich Modelle von hier laden"},
+    "msg_provider_set": {
+        "ru": "Выбрано: {provider}", "en": "Chosen: {provider}",
+        "it": "Scelto: {provider}", "de": "Gewählt: {provider}"},
+    "msg_model_set": {
+        "ru": "Модель выбрана: {model}", "en": "Model chosen: {model}",
+        "it": "Modello scelto: {model}", "de": "Modell gewählt: {model}"},
+    "msg_pull_started": {
+        "ru": "Скачивание началось: {model}", "en": "Download started: {model}",
+        "it": "Download avviato: {model}", "de": "Download gestartet: {model}"},
+    "msg_pull_busy": {
+        "ru": "Уже скачивается другая модель — дождитесь окончания",
+        "en": "Another model is already downloading — wait for it to finish",
+        "it": "È già in corso il download di un altro modello — attendete la fine",
+        "de": "Ein anderes Modell wird bereits geladen — bitte abwarten"},
+    "welcome_title": {
+        "ru": "Настроим за минуту",
+        "en": "One minute of setup",
+        "it": "Un minuto di configurazione",
+        "de": "Eine Minute Einrichtung"},
+    "welcome_intro": {
+        "ru": "Программа не ищет вакансии сама — она поручает это модели: та читает ваше резюме, разбирает описания вакансий и объясняет, почему вакансия вам подходит. Выберите, чем считать. Потом это можно поменять в разделе «Модель».",
+        "en": "The app does not read job ads by itself — a model does that for it: it reads your CV, goes through the postings and explains why a job fits you. Choose what will do the thinking. You can change it later on the Model page.",
+        "it": "L'app non legge gli annunci da sola — lo fa un modello: legge il vostro CV, esamina le offerte e spiega perché una posizione fa per voi. Scegliete cosa farà il lavoro. Potrete cambiarlo più tardi nella pagina Modello.",
+        "de": "Die App liest Stellenanzeigen nicht selbst — das übernimmt ein Modell: Es liest Ihren Lebenslauf, geht die Anzeigen durch und erklärt, warum eine Stelle zu Ihnen passt. Wählen Sie, was rechnen soll. Später änderbar auf der Seite Modell."},
+    "welcome_step1": {
+        "ru": "Шаг 1. Через что работать",
+        "en": "Step 1. What to run it through",
+        "it": "Passo 1. Tramite cosa lavorare",
+        "de": "Schritt 1. Womit arbeiten"},
+    "welcome_step2": {
+        "ru": "Шаг 2. Какой моделью",
+        "en": "Step 2. Which model",
+        "it": "Passo 2. Quale modello",
+        "de": "Schritt 2. Welches Modell"},
+    "welcome_continue": {
+        "ru": "Продолжить", "en": "Continue", "it": "Continua", "de": "Weiter"},
+    "welcome_chosen": {
+        "ru": "Выбрано: {provider}, модель {model}",
+        "en": "Chosen: {provider}, model {model}",
+        "it": "Scelto: {provider}, modello {model}",
+        "de": "Gewählt: {provider}, Modell {model}"},
+    "welcome_blocked": {
+        "ru": "Выбранная программа ещё не установлена — без неё поиск не запустится. Установите её по подсказке выше или выберите другую.",
+        "en": "The tool you picked is not installed yet — the search cannot run without it. Install it using the hint above, or pick another one.",
+        "it": "Lo strumento scelto non è ancora installato — senza di esso la ricerca non parte. Installatelo seguendo il suggerimento sopra, oppure sceglietene un altro.",
+        "de": "Das gewählte Programm ist noch nicht installiert — ohne es startet die Suche nicht. Installieren Sie es nach dem Hinweis oben, oder wählen Sie ein anderes."},
+    # Программа на месте, а модель к ней — нет: причина другая, и подсказка «установите
+    # по подсказке выше» отправляла человека чинить то, что уже работает.
+    "welcome_blocked_model": {
+        "ru": "Выбранная модель ещё не скачана — без неё поиск не запустится. Нажмите «Скачать» в списке выше или выберите модель полегче.",
+        "en": "The model you picked has not been downloaded yet — the search cannot run without it. Press “Download” in the list above, or pick a lighter model.",
+        "it": "Il modello scelto non è ancora stato scaricato — senza di esso la ricerca non parte. Prema «Scarica» nell'elenco sopra, oppure scelga un modello più leggero.",
+        "de": "Das gewählte Modell ist noch nicht heruntergeladen — ohne es startet die Suche nicht. Drücken Sie oben in der Liste „Herunterladen“, oder wählen Sie ein leichteres Modell."},
+    "models_in_use": {"ru": "✓ Используется", "en": "✓ In use",
+                      "it": "✓ In uso", "de": "✓ In Verwendung"},
+    "src_crawl": {"ru": "краулинг", "en": "crawling", "it": "crawling", "de": "Crawling"},
+    "unit_gb": {"ru": "ГБ", "en": "GB", "it": "GB", "de": "GB"},
+    "models_ram": {"ru": "память:", "en": "memory:", "it": "memoria:", "de": "Speicher:"},
+    "models_usable": {"ru": "доступно модели", "en": "available to a model",
+                      "it": "disponibile al modello", "de": "für ein Modell verfügbar"},
+    "models_choose": {"ru": "Модель", "en": "Model", "it": "Modello", "de": "Modell"},
+    "models_search": {"ru": "Поиск по названию…", "en": "Search by name…",
+                      "it": "Cerca per nome…", "de": "Nach Name suchen…"},
+    "models_current": {"ru": "используется", "en": "in use", "it": "in uso", "de": "in Verwendung"},
+    "models_show_unsupported": {
+        "ru": "показать и те, что не пойдут на этом устройстве",
+        "en": "also show ones this device cannot run",
+        "it": "mostra anche quelli che questo dispositivo non regge",
+        "de": "auch die zeigen, die dieses Gerät nicht schafft"},
+    "models_hidden_note": {
+        "ru": "скрыто {n}: не хватит памяти",
+        "en": "{n} hidden: not enough memory",
+        "it": "{n} nascosti: memoria insufficiente",
+        "de": "{n} ausgeblendet: zu wenig Speicher"},
+    "models_fits_yes": {"ru": "пойдёт", "en": "runs fine", "it": "funziona", "de": "läuft"},
+    "models_fits_tight": {"ru": "впритык", "en": "tight", "it": "al limite", "de": "knapp"},
+    "models_fits_no": {"ru": "не хватит памяти", "en": "not enough memory",
+                       "it": "memoria insufficiente", "de": "zu wenig Speicher"},
+    "models_installed": {"ru": "скачана", "en": "downloaded", "it": "scaricato", "de": "heruntergeladen"},
+    "models_power": {"ru": "мощность", "en": "power", "it": "potenza", "de": "Stärke"},
+    "models_needs": {"ru": "нужно", "en": "needed", "it": "necessari", "de": "nötig"},
+    "models_download": {"ru": "Скачать", "en": "Download", "it": "Scarica", "de": "Herunterladen"},
+    "models_pull_hint": {"ru": "Можно закрыть эту страницу и заниматься другим — скачивание идёт в фоне. Модель весит несколько гигабайт, это занимает от нескольких минут.",
+                         "en": "You can leave this page — the download runs in the background. A model is several gigabytes, so it takes a few minutes or more.",
+                         "it": "Può lasciare questa pagina — il download prosegue in background. Un modello pesa alcuni gigabyte, quindi richiede qualche minuto o più.",
+                         "de": "Sie können diese Seite verlassen — der Download läuft im Hintergrund. Ein Modell ist mehrere Gigabyte groß, das dauert einige Minuten oder länger."},
+    "models_ollama_steps": {"ru": "Ollama — маленькая бесплатная программа, которая держит модели на вашем компьютере. Скачайте её с ollama.com, установите, запустите — и вернитесь сюда: список моделей станет активным, и любую можно будет скачать кнопкой прямо отсюда.",
+                            "en": "Ollama is a small free program that keeps models on your computer. Download it from ollama.com, install it, launch it — then come back here: the model list becomes active and any model can be downloaded right from this page.",
+                            "it": "Ollama è un piccolo programma gratuito che tiene i modelli sul suo computer. Lo scarichi da ollama.com, lo installi, lo avvii — poi torni qui: l'elenco dei modelli si attiva e qualsiasi modello si scarica da questa pagina.",
+                            "de": "Ollama ist ein kleines kostenloses Programm, das Modelle auf Ihrem Rechner hält. Von ollama.com laden, installieren, starten — dann hierher zurückkehren: Die Modellliste wird aktiv und jedes Modell lässt sich direkt hier herunterladen."},
+    "models_use": {"ru": "Использовать", "en": "Use", "it": "Usa", "de": "Verwenden"},
+    "simple_title": {"ru": "Найти работу", "en": "Find a job",
+                     "it": "Trova lavoro", "de": "Job finden"},
+    "simple_hint": {"ru": "Три поля — и поиск пойдёт. Роли, навыки и уровень ИИ определит из вашего CV, остальные настройки возьмёт разумные по умолчанию.",
+                    "en": "Three fields and the search starts. Roles, skills and seniority are taken from your CV; everything else uses sensible defaults.",
+                    "it": "Tre campi e la ricerca parte. Ruoli, competenze e livello vengono ricavati dal CV; il resto usa impostazioni predefinite ragionevoli.",
+                    "de": "Drei Felder, und die Suche startet. Rollen, Kenntnisse und Level werden aus dem CV übernommen; alles andere nutzt sinnvolle Standardwerte."},
+    "person_rename_title": {
+        "ru": "Переименовать этого человека",
+        "en": "Rename this person",
+        "it": "Rinomina questa persona",
+        "de": "Diese Person umbenennen"},
+    "person_rename_prompt": {
+        "ru": "Как зовут этого человека?",
+        "en": "What is this person called?",
+        "it": "Come si chiama questa persona?",
+        "de": "Wie heißt diese Person?"},
+    "person_add_prompt": {
+        "ru": "Кого добавляем? У него будет свои настройки, CV и список вакансий.",
+        "en": "Who are we adding? They get their own settings, CV and list of jobs.",
+        "it": "Chi aggiungiamo? Avrà impostazioni, CV ed elenco di offerte propri.",
+        "de": "Wen fügen wir hinzu? Er bekommt eigene Einstellungen, Lebenslauf und Stellenliste."},
+    "simple_person": {"ru": "Для кого ищем", "en": "Who is this for",
+                      "it": "Per chi cerchiamo", "de": "Für wen suchen wir"},
+    "simple_person_ph": {"ru": "Имя человека", "en": "Person's name",
+                         "it": "Nome della persona", "de": "Name der Person"},
+    "simple_where": {"ru": "Где искать", "en": "Where to search",
+                     "it": "Dove cercare", "de": "Wo suchen"},
+    "simple_where_hint": {"ru": "Страна, город, регион или remote — через запятую. Например: Italy · EU · Berlin, Munich · remote",
+                          "en": "Country, city, region or remote — comma-separated. E.g.: Italy · EU · Berlin, Munich · remote",
+                          "it": "Paese, città, regione o remoto — separati da virgola. Es.: Italy · EU · Berlin, Munich · remote",
+                          "de": "Land, Stadt, Region oder remote — durch Komma getrennt. Z. B.: Italy · EU · Berlin, Munich · remote"},
+    "simple_cv": {"ru": "CV (PDF, DOCX или текст)", "en": "CV (PDF, DOCX or text)",
+                  "it": "CV (PDF, DOCX o testo)", "de": "Lebenslauf (PDF, DOCX oder Text)"},
+    "simple_cv_current": {"ru": "Сейчас загружено:", "en": "Currently uploaded:",
+                          "it": "Attualmente caricato:", "de": "Aktuell hochgeladen:"},
+    "simple_cv_none": {"ru": "CV ещё не загружено — без него поиск не запустится.",
+                       "en": "No CV yet — the search will not start without it.",
+                       "it": "Nessun CV — senza di esso la ricerca non parte.",
+                       "de": "Noch kein Lebenslauf — ohne ihn startet die Suche nicht."},
+    "simple_go": {"ru": "Начать поиск", "en": "Start searching",
+                  "it": "Avvia la ricerca", "de": "Suche starten"},
+    "simple_starting": {"ru": "Запускаем…", "en": "Starting…", "it": "Avvio…", "de": "Wird gestartet…"},
+    "donate_short": {
+        "ru": "Программа бесплатная — можно поддержать автора:",
+        "en": "The app is free — you can support the author:",
+        "it": "L'app è gratuita — potete sostenere l'autore:",
+        "de": "Die App ist kostenlos — Sie können den Autor unterstützen:"},
+    "more_projects": {
+        "ru": "Другие проекты автора",
+        "en": "More projects by the author",
+        "it": "Altri progetti dell'autore",
+        "de": "Weitere Projekte des Autors"},
+    "donate_hint": {"ru": "Программа бесплатная и работает у вас на компьютере. Если она пригодилась — можно поддержать автора:", "en": "This app is free and runs on your own computer. If it has been useful, you can support the author:", "it": "L'app è gratuita e gira sul vostro computer. Se vi è stata utile, potete sostenere l'autore:", "de": "Die App ist kostenlos und läuft auf Ihrem eigenen Rechner. Wenn sie nützlich war, können Sie den Autor unterstützen:"},
+    "log_discover_skipped_why": {"ru": " (его поддерживает только Claude Code CLI)", "en": " (only Claude Code CLI supports it)", "it": " (solo Claude Code CLI lo supporta)", "de": " (nur Claude Code CLI kann das)"},
+    "log_empty_profile_fix": {"ru": " Заполните «Профиль» на странице настроек поиска.", "en": " Fill in the Profile block on the Search settings page.", "it": " Compilate il blocco Profilo nella pagina Impostazioni ricerca.", "de": " Füllen Sie den Block Profil auf der Seite Sucheinstellungen aus."},
+    "log_triage_batch": {
+        "ru": "оценка: {done} из {total} пачек готово",
+        "en": "scoring: {done} of {total} batches done",
+        "it": "valutazione: {done} di {total} lotti fatti",
+        "de": "Bewertung: {done} von {total} Stapeln fertig"},
+    "log_triage_batch_err": {
+        "ru": "оценка (пачка): {error}",
+        "en": "scoring (batch): {error}",
+        "it": "valutazione (lotto): {error}",
+        "de": "Bewertung (Stapel): {error}"},
+    "log_deep_job_err": {
+        "ru": "разбор «{title}»: {error}",
+        "en": "analysis of “{title}”: {error}",
+        "it": "analisi di «{title}»: {error}",
+        "de": "Analyse von „{title}“: {error}"},
+    "log_disc_err": {
+        "ru": "поиск компаний (заход {r}): {error}",
+        "en": "company search (pass {r}): {error}",
+        "it": "ricerca aziende (giro {r}): {error}",
+        "de": "Unternehmenssuche (Durchgang {r}): {error}"},
+    "log_disc_pass": {
+        "ru": "поиск компаний: заход {r}, +{added}, всего {found}/{want}",
+        "en": "company search: pass {r}, +{added}, total {found}/{want}",
+        "it": "ricerca aziende: giro {r}, +{added}, totale {found}/{want}",
+        "de": "Unternehmenssuche: Durchgang {r}, +{added}, gesamt {found}/{want}"},
+    "log_ats_err": {
+        "ru": "поиск вакансий по ATS: {error}",
+        "en": "job search on ATS domains: {error}",
+        "it": "ricerca offerte sui domini ATS: {error}",
+        "de": "Stellensuche auf ATS-Domains: {error}"},
+    "log_ats_found": {
+        "ru": "вакансия на ATS: {title} @ {name} → берём доску {board} в мониторинг",
+        "en": "job on ATS: {title} @ {name} → adding board {board} to monitoring",
+        "it": "offerta su ATS: {title} @ {name} → aggiungiamo la bacheca {board} al monitoraggio",
+        "de": "Stelle auf ATS: {title} @ {name} → Board {board} wird überwacht"},
+    "log_crawl_ats": {
+        "ru": "обход {name}: найден встроенный ATS ({kind}/{id}) — {n}",
+        "en": "crawl {name}: embedded ATS found ({kind}/{id}) — {n}",
+        "it": "scansione {name}: trovato ATS incorporato ({kind}/{id}) — {n}",
+        "de": "Crawl {name}: eingebettetes ATS gefunden ({kind}/{id}) — {n}"},
+    "log_crawl_ats_fail": {
+        "ru": "обход {name}: встроенный ATS {found} не прочитался ({error}), пробую модель",
+        "en": "crawl {name}: embedded ATS {found} would not read ({error}), trying the model",
+        "it": "scansione {name}: l'ATS incorporato {found} non si è letto ({error}), provo col modello",
+        "de": "Crawl {name}: eingebettetes ATS {found} nicht lesbar ({error}), versuche es mit dem Modell"},
+    "log_crawl_empty": {
+        "ru": "обход {name}: страница почти пустая (скорее всего, содержимое рисуется скриптом)",
+        "en": "crawl {name}: the page is nearly empty (its content is most likely drawn by a script)",
+        "it": "scansione {name}: la pagina è quasi vuota (il contenuto è probabilmente disegnato da uno script)",
+        "de": "Crawl {name}: die Seite ist fast leer (der Inhalt wird vermutlich per Skript gezeichnet)"},
+    "log_crawl_subpage": {
+        "ru": "обход {name}: на {url} вакансий нет, пробую подстраницу {sub}",
+        "en": "crawl {name}: no jobs at {url}, trying the sub-page {sub}",
+        "it": "scansione {name}: nessuna offerta su {url}, provo la sotto-pagina {sub}",
+        "de": "Crawl {name}: keine Stellen unter {url}, versuche die Unterseite {sub}"},
+    "log_crawl_guessed": {
+        "ru": "обход {name}: careers на скриптах, ATS угадан по названию ({kind}/{id}) — {n}",
+        "en": "crawl {name}: careers page is script-driven, ATS guessed from the name ({kind}/{id}) — {n}",
+        "it": "scansione {name}: pagina careers a script, ATS indovinato dal nome ({kind}/{id}) — {n}",
+        "de": "Crawl {name}: Karriereseite ist skriptgesteuert, ATS aus dem Namen erraten ({kind}/{id}) — {n}"},
+    "log_cv_parse": {
+        "ru": "Готовим профиль по резюме — это занимает до полутора минут",
+        "en": "Reading the CV to build the profile — this takes up to a minute and a half",
+        "it": "Leggiamo il CV per costruire il profilo — ci vuole fino a un minuto e mezzo",
+        "de": "Lebenslauf wird für das Profil gelesen — das dauert bis zu anderthalb Minuten"},
+    "log_cv_roles": {
+        "ru": "Из резюме определены роли: {roles}",
+        "en": "Roles taken from the CV: {roles}",
+        "it": "Ruoli ricavati dal CV: {roles}",
+        "de": "Aus dem Lebenslauf ermittelte Rollen: {roles}"},
+    "log_cv_failed": {
+        "ru": "Не удалось разобрать резюме автоматически: {error}",
+        "en": "Could not read the CV automatically: {error}",
+        "it": "Non è stato possibile leggere il CV automaticamente: {error}",
+        "de": "Der Lebenslauf ließ sich nicht automatisch auswerten: {error}"},
+    "log_run": {
+        "ru": "Прогон #{n} ({trigger})",
+        "en": "Run #{n} ({trigger})",
+        "it": "Esecuzione #{n} ({trigger})",
+        "de": "Durchlauf #{n} ({trigger})"},
+    "log_discover_skipped": {
+        "ru": "поиск новых компаний пропущен: выбранная модель не умеет веб-поиск",
+        "en": "skipping the search for new companies: the chosen model cannot search the web",
+        "it": "ricerca di nuove aziende saltata: il modello scelto non sa cercare sul web",
+        "de": "Suche nach neuen Unternehmen übersprungen: das gewählte Modell kann nicht im Web suchen"},
+    "log_new_company": {
+        "ru": "новая компания: {name} — {url}",
+        "en": "new company: {name} — {url}",
+        "it": "nuova azienda: {name} — {url}",
+        "de": "neues Unternehmen: {name} — {url}"},
+    "log_no_new_companies": {
+        "ru": "новых компаний не найдено",
+        "en": "no new companies found",
+        "it": "nessuna nuova azienda trovata",
+        "de": "keine neuen Unternehmen gefunden"},
+    "log_no_new_boards": {
+        "ru": "новых досок на ATS не найдено",
+        "en": "no new ATS boards found",
+        "it": "nessuna nuova bacheca ATS trovata",
+        "de": "keine neuen ATS-Boards gefunden"},
+    "log_collected": {
+        "ru": "Собрано всего: {n}",
+        "en": "Collected in total: {n}",
+        "it": "Raccolte in totale: {n}",
+        "de": "Insgesamt gesammelt: {n}"},
+    # Отказали все до единого — это не ответ рынка, а общая внешняя причина:
+    # антивирус, перехватывающий соединения, корпоративный шлюз, нет сети.
+    # Восемь источников из десяти — доски для программистов. Человек, ищущий
+    # работу руками, иначе решит, что вакансий по его профессии просто нет.
+    # Раздел с ключами был свёрнут и молчал о том, что даёт. Человек, ищущий
+    # работу за пределами ЕС и США, до него не добирался: получал десяток
+    # вакансий и решал, что программа не работает. Считано на 1511 собранных:
+    # по Украине их было восемь, по ОАЭ семь, по России одна.
+    "keys_title": {
+        "ru": "Ключи Adzuna и Jooble — страны за пределами ЕС и США",
+        "en": "Adzuna and Jooble keys — countries outside the EU and the US",
+        "it": "Chiavi Adzuna e Jooble — paesi fuori dall'UE e dagli USA",
+        "de": "Adzuna- und Jooble-Schlüssel — Länder außerhalb der EU und der USA"},
+    "keys_hint": {
+        "ru": "Без ключей программа хорошо покрывает ЕС (особенно Германию) и удалённую работу на западные компании. Украина, ОАЭ, Китай, Индия, Турция, Россия — почти пусто. Jooble заявляет около семидесяти стран, Adzuna — девятнадцать; ключи у обоих бесплатные и выдаются сразу. Если ищете за пределами ЕС и США, начните с них, иначе поиск найдёт единицы вакансий не потому, что их нет, а потому, что искать негде.",
+        "en": "Without keys the app covers the EU well (Germany especially) and remote work for Western companies. Ukraine, the UAE, China, India, Turkey, Russia — almost nothing. Jooble claims about seventy countries, Adzuna nineteen; both keys are free and issued immediately. If you are looking outside the EU and the US, start here — otherwise the search will find a handful of jobs, not because there are none, but because there is nowhere to look.",
+        "it": "Senza chiavi il programma copre bene l'UE (soprattutto la Germania) e il lavoro da remoto per aziende occidentali. Ucraina, Emirati, Cina, India, Turchia, Russia — quasi nulla. Jooble dichiara circa settanta paesi, Adzuna diciannove; le chiavi di entrambi sono gratuite e rilasciate subito. Se cerca fuori dall'UE e dagli USA, cominci da qui, altrimenti la ricerca troverà poche offerte non perché non ce ne siano, ma perché non c'è dove cercare.",
+        "de": "Ohne Schlüssel deckt das Programm die EU gut ab (Deutschland besonders) sowie Fernarbeit für westliche Unternehmen. Ukraine, VAE, China, Indien, Türkei, Russland — fast nichts. Jooble nennt etwa siebzig Länder, Adzuna neunzehn; beide Schlüssel sind kostenlos und werden sofort ausgestellt. Wenn Sie außerhalb der EU und der USA suchen, fangen Sie hier an — sonst findet die Suche wenige Stellen, nicht weil es keine gibt, sondern weil es nichts zu durchsuchen gibt."},
+    "sources_trades_hint": {
+        "ru": "Большинство источников выше — доски для IT. Рабочие и не-компьютерные профессии находятся в EURES (весь ЕС, ищет по смыслу — можно писать профессию на любом языке), в Arbeitsagentur (Германия, только немецкие слова) и в JobTech (Швеция).",
+        "en": "Most of the sources above are IT job boards. Trades and non-computer professions are found in EURES (the whole EU, matches by meaning — you can name your trade in any language), in Arbeitsagentur (Germany, German words only) and in JobTech (Sweden).",
+        "it": "La maggior parte delle fonti qui sopra sono bacheche per l'informatica. I mestieri e le professioni non informatiche si trovano in EURES (tutta l'UE, cerca per significato — può scrivere la professione in qualsiasi lingua), in Arbeitsagentur (Germania, solo parole tedesche) e in JobTech (Svezia).",
+        "de": "Die meisten Quellen oben sind IT-Jobbörsen. Handwerk und nicht-computerbezogene Berufe finden sich in EURES (die ganze EU, sucht nach Bedeutung — Sie können den Beruf in jeder Sprache schreiben), in der Arbeitsagentur (Deutschland, nur deutsche Wörter) und in JobTech (Schweden)."},
+    "log_all_sources_failed": {
+        "ru": "Ни один из {n} источников не ответил — похоже, до них не доходят соединения. Загляните в «Покрытие»: там сказано, что ответил каждый. Частая причина — антивирус или рабочий шлюз, проверяющий защищённые соединения.",
+        "en": "Not one of the {n} sources answered — the connections seem not to be getting through. Look at “Coverage”: it says what each one replied. A common cause is an antivirus or a work gateway inspecting secure connections.",
+        "it": "Nessuna delle {n} fonti ha risposto — sembra che le connessioni non arrivino. Guardi «Copertura»: lì è scritto che cosa ha risposto ciascuna. Una causa frequente è un antivirus o un gateway aziendale che ispeziona le connessioni sicure.",
+        "de": "Keine der {n} Quellen hat geantwortet — die Verbindungen kommen offenbar nicht durch. Sehen Sie unter „Abdeckung“ nach: dort steht, was jede geantwortet hat. Ein häufiger Grund ist ein Virenschutz oder ein Firmen-Gateway, das gesicherte Verbindungen prüft."},
+    "log_after_filters": {
+        "ru": "После фильтров локации/стоп-слов: {n} (отсеяно по локации: {loc}, по стоп-словам: {kw})",
+        "en": "After the location and stop-word filters: {n} (dropped by location: {loc}, by stop-word: {kw})",
+        "it": "Dopo i filtri di luogo e parole escluse: {n} (scartate per luogo: {loc}, per parola: {kw})",
+        "de": "Nach Orts- und Stoppwortfiltern: {n} (nach Ort verworfen: {loc}, nach Stoppwort: {kw})"},
+    "log_drop_location": {
+        "ru": "  пример отсева по локации: {title} — «{loc}»",
+        "en": "  example dropped by location: {title} — “{loc}”",
+        "it": "  esempio scartato per luogo: {title} — «{loc}»",
+        "de": "  Beispiel nach Ort verworfen: {title} — „{loc}“"},
+    "log_drop_keyword": {
+        "ru": "  пример отсева по стоп-слову: {title} @ {company}",
+        "en": "  example dropped by stop-word: {title} @ {company}",
+        "it": "  esempio scartato per parola esclusa: {title} @ {company}",
+        "de": "  Beispiel nach Stoppwort verworfen: {title} @ {company}"},
+    "log_fresh": {
+        "ru": "Новых (не виденных ранее): {n}",
+        "en": "New (not seen before): {n}",
+        "it": "Nuove (mai viste prima): {n}",
+        "de": "Neu (vorher nicht gesehen): {n}"},
+    "log_dropped_offtarget": {
+        "ru": "Отсеяно явно нерелевантных ролей (продажи/HR/саппорт и т.п.): {n}",
+        "en": "Dropped clearly unrelated roles (sales, HR, support and the like): {n}",
+        "it": "Scartati ruoli chiaramente estranei (vendite, HR, supporto e simili): {n}",
+        "de": "Klar fachfremde Rollen verworfen (Vertrieb, HR, Support und Ähnliches): {n}"},
+    "log_to_triage": {
+        "ru": "На оценку моделью: {n} (из них от ваших компаний: {own})",
+        "en": "Going to the model for scoring: {n} (of them from your companies: {own})",
+        "it": "Alla valutazione del modello: {n} (di cui dalle vostre aziende: {own})",
+        "de": "Zur Bewertung durch das Modell: {n} (davon von Ihren Unternehmen: {own})"},
+    "log_deferred": {
+        "ru": ", отложено до следующего прогона: {n}",
+        "en": ", held over to the next run: {n}",
+        "it": ", rinviate alla prossima esecuzione: {n}",
+        "de": ", auf den nächsten Durchlauf verschoben: {n}"},
+    "log_empty_profile": {
+        "ru": "ВНИМАНИЕ: профиль пуст и резюме не загружено — оценки будут случайными",
+        "en": "WARNING: the profile is empty and no CV is uploaded — the scores will be meaningless",
+        "it": "ATTENZIONE: il profilo è vuoto e non c'è alcun CV — le valutazioni saranno casuali",
+        "de": "ACHTUNG: das Profil ist leer und es ist kein Lebenslauf geladen — die Bewertungen sind zufällig"},
+    "log_second_vote": {
+        "ru": "второе мнение: {n} пограничных ({lo}–{hi}%)",
+        "en": "second opinion: {n} borderline ({lo}–{hi}%)",
+        "it": "secondo parere: {n} al limite ({lo}–{hi}%)",
+        "de": "zweite Meinung: {n} Grenzfälle ({lo}–{hi}%)"},
+    "log_second_vote_rescued": {
+        "ru": "второе мнение подняло выше порога: {n} — уйдут на глубокий разбор",
+        "en": "the second opinion lifted {n} above the threshold — they go to deep analysis",
+        "it": "il secondo parere ne ha portate sopra la soglia: {n} — vanno all'analisi approfondita",
+        "de": "die zweite Meinung hob {n} über die Schwelle — sie gehen in die tiefe Analyse"},
+    "log_triage_done": {
+        "ru": "Оценено: {n}. Глубоко проверяем: {above} прошедших порог + {near} близких (≥{margin}%)",
+        "en": "Scored: {n}. Going deep on {above} above the threshold + {near} near misses (≥{margin}%)",
+        "it": "Valutate: {n}. Analisi approfondita per {above} sopra soglia + {near} vicine (≥{margin}%)",
+        "de": "Bewertet: {n}. Tiefe Analyse für {above} über der Schwelle + {near} knappe (≥{margin}%)"},
+    "log_triage_done_nodeep": {
+        "ru": "Оценено: {n}, из них выше порога: {above}. Глубокий разбор выключен — оценки предварительные, разобрать вакансию можно кнопкой в списке.",
+        "en": "Scored: {n}, {above} above the threshold. Deep analysis is off — these scores are preliminary; analyse a job with the button on its card.",
+        "it": "Valutate: {n}, di cui {above} sopra soglia. L'analisi approfondita è disattivata — i punteggi sono provvisori; analizzate un'offerta col pulsante sulla sua scheda.",
+        "de": "Bewertet: {n}, davon {above} über der Schwelle. Die Tiefenanalyse ist aus — die Punktzahlen sind vorläufig; einzelne Stellen analysieren Sie mit der Schaltfläche auf der Karte."},
+    "harvest_boards": {
+        "ru": "Запоминать работодателей из найденных вакансий",
+        "en": "Remember employers found in job links",
+        "it": "Ricordare i datori di lavoro trovati negli annunci",
+        "de": "Arbeitgeber aus gefundenen Stellen merken"},
+    "harvest_boards_hint": {
+        "ru": "Большая часть вакансий с агрегаторов ссылается прямо на доску компании. Программа запоминает такие доски и со следующего прогона читает их целиком — агрегатор показывает одну-две вакансии, а доска все. Веб-поиск и модель для этого не нужны, так что охват растёт и с локальной моделью. Список компаний при этом пополняется сам — его видно в настройках ниже.",
+        "en": "Most jobs from aggregators link straight to the company's own board. The app remembers those boards and from the next run reads them in full — an aggregator shows one or two openings, the board shows all of them. No web search and no model needed, so coverage grows with a local model too. Your company list fills up on its own; it is right below.",
+        "it": "La maggior parte delle offerte dagli aggregatori rimanda direttamente alla bacheca dell'azienda. L'app le memorizza e dalla prossima esecuzione le legge per intero: l'aggregatore mostra una o due offerte, la bacheca tutte. Non servono né ricerca web né modello, quindi la copertura cresce anche con un modello locale. L'elenco delle aziende si riempie da solo, qui sotto.",
+        "de": "Die meisten Stellen von Aggregatoren verlinken direkt auf das Board des Unternehmens. Die App merkt sich diese Boards und liest sie ab dem nächsten Lauf vollständig — der Aggregator zeigt ein bis zwei Stellen, das Board alle. Weder Websuche noch Modell nötig, die Abdeckung wächst also auch mit einem lokalen Modell. Ihre Firmenliste füllt sich von selbst; sie steht direkt darunter."},
+    "log_harvest_board": {
+        "ru": "работодатель из ссылки: {name} → {url} (добавлен в наблюдение)",
+        "en": "employer found in a link: {name} → {url} (added to monitoring)",
+        "it": "datore di lavoro trovato in un link: {name} → {url} (aggiunto al monitoraggio)",
+        "de": "Arbeitgeber aus einem Link: {name} → {url} (zur Beobachtung hinzugefügt)"},
+    "log_harvest_total": {
+        "ru": "новых работодателей из ссылок: {n} — их доски прочитаем целиком со следующего прогона",
+        "en": "new employers from links: {n} — their boards will be read in full from the next run",
+        "it": "nuovi datori di lavoro dai link: {n} — le loro bacheche saranno lette per intero dalla prossima esecuzione",
+        "de": "neue Arbeitgeber aus Links: {n} — ihre Boards werden ab dem nächsten Lauf vollständig gelesen"},
+    "log_robots_skip": {
+        "ru": "{name}: сайт просит роботов не читать эту страницу (robots.txt) — пропускаем",
+        "en": "{name}: the site asks robots not to read this page (robots.txt) — skipping",
+        "it": "{name}: il sito chiede ai robot di non leggere questa pagina (robots.txt) — saltata",
+        "de": "{name}: Die Seite bittet Robots, sie nicht zu lesen (robots.txt) — übersprungen"},
+    "log_deep_item": {
+        "ru": "разбор {i}/{total}: {title} @ {company}{tail}",
+        "en": "analysing {i}/{total}: {title} @ {company}{tail}",
+        "it": "analisi {i}/{total}: {title} @ {company}{tail}",
+        "de": "Analyse {i}/{total}: {title} @ {company}{tail}"},
+    "log_deep_error": {
+        "ru": "разбор: {error}",
+        "en": "analysis: {error}",
+        "it": "analisi: {error}",
+        "de": "Analyse: {error}"},
+    "log_tg_sent": {
+        "ru": "Дайджест отправлен в Telegram",
+        "en": "Digest sent to Telegram",
+        "it": "Riepilogo inviato a Telegram",
+        "de": "Zusammenfassung an Telegram gesendet"},
+    "log_tg_not_set": {
+        "ru": "Telegram не настроен — дайджест только на странице результатов",
+        "en": "Telegram is not set up — the digest stays on the Results page",
+        "it": "Telegram non è configurato — il riepilogo resta nella pagina Risultati",
+        "de": "Telegram ist nicht eingerichtet — die Zusammenfassung bleibt auf der Ergebnisseite"},
+    "log_mail_sent": {
+        "ru": "Письмо с результатами отправлено",
+        "en": "Email with the results sent",
+        "it": "Email con i risultati inviata",
+        "de": "E-Mail mit den Ergebnissen gesendet"},
+    "log_mail_error": {
+        "ru": "Почта: {error}",
+        "en": "Email: {error}",
+        "it": "Email: {error}",
+        "de": "E-Mail: {error}"},
+    "log_done": {
+        "ru": "Готово",
+        "en": "Done",
+        "it": "Fatto",
+        "de": "Fertig"},
+    "log_stopped": {
+        "ru": "Прогон остановлен — найденное сохранено",
+        "en": "Run stopped — what was found is saved",
+        "it": "Esecuzione interrotta — quanto trovato è salvato",
+        "de": "Durchlauf gestoppt — das Gefundene ist gespeichert"},
+    "log_noauth": {
+        "ru": "Модель не отвечает: {error}",
+        "en": "The model is not answering: {error}",
+        "it": "Il modello non risponde: {error}",
+        "de": "Das Modell antwortet nicht: {error}"},
+    "log_noauth_stop": {
+        "ru": "Оценивать вакансии нечем — прогон остановлен.",
+        "en": "There is nothing to score the jobs with — the run has stopped.",
+        "it": "Non c'è con cosa valutare le offerte — l'esecuzione si è fermata.",
+        "de": "Es gibt nichts, womit die Stellen bewertet werden könnten — der Durchlauf ist gestoppt."},
+    "log_error": {
+        "ru": "ОШИБКА:",
+        "en": "ERROR:",
+        "it": "ERRORE:",
+        "de": "FEHLER:"},
+    "noauth_title": {"ru": "Модель не пускает к себе", "en": "The model would not let us in", "it": "Il modello non ci fa entrare", "de": "Das Modell lässt uns nicht herein"},
+    "noauth_hint": {"ru": "Прошлый прогон собрал вакансии, но оценить их было нечем: {name} отвечает «{error}». Откройте эту программу и войдите в неё, потом запустите поиск снова. Или выберите другой способ на странице «Модель».", "en": "The last run collected jobs but had nothing to score them with: {name} answers “{error}”. Open that program, sign in, then start the search again. Or pick another option on the Model page.", "it": "L'ultima esecuzione ha raccolto offerte ma non aveva con cosa valutarle: {name} risponde «{error}». Aprite quel programma, accedete e rilanciate la ricerca. Oppure scegliete un'altra opzione nella pagina Modello.", "de": "Der letzte Durchlauf hat Stellen gesammelt, konnte sie aber mit nichts bewerten: {name} antwortet „{error}“. Öffnen Sie dieses Programm, melden Sie sich an und starten Sie die Suche erneut. Oder wählen Sie auf der Seite Modell etwas anderes."},
+    "donate_title": {"ru": "Поддержать проект", "en": "Support the project", "it": "Sostieni il progetto", "de": "Projekt unterstützen"},
+    "stage_start": {"ru": "начинаем", "en": "starting", "it": "avvio", "de": "Start"},
+    "stage_discover": {"ru": "ищем новые компании (веб-поиск)", "en": "finding new companies (web search)", "it": "cerchiamo nuove aziende (ricerca web)", "de": "neue Unternehmen suchen (Websuche)"},
+    "stage_discover_ats": {"ru": "ищем вакансии на доменах ATS", "en": "searching job boards (ATS domains)", "it": "cerchiamo offerte sui domini ATS", "de": "Stellen auf ATS-Domains suchen"},
+    "stage_collect": {"ru": "собираем вакансии", "en": "collecting jobs", "it": "raccogliamo le offerte", "de": "Stellen sammeln"},
+    "stage_dedupe": {"ru": "убираем повторы и лишнее", "en": "removing duplicates and noise", "it": "rimuoviamo doppioni e rumore", "de": "Duplikate und Rauschen entfernen"},
+    "stage_prepare": {"ru": "готовим к оценке", "en": "preparing for scoring", "it": "prepariamo la valutazione", "de": "Bewertung vorbereiten"},
+    "stage_triage": {"ru": "быстрая оценка моделью", "en": "quick scoring by the model", "it": "valutazione rapida col modello", "de": "schnelle Bewertung durch das Modell"},
+    "stage_deep": {"ru": "глубокий разбор и советы по CV", "en": "deep analysis and CV advice", "it": "analisi approfondita e consigli sul CV", "de": "tiefe Analyse und CV-Tipps"},
+    "stage_deep_research": {"ru": "глубокий разбор, зарплата и факты о компании", "en": "deep analysis, salary and company facts", "it": "analisi approfondita, stipendio e dati sull'azienda", "de": "tiefe Analyse, Gehalt und Unternehmensfakten"},
+    "stage_save": {"ru": "сохраняем и отправляем", "en": "saving and sending", "it": "salviamo e inviamo", "de": "speichern und senden"},
+    "run_elapsed": {
+        "ru": "идёт {mins} мин",
+        "en": "running for {mins} min",
+        "it": "in corso da {mins} min",
+        "de": "läuft seit {mins} Min"},
+    "run_eta": {
+        "ru": "этап закончится примерно через {mins} мин",
+        "en": "about {mins} min left in this stage",
+        "it": "circa {mins} min alla fine di questo passo",
+        "de": "noch etwa {mins} Min in diesem Schritt"},
+    "run_typical": {
+        "ru": "обычно прогон занимает ~{mins} мин",
+        "en": "a run usually takes ~{mins} min",
+        "it": "di solito un'esecuzione dura ~{mins} min",
+        "de": "ein Durchlauf dauert meist ~{mins} Min"},
+    "run_step": {"ru": "шаг {n} из {m}", "en": "step {n} of {m}", "it": "passo {n} di {m}", "de": "Schritt {n} von {m}"},
+    "run_where_results": {"ru": "Найденные вакансии появляются на странице «Результаты» по мере оценки — можно открыть её прямо сейчас и смотреть, как они прибывают.", "en": "Jobs appear on the Results page as they are scored — you can open it right now and watch them arrive.", "it": "Le offerte compaiono nella pagina Risultati man mano che vengono valutate: potete aprirla subito e guardarle arrivare.", "de": "Gefundene Stellen erscheinen nach und nach auf der Seite Ergebnisse — Sie können sie jetzt öffnen und zusehen."},
+    "run_can_close": {"ru": "Окно можно закрыть: если включён фоновый режим, поиск продолжится сам. Первый прогон занимает 20–40 минут.", "en": "You can close the window: with background mode on, the search carries on by itself. The first run takes 20–40 minutes.", "it": "Potete chiudere la finestra: con la modalità in background la ricerca prosegue da sola. La prima esecuzione richiede 20–40 minuti.", "de": "Sie können das Fenster schließen: mit Hintergrundmodus läuft die Suche allein weiter. Der erste Durchlauf dauert 20–40 Minuten."},
+    "run_open_results": {"ru": "Открыть результаты", "en": "Open results", "it": "Apri i risultati", "de": "Ergebnisse öffnen"},
+    "job_preliminary_hint": {
+        "ru": "Быстрая оценка. Советы по CV и кнопка «CV под вакансию» появятся после глубокого разбора — он идёт в конце прогона для прошедших порог и ближайших к нему.",
+        "en": "A quick score. Advice and the tailored CV appear after deep analysis — it runs at the end of the search, for jobs above the threshold and the near misses.",
+        "it": "Valutazione rapida. I consigli e il CV su misura arrivano dopo l'analisi approfondita, che parte a fine esecuzione per chi supera la soglia e per chi le è vicino.",
+        "de": "Schnelle Bewertung. Tipps und der zugeschnittene Lebenslauf erscheinen nach der tiefen Analyse — sie läuft am Ende des Durchlaufs für Stellen über der Schwelle und die knapp darunter."},
+    "results_live_new": {"ru": "Появилось новых: {n} — показать", "en": "{n} new found — show them", "it": "Nuove trovate: {n} — mostra", "de": "{n} neue gefunden — anzeigen"},
+    "results_live_done": {"ru": "Поиск закончился", "en": "The search has finished",
+                          "it": "La ricerca è finita", "de": "Die Suche ist fertig"},
+    "results_live_refresh": {"ru": "обновить список", "en": "refresh the list",
+                             "it": "aggiorna l'elenco", "de": "Liste aktualisieren"},
+    "run_in_progress": {"ru": "Поиск идёт", "en": "Search in progress", "it": "Ricerca in corso", "de": "Suche läuft"},
+    "stage_cv": {"ru": "разбираем резюме", "en": "reading the CV",
+                 "it": "analisi del CV", "de": "Lebenslauf wird gelesen"},
+    "simple_go_hint": {"ru": "Первый прогон занимает 20–40 минут. Результаты появятся на странице «Результаты».",
+                       "en": "The first run takes 20–40 minutes. Results appear on the Results page.",
+                       "it": "La prima esecuzione richiede 20–40 minuti. I risultati compaiono nella pagina Risultati.",
+                       "de": "Der erste Lauf dauert 20–40 Minuten. Ergebnisse erscheinen auf der Seite Ergebnisse."},
+    "simple_advanced": {"ru": "Нужны все настройки — пороги, источники, расписание, Telegram?",
+                        "en": "Need the full settings — thresholds, sources, schedule, Telegram?",
+                        "it": "Servono tutte le impostazioni — soglie, fonti, pianificazione, Telegram?",
+                        "de": "Alle Einstellungen nötig — Schwellen, Quellen, Zeitplan, Telegram?"},
+    "cvcheck_title": {"ru": "Пройдёт ли CV роботов-фильтров",
+                      "en": "Will this CV get past the bots",
+                      "it": "Il CV supererà i filtri automatici?",
+                      "de": "Kommt dieser Lebenslauf durch die Bots?"},
+    "cvcheck_hint": {"ru": "Резюме читают двое: робот ATS (Greenhouse, Workable, Lever) разбирает файл в поля — вёрстка в колонках, таблицы и текст в картинках ломают разбор, и вакансия отсеивается молча. Человек смотрит 6–10 секунд. Проверяем обе стороны плюс совпадение по ключевым словам ваших вакансий.",
+                     "en": "Two parties read a CV: the ATS robot (Greenhouse, Workable, Lever) parses the file into fields — columns, tables and text inside images break parsing and the application is dropped silently. A human looks for 6–10 seconds. We check both, plus keyword overlap with your target jobs.",
+                     "it": "Il CV viene letto da due: il robot ATS (Greenhouse, Workable, Lever) analizza il file in campi — colonne, tabelle e testo dentro le immagini rompono l'analisi e la candidatura viene scartata in silenzio. Una persona guarda per 6–10 secondi. Verifichiamo entrambi, più la corrispondenza delle parole chiave.",
+                     "de": "Zwei lesen den Lebenslauf: Der ATS-Roboter (Greenhouse, Workable, Lever) zerlegt die Datei in Felder — Spalten, Tabellen und Text in Bildern zerstören das Parsing, und die Bewerbung wird stillschweigend aussortiert. Ein Mensch schaut 6–10 Sekunden. Wir prüfen beides, plus die Stichwort-Übereinstimmung."},
+    "cv_gen_failed_title": {
+        "ru": "Не получилось собрать резюме под эту вакансию",
+        "en": "Could not put together a CV for this job",
+        "it": "Non è stato possibile comporre un CV per questa offerta",
+        "de": "Für diese Stelle konnte kein Lebenslauf erstellt werden"},
+    "cv_gen_failed_hint": {
+        "ru": "Чаще всего так отвечает небольшая локальная модель: документ она пишет прозой, а не строгим JSON. Помогает модель побольше или Claude Code — выбрать можно на странице «Модель». Попробовать ещё раз тоже стоит: иногда получается со второй попытки.",
+        "en": "This is usually a small local model: it writes the document as prose instead of strict JSON. A larger model or Claude Code handles it — you can switch on the Model page. Trying again is also worth it; sometimes the second attempt works.",
+        "it": "Di solito è un modello locale piccolo: scrive il documento in prosa invece che in JSON rigoroso. Un modello più grande o Claude Code se la cava — si cambia nella pagina «Modello». Vale anche la pena riprovare: a volte il secondo tentativo riesce.",
+        "de": "Meist liegt es an einem kleinen lokalen Modell: Es schreibt das Dokument als Fließtext statt als striktes JSON. Ein größeres Modell oder Claude Code schafft es — umstellen können Sie es auf der Seite „Modell“. Ein zweiter Versuch lohnt sich ebenfalls."},
+    "cvcheck_running": {
+        "ru": "Проверяем резюме… с локальной моделью это несколько минут",
+        "en": "Checking the CV… with a local model this takes a few minutes",
+        "it": "Controllo del CV… con un modello locale ci vogliono alcuni minuti",
+        "de": "Der Lebenslauf wird geprüft… mit einem lokalen Modell dauert das einige Minuten"},
+    "cvcheck_failed": {
+        "ru": "Проверка не удалась: {error}",
+        "en": "The check failed: {error}",
+        "it": "Il controllo non è riuscito: {error}",
+        "de": "Die Prüfung ist fehlgeschlagen: {error}"},
+    "cvcheck_run": {"ru": "Проверить CV", "en": "Check CV", "it": "Verifica CV", "de": "CV prüfen"},
+    "cvcheck_no_cv": {"ru": "CV не загружено — загрузите его в настройках",
+                      "en": "No CV uploaded — upload it in settings",
+                      "it": "Nessun CV caricato — caricalo nelle impostazioni",
+                      "de": "Kein Lebenslauf hochgeladen — in den Einstellungen hochladen"},
+    "cvcheck_ats": {"ru": "Робот-фильтр (ATS)", "en": "Bot filter (ATS)",
+                    "it": "Filtro automatico (ATS)", "de": "Bot-Filter (ATS)"},
+    "cvcheck_visual": {"ru": "Взгляд рекрутера", "en": "Recruiter's eye",
+                       "it": "Occhio del recruiter", "de": "Recruiter-Blick"},
+    "cvcheck_keywords": {"ru": "Ключевые слова", "en": "Keywords",
+                         "it": "Parole chiave", "de": "Stichwörter"},
+    "cvcheck_parsing": {"ru": "Машинное чтение файла", "en": "Machine reading of the file",
+                        "it": "Lettura automatica del file", "de": "Maschinelles Lesen der Datei"},
+    "cvcheck_parsing_hint": {"ru": "Проверяем ровно то, что достаёт из файла обычный парсер — свои исправления мы здесь отключаем, потому что у робота их не будет.",
+                             "en": "We check exactly what a plain parser extracts — our own fixes are disabled here, because the bot will not have them.",
+                             "it": "Verifichiamo esattamente ciò che estrae un parser comune — le nostre correzioni sono disattivate, perché il robot non le avrà.",
+                             "de": "Wir prüfen genau das, was ein einfacher Parser extrahiert — unsere eigenen Korrekturen sind hier deaktiviert, denn der Bot hat sie nicht."},
+    "cvcheck_parsing_ok": {"ru": "Файл читается машиной корректно",
+                           "en": "The file parses correctly", "it": "Il file viene letto correttamente",
+                           "de": "Die Datei wird korrekt gelesen"},
+    "cvcheck_layout": {"ru": "Вёрстка и читаемость", "en": "Layout and readability",
+                       "it": "Impaginazione e leggibilità", "de": "Layout und Lesbarkeit"},
+    "cvcheck_ats_risks": {"ru": "Чем рискует разбор роботом:", "en": "Risks for bot parsing:",
+                          "it": "Rischi per l'analisi automatica:", "de": "Risiken für das Bot-Parsing:"},
+    "cvcheck_visual_issues": {"ru": "Что мешает человеку:", "en": "What slows a human down:",
+                              "it": "Cosa ostacola la lettura umana:", "de": "Was den Menschen bremst:"},
+    "cvcheck_strengths": {"ru": "Что уже хорошо:", "en": "Already good:",
+                          "it": "Già buono:", "de": "Bereits gut:"},
+    "cvcheck_fixes": {"ru": "Что исправить, по порядку:", "en": "Fixes, in order:",
+                      "it": "Correzioni, in ordine:", "de": "Korrekturen, der Reihe nach:"},
+    "cvcheck_keywords_block": {"ru": "Отбор по ключевым словам",
+                               "en": "Keyword screening", "it": "Selezione per parole chiave",
+                               "de": "Stichwort-Screening"},
+    "cvcheck_keywords_hint": {"ru": "Сравниваем CV с требованиями ваших лучших вакансий: робот засчитывает буквальные совпадения терминов, синоним он не поймёт.",
+                              "en": "We compare the CV against your best matches: the bot counts literal term matches, it will not infer synonyms.",
+                              "it": "Confrontiamo il CV con le migliori offerte trovate: il robot conta le corrispondenze letterali, non capisce i sinonimi.",
+                              "de": "Wir vergleichen den Lebenslauf mit Ihren besten Treffern: Der Bot zählt wörtliche Übereinstimmungen, Synonyme erkennt er nicht."},
+    "cvcheck_missing": {"ru": "Добавить в CV (опыт это позволяет):",
+                        "en": "Add to the CV (the experience supports it):",
+                        "it": "Da aggiungere al CV (l'esperienza lo consente):",
+                        "de": "In den Lebenslauf aufnehmen (die Erfahrung erlaubt es):"},
+    "cvcheck_present": {"ru": "Уже есть:", "en": "Already present:", "it": "Già presenti:", "de": "Bereits vorhanden:"},
+    "cvcheck_cannot": {"ru": "Требуют, но опыта нет (выдумывать нельзя):",
+                       "en": "Required but not in the experience (do not invent):",
+                       "it": "Richiesti ma senza esperienza (non inventare):",
+                       "de": "Gefordert, aber ohne Erfahrung (nicht erfinden):"},
+    "cvcheck_critical": {"ru": "критично", "en": "critical", "it": "critico", "de": "kritisch"},
+    "cvcheck_warn": {"ru": "стоит поправить", "en": "worth fixing", "it": "da sistemare", "de": "verbesserungswürdig"},
+    "cvcheck_pages": {"ru": "страниц:", "en": "pages:", "it": "pagine:", "de": "Seiten:"},
+    "cvcheck_words": {"ru": "слов:", "en": "words:", "it": "parole:", "de": "Wörter:"},
+    "cvcheck_images": {"ru": "картинок:", "en": "images:", "it": "immagini:", "de": "Bilder:"},
+    "chars": {"ru": "символов", "en": "chars", "it": "caratteri", "de": "Zeichen"},
+    "cvissue_no_text": {"ru": "Текст из файла не извлекается — робот увидит пустое резюме (текст в картинке или сложная графика).",
+                        "en": "No text can be extracted — the bot sees an empty CV (text inside an image or heavy graphics).",
+                        "it": "Il testo non è estraibile — il robot vede un CV vuoto (testo dentro un'immagine o grafica complessa).",
+                        "de": "Kein Text extrahierbar — der Bot sieht einen leeren Lebenslauf (Text im Bild oder aufwendige Grafik)."},
+    "cvissue_letter_spacing": {"ru": "Буквы разнесены пробелами при извлечении («E l i s a b e t t a») — робот прочитает кашу вместо слов. Обычно это дизайнерский шаблон (Canva и подобные).",
+                               "en": "Letters come out spaced apart («E l i s a b e t t a») — the bot reads gibberish. Usually a designer template (Canva and similar).",
+                               "it": "Le lettere risultano spaziate («E l i s a b e t t a») — il robot legge caratteri sconnessi. Di solito è un template grafico (Canva e simili).",
+                               "de": "Buchstaben werden einzeln getrennt ausgelesen («E l i s a b e t t a») — der Bot liest Kauderwelsch. Meist ein Design-Template (Canva und ähnliche)."},
+    "cvissue_too_long": {"ru": "Больше трёх страниц — рекрутер редко дочитывает.",
+                         "en": "More than three pages — recruiters rarely read that far.",
+                         "it": "Più di tre pagine — i recruiter raramente arrivano in fondo.",
+                         "de": "Mehr als drei Seiten — Recruiter lesen selten so weit."},
+    "cvissue_too_short": {"ru": "Слишком мало текста — роботу не за что зацепиться при сопоставлении.",
+                          "en": "Too little text — the bot has nothing to match against.",
+                          "it": "Troppo poco testo — il robot non ha nulla da confrontare.",
+                          "de": "Zu wenig Text — der Bot hat nichts zum Abgleichen."},
+    "cvissue_missing_sections": {"ru": "Не распознаны стандартные разделы (Experience / Education / Skills) — робот не разложит резюме по полям.",
+                                 "en": "Standard sections not detected (Experience / Education / Skills) — the bot cannot map the CV into fields.",
+                                 "it": "Sezioni standard non riconosciute (Esperienza / Formazione / Competenze) — il robot non può mappare il CV nei campi.",
+                                 "de": "Standardabschnitte nicht erkannt (Erfahrung / Ausbildung / Kenntnisse) — der Bot kann den Lebenslauf nicht in Felder überführen."},
+    "cvissue_no_email": {"ru": "Email не найден машиной — отклик может уйти без контакта.",
+                         "en": "No email found by the parser — the application may arrive without contact details.",
+                         "it": "Email non trovata dal parser — la candidatura può arrivare senza contatti.",
+                         "de": "Keine E-Mail gefunden — die Bewerbung kommt womöglich ohne Kontaktdaten an."},
+    "cvissue_few_contacts": {"ru": "Контакты распознаются плохо (телефон / LinkedIn).",
+                             "en": "Contacts are poorly detected (phone / LinkedIn).",
+                             "it": "I contatti sono rilevati male (telefono / LinkedIn).",
+                             "de": "Kontakte werden schlecht erkannt (Telefon / LinkedIn)."},
+    "cvissue_no_dates": {"ru": "Не видно дат работы — робот не построит стаж и таймлайн.",
+                         "en": "No employment dates visible — the bot cannot build a timeline.",
+                         "it": "Date di lavoro non visibili — il robot non può costruire la cronologia.",
+                         "de": "Keine Beschäftigungsdaten sichtbar — der Bot kann keinen Verlauf erstellen."},
+    "cvissue_many_images": {"ru": "Много графики — часть текста может быть внутри картинок.",
+                            "en": "Lots of graphics — some text may live inside images.",
+                            "it": "Molta grafica — parte del testo può essere dentro le immagini.",
+                            "de": "Viel Grafik — Teile des Textes könnten in Bildern stecken."},
+    "save": {"ru": "Сохранить настройки", "en": "Save settings", "it": "Salva impostazioni", "de": "Einstellungen speichern"},
+    "saved": {"ru": "Настройки сохранены", "en": "Settings saved", "it": "Impostazioni salvate", "de": "Einstellungen gespeichert"},
+    "status": {"ru": "Статус:", "en": "Status:", "it": "Stato:", "de": "Status:"},
+    "status_busy": {"ru": "занято поиском для «{name}» — ваш начнётся следом",
+                    "en": "busy searching for “{name}” — yours starts next",
+                    "it": "occupato con la ricerca per «{name}» — la sua parte dopo",
+                    "de": "beschäftigt mit der Suche für „{name}“ — Ihre folgt danach"},
+    "status_idle": {"ru": "ожидание", "en": "idle", "it": "in attesa", "de": "inaktiv"},
+    "status_running": {"ru": "идёт поиск —", "en": "searching —", "it": "ricerca in corso —", "de": "Suche läuft —"},
+    "next_run": {"ru": "следующий запуск по расписанию:", "en": "next scheduled run:", "it": "prossima esecuzione pianificata:", "de": "nächster geplanter Lauf:"},
+    "stop_now": {"ru": "Остановить поиск", "en": "Stop search",
+                 "it": "Ferma la ricerca", "de": "Suche stoppen"},
+    "stopping": {"ru": "останавливается…", "en": "stopping…", "it": "in arresto…", "de": "wird gestoppt…"},
+    "run_now": {"ru": "Запустить поиск сейчас", "en": "Run search now", "it": "Avvia la ricerca ora", "de": "Suche jetzt starten"},
+    "run_started": {"ru": "Поиск запущен", "en": "Search started", "it": "Ricerca avviata", "de": "Suche gestartet"},
+    "run_already": {"ru": "Поиск уже идёт", "en": "Search already running", "it": "Ricerca già in corso", "de": "Suche läuft bereits"},
+    "profile": {"ru": "Профиль", "en": "Profile", "it": "Profilo", "de": "Profil"},
+    "profile_from_cv": {"ru": "Заполнить пустые поля из CV", "en": "Fill empty fields from CV", "it": "Compila i campi vuoti dal CV", "de": "Leere Felder aus dem CV ausfüllen"},
+    "profile_from_cv_hint": {"ru": "Сначала загрузите CV внизу страницы — Claude сам предложит роли, уровень и описание.", "en": "Upload a CV at the bottom first — Claude will suggest roles, level and summary.", "it": "Carichi prima un CV in fondo alla pagina — Claude suggerirà ruoli, livello e descrizione.", "de": "Laden Sie zuerst unten ein CV hoch — Claude schlägt Rollen, Level und Beschreibung vor."},
+    "about": {"ru": "О себе: знания, опыт, стек, достижения", "en": "About you: skills, experience, stack, achievements", "it": "Su di lei: competenze, esperienza, stack, risultati", "de": "Über Sie: Kenntnisse, Erfahrung, Stack, Erfolge"},
+    "about_ph": {"ru": "Например: 8 лет backend-разработки на Python и Go, высоконагруженные сервисы, Kubernetes, руководил командой из 5 человек...", "en": "E.g.: 8 years of backend development in Python and Go, high-load services, Kubernetes, led a team of 5...", "it": "Ad es.: 8 anni di sviluppo backend in Python e Go, servizi ad alto carico, Kubernetes, ho guidato un team di 5 persone...", "de": "z. B.: 8 Jahre Backend-Entwicklung in Python und Go, hochlastige Services, Kubernetes, Leitung eines 5-köpfigen Teams..."},
+    "roles": {"ru": "Желаемые роли (через запятую)", "en": "Desired roles (comma-separated)", "it": "Ruoli desiderati (separati da virgola)", "de": "Gewünschte Rollen (durch Komma getrennt)"},
+    "skills": {"ru": "Ключевые навыки / технологии (через запятую)", "en": "Key skills / technologies (comma-separated)", "it": "Competenze / tecnologie chiave (separate da virgola)", "de": "Schlüsselkompetenzen / Technologien (durch Komma getrennt)"},
+    "skills_ph": {"ru": "SAP PI/PO, Java, REST, integration architecture", "en": "SAP PI/PO, Java, REST, integration architecture", "it": "SAP PI/PO, Java, REST, integration architecture", "de": "SAP PI/PO, Java, REST, integration architecture"},
+    "level": {"ru": "Уровень", "en": "Level", "it": "Livello", "de": "Level"},
+    "salary_exp": {"ru": "Зарплатные ожидания", "en": "Salary expectations", "it": "Aspettative retributive", "de": "Gehaltsvorstellung"},
+    "work_format": {"ru": "Формат работы", "en": "Work format", "it": "Modalità di lavoro", "de": "Arbeitsform"},
+    "fmt_any": {"ru": "любой", "en": "any", "it": "qualsiasi", "de": "beliebig"},
+    "fmt_remote": {"ru": "удалённо", "en": "remote", "it": "da remoto", "de": "remote"},
+    "fmt_hybrid": {"ru": "гибрид", "en": "hybrid", "it": "ibrido", "de": "hybrid"},
+    "fmt_onsite": {"ru": "офис", "en": "on-site", "it": "in sede", "de": "vor Ort"},
+    "langs": {"ru": "Языки", "en": "Languages", "it": "Lingue", "de": "Sprachen"},
+    "visa_required": {"ru": "Нужна виза / спонсорство", "en": "Need visa / sponsorship", "it": "Necessario visto / sponsorizzazione", "de": "Visum / Sponsoring erforderlich"},
+    "visa_note": {"ru": "Комментарий про визу", "en": "Visa note", "it": "Nota sul visto", "de": "Visum-Hinweis"},
+    "search_params": {"ru": "Параметры поиска", "en": "Search parameters", "it": "Parametri di ricerca", "de": "Suchparameter"},
+    "locations": {"ru": "Локации (через запятую: EU, USA, город, страна)", "en": "Locations (comma-separated: EU, USA, city, country)", "it": "Località (separate da virgola: EU, USA, città, paese)", "de": "Standorte (kommagetrennt: EU, USA, Stadt, Land)"},
+    "threshold": {"ru": "Порог совпадения, %", "en": "Match threshold, %", "it": "Soglia di corrispondenza, %", "de": "Übereinstimmungsschwelle, %"},
+    "match_priority": {"ru": "На что опираться при поиске", "en": "What to match on", "it": "Su cosa basare la ricerca", "de": "Wonach abgeglichen wird"},
+    "prio_role": {"ru": "На роль/должность", "en": "Role / job title", "it": "Sul ruolo / posizione", "de": "Rolle / Position"},
+    "prio_skills": {"ru": "На навыки (роль вторична)", "en": "Skills (role is secondary)", "it": "Sulle competenze (il ruolo è secondario)", "de": "Kompetenzen (Rolle zweitrangig)"},
+    "prio_both": {"ru": "И роль, и навыки", "en": "Both role and skills", "it": "Sia ruolo che competenze", "de": "Rolle und Kompetenzen"},
+    "prio_hint": {"ru": "«На навыки» — для тех, у кого стек шире роли (напр. SAP-консультант со знанием Java). Тогда подойдут и вакансии с другим названием должности, но под ваши навыки.", "en": "“Skills” — for those whose stack is broader than the role (e.g. a SAP consultant who knows Java). Then jobs with a different title but matching your skills also count.", "it": "«Sulle competenze» — per chi ha uno stack più ampio del ruolo (ad es. un consulente SAP che conosce Java). In tal caso rientrano anche offerte con un titolo diverso ma adatte alle vostre competenze.", "de": "„Kompetenzen“ — für alle, deren Stack breiter ist als die Rolle (z. B. ein SAP-Berater mit Java-Kenntnissen). Dann zählen auch Stellen mit anderer Bezeichnung, die zu Ihren Kompetenzen passen."},
+    "kw_include": {"ru": "Ключевые слова — обязательно искать", "en": "Keywords — must include", "it": "Parole chiave — da includere obbligatoriamente", "de": "Schlüsselwörter — müssen enthalten sein"},
+    "kw_exclude": {"ru": "Стоп-слова — исключать", "en": "Stop-words — exclude", "it": "Parole di esclusione — da escludere", "de": "Stoppwörter — ausschließen"},
+    "incl_remote": {"ru": "Учитывать удалённые вакансии", "en": "Include remote jobs", "it": "Includere le offerte da remoto", "de": "Remote-Stellen berücksichtigen"},
+    "drop_off_target": {"ru": "Отсеивать явно нерелевантные роли (продажи, HR, саппорт) до LLM-оценки", "en": "Filter out clearly non-matching roles (sales, HR, support) before LLM scoring", "it": "Filtrare i ruoli chiaramente non pertinenti (vendite, HR, supporto) prima della valutazione LLM", "de": "Eindeutig unpassende Rollen (Vertrieb, HR, Support) vor der LLM-Bewertung herausfiltern"},
+    "triage_second_vote": {"ru": "Второе мнение для пограничных оценок — меньше пропущенных хороших вакансий (чуть дороже)", "en": "Second opinion for borderline scores — fewer missed good jobs (slightly more expensive)", "it": "Secondo parere per i punteggi al limite — meno offerte valide perse (leggermente più costoso)", "de": "Zweitmeinung für Grenzfälle — weniger übersehene gute Stellen (etwas teurer)"},
+    "triage_limit": {"ru": "Предел вакансий на LLM-оценку за прогон", "en": "Max jobs for LLM scoring per run", "it": "Numero massimo di offerte per la valutazione LLM per esecuzione", "de": "Max. Stellen pro Lauf für die LLM-Bewertung"},
+    "deep_during_run": {
+        "ru": "Разбирать глубоко во время прогона",
+        "en": "Analyse deeply during the run",
+        "it": "Analisi approfondita durante l'esecuzione",
+        "de": "Tiefe Analyse während des Durchlaufs"},
+    "deep_during_run_hint": {
+        "ru": "Выключите — и прогон будет только оценивать вакансии, без советов по CV и без точных оценок. Это заметно дешевле и быстрее, а разобрать нужную можно потом кнопкой у неё в списке.",
+        "en": "Turn this off and a run only scores jobs — no CV advice, no precise scores. Noticeably cheaper and faster; you can then analyse any single job with the button on its card.",
+        "it": "Disattivatelo e l'esecuzione si limiterà a valutare le offerte, senza consigli sul CV né punteggi precisi. È molto più economico e veloce; poi potete analizzare la singola offerta col pulsante sulla sua scheda.",
+        "de": "Ausschalten, und ein Durchlauf bewertet nur — ohne CV-Tipps und ohne genaue Punktzahl. Deutlich billiger und schneller; einzelne Stellen analysieren Sie danach mit der Schaltfläche auf der Karte."},
+    "theme_toggle": {
+        "ru": "Светлое или тёмное оформление",
+        "en": "Light or dark appearance",
+        "it": "Aspetto chiaro o scuro",
+        "de": "Helles oder dunkles Aussehen"},
+    "back_to_top": {
+        "ru": "Наверх",
+        "en": "Back to top",
+        "it": "Torna su",
+        "de": "Nach oben"},
+    "job_analyse": {
+        "ru": "Разобрать эту",
+        "en": "Analyse this one",
+        "it": "Analizza questa",
+        "de": "Diese analysieren"},
+    "job_analysing": {
+        "ru": "Разбираем… (до минуты)",
+        "en": "Analysing… (up to a minute)",
+        "it": "Analisi in corso… (fino a un minuto)",
+        "de": "Wird analysiert… (bis zu einer Minute)"},
+    "msg_analysed": {
+        "ru": "Разобрано: {title} — оценка {score}%",
+        "en": "Analysed: {title} — score {score}%",
+        "it": "Analizzata: {title} — punteggio {score}%",
+        "de": "Analysiert: {title} — Bewertung {score}%"},
+    "msg_analyse_failed": {
+        "ru": "Не удалось разобрать: {error}",
+        "en": "Could not analyse it: {error}",
+        "it": "Non è stato possibile analizzarla: {error}",
+        "de": "Analyse nicht möglich: {error}"},
+    "deep_top_n": {"ru": "Глубокий разбор (правки CV) для топ-N", "en": "Deep analysis (CV edits) for top-N", "it": "Analisi approfondita (modifiche al CV) per le prime N", "de": "Tiefenanalyse (CV-Anpassungen) für die Top-N"},
+    "parallelism": {"ru": "Параллельных LLM-вызовов (быстрее, но нагрузка выше)", "en": "Parallel LLM calls (faster, higher load)", "it": "Chiamate LLM parallele (più veloce, ma carico maggiore)", "de": "Parallele LLM-Aufrufe (schneller, aber höhere Last)"},
+    "parallelism_hint": {"ru": "При параллельной оценке за один прогон успевают оцениться все новые вакансии, а не только первые несколько десятков — очередь не копится.", "en": "With parallel scoring, a single run evaluates all new jobs, not just the first few dozen — no backlog builds up.", "it": "Con la valutazione parallela, una singola esecuzione valuta tutte le nuove offerte, non solo le prime decine — non si accumula alcun arretrato.", "de": "Bei paralleler Bewertung wertet ein einzelner Lauf alle neuen Stellen aus, nicht nur die ersten paar Dutzend — es staut sich kein Rückstand an."},
+    "research_company": {"ru": "Искать зарплату и факты о компании в интернете (Glassdoor, Kununu, levels.fyi) для вакансий на глубоком разборе", "en": "Research salary and company facts online (Glassdoor, Kununu, levels.fyi) for deeply-analyzed jobs", "it": "Cercare online stipendio e informazioni sull'azienda (Glassdoor, Kununu, levels.fyi) per le offerte in analisi approfondita", "de": "Gehalt und Unternehmensfakten online recherchieren (Glassdoor, Kununu, levels.fyi) für Stellen in der Tiefenanalyse"},
+    "research_hint": {"ru": "Заметно замедляет глубокий разбор (реальный веб-поиск на каждую вакансию), но даёт то, чего нет в самом объявлении. Если данных не нашлось — честно пишет «не найдено».", "en": "Noticeably slows deep analysis (real web search per job), but surfaces info not in the posting. If nothing found — honestly says so.", "it": "Rallenta sensibilmente l'analisi approfondita (una vera ricerca web per ogni offerta), ma fa emergere dati assenti nell'annuncio. Se non trova nulla, lo indica onestamente.", "de": "Verlangsamt die Tiefenanalyse spürbar (echte Websuche pro Stelle), liefert aber Infos, die in der Anzeige fehlen. Wird nichts gefunden, wird das ehrlich vermerkt."},
+    "sources": {"ru": "Источники", "en": "Sources", "it": "Fonti", "de": "Quellen"},
+    "companies_label": {"ru": "Компании для прямого мониторинга — по одной на строку: Название | URL страницы вакансий.", "en": "Companies to monitor directly — one per line: Name | careers page URL.", "it": "Aziende da monitorare direttamente — una per riga: Nome | URL della pagina carriere.", "de": "Direkt zu überwachende Unternehmen — eines pro Zeile: Name | URL der Karriereseite."},
+    "discover_per_run": {"ru": "Искать новых компаний за прогон (веб-поиск через Claude, 0 = выключить)", "en": "Discover new companies per run (web search via Claude, 0 = off)", "it": "Scoprire nuove aziende per esecuzione (ricerca web tramite Claude, 0 = disattiva)", "de": "Neue Unternehmen pro Lauf entdecken (Websuche über Claude, 0 = aus)"},
+    "discover_now": {"ru": "Найти компании сейчас", "en": "Find companies now", "it": "Trova aziende ora", "de": "Unternehmen jetzt finden"},
+    "discover_ats_per_run": {"ru": "Искать вакансий прямо на доменах ATS за прогон (site:boards.greenhouse.io и т.п.; каждая находка добавляет компанию в мониторинг; 0 = выключить)", "en": "Search job postings directly on ATS domains per run (site:boards.greenhouse.io etc.; each hit adds its company to monitoring; 0 = off)", "it": "Cercare offerte direttamente sui domini ATS per esecuzione (site:boards.greenhouse.io ecc.; ogni risultato aggiunge la sua azienda al monitoraggio; 0 = disattiva)", "de": "Stellenanzeigen direkt auf ATS-Domains pro Lauf suchen (site:boards.greenhouse.io usw.; jeder Treffer fügt sein Unternehmen zur Überwachung hinzu; 0 = aus)"},
+    "sources_hint": {"ru": "Найденные компании добавляются в список выше. Один веб-поиск даёт ~8 компаний; для большего значения делается несколько поисков — дольше, но охват растёт быстрее. Что реально просмотрено — на странице «Покрытие».", "en": "Discovered companies are added to the list above. One web search yields ~8 companies; larger values run several searches — slower, but coverage grows faster. What was actually scanned — on the Coverage page.", "it": "Le aziende trovate vengono aggiunte alla lista qui sopra. Una ricerca web restituisce ~8 aziende; per valori più alti si eseguono più ricerche — più lento, ma la copertura cresce più in fretta. Ciò che è stato effettivamente esaminato è nella pagina «Copertura».", "de": "Gefundene Unternehmen werden zur Liste oben hinzugefügt. Eine Websuche liefert ~8 Unternehmen; bei höheren Werten werden mehrere Suchen durchgeführt — langsamer, aber die Abdeckung wächst schneller. Was tatsächlich geprüft wurde, steht auf der Seite „Abdeckung“."},
+    "llm": {"ru": "LLM (Claude Code CLI)", "en": "LLM (Claude Code CLI)", "it": "LLM (Claude Code CLI)", "de": "LLM (Claude Code CLI)"},
+    "claude_bin": {"ru": "Команда claude", "en": "claude command", "it": "Comando claude", "de": "claude-Befehl"},
+    "triage_model": {"ru": "Модель для триажа (дёшево, много вакансий)", "en": "Triage model (cheap, many jobs)", "it": "Modello per il triage (economico, molte offerte)", "de": "Modell für die Triage (günstig, viele Stellen)"},
+    "deep_model": {"ru": "Модель для глубокого разбора (пусто = по умолчанию)", "en": "Deep-analysis model (blank = default)", "it": "Modello per l'analisi approfondita (vuoto = predefinito)", "de": "Modell für die Tiefenanalyse (leer = Standard)"},
+    "telegram": {"ru": "Telegram", "en": "Telegram", "it": "Telegram", "de": "Telegram"},
+    "bot_token": {"ru": "Bot token (от @BotFather)", "en": "Bot token (from @BotFather)", "it": "Token del bot (da @BotFather)", "de": "Bot-Token (von @BotFather)"},
+    "chat_id": {"ru": "Chat ID", "en": "Chat ID", "it": "Chat ID", "de": "Chat-ID"},
+    "tg_detect": {"ru": "Сохранить и определить chat id", "en": "Save and detect chat id", "it": "Salva e rileva chat id", "de": "Speichern und Chat-ID ermitteln"},
+    "tg_test": {"ru": "Сохранить и отправить тест", "en": "Save and send test", "it": "Salva e invia test", "de": "Speichern und Test senden"},
+    "tg_hint": {"ru": "Создайте бота через @BotFather (/newbot), вставьте token, напишите боту любое сообщение — и нажмите «Сохранить и определить chat id».", "en": "Create a bot via @BotFather (/newbot), paste the token, message the bot, then click “Save and detect chat id”.", "it": "Crei un bot tramite @BotFather (/newbot), incolli il token, invii un messaggio qualsiasi al bot e clicchi su «Salva e rileva chat id».", "de": "Erstellen Sie einen Bot über @BotFather (/newbot), fügen Sie den Token ein, schreiben Sie dem Bot eine beliebige Nachricht und klicken Sie auf „Speichern und Chat-ID ermitteln“."},
+    "language": {"ru": "Язык", "en": "Language", "it": "Lingua", "de": "Sprache"},
+    "ui_lang": {"ru": "Язык интерфейса", "en": "Interface language", "it": "Lingua dell'interfaccia", "de": "Sprache der Oberfläche"},
+    "output_lang": {"ru": "Язык результатов (оценки, правки CV, дайджест)", "en": "Results language (scores, CV edits, digest)", "it": "Lingua dei risultati (valutazioni, modifiche al CV, digest)", "de": "Sprache der Ergebnisse (Bewertungen, CV-Anpassungen, Digest)"},
+    "lang_hint": {"ru": "Язык результатов — на нём ИИ пишет оценки, правки CV/LinkedIn и дайджест. Можно, например, интерфейс на русском, а правки CV — на английском.", "en": "Results language is what the AI writes scores, CV/LinkedIn edits and the digest in. You can keep the UI in one language and get CV edits in another.", "it": "La lingua dei risultati è quella in cui l'IA scrive le valutazioni, le modifiche a CV/LinkedIn e il digest. Può, ad esempio, tenere l'interfaccia in italiano e ricevere le modifiche al CV in inglese.", "de": "Die Sprache der Ergebnisse ist die, in der die KI Bewertungen, CV-/LinkedIn-Anpassungen und den Digest verfasst. Sie können z. B. die Oberfläche auf Deutsch lassen und CV-Anpassungen auf Englisch erhalten."},
+    "schedule": {"ru": "Расписание", "en": "Schedule", "it": "Pianificazione", "de": "Zeitplan"},
+    "sched_mode": {"ru": "Режим", "en": "Mode", "it": "Modalità", "de": "Modus"},
+    "mode_off": {"ru": "Вручную", "en": "Manual", "it": "Manuale", "de": "Manuell"},
+    "mode_interval": {"ru": "По интервалу", "en": "By interval", "it": "A intervalli", "de": "Nach Intervall"},
+    "mode_continuous": {"ru": "Непрерывно (одну за другой)", "en": "Continuous (one after another)", "it": "Continua (una dopo l'altra)", "de": "Fortlaufend (eine nach der anderen)"},
+    "sched_every": {"ru": "Каждые", "en": "Every", "it": "Ogni", "de": "Alle"},
+    "sched_unit": {"ru": "Единица", "en": "Unit", "it": "Unità", "de": "Einheit"},
+    "unit_hours": {"ru": "часов", "en": "hours", "it": "ore", "de": "Stunden"},
+    "unit_days": {"ru": "дней", "en": "days", "it": "giorni", "de": "Tage"},
+    "unit_weeks": {"ru": "недель", "en": "weeks", "it": "settimane", "de": "Wochen"},
+    "cooldown": {"ru": "Пауза между прогонами, мин", "en": "Pause between runs, min", "it": "Pausa tra le esecuzioni, min", "de": "Pause zwischen Durchläufen, Min."},
+    "sched_hint": {"ru": "Работает, пока приложение запущено. Непрерывный режим: как только прогон закончился, через паузу начинается следующий — охват растёт сам, заходите проверять когда удобно. Меньше пауза = чаще прогоны = больше расход токенов. Автозапуск при включении Mac — см. README (launchd).", "en": "Works while the app is running. Continuous mode: as soon as a run finishes, the next starts after the pause — coverage grows on its own, check in whenever. Shorter pause = more runs = more token usage. Auto-start on boot — see README (launchd).", "it": "Funziona finché l'applicazione è in esecuzione. Modalità continua: appena un'esecuzione termina, dopo la pausa inizia la successiva — la copertura cresce da sola, controlli quando le è comodo. Pausa più breve = più esecuzioni = maggiore consumo di token. Avvio automatico all'accensione del Mac — vedere README (launchd).", "de": "Funktioniert, solange die App läuft. Fortlaufender Modus: sobald ein Durchlauf endet, startet nach der Pause der nächste — die Abdeckung wächst von selbst, schauen Sie vorbei, wann es Ihnen passt. Kürzere Pause = mehr Durchläufe = höherer Token-Verbrauch. Autostart beim Hochfahren des Mac — siehe README (launchd)."},
+    "status_continuous": {"ru": "непрерывный режим", "en": "continuous mode", "it": "modalità continua", "de": "fortlaufender Modus"},
+    "cv": {"ru": "CV", "en": "CV", "it": "CV", "de": "CV"},
+    "cv_loaded": {"ru": "Загружено:", "en": "Loaded:", "it": "Caricato:", "de": "Geladen:"},
+    "cv_none": {"ru": "CV ещё не загружено. Подойдёт PDF, TXT или MD. Туда же можно добавить экспорт LinkedIn-профиля.", "en": "No CV uploaded yet. PDF, TXT or MD work. You can also add a LinkedIn profile export.", "it": "Nessun CV ancora caricato. Vanno bene PDF, TXT o MD. Può aggiungere anche l'esportazione del profilo LinkedIn.", "de": "Noch kein CV hochgeladen. PDF, TXT oder MD sind geeignet. Sie können auch einen Export des LinkedIn-Profils hinzufügen."},
+    "cv_chars": {"ru": "символов извлечено", "en": "characters extracted", "it": "caratteri estratti", "de": "Zeichen extrahiert"},
+    "upload": {"ru": "Загрузить", "en": "Upload", "it": "Carica", "de": "Hochladen"},
+    "recent_runs": {"ru": "Последние прогоны", "en": "Recent runs", "it": "Esecuzioni recenti", "de": "Letzte Durchläufe"},
+    "col_start": {"ru": "Начало", "en": "Started", "it": "Inizio", "de": "Beginn"},
+    "col_finish": {"ru": "Конец", "en": "Finished", "it": "Fine", "de": "Ende"},
+    "col_found": {"ru": "Собрано", "en": "Collected", "it": "Raccolte", "de": "Erfasst"},
+    "col_fresh": {"ru": "Новых", "en": "New", "it": "Nuove", "de": "Neue"},
+    "col_matched": {"ru": "Подошло", "en": "Matched", "it": "Idonee", "de": "Passend"},
+    "col_status": {"ru": "Статус", "en": "Status", "it": "Stato", "de": "Status"},
+    "results_shown": {"ru": "Показаны вакансии с оценкой ≥", "en": "Showing jobs with score ≥", "it": "Offerte con punteggio ≥", "de": "Stellen mit Bewertung ≥"},
+    "export_csv": {"ru": "CSV (таблица)", "en": "CSV (spreadsheet)", "it": "CSV (tabella)", "de": "CSV (Tabelle)"},
+    "export_report": {"ru": "Отчёт (HTML/PDF)", "en": "Report (HTML/PDF)", "it": "Report (HTML/PDF)", "de": "Bericht (HTML/PDF)"},
+    "export_hint": {"ru": "Выгрузить показанные вакансии для кандидата: CSV — для отслеживания откликов, отчёт — открыть и распечатать в PDF.", "en": "Export the shown jobs for the candidate: CSV for tracking applications, report to open and print to PDF.", "it": "Esporta le offerte mostrate per il candidato: CSV per tenere traccia delle candidature, report da aprire e stampare in PDF.", "de": "Exportieren Sie die angezeigten Stellen für den Kandidaten: CSV zur Nachverfolgung der Bewerbungen, Bericht zum Öffnen und Drucken als PDF."},
+    "badge_verified": {"ru": "проверено", "en": "verified", "it": "verificato", "de": "geprüft"},
+    "badge_preliminary": {"ru": "предварительно", "en": "preliminary", "it": "preliminare", "de": "vorläufig"},
+    "verified_hint": {"ru": "«проверено» — точная оценка глубоким разбором; «предварительно» — быстрый триаж (обычно завышает).", "en": "“verified” — precise deep-analysis score; “preliminary” — quick triage (usually optimistic).", "it": "«verificato» — punteggio preciso da analisi approfondita; «preliminare» — triage rapido (di solito ottimistico).", "de": "„geprüft“ — präzise Bewertung durch Tiefenanalyse; „vorläufig“ — schnelle Vorauswahl (meist optimistisch)."},
+    "suggest_banner": {"ru": "Выше порога {cur}% почти ничего. Ваш реальный диапазон ниже — покажите вакансии от {sugg}%:", "en": "Almost nothing above {cur}%. Your realistic range is lower — show jobs from {sugg}%:", "it": "Quasi nulla sopra la soglia {cur}%. Il vostro intervallo reale è più basso: mostrate le offerte da {sugg}%:", "de": "Kaum etwas über der Schwelle {cur}%. Ihr realistischer Bereich liegt niedriger — zeigen Sie Stellen ab {sugg}%:"},
+    "suggest_show": {"ru": "показать от {sugg}%", "en": "show from {sugg}%", "it": "mostra da {sugg}%", "de": "ab {sugg}% anzeigen"},
+    "suggest_apply": {"ru": "сделать {sugg}% порогом дайджеста", "en": "make {sugg}% the digest threshold", "it": "imposta {sugg}% come soglia del digest", "de": "{sugg}% als Digest-Schwelle festlegen"},
+    "threshold_set": {"ru": "Порог дайджеста изменён на {sugg}%", "en": "Digest threshold set to {sugg}%", "it": "Soglia del digest impostata su {sugg}%", "de": "Digest-Schwelle auf {sugg}% gesetzt"},
+    "results_none": {"ru": "Ничего с такой оценкой нет. Попробуйте фильтр «все» или запустите поиск.", "en": "Nothing at this score. Try the “all” filter or run a search.", "it": "Nessun risultato con questo punteggio. Provate il filtro «tutte» o avviate una ricerca.", "de": "Nichts mit dieser Bewertung. Versuchen Sie den Filter „alle“ oder starten Sie eine Suche."},
+    "filter_all": {"ru": "все", "en": "all", "it": "tutte", "de": "alle"},
+    "badge_direct": {"ru": "напрямую от компании", "en": "directly from company", "it": "direttamente dall'azienda", "de": "direkt vom Unternehmen"},
+    "badge_agency": {"ru": "похоже на агентство", "en": "looks like an agency", "it": "sembra un'agenzia", "de": "wirkt wie eine Agentur"},
+    "badge_aggregator": {"ru": "агрегатор", "en": "aggregator", "it": "aggregatore", "de": "Aggregator"},
+    "source": {"ru": "источник:", "en": "source:", "it": "fonte:", "de": "Quelle:"},
+    "run": {"ru": "прогон", "en": "run", "it": "esecuzione", "de": "Durchlauf"},
+    "loc_unknown": {"ru": "локация не указана", "en": "location not specified", "it": "località non indicata", "de": "Standort nicht angegeben"},
+    "salary_block": {"ru": "Зарплата и факты о компании (веб-поиск, проверяйте по ссылкам)", "en": "Salary and company facts (web search, verify via links)", "it": "Stipendio e dati sull'azienda (ricerca web, verificate tramite i link)", "de": "Gehalt und Unternehmensfakten (Websuche, über die Links prüfen)"},
+    "salary_label": {"ru": "Зарплата:", "en": "Salary:", "it": "Stipendio:", "de": "Gehalt:"},
+    "sources_label": {"ru": "Источники:", "en": "Sources:", "it": "Fonti:", "de": "Quellen:"},
+    "edits_block": {"ru": "Правки под эту вакансию", "en": "Edits for this job", "it": "Modifiche per questa offerta", "de": "Anpassungen für diese Stelle"},
+    "cover_hint_label": {"ru": "В отклике:", "en": "In your application:", "it": "Nella candidatura:", "de": "In Ihrer Bewerbung:"},
+    "job_description": {"ru": "Описание вакансии", "en": "Job description", "it": "Descrizione dell'offerta", "de": "Stellenbeschreibung"},
+    "open_job": {"ru": "Открыть вакансию", "en": "Open job",
+                 "it": "Apri l'offerta", "de": "Stelle öffnen"},
+    "posted_label": {"ru": "опубл.", "en": "posted", "it": "pubbl.", "de": "veröff."},
+    "badge_new": {"ru": "НОВОЕ", "en": "NEW", "it": "NUOVO", "de": "NEU"},
+    "unseen_count": {"ru": "новых: {n}", "en": "new: {n}", "it": "nuove: {n}", "de": "neu: {n}"},
+    "mark_viewed": {"ru": "Отметить просмотренным", "en": "Mark as viewed", "it": "Segna come visto", "de": "Als gesehen markieren"},
+    "mark_unviewed": {"ru": "Вернуть в новые", "en": "Mark as new", "it": "Segna come nuova", "de": "Als neu markieren"},
+    "mark_all_viewed": {"ru": "Отметить все просмотренными", "en": "Mark all as viewed", "it": "Segna tutte come viste", "de": "Alle als gesehen markieren"},
+    "sort_by": {"ru": "Сортировка", "en": "Sort by", "it": "Ordina per", "de": "Sortieren nach"},
+    "sort_default": {"ru": "по умолчанию (прогон, прямые, балл)", "en": "default (run, direct, score)", "it": "predefinito (esecuzione, dirette, punteggio)", "de": "Standard (Lauf, direkt, Score)"},
+    "sort_score": {"ru": "по оценке", "en": "by score", "it": "per punteggio", "de": "nach Score"},
+    "sort_posted": {"ru": "по дате публикации", "en": "by posting date", "it": "per data di pubblicazione", "de": "nach Veröffentlichungsdatum"},
+    "sort_found": {"ru": "по дате находки", "en": "by date found", "it": "per data di ritrovamento", "de": "nach Fundzeitpunkt"},
+    "sort_company": {"ru": "по компании (А-Я)", "en": "by company (A-Z)", "it": "per azienda (A-Z)", "de": "nach Unternehmen (A-Z)"},
+    "filter_viewed": {"ru": "Просмотр", "en": "Viewed", "it": "Visualizzazione", "de": "Gesehen"},
+    "viewed_all": {"ru": "все", "en": "all", "it": "tutte", "de": "alle"},
+    "viewed_new": {"ru": "только новые", "en": "new only", "it": "solo nuove", "de": "nur neue"},
+    "viewed_seen": {"ru": "только просмотренные", "en": "viewed only", "it": "solo viste", "de": "nur gesehene"},
+    "filter_source": {"ru": "Тип источника", "en": "Source type", "it": "Tipo di fonte", "de": "Quellentyp"},
+    "source_all": {"ru": "любой", "en": "any", "it": "qualsiasi", "de": "beliebig"},
+    "error_title": {
+        "ru": "Что-то сломалось",
+        "en": "Something broke",
+        "it": "Qualcosa si è rotto",
+        "de": "Etwas ist kaputtgegangen"},
+    "error_hint": {
+        "ru": "Страница не открылась. Это ошибка программы, а не ваших данных — они на месте.",
+        "en": "The page did not open. This is a fault in the program, not in your data — that is intact.",
+        "it": "La pagina non si è aperta. È un difetto del programma, non dei vostri dati: quelli sono intatti.",
+        "de": "Die Seite ließ sich nicht öffnen. Das ist ein Fehler im Programm, nicht in Ihren Daten — die sind unversehrt."},
+    "error_log": {
+        "ru": "Подробности записаны в файл:",
+        "en": "The details are written to:",
+        "it": "I dettagli sono scritti in:",
+        "de": "Die Einzelheiten stehen in:"},
+    "error_back": {
+        "ru": "Вернуться к поиску",
+        "en": "Back to the search",
+        "it": "Torna alla ricerca",
+        "de": "Zurück zur Suche"},
+    "date_mask": {"ru": "дд.мм.гггг", "en": "dd.mm.yyyy", "it": "gg.mm.aaaa", "de": "tt.mm.jjjj"},
+    "filter_dates_clear": {"ru": "убрать даты", "en": "clear dates", "it": "togli le date", "de": "Daten entfernen"},
+    "filter_reset": {"ru": "Сбросить фильтры", "en": "Clear filters", "it": "Azzera i filtri", "de": "Filter zurücksetzen"},
+    "filter_open_calendar": {"ru": "Открыть календарь", "en": "Open the calendar", "it": "Apri il calendario", "de": "Kalender öffnen"},
+    "filter_posted_from": {
+        "ru": "Опубликовано с",
+        "en": "Posted from",
+        "it": "Pubblicate dal",
+        "de": "Veröffentlicht ab"},
+    "filter_posted_to": {
+        "ru": "по",
+        "en": "to",
+        "it": "al",
+        "de": "bis"},
+    "filter_dates_hint": {
+        "ru": "Вакансии без даты публикации в период не попадают — у них дата неизвестна.",
+        "en": "Jobs with no posting date are left out of the period — their date is unknown.",
+        "it": "Le offerte senza data di pubblicazione restano fuori dal periodo: la loro data è ignota.",
+        "de": "Stellen ohne Veröffentlichungsdatum fallen aus dem Zeitraum — ihr Datum ist unbekannt."},
+    "filter_run": {"ru": "Прогон", "en": "Run", "it": "Esecuzione", "de": "Lauf"},
+    "run_all": {"ru": "все прогоны", "en": "all runs", "it": "tutte le esecuzioni", "de": "alle Läufe"},
+    "cv_no_source": {
+        "ru": "Резюме не загружено — подгонять под вакансию нечего. Загрузите его на странице «Быстрый поиск» или в настройках поиска.",
+        "en": "No CV uploaded — there is nothing to tailor. Upload one on the Quick search page or in the search settings.",
+        "it": "Nessun CV caricato — non c'è nulla da adattare. Caricatelo nella pagina Ricerca rapida o nelle impostazioni.",
+        "de": "Kein Lebenslauf geladen — es gibt nichts zuzuschneiden. Laden Sie ihn auf der Seite Schnellsuche oder in den Sucheinstellungen hoch."},
+    "cv_button": {"ru": "CV под вакансию", "en": "Tailored CV", "it": "CV su misura", "de": "Maßgeschneiderter CV"},
+    "cv_button_hint": {"ru": "Сгенерировать адаптированное резюме под эту вакансию (откроется в новой вкладке, печатается в PDF). Первый раз занимает 1–2 минуты.", "en": "Generate a CV tailored to this job (opens in a new tab, printable to PDF). First time takes 1–2 minutes.", "it": "Genera un CV adattato a questa posizione (si apre in una nuova scheda, stampabile in PDF). La prima volta richiede 1–2 minuti.", "de": "Erstellen Sie einen auf diese Stelle zugeschnittenen CV (öffnet sich in einem neuen Tab, als PDF druckbar). Das erste Mal dauert 1–2 Minuten."},
+    "run_journal": {"ru": "Журнал последнего прогона", "en": "Last run log", "it": "Registro dell'ultima esecuzione", "de": "Protokoll des letzten Durchlaufs"},
+    "dg_none": {"ru": "🔍 Новых вакансий с совпадением ≥ {t}% не найдено.", "en": "🔍 No new jobs with match ≥ {t}% found.", "it": "🔍 Nessuna nuova offerta con corrispondenza ≥ {t}%.", "de": "🔍 Keine neuen Stellen mit Übereinstimmung ≥ {t}% gefunden."},
+    "dg_near_only": {"ru": "🔍 Выше порога {t}% ничего, но были близкие варианты (оценка ниже порога):", "en": "🔍 Nothing above {t}%, but there were close matches (below threshold):", "it": "🔍 Nulla sopra la soglia {t}%, ma c'erano opzioni vicine (sotto soglia):", "de": "🔍 Nichts über {t}%, aber es gab knappe Treffer (unter der Schwelle):"},
+    "dg_details": {"ru": "Подробности: {u}/results", "en": "Details: {u}/results", "it": "Dettagli: {u}/results", "de": "Details: {u}/results"},
+    "dg_new_jobs": {"ru": "🎯 Новые вакансии: {n} (порог {t}%)", "en": "🎯 New jobs: {n} (threshold {t}%)", "it": "🎯 Nuove offerte: {n} (soglia {t}%)", "de": "🎯 Neue Stellen: {n} (Schwelle {t}%)"},
+    "dg_direct": {"ru": "🏢 Напрямую от компаний", "en": "🏢 Directly from companies", "it": "🏢 Direttamente dalle aziende", "de": "🏢 Direkt von Unternehmen"},
+    "dg_rest": {"ru": "🤝 Агрегаторы и агентства", "en": "🤝 Aggregators and agencies", "it": "🤝 Aggregatori e agenzie", "de": "🤝 Aggregatoren und Agenturen"},
+    "dg_below": {"ru": "🔻 Близко, но оценка ниже порога:", "en": "🔻 Close, but below threshold:", "it": "🔻 Vicino, ma sotto la soglia:", "de": "🔻 Knapp, aber unter der Schwelle:"},
+    "dg_loc_unknown": {"ru": "локация не указана", "en": "location not specified", "it": "località non specificata", "de": "Ort nicht angegeben"},
+    "dg_cv": {"ru": "📝 CV:", "en": "📝 CV:", "it": "📝 CV:", "de": "📝 CV:"},
+    "dg_more": {"ru": "Подробности и правки LinkedIn: {u}/results", "en": "Details and LinkedIn edits: {u}/results", "it": "Dettagli e modifiche LinkedIn: {u}/results", "de": "Details und LinkedIn-Anpassungen: {u}/results"},
+    "cov_check_title": {"ru": "Проверить компанию: видит ли её скрипт?", "en": "Check a company: can the script see it?", "it": "Verifica un'azienda: lo script la rileva?", "de": "Unternehmen prüfen: Erkennt das Skript es?"},
+    "cov_check_hint": {"ru": "Вставьте компании, которые, по-вашему, должны быть в выдаче — по одной на строку. Можно название, ссылку на careers-страницу, или Название | URL. До 20 за раз.", "en": "Paste companies you think should appear — one per line. Name, careers-page URL, or Name | URL. Up to 20 at once.", "it": "Incollate le aziende che secondo voi dovrebbero comparire — una per riga. Nome, link alla pagina careers oppure Nome | URL. Fino a 20 alla volta.", "de": "Fügen Sie die Unternehmen ein, die Ihrer Meinung nach erscheinen sollten — eines pro Zeile. Name, Link zur Karriereseite oder Name | URL. Bis zu 20 auf einmal."},
+    "cov_check_btn": {"ru": "Проверить покрытие", "en": "Check coverage", "it": "Verifica copertura", "de": "Abdeckung prüfen"},
+    "cov_col_company": {"ru": "Компания", "en": "Company", "it": "Azienda", "de": "Unternehmen"},
+    "cov_col_jobs": {"ru": "Вакансий", "en": "Jobs", "it": "Offerte", "de": "Stellen"},
+    "cov_col_how": {"ru": "Как читается", "en": "How it's read", "it": "Come viene letta", "de": "Wie es gelesen wird"},
+    "cov_st_notfound": {
+        "ru": "не найдено (веб-поиск не дал careers-страницу)",
+        "en": "not found (the web search returned no careers page)",
+        "it": "non trovata (la ricerca web non ha dato una pagina careers)",
+        "de": "nicht gefunden (die Websuche lieferte keine Karriereseite)"},
+    "cov_st_api": {
+        "ru": "читается через API",
+        "en": "read through the API",
+        "it": "letta tramite API",
+        "de": "wird über die API gelesen"},
+    "cov_st_ats_fail": {
+        "ru": "ATS не прочитался: {error}",
+        "en": "the ATS would not read: {error}",
+        "it": "l'ATS non si è letto: {error}",
+        "de": "das ATS war nicht lesbar: {error}"},
+    "cov_st_ok": {
+        "ru": "вакансии читаются",
+        "en": "jobs are being read",
+        "it": "le offerte si leggono",
+        "de": "Stellen werden gelesen"},
+    "cov_st_ok_guessed": {
+        "ru": "вакансии читаются (ATS найден по названию)",
+        "en": "jobs are being read (ATS guessed from the name)",
+        "it": "le offerte si leggono (ATS indovinato dal nome)",
+        "de": "Stellen werden gelesen (ATS aus dem Namen erraten)"},
+    "cov_st_zero": {
+        "ru": "0 вакансий (страница на скриптах без API, либо сейчас нет открытых позиций)",
+        "en": "0 jobs (a script-driven page without an API, or no open positions right now)",
+        "it": "0 offerte (pagina a script senza API, oppure nessuna posizione aperta ora)",
+        "de": "0 Stellen (skriptgesteuerte Seite ohne API oder derzeit keine offenen Stellen)"},
+    "cov_st_error": {
+        "ru": "ошибка: {error}",
+        "en": "error: {error}",
+        "it": "errore: {error}",
+        "de": "Fehler: {error}"},
+    "cov_visible": {"ru": "✓ видим", "en": "✓ visible", "it": "✓ visibile", "de": "✓ sichtbar"},
+    "cov_notfound": {"ru": "✗ не найдено", "en": "✗ not found", "it": "✗ non trovata", "de": "✗ nicht gefunden"},
+    "cov_zero": {"ru": "0 вакансий (JS-страница без API, либо нет открытых позиций)", "en": "0 jobs (JS page without API, or no open positions)", "it": "0 offerte (pagina JS senza API, oppure nessuna posizione aperta)", "de": "0 Stellen (JS-Seite ohne API oder keine offenen Positionen)"},
+    "cov_monitored": {"ru": "в мониторинге", "en": "monitored", "it": "in monitoraggio", "de": "in Überwachung"},
+    "cov_by_search": {"ru": "ссылка найдена поиском", "en": "URL found by search", "it": "link trovato tramite ricerca", "de": "Link per Suche gefunden"},
+    "cov_add": {"ru": "+ в мониторинг", "en": "+ monitor", "it": "+ monitora", "de": "+ überwachen"},
+    "cov_check_note": {"ru": "«✓ видим» — вакансии этой компании попадают в оценку. Кнопкой «+ в мониторинг» добавьте компанию в постоянный список.", "en": "“✓ visible” means this company's jobs enter scoring. Use “+ monitor” to add it to the permanent list.", "it": "«✓ visibile» significa che le offerte di questa azienda entrano nella valutazione. Con «+ monitora» aggiungete l'azienda all'elenco permanente.", "de": "„✓ sichtbar“ bedeutet, dass die Stellen dieses Unternehmens in die Bewertung einfließen. Mit „+ überwachen“ fügen Sie das Unternehmen zur dauerhaften Liste hinzu."},
+    "cov_scanned": {"ru": "Что просмотрено в прогоне", "en": "What was scanned in run", "it": "Cosa è stato esaminato nell'esecuzione", "de": "Was im Durchlauf gescannt wurde"},
+    "cov_sources_n": {"ru": "Источников:", "en": "Sources:", "it": "Fonti:", "de": "Quellen:"},
+    "cov_jobs_collected": {"ru": "вакансий собрано:", "en": "jobs collected:", "it": "offerte raccolte:", "de": "Stellen gesammelt:"},
+    "cov_other_runs": {"ru": "другие прогоны:", "en": "other runs:", "it": "altri cicli:", "de": "andere Durchläufe:"},
+    "cov_col_source": {"ru": "Источник", "en": "Source", "it": "Fonte", "de": "Quelle"},
+    "cov_col_type": {"ru": "Тип", "en": "Type", "it": "Tipo", "de": "Typ"},
+    "cov_col_found": {"ru": "Найдено", "en": "Found", "it": "Trovate", "de": "Gefunden"},
+    "cov_empty": {"ru": "пусто", "en": "empty", "it": "vuoto", "de": "leer"},
+    "cov_ok": {"ru": "ок", "en": "ok", "it": "ok", "de": "ok"},
+    "cov_no_runs": {"ru": "Ещё не было ни одного прогона.", "en": "No runs yet.", "it": "Ancora nessun ciclo eseguito.", "de": "Noch keine Durchläufe."},
+    "cov_honest_title": {"ru": "Честно про охват", "en": "Honestly about coverage", "it": "Onestamente sulla copertura", "de": "Ehrlich zur Abdeckung"},
+    "cov_honest_1": {"ru": "Скрипт <b>не просматривает все компании мира</b> — их миллионы, и этого не делает ни один сервис (даже LinkedIn и Indeed видят лишь часть). Покрытие складывается из трёх потоков:", "en": "The script <b>does not scan every company in the world</b> — there are millions, and no service does (even LinkedIn and Indeed see only a fraction). Coverage comes from three streams:", "it": "Lo script <b>non analizza tutte le aziende del mondo</b> — sono milioni, e nessun servizio lo fa (persino LinkedIn e Indeed ne vedono solo una parte). La copertura deriva da tre flussi:", "de": "Das Skript <b>durchsucht nicht alle Unternehmen der Welt</b> — es sind Millionen, und kein Dienst tut das (selbst LinkedIn und Indeed sehen nur einen Teil). Die Abdeckung setzt sich aus drei Strömen zusammen:"},
+    "cov_honest_agg": {"ru": "<b>Агрегаторы</b> (Remotive, Arbeitnow, WeWorkRemotely, HN) — широкий, но неполный поток.", "en": "<b>Aggregators</b> (Remotive, Arbeitnow, WeWorkRemotely, HN) — broad but incomplete.", "it": "<b>Aggregatori</b> (Remotive, Arbeitnow, WeWorkRemotely, HN) — un flusso ampio ma incompleto.", "de": "<b>Aggregatoren</b> (Remotive, Arbeitnow, WeWorkRemotely, HN) — ein breiter, aber unvollständiger Strom."},
+    "cov_honest_list": {"ru": "<b>Компании из вашего списка</b> — читаются напрямую через ATS-API или краулинг, полностью.", "en": "<b>Companies on your list</b> — read directly via ATS API or crawling, in full.", "it": "<b>Aziende dal vostro elenco</b> — lette direttamente tramite API ATS o crawling, in modo completo.", "de": "<b>Unternehmen aus Ihrer Liste</b> — direkt über die ATS-API oder per Crawling vollständig gelesen."},
+    "cov_honest_disc": {"ru": "<b>Автопоиск</b> — каждый прогон находит новые компании под ваш профиль и добавляет их.", "en": "<b>Auto-discovery</b> — each run finds new companies for your profile and adds them.", "it": "<b>Ricerca automatica</b> — ogni ciclo trova nuove aziende adatte al vostro profilo e le aggiunge.", "de": "<b>Automatische Suche</b> — jeder Durchlauf findet neue, zu Ihrem Profil passende Unternehmen und fügt sie hinzu."},
+    "cov_honest_2": {"ru": "Признак, что до «всех» далеко: автопоиск <b>каждый прогон находит ранее неизвестные компании</b> — поток не насыщен. Лучший способ проверить конкретную — форма выше.", "en": "Sign we're far from “all”: auto-discovery <b>finds previously unknown companies every run</b> — the stream isn't saturated. Best way to check a specific one is the form above.", "it": "Segno che siamo lontani da «tutte»: la ricerca automatica <b>trova a ogni ciclo aziende prima sconosciute</b> — il flusso non è saturo. Il modo migliore per verificarne una specifica è il modulo qui sopra.", "de": "Ein Zeichen, dass wir von „allen“ weit entfernt sind: Die automatische Suche <b>findet bei jedem Durchlauf bislang unbekannte Unternehmen</b> — der Strom ist nicht gesättigt. Am besten prüfen Sie ein bestimmtes über das Formular oben."},
+    "person": {"ru": "Человек", "en": "Person", "it": "Persona", "de": "Person"},
+    "add_person": {"ru": "Добавить человека", "en": "Add person", "it": "Aggiungi persona", "de": "Person hinzufügen"},
+    "new_person_name": {"ru": "Имя нового человека", "en": "New person's name", "it": "Nome della nuova persona", "de": "Name der neuen Person"},
+    "create": {"ru": "Создать", "en": "Create", "it": "Crea", "de": "Erstellen"},
+    "rename_person": {"ru": "Переименовать", "en": "Rename", "it": "Rinomina", "de": "Umbenennen"},
+    "delete_person": {"ru": "Удалить этого человека", "en": "Delete this person", "it": "Elimina questa persona", "de": "Diese Person löschen"},
+    "delete_confirm": {"ru": "Удалить профиль и все его данные (CV, найденные вакансии)? Отменить нельзя.", "en": "Delete this profile and all its data (CV, found jobs)? This cannot be undone.", "it": "Eliminare il profilo e tutti i suoi dati (CV, offerte trovate)? Non è possibile annullare.", "de": "Dieses Profil und alle zugehörigen Daten (CV, gefundene Stellen) löschen? Das kann nicht rückgängig gemacht werden."},
+    "manage_people": {"ru": "Люди", "en": "People", "it": "Persone", "de": "Personen"},
+    "manage_hint": {"ru": "Каждый человек — свой профиль: CV, настройки, компании, результаты и расписание. Переключайтесь наверху страницы.", "en": "Each person is their own profile: CV, settings, companies, results and schedule. Switch at the top of the page.", "it": "Ogni persona ha il proprio profilo: CV, impostazioni, aziende, risultati e pianificazione. Passate da uno all'altro in cima alla pagina.", "de": "Jede Person hat ihr eigenes Profil: CV, Einstellungen, Unternehmen, Ergebnisse und Zeitplan. Wechseln Sie oben auf der Seite."},
+    # Taking a model back off the disk, and erasing everything the app has stored.
+    # Both texts end up inside a confirm() box, so they carry no straight
+    # apostrophe: it used to cut the line in half and leave a button that did
+    # nothing at all — in French only, where the apostrophe is unavoidable.
+    "models_delete": {"ru": "Удалить", "en": "Delete", "it": "Elimina", "de": "Löschen"},
+    "models_delete_confirm": {
+        "ru": "Удалить модель «{name}» с компьютера? Освободится место на диске, а скачать её снова можно в любой момент.",
+        "en": "Delete the model “{name}” from this computer? It gives the disk space back, and it can be downloaded again at any time.",
+        "it": "Eliminare il modello «{name}» da questo computer? Restituisce lo spazio su disco e si può scaricare di nuovo in qualsiasi momento.",
+        "de": "Das Modell „{name}“ von diesem Computer löschen? Der Speicherplatz wird frei, und es lässt sich jederzeit erneut herunterladen."},
+    "msg_model_deleted": {
+        "ru": "Модель {model} удалена с компьютера",
+        "en": "The model {model} has been deleted from this computer",
+        "it": "Il modello {model} è stato eliminato dal computer",
+        "de": "Das Modell {model} wurde vom Computer gelöscht"},
+    "prov_err_delete_failed": {
+        "ru": "Не удалось удалить модель: {error}",
+        "en": "Could not delete the model: {error}",
+        "it": "Impossibile eliminare il modello: {error}",
+        "de": "Das Modell konnte nicht gelöscht werden: {error}"},
+    "reset_title": {"ru": "Удаление всех данных", "en": "Erasing everything",
+                    "it": "Cancellare tutto", "de": "Alles löschen"},
+    "reset_hint": {
+        "ru": "Удаление программы не трогает ваши данные: профили, CV, найденные вакансии и настройки остаются на компьютере и находятся снова при следующей установке. Эта кнопка стирает их все и возвращает программу к первому запуску. Скачанные модели она не трогает — их можно удалить по одной на странице «Модель».",
+        "en": "Uninstalling the program does not touch your data: profiles, CVs, found jobs and settings stay on the computer and are found again by the next installation. This button erases all of it and returns the program to its first launch. Downloaded models are left alone — those are removed one by one on the “Model” page.",
+        "it": "Disinstallare il programma non tocca i suoi dati: profili, CV, offerte trovate e impostazioni restano sul computer e vengono ritrovati alla prossima installazione. Questo pulsante cancella tutto e riporta il programma al primo avvio. I modelli scaricati non vengono toccati — si eliminano uno per uno nella pagina «Modello».",
+        "de": "Das Deinstallieren des Programms rührt Ihre Daten nicht an: Profile, Lebensläufe, gefundene Stellen und Einstellungen bleiben auf dem Rechner und werden von der nächsten Installation wiedergefunden. Dieser Knopf löscht alles davon und setzt das Programm auf den ersten Start zurück. Heruntergeladene Modelle bleiben unberührt — die werden einzeln auf der Seite „Modell“ entfernt."},
+    "reset_button": {"ru": "Удалить все данные", "en": "Erase all data",
+                     "it": "Cancella tutti i dati", "de": "Alle Daten löschen"},
+    "reset_confirm": {
+        "ru": "Стереть все данные: профили, CV, найденные вакансии и настройки? Отменить нельзя.",
+        "en": "Erase all data: profiles, CVs, found jobs and settings? This cannot be undone.",
+        "it": "Cancellare tutti i dati: profili, CV, offerte trovate e impostazioni? Non è possibile annullare.",
+        "de": "Alle Daten löschen: Profile, Lebensläufe, gefundene Stellen und Einstellungen? Das kann nicht rückgängig gemacht werden."},
+    "msg_reset_done": {
+        "ru": "Все данные удалены — программа начинает с чистого листа",
+        "en": "Everything has been erased — the program starts from a clean sheet",
+        "it": "Tutto è stato cancellato — il programma riparte da zero",
+        "de": "Alles wurde gelöscht — das Programm beginnt von vorn"},
+    "msg_reset_failed": {
+        "ru": "Данные удалены, кроме этого: {files}. Закройте программу и удалите вручную, если нужно.",
+        "en": "The data has been erased apart from this: {files}. Close the program and remove it by hand if it matters.",
+        "it": "I dati sono stati cancellati tranne questo: {files}. Chiuda il programma e lo rimuova a mano, se necessario.",
+        "de": "Die Daten wurden gelöscht, bis auf dies: {files}. Schließen Sie das Programm und entfernen Sie es bei Bedarf von Hand."},
+    "msg_reset_busy": {
+        "ru": "Сейчас идёт поиск — остановите его, а потом удаляйте данные",
+        "en": "A search is running — stop it first, then erase the data",
+        "it": "È in corso una ricerca — la fermi prima di cancellare i dati",
+        "de": "Es läuft eine Suche — stoppen Sie sie zuerst und löschen Sie dann die Daten"},
+    # Прогон, в котором не оценено ничего. Собрать вакансии можно и без модели, и
+    # такой прогон доходил до конца со словами «подошло 0» — читалось это как
+    # «сегодня ничего подходящего», хотя ни одну вакансию так и не посмотрели.
+    "log_nothing_scored": {
+        "ru": "Ни одна вакансия не оценена — прогон остановлен.",
+        "en": "Not one job could be scored — the run has stopped.",
+        "it": "Nessuna offerta è stata valutata — l'esecuzione si è fermata.",
+        "de": "Keine einzige Stelle konnte bewertet werden — der Durchlauf ist gestoppt."},
+    "log_nothing_scored_why": {
+        "ru": "Модель не ответила: {error}",
+        "en": "The model did not answer: {error}",
+        "it": "Il modello non ha risposto: {error}",
+        "de": "Das Modell hat nicht geantwortet: {error}"},
+    "log_triage_partial": {
+        "ru": "Оценено не всё: не удались пачек — {failed}, без оценки осталось вакансий — {missed}. Они вернутся в следующий прогон.",
+        "en": "Not everything was scored: {failed} batches failed, {missed} jobs were left without a score. They come back next run.",
+        "it": "Non è stato valutato tutto: {failed} lotti non sono riusciti, {missed} offerte restano senza voto. Torneranno alla prossima esecuzione.",
+        "de": "Nicht alles wurde bewertet: {failed} Stapel schlugen fehl, {missed} Stellen blieben ohne Bewertung. Sie kommen beim nächsten Durchlauf wieder."},
+    "log_drop_dates": {
+        "ru": "По сроку размещения отброшено: {n} (с {since} по {until})",
+        "en": "Dropped by posting date: {n} (from {since} to {until})",
+        "it": "Scartate per data di pubblicazione: {n} (da {since} a {until})",
+        "de": "Nach Veröffentlichungsdatum verworfen: {n} (von {since} bis {until})"},
+    "cvcheck_partial": {
+        "ru": "Часть проверки не выполнена — для неё нужна модель: {error}. Остальное посчитано на этом компьютере и остаётся в силе.",
+        "en": "Part of the check could not be done — it needs the model: {error}. The rest was worked out on this computer and still holds.",
+        "it": "Una parte del controllo non è stata eseguita — le serve il modello: {error}. Il resto è stato calcolato su questo computer e resta valido.",
+        "de": "Ein Teil der Prüfung konnte nicht durchgeführt werden — dafür wird das Modell gebraucht: {error}. Der Rest wurde auf diesem Computer berechnet und gilt weiterhin."},
+    "simple_dates_hint": {
+        "ru": "Пусто — без ограничения по сроку.",
+        "en": "Empty means no limit on the posting date.",
+        "it": "Vuoto significa nessun limite sulla data di pubblicazione.",
+        "de": "Leer bedeutet keine Begrenzung des Veröffentlichungsdatums."},
+    # Обновление программы. Раньше о новых версиях человек не узнавал вовсе.
+    "update_title": {"ru": "Обновление", "en": "Update",
+                     "it": "Aggiornamento", "de": "Aktualisierung"},
+    "update_available": {
+        "ru": "Вышла версия {version} — у вас {current}.",
+        "en": "Version {version} is out — you have {current}.",
+        "it": "È uscita la versione {version} — lei ha la {current}.",
+        "de": "Version {version} ist erschienen — Sie haben {current}."},
+    "update_current": {
+        "ru": "У вас последняя версия — {version}.",
+        "en": "You have the latest version — {version}.",
+        "it": "Lei ha l'ultima versione — {version}.",
+        "de": "Sie haben die neueste Version — {version}."},
+    "update_check": {"ru": "Проверить обновления", "en": "Check for updates",
+                     "it": "Controlla aggiornamenti", "de": "Nach Updates suchen"},
+    "update_install": {"ru": "Обновить", "en": "Update now",
+                       "it": "Aggiorna", "de": "Jetzt aktualisieren"},
+    "update_notes": {"ru": "Что изменилось", "en": "What changed",
+                     "it": "Cosa è cambiato", "de": "Was sich geändert hat"},
+    "update_badge": {"ru": "новая версия", "en": "new version",
+                     "it": "nuova versione", "de": "neue Version"},
+    "update_downloading": {"ru": "Скачиваем обновление:", "en": "Downloading the update:",
+                           "it": "Scaricamento dell'aggiornamento:", "de": "Update wird geladen:"},
+    "update_manual_hint": {
+        "ru": "Для этой системы обновление ставится вручную: откройте страницу выпуска и скачайте файл.",
+        "en": "On this system the update is installed by hand: open the release page and download the file.",
+        "it": "Su questo sistema l'aggiornamento si installa a mano: apra la pagina della versione e scarichi il file.",
+        "de": "Auf diesem System wird das Update von Hand installiert: Öffnen Sie die Release-Seite und laden Sie die Datei herunter."},
+    "update_found": {
+        "ru": "Вышла версия {version} — поставить её можно ниже",
+        "en": "Version {version} is out — you can install it below",
+        "it": "È uscita la versione {version} — può installarla qui sotto",
+        "de": "Version {version} ist erschienen — Sie können sie unten installieren"},
+    "update_none": {
+        "ru": "Обновлений нет, у вас последняя версия — {version}",
+        "en": "No updates — {version} is the latest there is",
+        "it": "Nessun aggiornamento — {version} è l'ultima disponibile",
+        "de": "Keine Updates — {version} ist die neueste Version"},
+    "update_started": {
+        "ru": "Скачиваем обновление. Программа закроется сама и откроется уже новой.",
+        "en": "Downloading the update. The program will close by itself and open again as the new version.",
+        "it": "Stiamo scaricando l'aggiornamento. Il programma si chiuderà da solo e si riaprirà nella nuova versione.",
+        "de": "Das Update wird geladen. Das Programm schließt sich von selbst und öffnet sich als neue Version wieder."},
+    "update_busy": {
+        "ru": "Обновление уже скачивается", "en": "The update is already downloading",
+        "it": "L'aggiornamento è già in scaricamento", "de": "Das Update wird bereits geladen"},
+    "update_busy_search": {
+        "ru": "Сейчас идёт поиск — дождитесь конца или остановите его, а потом обновляйтесь",
+        "en": "A search is running — let it finish or stop it, and update after that",
+        "it": "È in corso una ricerca — la lasci finire o la fermi, e aggiorni dopo",
+        "de": "Es läuft eine Suche — lassen Sie sie enden oder stoppen Sie sie, und aktualisieren Sie danach"},
+    "update_manual": {
+        "ru": "Для этой системы готового установщика нет — скачайте обновление со страницы выпуска",
+        "en": "There is no ready installer for this system — download the update from the release page",
+        "it": "Per questo sistema non c'è un installatore pronto — scarichi l'aggiornamento dalla pagina della versione",
+        "de": "Für dieses System gibt es kein fertiges Installationsprogramm — laden Sie das Update von der Release-Seite"},
+    "update_err_bad_url": {
+        "ru": "Адрес файла ведёт не к нам — обновление отменено",
+        "en": "The file address does not lead to us — the update has been called off",
+        "it": "L'indirizzo del file non porta a noi — aggiornamento annullato",
+        "de": "Die Dateiadresse führt nicht zu uns — das Update wurde abgebrochen"},
+    "update_err_download": {
+        "ru": "Не удалось скачать обновление: {error}",
+        "en": "Could not download the update: {error}",
+        "it": "Impossibile scaricare l'aggiornamento: {error}",
+        "de": "Das Update konnte nicht geladen werden: {error}"},
+    "update_err_manual": {
+        "ru": "На этой системе обновление ставится вручную",
+        "en": "On this system the update is installed by hand",
+        "it": "Su questo sistema l'aggiornamento si installa a mano",
+        "de": "Auf diesem System wird das Update von Hand installiert"},
+    "update_err_broken": {
+        "ru": "Скачанный файл не совпал с тем, что обещал GitHub, — обновление отменено.",
+        "en": "The downloaded file did not match what GitHub promised — the update has been called off.",
+        "it": "Il file scaricato non corrisponde a quanto promesso da GitHub — aggiornamento annullato.",
+        "de": "Die heruntergeladene Datei stimmt nicht mit dem überein, was GitHub angekündigt hat — das Update wurde abgebrochen."},
+    "tg_err_network": {
+        "ru": "Telegram недоступен: {error}",
+        "en": "Telegram is unreachable: {error}",
+        "it": "Telegram non è raggiungibile: {error}",
+        "de": "Telegram ist nicht erreichbar: {error}"},
+    # Codex CLI — третья облачная командная строка рядом с Claude Code и Cursor.
+    "prov_codex_cli": {"ru": "Codex", "en": "Codex", "it": "Codex", "de": "Codex"},
+    "prov_codex_cli_hint": {
+        "ru": "Установите Codex CLI с developers.openai.com/codex",
+        "en": "Install Codex CLI from developers.openai.com/codex",
+        "it": "Installi Codex CLI da developers.openai.com/codex",
+        "de": "Installieren Sie Codex CLI von developers.openai.com/codex"},
+    "prov_codex_cli_about": {
+        "ru": "Командная строка OpenAI Codex. Считает в облаке по вашей подписке ChatGPT.",
+        "en": "OpenAI's Codex command line. Runs in the cloud on your ChatGPT subscription.",
+        "it": "La riga di comando Codex di OpenAI. Lavora nel cloud con il suo abbonamento ChatGPT.",
+        "de": "Die Codex-Kommandozeile von OpenAI. Rechnet in der Cloud über Ihr ChatGPT-Abo."},
+    "prov_err_no_codex": {
+        "ru": "Codex CLI не найден: установите codex",
+        "en": "Codex CLI not found: install codex",
+        "it": "Codex CLI non trovato: installi codex",
+        "de": "Codex CLI nicht gefunden: codex installieren"},
+    "model_auto_codex": {
+        "ru": "Авто (выбирает Codex)", "en": "Auto (Codex decides)",
+        "it": "Auto (decide Codex)", "de": "Auto (Codex entscheidet)"},
+    # Знакомство по шагам. Тестировщик не мог отличить «установить программу» от
+    # «скачать модель», потому что оба вопроса стояли на одной странице разом.
+    "models_needs_cli": {
+        "ru": "Сначала установите {name} — без неё выбранная модель не заработает.",
+        "en": "Install {name} first — the chosen model will not work without it.",
+        "it": "Prima installi {name} — senza, il modello scelto non funzionerà.",
+        "de": "Installieren Sie zuerst {name} — ohne das funktioniert das gewählte Modell nicht."},
+    "welcome_next": {"ru": "Далее", "en": "Next", "it": "Avanti", "de": "Weiter"},
+    "welcome_back": {
+        "ru": "Назад, к выбору программы", "en": "Back to choosing the program",
+        "it": "Indietro, alla scelta del programma", "de": "Zurück zur Programmauswahl"},
+    "welcome_ready_provider": {
+        "ru": "{name} установлена — можно переходить к модели.",
+        "en": "{name} is installed — on to the model.",
+        "it": "{name} è installato — si può passare al modello.",
+        "de": "{name} ist installiert — weiter zum Modell."},
+    "welcome_step2_intro": {
+        "ru": "Программа {name} установлена. Теперь выберите, какой моделью она будет думать.",
+        "en": "{name} is installed. Now choose which model it will think with.",
+        "it": "{name} è installato. Ora scelga con quale modello lavorerà.",
+        "de": "{name} ist installiert. Wählen Sie nun, mit welchem Modell es denken soll."},
+    "welcome_step2_local": {
+        "ru": "Модель — это файл на несколько гигабайт, он останется на вашем компьютере. Нажмите «Скачать» у подходящей и дождитесь конца — это небыстро.",
+        "en": "A model is a file of several gigabytes and it stays on your computer. Press “Download” next to one that fits and wait for it to finish — it takes a while.",
+        "it": "Un modello è un file di diversi gigabyte e resta sul suo computer. Prema «Scarica» accanto a uno adatto e attenda la fine — non è veloce.",
+        "de": "Ein Modell ist eine Datei von mehreren Gigabyte und bleibt auf Ihrem Rechner. Klicken Sie bei einem passenden auf „Herunterladen“ und warten Sie ab — das dauert."},
+    "welcome_step2_cloud": {
+        "ru": "Эта модель считает на сервере — скачивать на компьютер ничего не нужно, просто выберите подходящую.",
+        "en": "This model runs on a server — there is nothing to download, just pick the one you want.",
+        "it": "Questo modello lavora su un server — non c'è nulla da scaricare, scelga semplicemente quello che preferisce.",
+        "de": "Dieses Modell läuft auf einem Server — es gibt nichts herunterzuladen, wählen Sie einfach eines aus."},
+    # То, чем ставится сама программа. Copilot и Qwen приходят только через npm,
+    # а npm приходит с Node.js, которого на обычном компьютере нет. В карточке
+    # было написано «npm install -g @github/copilot» — человек уходил в терминал
+    # и получал «npm: команда не найдена» уже вне нашей программы, где помочь ему
+    # мы ничем не можем. Экран появляется только у тех, кого это касается.
+    "welcome_tools": {"ru": "Что нужно установить", "en": "What is needed first",
+                      "it": "Che cosa serve prima", "de": "Was zuerst nötig ist"},
+    "welcome_tools_intro": {
+        "ru": "{name} ставится через {tool} — сначала нужен он. Установите, вернитесь сюда и нажмите «Проверить снова».",
+        "en": "{name} is installed through {tool}, so that comes first. Install it, come back here and press “Check again”.",
+        "it": "{name} si installa tramite {tool}, quindi viene prima. Lo installi, torni qui e prema «Controlla di nuovo».",
+        "de": "{name} wird über {tool} installiert, das kommt also zuerst. Installieren Sie es, kommen Sie zurück und klicken Sie auf „Erneut prüfen“."},
+    # Без «сама» и без {hint} внутри. «Сама GitHub Copilot» — род не тот, а имена
+    # провайдеров все разного рода; подсказка же кончается своим двоеточием, и в
+    # строке их выходило два подряд. Подсказка теперь идёт отдельной строкой.
+    "welcome_tools_then": {
+        "ru": "Дальше — {name}.",
+        "en": "Then comes {name}.",
+        "it": "Poi tocca a {name}.",
+        "de": "Danach folgt {name}."},
+    "welcome_tools_blocked": {
+        "ru": "Пока нет {name}, ставить дальше нечем.",
+        "en": "Without {name} there is nothing to install with.",
+        "it": "Senza {name} non c'è nulla con cui installare.",
+        "de": "Ohne {name} gibt es nichts, womit installiert werden könnte."},
+    "tool_old_badge": {"ru": "версия старая", "en": "too old",
+                       "it": "versione vecchia", "de": "zu alt"},
+    "tool_too_old": {
+        "ru": "{name} найден, но версия {found} — нужна {need} или новее.",
+        "en": "{name} is here, but version {found} — {need} or newer is needed.",
+        "it": "{name} c'è, ma la versione è {found} — serve la {need} o più recente.",
+        "de": "{name} ist da, aber Version {found} — nötig ist {need} oder neuer."},
+    "tool_node": {"ru": "Node.js", "en": "Node.js", "it": "Node.js", "de": "Node.js"},
+    "tool_node_why": {
+        "ru": "{name} ставится командой npm, а npm приходит вместе с Node.js. Без него команда из инструкции просто не выполнится.",
+        "en": "{name} is installed with the npm command, and npm comes with Node.js. Without it the command in the instructions simply will not run.",
+        "it": "{name} si installa con il comando npm, e npm arriva insieme a Node.js. Senza, il comando delle istruzioni non parte nemmeno.",
+        "de": "{name} wird mit dem Befehl npm installiert, und npm kommt zusammen mit Node.js. Ohne das läuft der Befehl aus der Anleitung gar nicht erst."},
+    # Удаление самой программы. На macOS и Linux его нет вовсе: образ
+    # перетаскивают в корзину, и данные с автозапуском остаются навсегда —
+    # убрать их может только сама программа, до того как её удалят.
+    "uninstall_title": {"ru": "Удаление программы", "en": "Removing the program",
+                        "it": "Disinstallare il programma", "de": "Programm entfernen"},
+    "uninstall_windows": {
+        "ru": "Программа удаляется как обычно: «Параметры» → «Приложения». В окне удаления она спросит, удалять ли заодно ваши данные, и уберёт за собой автозапуск.",
+        "en": "The program is removed the usual way: Settings → Apps. On the way out it asks whether to take your data too, and clears up its start-at-login entry itself.",
+        "it": "Il programma si disinstalla come al solito: «Impostazioni» → «App». Uscendo chiede se eliminare anche i suoi dati e rimuove da sé l'avvio automatico.",
+        "de": "Das Programm wird wie üblich entfernt: „Einstellungen“ → „Apps“. Dabei fragt es, ob Ihre Daten mitgehen sollen, und räumt den Autostart selbst weg."},
+    "uninstall_manual": {
+        "ru": "На этой системе программы удаляют вручную, и всё, что она завела вокруг себя, остаётся: найти это самому нельзя, а убрать может только она сама — пока не удалена. Нажмите кнопку, и она уберёт за собой всё, кроме себя. Вот что её касается:",
+        "en": "On this system programs are removed by hand, and everything this one set up around itself stays behind: you cannot find it yourself, and only the program can clear it — while it is still here. Press the button and it will remove everything of its own except itself. This is what belongs to it:",
+        "it": "Su questo sistema i programmi si rimuovono a mano, e tutto ciò che questo ha creato attorno a sé resta: da soli non lo si trova, e solo il programma può toglierlo — finché è qui. Prema il pulsante e rimuoverà tutto il suo, tranne sé stesso. Ecco che cosa gli appartiene:",
+        "de": "Auf diesem System werden Programme von Hand entfernt, und alles, was dieses um sich herum angelegt hat, bleibt zurück: Sie finden es nicht selbst, und nur das Programm kann es beseitigen — solange es noch da ist. Klicken Sie, und es räumt alles Eigene weg außer sich selbst. Das gehört dazu:"},
+    "uninstall_is_program": {"ru": "сама программа", "en": "the program itself",
+                             "it": "il programma stesso", "de": "das Programm selbst"},
+    "uninstall_button": {"ru": "Убрать всё, кроме самой программы",
+                         "en": "Remove everything except the program",
+                         "it": "Rimuovi tutto tranne il programma",
+                         "de": "Alles außer dem Programm entfernen"},
+    "uninstall_confirm": {
+        "ru": "Стереть все данные и выключить автозапуск? Отменить нельзя. Саму программу после этого нужно будет удалить вручную.",
+        "en": "Erase all data and switch off start-at-login? This cannot be undone. The program itself will then have to be removed by hand.",
+        "it": "Cancellare tutti i dati e disattivare l'avvio automatico? Non è possibile annullare. Il programma stesso andrà poi rimosso a mano.",
+        "de": "Alle Daten löschen und den Autostart abschalten? Das lässt sich nicht rückgängig machen. Das Programm selbst muss danach von Hand entfernt werden."},
+    "uninstall_ready": {
+        "ru": "Данные удалены, автозапуск выключен. Осталось убрать саму программу: {path}",
+        "en": "The data is gone and start-at-login is off. What remains is the program itself: {path}",
+        "it": "I dati sono stati cancellati e l'avvio automatico è disattivato. Resta il programma stesso: {path}",
+        "de": "Die Daten sind weg und der Autostart ist aus. Übrig bleibt das Programm selbst: {path}"},
+    "uninstall_from_source": {
+        "ru": "папка с исходниками", "en": "the folder with the sources",
+        "it": "la cartella con i sorgenti", "de": "der Ordner mit den Quellen"},
+    "model_auto_generic": {"ru": "Авто (как настроено в программе)",
+                           "en": "Auto (as the program is set up)",
+                           "it": "Auto (come impostato nel programma)",
+                           "de": "Auto (wie im Programm eingestellt)"},
+    "prov_copilot_cli": {"ru": "GitHub Copilot", "en": "GitHub Copilot",
+                         "it": "GitHub Copilot", "de": "GitHub Copilot"},
+    "prov_copilot_cli_hint": {
+        "ru": "Установите Copilot CLI: npm install -g @github/copilot",
+        "en": "Install Copilot CLI: npm install -g @github/copilot",
+        "it": "Installi Copilot CLI: npm install -g @github/copilot",
+        "de": "Installieren Sie Copilot CLI: npm install -g @github/copilot"},
+    "prov_copilot_cli_about": {
+        "ru": "Командная строка GitHub Copilot. Считает в облаке по вашей подписке Copilot — у многих она уже есть.",
+        "en": "GitHub's Copilot command line. Runs in the cloud on your Copilot subscription — many people already have one.",
+        "it": "La riga di comando Copilot di GitHub. Lavora nel cloud con il suo abbonamento Copilot — molti ce l'hanno già.",
+        "de": "Die Copilot-Kommandozeile von GitHub. Rechnet in der Cloud über Ihr Copilot-Abo — viele haben eines bereits."},
+    "prov_goose_cli": {"ru": "Goose", "en": "Goose", "it": "Goose", "de": "Goose"},
+    "prov_goose_cli_hint": {
+        "ru": "Установите Goose с goose-docs.ai и дайте ему ключ от вашей модели",
+        "en": "Install Goose from goose-docs.ai and give it a key for your model",
+        "it": "Installi Goose da goose-docs.ai e gli dia una chiave per il suo modello",
+        "de": "Installieren Sie Goose von goose-docs.ai und geben Sie ihm einen Schlüssel für Ihr Modell"},
+    "prov_goose_cli_about": {
+        "ru": "Открытая программа под крылом Linux Foundation. Сама по себе моделей не имеет: вы даёте ей ключ от той службы, которой пользуетесь.",
+        "en": "An open program under the Linux Foundation. It has no models of its own: you give it a key for whichever service you use.",
+        "it": "Un programma aperto sotto la Linux Foundation. Non ha modelli propri: gli si dà una chiave del servizio che si usa.",
+        "de": "Ein offenes Programm unter der Linux Foundation. Es hat keine eigenen Modelle: Sie geben ihm einen Schlüssel für den Dienst, den Sie nutzen."},
+    "prov_qwen_cli": {"ru": "Qwen Code", "en": "Qwen Code",
+                      "it": "Qwen Code", "de": "Qwen Code"},
+    "prov_qwen_cli_hint": {
+        "ru": "Установите: npm install -g @qwen-code/qwen-code — и дайте ключ от вашей модели",
+        "en": "Install: npm install -g @qwen-code/qwen-code — and give it a key for your model",
+        "it": "Installi: npm install -g @qwen-code/qwen-code — e gli dia una chiave del suo modello",
+        "de": "Installieren: npm install -g @qwen-code/qwen-code — und geben Sie ihm einen Schlüssel für Ihr Modell"},
+    "prov_qwen_cli_about": {
+        "ru": "Командная строка Qwen. Работает по вашему ключу — от Alibaba или от любой другой службы, которую вы ей укажете. Бесплатного входа у неё больше нет.",
+        "en": "The Qwen command line. Runs on a key of yours — from Alibaba or any other service you point it at. Its free tier is gone.",
+        "it": "La riga di comando di Qwen. Funziona con una sua chiave — di Alibaba o di qualsiasi altro servizio che le indichi. Il livello gratuito non c'è più.",
+        "de": "Die Qwen-Kommandozeile. Läuft mit einem Schlüssel von Ihnen — von Alibaba oder einem anderen Dienst Ihrer Wahl. Ein kostenloser Zugang besteht nicht mehr."},
+    "prov_err_no_copilot": {
+        "ru": "Copilot CLI не найден: установите copilot",
+        "en": "Copilot CLI not found: install copilot",
+        "it": "Copilot CLI non trovato: installi copilot",
+        "de": "Copilot CLI nicht gefunden: copilot installieren"},
+    "prov_err_no_goose": {
+        "ru": "Goose не найден: установите goose", "en": "Goose not found: install goose",
+        "it": "Goose non trovato: installi goose", "de": "Goose nicht gefunden: goose installieren"},
+    "prov_err_no_qwen": {
+        "ru": "Qwen Code не найден: установите qwen", "en": "Qwen Code not found: install qwen",
+        "it": "Qwen Code non trovato: installi qwen", "de": "Qwen Code nicht gefunden: qwen installieren"},
+    # Свой адрес, говорящий на языке OpenAI: одним провайдером накрываются
+    # OpenRouter, LM Studio, vLLM, llama.cpp, корпоративный шлюз и сам OpenAI.
+    "prov_openai_api": {"ru": "Свой адрес (OpenAI API)", "en": "Your own endpoint (OpenAI API)",
+                        "it": "Indirizzo proprio (API OpenAI)", "de": "Eigene Adresse (OpenAI-API)"},
+    "prov_openai_api_hint": {
+        "ru": "Впишите адрес — например, OpenRouter, LM Studio или ваш собственный сервер",
+        "en": "Enter an address — OpenRouter, LM Studio or a server of your own",
+        "it": "Inserisca un indirizzo — OpenRouter, LM Studio o un suo server",
+        "de": "Tragen Sie eine Adresse ein — OpenRouter, LM Studio oder Ihr eigener Server"},
+    "prov_openai_api_about": {
+        "ru": "Любая служба, говорящая на языке OpenAI: OpenRouter с сотнями моделей, LM Studio или llama.cpp на вашем компьютере, свой сервер, рабочий шлюз. Подойдёт и сам OpenAI.",
+        "en": "Any service that speaks the OpenAI protocol: OpenRouter with hundreds of models, LM Studio or llama.cpp on your own computer, your own server, a work gateway. OpenAI itself will do too.",
+        "it": "Qualsiasi servizio che parli il protocollo OpenAI: OpenRouter con centinaia di modelli, LM Studio o llama.cpp sul suo computer, un suo server, un gateway aziendale. Va bene anche OpenAI stesso.",
+        "de": "Jeder Dienst, der das OpenAI-Protokoll spricht: OpenRouter mit Hunderten Modellen, LM Studio oder llama.cpp auf Ihrem Rechner, ein eigener Server, ein Firmen-Gateway. Auch OpenAI selbst."},
+    "api_base": {"ru": "Адрес", "en": "Address", "it": "Indirizzo", "de": "Adresse"},
+    "api_key": {"ru": "Ключ", "en": "Key", "it": "Chiave", "de": "Schlüssel"},
+    "api_key_ph": {"ru": "если нужен", "en": "if one is needed",
+                   "it": "se necessaria", "de": "falls nötig"},
+    "api_model": {"ru": "Название модели", "en": "Model name",
+                  "it": "Nome del modello", "de": "Name des Modells"},
+    "api_model_ph": {"ru": "например, anthropic/claude-sonnet-5",
+                     "en": "for example, anthropic/claude-sonnet-5",
+                     "it": "ad esempio, anthropic/claude-sonnet-5",
+                     "de": "zum Beispiel anthropic/claude-sonnet-5"},
+    "api_model_hint": {
+        "ru": "Впишите название так, как оно указано в документации выбранной службы ({base}). Списка здесь нет: какие модели доступны, знает только она.",
+        "en": "Write the name exactly as the service documents it ({base}). There is no list here: only that service knows which models it offers.",
+        "it": "Scriva il nome esattamente come lo indica il servizio ({base}). Qui non c'è un elenco: solo quel servizio sa quali modelli offre.",
+        "de": "Schreiben Sie den Namen genau so, wie der Dienst ihn angibt ({base}). Eine Liste gibt es hier nicht: welche Modelle es gibt, weiß nur dieser Dienst."},
+    "prov_err_no_api_base": {
+        "ru": "Не указан адрес службы", "en": "No address for the service",
+        "it": "Indirizzo del servizio non indicato", "de": "Keine Adresse für den Dienst"},
+    "prov_err_api_bad_key": {
+        "ru": "В ключе есть знаки, которых в ключах не бывает — похоже, скопировалось что-то лишнее. Вставьте только сам ключ.",
+        "en": "The key contains characters that keys do not have — something extra was probably copied along with it. Paste the key alone.",
+        "it": "La chiave contiene caratteri che le chiavi non hanno: probabilmente è stato copiato anche altro. Incolli solo la chiave.",
+        "de": "Der Schlüssel enthält Zeichen, die in Schlüsseln nicht vorkommen — vermutlich wurde etwas mitkopiert. Fügen Sie nur den Schlüssel ein."},
+    "prov_err_no_api_model": {
+        "ru": "Не указано название модели", "en": "No model name given",
+        "it": "Nome del modello non indicato", "de": "Kein Modellname angegeben"},
+    "prov_err_api_base_bad": {
+        "ru": "Адрес должен начинаться с http:// или https://",
+        "en": "The address has to start with http:// or https://",
+        "it": "L'indirizzo deve iniziare con http:// o https://",
+        "de": "Die Adresse muss mit http:// oder https:// beginnen"},
+    "prov_err_api_unreachable": {
+        "ru": "Служба не отвечает: {error}", "en": "The service is not answering: {error}",
+        "it": "Il servizio non risponde: {error}", "de": "Der Dienst antwortet nicht: {error}"},
+    "prov_err_api_not_json": {
+        "ru": "Служба вернула не JSON: {error}", "en": "The service returned something other than JSON: {error}",
+        "it": "Il servizio ha restituito qualcosa che non è JSON: {error}",
+        "de": "Der Dienst lieferte kein JSON: {error}"},
+    "welcome_cost_hint": {
+        "ru": "Claude Code, Cursor и Codex считают на своих серверах — для них нужна подписка или оплата по мере использования. Локальная модель (Ollama) бесплатна, но ей нужны память компьютера и время.",
+        "en": "Claude Code, Cursor and Codex do the thinking on their own servers — those need a subscription or pay-as-you-go. A local model (Ollama) is free, but it wants your computer's memory and time.",
+        "it": "Claude Code, Cursor e Codex lavorano sui propri server — servono un abbonamento o il pagamento a consumo. Il modello locale (Ollama) è gratuito, ma vuole memoria del computer e tempo.",
+        "de": "Claude Code, Cursor und Codex rechnen auf ihren eigenen Servern — dafür braucht es ein Abo oder Pay-as-you-go. Ein lokales Modell (Ollama) ist kostenlos, verlangt aber Arbeitsspeicher und Zeit."},
+
+}
+
+
+@lru_cache(maxsize=32)
+def _locale(lang: str) -> dict:
+    """One language's translations from jobsearch/locales/<code>.py.
+
+    There are fourteen languages now: keeping them all in a single dictionary
+    would make it unreadable. The first four stayed here, the rest live in files.
+    """
+    try:
+        module = importlib.import_module(f"{__package__}.locales.{lang}")
+    except ModuleNotFoundError:
+        return {}
+    return getattr(module, "STRINGS", {})
+
+
+def err(lang: str, exc) -> str:
+    """An exception's text in the interface language.
+
+    Our own errors carry a translation key (ClaudeError, ProviderError,
+    MailError, CVError) — those are the ones we translate. Everything else
+    arrived from an outside program as finished text, and there is nothing to
+    translate it with.
+    """
+    key = getattr(exc, "key", "")
+    if not key:
+        return str(exc)
+    fmt = getattr(exc, "fmt", None) or {}
+    text = t(lang, key)
+    try:
+        return text.format(**fmt)
+    except (KeyError, IndexError):
+        return text
+
+
+def t(lang: str, key: str) -> str:
+    lang = (lang or "en").split("-")[0]  # "it-en" → headings in Italian
+    entry = TR.get(key)
+    if entry and entry.get(lang):
+        return entry[lang]
+    text = _locale(lang).get(key)
+    if text:
+        return text
+    # The fallback is English: Russian is understood by a minority of users.
+    if entry:
+        return entry.get("en") or entry.get("ru") or key
+    return key

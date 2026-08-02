@@ -350,11 +350,6 @@ def _open_window(port: int, own_server: bool) -> None:
     """Our own window, or a browser tab if the system will not give us one."""
     global _window
     try:
-        # Скачивание файлов pywebview по умолчанию запрещает, и запрещает молча:
-        # человек жал «CSV» и не получал ничего — ни файла, ни слова о том,
-        # почему. Выгружаются только собственные страницы программы, с её же
-        # адреса, так что разрешать тут нечего, кроме уже своего.
-        webview.settings["ALLOW_DOWNLOADS"] = True
         _window = webview.create_window(APP_NAME, f"http://127.0.0.1:{port}/simple",
                                         width=1180, height=860, min_size=(900, 600))
         _window.events.shown += _remember_window_shown

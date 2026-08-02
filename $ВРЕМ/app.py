@@ -1353,12 +1353,10 @@ def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
     html_doc = export_mod.to_html(jobs, name, db.now(), min,
                                   note=_filter_note(lang, min, sort, viewed, source, run,
                                                     posted_from, posted_to))
-    # Отчёт открывается, а не скачивается, и это не мелочь: подсказка рядом с
-    # кнопкой обещает «открыть и распечатать в PDF», а отдавался он файлом на
-    # скачивание. В окне программы от этого не происходило вообще ничего —
-    # pywebview скачивать не даёт, — и человек жал кнопку впустую. Печать в PDF
-    # делается из открытой страницы, так что открыть её и надо.
-    return Response(content=html_doc, media_type="text/html; charset=utf-8")
+    return Response(
+        content=html_doc, media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="report_{safe}.html"'},
+    )
 
 
 @app.get("/cv/{job_id}")

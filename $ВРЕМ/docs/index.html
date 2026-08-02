@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Job Search — поиск работы, который идёт сам</title>
+<meta name="description" content="Настольная программа: ищет вакансии по вашему CV на сайтах компаний и агрегаторах, оценивает совпадение и подсказывает, что поправить в резюме.">
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --text: #1c2430; --muted: #67707e;
+    --accent: #2563eb; --border: #e3e7ee; --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12161c; --card: #1b212a; --text: #e6eaf0; --muted: #94a0b0;
+            --accent: #5b8def; --border: #2a3340; --ok: #4ade80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+  header { display: flex; align-items: center; gap: 20px; padding: 22px 0; flex-wrap: wrap; }
+  .logo { font-size: 20px; font-weight: 700; }
+  nav { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  nav button { border: 1px solid var(--border); background: var(--card); color: var(--muted);
+               border-radius: 8px; padding: 5px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+  nav button.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .hero { text-align: center; padding: 40px 0 24px; }
+  .hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.02em; }
+  .hero p { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 660px; margin: 0 auto 28px; }
+  .downloads { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .gate { max-width: 640px; margin: 14px auto 0; text-align: left; font-size: 14px; color: var(--muted, #6e6e73); }
+  .gate summary { cursor: pointer; font-weight: 500; font-size: inherit; }
+  .gate p { margin: 8px 0 0; line-height: 1.55; font-size: inherit; }
+  .dl { display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+        background: var(--accent); color: #fff; padding: 13px 22px; border-radius: 10px;
+        font-weight: 600; border: 1px solid var(--accent); }
+  .dl.secondary { background: var(--card); color: var(--text); border-color: var(--border); }
+  .dl:hover { filter: brightness(1.08); }
+  .note { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  section { padding: 40px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: 26px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+  .card h3 { margin: 0 0 8px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .steps { counter-reset: s; display: grid; gap: 16px; }
+  .step { display: flex; gap: 16px; align-items: flex-start; }
+  .step::before { counter-increment: s; content: counter(s); flex: none;
+                  width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+                  color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 15px; }
+  .step b { display: block; margin-bottom: 2px; }
+  .step span { color: var(--muted); font-size: 15px; }
+  figure { margin: 0 0 26px; }
+  figure img { width: 100%; border: 1px solid var(--border); border-radius: 14px; display: block; }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; text-align: center; }
+  .req { display: flex; gap: 10px; align-items: baseline; margin-bottom: 12px; }
+  .req b { flex: none; }
+  footer { padding: 34px 0 60px; color: var(--muted); font-size: 14px; text-align: center; }
+  footer a { color: var(--accent); }
+  footer .donate { display: flex; justify-content: center; align-items: center;
+                   gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+  footer .donate a { padding: 5px 12px; border: 1px solid var(--border, rgba(0,0,0,.12));
+                     border-radius: 8px; text-decoration: none; }
+  [data-i18n-hide] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo">🔎 AI Job Search</div>
+  <nav>
+    <button data-lang="ru" class="on">Русский</button>
+    <button data-lang="en">English</button>
+    <button data-lang="it">Italiano</button>
+    <button data-lang="de">Deutsch</button>
+  </nav>
+</header>
+
+<div class="hero">
+  <h1 data-t="hero_title"></h1>
+  <p data-t="hero_sub"></p>
+  <div class="downloads">
+    <!-- Straight at the latest release's file: /latest/download/<name> always points
+         at the newest version, so the links need no editing on every release. -->
+    <a class="dl" id="dl-mac" href="https://github.com/mrWD/ai-job-search/releases/latest/download/AI.Job.Search.dmg">
+      <span>🍎</span><span data-t="dl_mac"></span>
+    </a>
+    <a class="dl secondary" href="https://github.com/mrWD/ai-job-search/releases/latest/download/AI.Job.Search.Setup.exe">
+      <span>🪟</span><span data-t="dl_win"></span>
+    </a>
+    <a class="dl secondary" href="https://github.com/mrWD/ai-job-search/releases/latest/download/AI.Job.Search-linux.tar.gz">
+      <span>🐧</span><span data-t="dl_linux"></span>
+    </a>
+  </div>
+  <p class="note" data-t="dl_note"></p>
+  <!-- The first thing a person trips over on Windows: the blue SmartScreen box.
+       Better to warn before the download than leave them guessing after. -->
+  <details class="gate">
+    <summary data-t="win_gate_t"></summary>
+    <p data-t="win_gate_d"></p>
+  </details>
+</div>
+
+<section>
+  <h2 data-t="how_title"></h2>
+  <p class="sub" data-t="how_sub"></p>
+  <div class="steps">
+    <div class="step"><div><b data-t="step1_t"></b><span data-t="step1_d"></span></div></div>
+    <div class="step"><div><b data-t="step2_t"></b><span data-t="step2_d"></span></div></div>
+    <div class="step"><div><b data-t="step3_t"></b><span data-t="step3_d"></span></div></div>
+  </div>
+</section>
+
+<section>
+  <h2 data-t="screens_title"></h2>
+  <p class="sub" data-t="screens_sub"></p>
+  <figure>
+    <img src="img/results.png" alt="">
+    <figcaption data-t="cap_results"></figcaption>
+  </figure>
+  <figure>
+    <img src="img/quick-search.png" alt="">
+    <figcaption data-t="cap_quick"></figcaption>
+  </figure>
+  <figure>
+    <img src="img/models.png" alt="">
+    <figcaption data-t="cap_models"></figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2 data-t="feat_title"></h2>
+  <p class="sub" data-t="feat_sub"></p>
+  <div class="grid">
+    <div class="card"><h3 data-t="f1_t"></h3><p data-t="f1_d"></p></div>
+    <div class="card"><h3 data-t="f2_t"></h3><p data-t="f2_d"></p></div>
+    <div class="card"><h3 data-t="f3_t"></h3><p data-t="f3_d"></p></div>
+    <div class="card"><h3 data-t="f4_t"></h3><p data-t="f4_d"></p></div>
+    <div class="card"><h3 data-t="f5_t"></h3><p data-t="f5_d"></p></div>
+    <div class="card"><h3 data-t="f6_t"></h3><p data-t="f6_d"></p></div>
+  </div>
+</section>
+
+<section>
+  <h2 data-t="req_title"></h2>
+  <p class="sub" data-t="req_sub"></p>
+  <div class="card">
+    <div class="req"><b data-t="req1_t"></b><span data-t="req1_d"></span></div>
+    <div class="req"><b data-t="req2_t"></b><span data-t="req2_d"></span></div>
+    <div class="req"><b data-t="req3_t"></b><span data-t="req3_d"></span></div>
+  </div>
+</section>
+
+<section>
+  <h2 data-t="privacy_title"></h2>
+  <p class="sub" data-t="privacy_sub"></p>
+  <div class="grid">
+    <div class="card"><h3 data-t="p1_t"></h3><p data-t="p1_d"></p></div>
+    <div class="card"><h3 data-t="p2_t"></h3><p data-t="p2_d"></p></div>
+  </div>
+</section>
+
+<footer>
+  <p data-t="footer_open"></p>
+  <p class="donate">
+    <span data-t="donate"></span>
+    <a href="https://buymeacoffee.com/ipupok" target="_blank" rel="noopener">Buy Me a Coffee</a>
+    <a href="https://ko-fi.com/ipupok" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://www.paypal.com/donate/?hosted_button_id=VBNDB5AHYLGCY" target="_blank" rel="noopener">PayPal</a>
+  </p>
+  <p><a href="https://mrwd.github.io/" target="_blank" rel="noopener" data-t="projects"></a></p>
+  <p><a href="https://github.com/mrWD/ai-job-search">github.com/mrWD/ai-job-search</a></p>
+</footer>
+
+</div>
+
+<script>
+const T = {
+  ru: {
+    hero_title: "Поиск работы, который идёт сам",
+    hero_sub: "Программа читает ваше резюме, обходит сайты компаний и площадки с вакансиями, оценивает каждую находку и подсказывает, что поправить в CV под конкретную позицию. Запустили — закрыли — вернулись к готовому списку.",
+    dl_mac: "Скачать для macOS", dl_win: "Скачать для Windows", dl_linux: "Скачать для Linux",
+    dl_note: "Бесплатно и с открытым кодом. Первый запуск занимает пару минут: понадобится Claude Code или локальная модель.",
+    win_gate_t: "Первый запуск на Windows",
+    win_gate_d: "Установщик пока не подписан, поэтому Windows покажет синее окно «Система Windows защитила ваш компьютер». Это не вирус и не запрет: нажмите «Подробнее», затем «Выполнить в любом случае». Причина в том, что у новой программы ещё нет репутации у Microsoft — она набирается по мере того, как её скачивают.",
+    how_title: "Как это работает", how_sub: "Три шага — дальше программа работает сама.",
+    step1_t: "Загрузите резюме и укажите регион",
+    step1_d: "Роли, навыки и уровень определяются из CV автоматически — заполнять анкету не нужно.",
+    step2_t: "Программа ищет и оценивает",
+    step2_d: "Обходит сайты компаний, ATS-площадки и агрегаторы, отсеивает неподходящее и ставит каждой вакансии оценку совпадения с вашим опытом.",
+    step3_t: "Вы получаете список и правки",
+    step3_d: "Результаты приходят в Telegram или на почту. К каждой вакансии — что подчеркнуть в резюме, оценка зарплаты и факты о компании.",
+    screens_title: "Как выглядит", screens_sub: "Данные на снимках демонстрационные.",
+    cap_results: "Список найденного: оценка совпадения, дата публикации, правки резюме под конкретную вакансию.",
+    cap_quick: "Быстрый поиск: три поля — для кого, где искать и резюме.",
+    cap_models: "Выбор модели: облачная или локальная, с отметкой, потянет ли её ваш компьютер.",
+    feat_title: "Что умеет", feat_sub: "Не просто список вакансий, а работа с откликом целиком.",
+    f1_t: "Ищет там, где не ищут агрегаторы",
+    f1_d: "Обходит карьерные страницы компаний напрямую и находит новых работодателей веб-поиском — включая те, что не публикуются на job-бордах.",
+    f2_t: "Объясняет каждую оценку",
+    f2_d: "Не просто процент, а почему подходит и что мешает: визы, язык, разрыв в стеке.",
+    f3_t: "Готовит резюме под вакансию",
+    f3_d: "Собирает адаптированную версию CV под конкретную позицию — переставляет акценты, ничего не выдумывая.",
+    f4_t: "Проверяет, пройдёт ли CV роботов",
+    f4_d: "Показывает, что увидит ATS: ломается ли разбор файла, находятся ли контакты, каких ключевых слов не хватает.",
+    f5_t: "Несколько человек в одной программе",
+    f5_d: "Можно искать себе и помогать друзьям: у каждого своё резюме, настройки и результаты.",
+    f6_t: "Работает на четырёх языках",
+    f6_d: "Интерфейс и результаты — по-русски, по-английски, по-итальянски или по-немецки.",
+    req_title: "Что нужно", req_sub: "Кроме самой программы.",
+    req1_t: "Модель.", req1_d: "Claude Code (устанавливается отдельно, нужна подписка Anthropic), Cursor или локальная модель через Ollama — тогда всё считается на вашем компьютере бесплатно.",
+    req2_t: "Компьютер.", req2_d: "macOS, Windows или Linux. Для локальных моделей — от 8 ГБ памяти; программа сама покажет, какие модели потянет ваша машина.",
+    req3_t: "Время.", req3_d: "Один проход занимает 20–60 минут. Программа может работать непрерывно и присылать новое по мере появления.",
+    privacy_title: "Про данные", privacy_sub: "Коротко и по делу.",
+    p1_t: "Всё хранится у вас", p1_d: "Резюме, настройки и найденные вакансии лежат на вашем компьютере. Своего сервера у программы нет.",
+    p2_t: "Наружу уходит только запрос к модели", p2_d: "И то лишь к той, которую вы выбрали. С локальной моделью не уходит ничего.",
+    footer_open: "Открытый исходный код. Пользуйтесь, изучайте, предлагайте улучшения.",
+    donate: "Программа бесплатная. Если пригодилась — можно поддержать автора:",
+    projects: "Другие проекты автора",
+  },
+  en: {
+    hero_title: "A job search that runs itself",
+    hero_sub: "The app reads your CV, goes through company career pages and job boards, scores every match, and tells you what to change in your resume for each role. Start it, close it, come back to a finished list.",
+    dl_mac: "Download for macOS", dl_win: "Download for Windows", dl_linux: "Download for Linux",
+    dl_note: "Free and open source. First launch takes a couple of minutes: you will need Claude Code or a local model.",
+    win_gate_t: "First launch on Windows",
+    win_gate_d: "The installer is not signed yet, so Windows shows a blue box saying it protected your PC. That is not a virus warning and not a block: click More info, then Run anyway. A new program simply has no reputation with Microsoft yet — it builds up as people download it.",
+    how_title: "How it works", how_sub: "Three steps — after that it runs on its own.",
+    step1_t: "Upload a CV and pick a region",
+    step1_d: "Roles, skills and seniority are taken from the CV automatically — no forms to fill in.",
+    step2_t: "It searches and scores",
+    step2_d: "Goes through company sites, ATS boards and aggregators, drops what does not fit, and scores every job against your actual experience.",
+    step3_t: "You get a list and the edits",
+    step3_d: "Results arrive in Telegram or by email. Each job comes with what to emphasise in the CV, a salary estimate and facts about the company.",
+    screens_title: "What it looks like", screens_sub: "The data in the screenshots is demonstration data.",
+    cap_results: "The results: match score, posting date, and CV edits for that specific job.",
+    cap_quick: "Quick search: three fields — who it is for, where to look, and the CV.",
+    cap_models: "Model picker: cloud or local, with a badge saying whether your machine can run it.",
+    feat_title: "What it does", feat_sub: "Not just a list of jobs, but the whole application.",
+    f1_t: "Looks where aggregators do not",
+    f1_d: "Goes to company career pages directly and finds new employers by web search — including ones that never post on job boards.",
+    f2_t: "Explains every score",
+    f2_d: "Not just a percentage, but why it fits and what stands in the way: visas, language, a gap in the stack.",
+    f3_t: "Tailors the CV to the job",
+    f3_d: "Builds a version of your CV for a specific role — reordering emphasis without inventing anything.",
+    f4_t: "Checks whether bots will read your CV",
+    f4_d: "Shows what an ATS sees: whether parsing breaks, whether contacts are found, which keywords are missing.",
+    f5_t: "Several people in one app",
+    f5_d: "Search for yourself and help friends: each person has their own CV, settings and results.",
+    f6_t: "Four languages",
+    f6_d: "Interface and results in English, Russian, Italian or German.",
+    req_title: "What you need", req_sub: "Besides the app itself.",
+    req1_t: "A model.", req1_d: "Claude Code (installed separately, needs an Anthropic subscription), Cursor, or a local model via Ollama — then everything runs on your computer for free.",
+    req2_t: "A computer.", req2_d: "macOS, Windows or Linux. For local models, 8 GB of memory and up; the app shows which models your machine can handle.",
+    req3_t: "Time.", req3_d: "One pass takes 20–60 minutes. The app can run continuously and send new finds as they appear.",
+    privacy_title: "About your data", privacy_sub: "Briefly.",
+    p1_t: "Everything stays with you", p1_d: "Your CV, settings and found jobs live on your computer. The app has no server of its own.",
+    p2_t: "Only the model request leaves", p2_d: "And only to the model you picked. With a local model, nothing leaves at all.",
+    footer_open: "Open source. Use it, read it, suggest improvements.",
+    donate: "The app is free. If it has been useful, you can support the author:",
+    projects: "More projects by the author",
+  },
+  it: {
+    hero_title: "Una ricerca di lavoro che va avanti da sola",
+    hero_sub: "Il programma legge il suo CV, visita i siti delle aziende e i portali di lavoro, valuta ogni offerta e suggerisce cosa modificare nel curriculum per ciascuna posizione. Si avvia, si chiude, e al ritorno c'è una lista pronta.",
+    dl_mac: "Scarica per macOS", dl_win: "Scarica per Windows", dl_linux: "Scarica per Linux",
+    dl_note: "Gratuito e open source. Il primo avvio richiede pochi minuti: serve Claude Code o un modello locale.",
+    win_gate_t: "Primo avvio su Windows",
+    win_gate_d: "Il programma di installazione non è ancora firmato, quindi Windows mostra un riquadro blu che dice di aver protetto il PC. Non è un avviso di virus né un blocco: cliccate «Ulteriori informazioni» e poi «Esegui comunque». Un programma nuovo semplicemente non ha ancora una reputazione presso Microsoft: si costruisce man mano che viene scaricato.",
+    how_title: "Come funziona", how_sub: "Tre passaggi — poi lavora da solo.",
+    step1_t: "Carichi il CV e indichi la zona",
+    step1_d: "Ruoli, competenze e livello vengono ricavati dal CV automaticamente — nessun modulo da compilare.",
+    step2_t: "Cerca e valuta",
+    step2_d: "Passa dai siti aziendali, dai portali ATS e dagli aggregatori, scarta ciò che non serve e assegna a ogni offerta un punteggio rispetto alla sua esperienza.",
+    step3_t: "Riceve la lista e le modifiche",
+    step3_d: "I risultati arrivano su Telegram o via email. Per ogni offerta: cosa mettere in evidenza nel CV, una stima dello stipendio e informazioni sull'azienda.",
+    screens_title: "Com'è fatto", screens_sub: "I dati nelle immagini sono dimostrativi.",
+    cap_results: "I risultati: punteggio, data di pubblicazione e modifiche al CV per quella specifica offerta.",
+    cap_quick: "Ricerca rapida: tre campi — per chi, dove cercare e il CV.",
+    cap_models: "Scelta del modello: cloud o locale, con l'indicazione se il suo computer può eseguirlo.",
+    feat_title: "Cosa sa fare", feat_sub: "Non solo un elenco di offerte, ma tutta la candidatura.",
+    f1_t: "Cerca dove non arrivano gli aggregatori",
+    f1_d: "Visita direttamente le pagine lavora-con-noi e trova nuovi datori con la ricerca web — anche quelli che non pubblicano sui portali.",
+    f2_t: "Spiega ogni punteggio",
+    f2_d: "Non solo una percentuale, ma perché è adatta e cosa ostacola: visti, lingua, differenze nello stack.",
+    f3_t: "Adatta il CV all'offerta",
+    f3_d: "Prepara una versione del CV per la posizione specifica — riordina gli accenti senza inventare nulla.",
+    f4_t: "Verifica se i robot leggeranno il CV",
+    f4_d: "Mostra cosa vede un ATS: se l'analisi del file si rompe, se trova i contatti, quali parole chiave mancano.",
+    f5_t: "Più persone in un solo programma",
+    f5_d: "Può cercare per sé e aiutare gli amici: ognuno ha il proprio CV, impostazioni e risultati.",
+    f6_t: "Quattro lingue",
+    f6_d: "Interfaccia e risultati in italiano, inglese, russo o tedesco.",
+    req_title: "Cosa serve", req_sub: "Oltre al programma.",
+    req1_t: "Un modello.", req1_d: "Claude Code (si installa a parte, serve un abbonamento Anthropic), Cursor, oppure un modello locale con Ollama — in tal caso tutto viene calcolato sul suo computer gratuitamente.",
+    req2_t: "Un computer.", req2_d: "macOS, Windows o Linux. Per i modelli locali servono almeno 8 GB di memoria; il programma mostra quali modelli la sua macchina può gestire.",
+    req3_t: "Tempo.", req3_d: "Una passata richiede 20–60 minuti. Il programma può lavorare in continuo e inviare le novità appena compaiono.",
+    privacy_title: "Sui dati", privacy_sub: "In breve.",
+    p1_t: "Tutto resta da lei", p1_d: "CV, impostazioni e offerte trovate restano sul suo computer. Il programma non ha un proprio server.",
+    p2_t: "Esce solo la richiesta al modello", p2_d: "E solo verso quello scelto da lei. Con un modello locale non esce nulla.",
+    footer_open: "Codice aperto. Lo usi, lo esamini, proponga miglioramenti.",
+    donate: "L'app è gratuita. Se vi è stata utile, potete sostenere l'autore:",
+    projects: "Altri progetti dell'autore",
+  },
+  de: {
+    hero_title: "Eine Jobsuche, die von allein läuft",
+    hero_sub: "Das Programm liest Ihren Lebenslauf, geht Karriereseiten und Jobbörsen durch, bewertet jeden Treffer und sagt Ihnen, was Sie im Lebenslauf für die jeweilige Stelle ändern sollten. Starten, schließen, mit fertiger Liste zurückkommen.",
+    dl_mac: "Für macOS laden", dl_win: "Für Windows laden", dl_linux: "Für Linux laden",
+    dl_note: "Kostenlos und quelloffen. Der erste Start dauert ein paar Minuten: Sie brauchen Claude Code oder ein lokales Modell.",
+    win_gate_t: "Erster Start unter Windows",
+    win_gate_d: "Das Installationsprogramm ist noch nicht signiert, deshalb zeigt Windows ein blaues Fenster mit dem Hinweis, es habe den PC geschützt. Das ist keine Virenmeldung und keine Sperre: auf „Weitere Informationen“ und dann „Trotzdem ausführen“ klicken. Ein neues Programm hat bei Microsoft schlicht noch keine Reputation — sie entsteht mit der Zahl der Downloads.",
+    how_title: "So funktioniert es", how_sub: "Drei Schritte — danach läuft es allein.",
+    step1_t: "Lebenslauf hochladen und Region angeben",
+    step1_d: "Rollen, Kenntnisse und Level werden automatisch aus dem CV übernommen — kein Formular auszufüllen.",
+    step2_t: "Es sucht und bewertet",
+    step2_d: "Geht Unternehmensseiten, ATS-Portale und Aggregatoren durch, sortiert Unpassendes aus und bewertet jede Stelle an Ihrer tatsächlichen Erfahrung.",
+    step3_t: "Sie bekommen Liste und Korrekturen",
+    step3_d: "Ergebnisse kommen per Telegram oder E-Mail. Zu jeder Stelle: was im CV zu betonen ist, eine Gehaltsschätzung und Fakten zum Unternehmen.",
+    screens_title: "So sieht es aus", screens_sub: "Die Daten in den Screenshots sind Demodaten.",
+    cap_results: "Die Ergebnisse: Übereinstimmung, Veröffentlichungsdatum und CV-Anpassungen für genau diese Stelle.",
+    cap_quick: "Schnellsuche: drei Felder — für wen, wo suchen und der Lebenslauf.",
+    cap_models: "Modellauswahl: Cloud oder lokal, mit Hinweis, ob Ihr Rechner es ausführen kann.",
+    feat_title: "Was es kann", feat_sub: "Nicht nur eine Stellenliste, sondern die ganze Bewerbung.",
+    f1_t: "Sucht dort, wo Aggregatoren nicht hinkommen",
+    f1_d: "Geht direkt auf Karriereseiten und findet neue Arbeitgeber per Websuche — auch solche, die nie auf Jobbörsen erscheinen.",
+    f2_t: "Erklärt jede Bewertung",
+    f2_d: "Nicht nur eine Prozentzahl, sondern warum es passt und was im Weg steht: Visum, Sprache, Lücken im Stack.",
+    f3_t: "Passt den Lebenslauf an die Stelle an",
+    f3_d: "Erstellt eine Fassung des CV für die konkrete Position — ordnet Schwerpunkte neu, ohne etwas zu erfinden.",
+    f4_t: "Prüft, ob Bots Ihren Lebenslauf lesen",
+    f4_d: "Zeigt, was ein ATS sieht: ob das Parsing bricht, ob Kontakte gefunden werden, welche Stichwörter fehlen.",
+    f5_t: "Mehrere Personen in einem Programm",
+    f5_d: "Für sich selbst suchen und Freunden helfen: jede Person hat eigenen Lebenslauf, Einstellungen und Ergebnisse.",
+    f6_t: "Vier Sprachen",
+    f6_d: "Oberfläche und Ergebnisse auf Deutsch, Englisch, Russisch oder Italienisch.",
+    req_title: "Was Sie brauchen", req_sub: "Neben dem Programm selbst.",
+    req1_t: "Ein Modell.", req1_d: "Claude Code (separat zu installieren, Anthropic-Abo nötig), Cursor oder ein lokales Modell über Ollama — dann rechnet alles kostenlos auf Ihrem Rechner.",
+    req2_t: "Einen Rechner.", req2_d: "macOS, Windows oder Linux. Für lokale Modelle ab 8 GB Speicher; das Programm zeigt, welche Modelle Ihre Maschine schafft.",
+    req3_t: "Zeit.", req3_d: "Ein Durchlauf dauert 20–60 Minuten. Das Programm kann durchgehend laufen und Neues schicken, sobald es erscheint.",
+    privacy_title: "Zu Ihren Daten", privacy_sub: "Kurz gefasst.",
+    p1_t: "Alles bleibt bei Ihnen", p1_d: "Lebenslauf, Einstellungen und gefundene Stellen liegen auf Ihrem Rechner. Das Programm hat keinen eigenen Server.",
+    p2_t: "Nach außen geht nur die Modellanfrage", p2_d: "Und nur an das von Ihnen gewählte Modell. Mit einem lokalen Modell verlässt nichts das Gerät.",
+    footer_open: "Quelloffen. Nutzen, nachlesen, Verbesserungen vorschlagen.",
+    donate: "Die App ist kostenlos. Wenn sie nützlich war, können Sie den Autor unterstützen:",
+    projects: "Weitere Projekte des Autors",
+  },
+};
+
+function apply(lang) {
+  const dict = T[lang] || T.ru;
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(el => {
+    const val = dict[el.dataset.t];
+    if (val) el.textContent = val;
+  });
+  document.querySelectorAll("nav button").forEach(b =>
+    b.classList.toggle("on", b.dataset.lang === lang));
+  try { localStorage.setItem("aijs-lang", lang); } catch (e) { /* private mode */ }
+}
+
+document.querySelectorAll("nav button").forEach(b =>
+  b.addEventListener("click", () => apply(b.dataset.lang)));
+
+// language: the saved choice → the browser's language → Russian
+let start = "ru";
+try { start = localStorage.getItem("aijs-lang") || start; } catch (e) { /* ignore */ }
+if (!localStorage.getItem?.("aijs-lang")) {
+  const nav = (navigator.language || "ru").slice(0, 2);
+  if (T[nav]) start = nav;
+}
+apply(start);
+</script>
+</body>
+</html>
