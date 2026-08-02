@@ -297,7 +297,7 @@ STRINGS = {
 "results_shown": "Puanı şundan yüksek ilanlar ≥",
 "export_csv": "CSV (tablo)",
 "export_report": "Rapor (HTML/PDF)",
-"export_hint": "Gösterilen ilanları bu kişi için dışa aktarın: başvuruları takip etmek için CSV, açıp PDF olarak yazdırmak için rapor.",
+"export_hint": "Gösterilen ilanları dışa aktarın: raporu okumak ve PDF olarak yazdırmak için, CSV başvuruları takip etmek için, Markdown notlara ya da bir e-postaya yapıştırmak için, JSON kendi programınızla işlemek için.",
 "badge_verified": "doğrulandı",
 "badge_preliminary": "ön değerlendirme",
 "verified_hint": "«doğrulandı» — derin incelemeden gelen kesin puan; «ön değerlendirme» — hızlı eleme (genelde iyimser).",
@@ -648,4 +648,7 @@ STRINGS = {
 "sources_trades_hint": "Yukarıdaki kaynakların çoğu bilişim iş ilanı sitesidir. Zanaat ve bilgisayar dışı meslekler EURES'te (tüm AB, anlama göre arar — mesleğinizi herhangi bir dilde yazabilirsiniz), Arbeitsagentur'da (Almanya, yalnızca Almanca kelimeler) ve JobTech'te (İsveç) bulunur.",
 "keys_title": "Adzuna ve Jooble anahtarları — AB ve ABD dışındaki ülkeler",
 "keys_hint": "Anahtarsız program AB'yi (özellikle Almanya'yı) ve batılı şirketler için uzaktan çalışmayı iyi kapsar. Ukrayna, BAE, Çin, Hindistan, Türkiye, Rusya — neredeyse boş. Jooble yaklaşık yetmiş ülke, Adzuna on dokuz ülke belirtiyor; her ikisinin anahtarı da ücretsiz ve anında veriliyor. AB ve ABD dışında arıyorsanız buradan başlayın; yoksa arama birkaç ilan bulur — ilan olmadığı için değil, arayacak yer olmadığı için.",
+"export_md": "Markdown",
+"export_json": "JSON",
+"export_print": "Yazdır veya PDF olarak kaydet",
 }

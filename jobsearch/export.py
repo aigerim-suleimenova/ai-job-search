@@ -35,11 +35,78 @@ def to_csv(jobs: list) -> str:
     return buf.getvalue()
 
 
+def to_markdown(jobs: list, candidate: str, when: str, min_score: int, note: str = "") -> str:
+    """Тот же отчёт разметкой. Её можно вставить куда угодно — в заметки, в
+    письмо, в переписку — и она останется читаемой даже там, где разметку не
+    понимают."""
+    строки = [f"# Подходящие вакансии — {candidate}", "",
+              f"{when} · вакансий: {len(jobs)}"
+              + (f" · {note}" if note else f" · оценка ≥ {min_score}%"), ""]
+    for j in jobs:
+        a = _advice(j)
+        назв = j.get("title") or "—"
+        строки.append(f"## {j.get('score', '—')}% · "
+                      + (f"[{назв}]({j['url']})" if j.get("url") else назв))
+        хвост = " · ".join(x for x in (j.get("company"), j.get("location"),
+                                       j.get("posted_at"),
+                                       "проверено" if j.get("verified") else "предварительно") if x)
+        строки += [f"*{хвост}*", ""]
+        if j.get("reason"):
+            строки += [j["reason"], ""]
+        if a.get("salary_estimate"):
+            строки += [f"**Зарплата:** {a['salary_estimate']}", ""]
+        for заголовок, ключ in (("Правки в CV", "cv_changes"),
+                                ("Правки в LinkedIn", "linkedin_changes")):
+            if a.get(ключ):
+                строки.append(f"**{заголовок}:**")
+                строки += [f"- {c}" for c in a[ключ]]
+                строки.append("")
+        if a.get("cover_hint"):
+            строки += [f"**В отклике:** {a['cover_hint']}", ""]
+    if not jobs:
+        строки.append("Показывать нечего.")
+    return "\n".join(строки)
+
+
+def to_json(jobs: list, candidate: str, when: str, min_score: int, note: str = "") -> str:
+    """Для тех, кто хочет обработать выгрузку своей программой.
+
+    Советы разворачиваются из строки в настоящие поля: в базе они лежат текстом
+    с JSON внутри, и отдавать наружу текст, который надо разбирать второй раз,
+    значило бы перекладывать нашу работу на человека.
+    """
+    наружу = []
+    for j in jobs:
+        a = _advice(j)
+        наружу.append({
+            "score": j.get("score"),
+            "verified": bool(j.get("verified")),
+            "title": j.get("title", ""),
+            "company": j.get("company", ""),
+            "location": j.get("location", ""),
+            "posted_at": j.get("posted_at", ""),
+            "url": j.get("url", ""),
+            "source": j.get("source", ""),
+            "is_direct": bool(j.get("is_direct")),
+            "reason": j.get("reason", ""),
+            "salary_estimate": a.get("salary_estimate", ""),
+            "company_insights": a.get("company_insights", []) or [],
+            "cv_changes": a.get("cv_changes", []) or [],
+            "linkedin_changes": a.get("linkedin_changes", []) or [],
+            "cover_hint": a.get("cover_hint", ""),
+        })
+    return json.dumps({"candidate": candidate, "generated": when,
+                       "min_score": min_score, "note": note,
+                       "count": len(наружу), "jobs": наружу},
+                      ensure_ascii=False, indent=2)
+
+
 def _e(s) -> str:
     return html.escape(str(s or ""))
 
 
-def to_html(jobs: list, candidate: str, when: str, min_score: int, note: str = "") -> str:
+def to_html(jobs: list, candidate: str, when: str, min_score: int, note: str = "",
+            print_label: str = "Print / Save as PDF") -> str:
     rows = []
     for j in jobs:
         a = _advice(j)
@@ -80,11 +147,16 @@ def to_html(jobs: list, candidate: str, when: str, min_score: int, note: str = "
   h3 {{ margin: 0; font-size: 16px; }} h3 a {{ color: #1c2430; text-decoration: none; }}
   .meta {{ color: #67707e; font-size: 13px; margin: 4px 0 0; }}
   ul {{ margin: 4px 0; }} p {{ margin: 8px 0; }}
-  @media print {{ .job {{ border-color: #ccc; }} }}
+  @media print {{ .job {{ border-color: #ccc; }} .noprint {{ display: none; }} }}
+  .noprint button {{ font: inherit; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+                     border: 1px solid #2563eb; background: #2563eb; color: #fff; }}
 </style></head><body>
 <h1>Job matches — {_e(candidate)}</h1>
-<p class="sub">Generated {_e(when)} · {len(jobs)} jobs{f" · {_e(note)}" if note else f" with score ≥ {min_score}%"} ·
-tip: use your browser's Print → Save as PDF</p>
+<p class="sub">Generated {_e(when)} · {len(jobs)} jobs{f" · {_e(note)}" if note else f" with score ≥ {min_score}%"}</p>
+<!-- Кнопка, а не совет искать печать в меню браузера. PDF из этой страницы и
+     получается — «сохранить как PDF» стоит в том же окне печати. Сама кнопка при
+     печати не видна: ей на бумаге делать нечего. -->
+<p class="noprint"><button onclick="window.print()">{_e(print_label)}</button></p>
 {"".join(rows) or "<p>No jobs to show.</p>"}
 </body></html>"""
 

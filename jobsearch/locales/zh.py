@@ -297,7 +297,7 @@ STRINGS = {
 "results_shown": "显示评分不低于以下值的职位 ≥",
 "export_csv": "CSV（表格）",
 "export_report": "报告（HTML/PDF）",
-"export_hint": "导出为此人显示的职位：CSV 用来跟踪投递，报告可以打开并打印成 PDF。",
+"export_hint": "导出当前显示的职位：报告用于阅读并打印成 PDF，CSV 用于跟踪投递，Markdown 便于粘贴到笔记或邮件里，JSON 供你用自己的程序处理。",
 "badge_verified": "已核实",
 "badge_preliminary": "初步",
 "verified_hint": "「已核实」——深度分析得出的精确评分；「初步」——快速初筛（通常偏乐观）。",
@@ -648,4 +648,7 @@ STRINGS = {
 "sources_trades_hint": "上面多数来源是 IT 招聘板。手艺活和非计算机类职业要在 EURES（全欧盟，按含义匹配，职业名用哪种语言写都行）、Arbeitsagentur（德国，只认德语词）和 JobTech（瑞典）里找。",
 "keys_title": "Adzuna 和 Jooble 密钥 — 欧盟和美国以外的国家",
 "keys_hint": "没有密钥时，本程序对欧盟（尤其德国）和西方公司的远程岗位覆盖不错。乌克兰、阿联酋、中国、印度、土耳其、俄罗斯几乎为空。Jooble 称覆盖约七十个国家，Adzuna 十九个；两者的密钥都免费且即时发放。若在欧盟和美国之外找工作，请从这里开始，否则搜索只会找到寥寥几条——不是因为没有职位，而是因为无处可搜。",
+"export_md": "Markdown",
+"export_json": "JSON",
+"export_print": "打印或保存为 PDF",
 }

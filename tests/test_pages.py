@@ -378,3 +378,52 @@ def test_ссылка_на_отчёт_открывает_новую_вкладк
     i = страница.index("/export/report")
     кусок = страница[i - 60:i + 400]
     assert 'target="_blank"' in кусок, "отчёт откроется поверх списка вакансий"
+
+
+ФОРМАТЫ = [
+    ("/export/report", "text/html", False),   # открывается: печать в PDF — из открытой страницы
+    ("/export/csv", "text/csv", True),
+    ("/export/md", "text/markdown", True),
+    ("/export/json", "application/json", True),
+]
+
+
+@pytest.mark.parametrize("адрес,тип,файлом", ФОРМАТЫ)
+def test_каждый_формат_выгружается(client, адрес, тип, файлом):
+    db.save_job(job("k1", score=88), run_id=1)
+    ответ = client.get(адрес + "?min=0")
+    assert ответ.status_code == 200
+    assert ответ.headers["content-type"].startswith(тип)
+    есть = "attachment" in ответ.headers.get("content-disposition", "")
+    assert есть is файлом
+
+
+def test_все_форматы_есть_на_странице(client):
+    db.save_job(job("k1", score=88), run_id=1)
+    страница = client.get("/results?min=0").text
+    for адрес, *_ in ФОРМАТЫ:
+        assert адрес in страница, f"кнопки для {адрес} нет"
+
+
+def test_в_отчёте_есть_кнопка_печати(client):
+    """Совет искать печать в меню браузера — не то же самое, что кнопка.
+    PDF получается из открытой страницы, «сохранить как PDF» стоит в том же окне."""
+    db.save_job(job("k1", score=88), run_id=1)
+    отчёт = client.get("/export/report?min=0").text
+    assert "window.print()" in отчёт
+    assert "noprint" in отчёт, "кнопка попадёт на бумагу"
+
+
+def test_json_разворачивает_советы(client):
+    """В базе советы лежат строкой с JSON внутри. Отдать наружу текст, который
+    надо разбирать второй раз, значило бы переложить нашу работу на человека."""
+    import json as _json
+    db.save_job(job("k1", score=88, advice=_json.dumps(
+        {"cv_changes": ["Вынести SAP вперёд"], "salary_estimate": "70k"},
+        ensure_ascii=False)), run_id=1)
+
+    d = _json.loads(client.get("/export/json?min=0").text)
+
+    assert d["count"] == 1
+    assert d["jobs"][0]["cv_changes"] == ["Вынести SAP вперёд"]
+    assert d["jobs"][0]["salary_estimate"] == "70k"

@@ -297,7 +297,7 @@ STRINGS = {
 "results_shown": "次の点数以上の求人を表示 ≥",
 "export_csv": "CSV（表）",
 "export_report": "レポート（HTML/PDF）",
-"export_hint": "表示中の求人をこの人の分として書き出します。応募管理には CSV、開いて PDF に印刷するならレポートです。",
+"export_hint": "表示中の求人を書き出します。レポートは読んで PDF に印刷するため、CSV は応募の記録用、Markdown はメモやメールに貼るため、JSON はご自分のプログラムで処理するためのものです。",
 "badge_verified": "確認済み",
 "badge_preliminary": "暫定",
 "verified_hint": "「確認済み」は深掘りによる正確な点数、「暫定」は素早い一次選別（たいてい甘め）です。",
@@ -648,4 +648,7 @@ STRINGS = {
 "sources_trades_hint": "上の情報源はほとんどがIT向けの求人サイトです。技能職やコンピュータ以外の職業は、EURES（EU全域。意味で探すので職業名はどの言語で書いても構いません）、Arbeitsagentur（ドイツ。ドイツ語の語だけ）、JobTech（スウェーデン）で見つかります。",
 "keys_title": "Adzuna と Jooble の鍵 — EU・米国以外の国",
 "keys_hint": "鍵がないと、この程度です。EU（とくにドイツ）と、欧米企業のリモート勤務はよく拾えます。ウクライナ、UAE、中国、インド、トルコ、ロシアはほぼ空です。Jooble は約七十か国、Adzuna は十九か国をうたっており、どちらも鍵は無料ですぐ発行されます。EU と米国の外で探すなら、まずここから。そうしないと、求人が無いからではなく探す先が無いために、数件しか見つかりません。",
+"export_md": "Markdown",
+"export_json": "JSON",
+"export_print": "印刷、または PDF として保存",
 }

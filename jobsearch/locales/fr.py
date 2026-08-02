@@ -297,7 +297,7 @@ STRINGS = {
 "results_shown": "Offres avec une note ≥",
 "export_csv": "CSV (tableau)",
 "export_report": "Rapport (HTML/PDF)",
-"export_hint": "Exportez les offres affichées pour la personne : CSV pour suivre les candidatures, rapport à ouvrir et imprimer en PDF.",
+"export_hint": "Exportez les offres affichées : le rapport pour le lire et l'imprimer en PDF, CSV pour suivre vos candidatures, Markdown à coller dans des notes ou un e-mail, JSON à traiter avec votre propre programme.",
 "badge_verified": "vérifié",
 "badge_preliminary": "préliminaire",
 "verified_hint": "« vérifié » : note précise issue de l'analyse approfondie ; « préliminaire » : tri rapide (souvent optimiste).",
@@ -648,4 +648,7 @@ STRINGS = {
 "sources_trades_hint": "La plupart des sources ci-dessus sont des sites d'emploi informatique. Les métiers manuels et les professions non informatiques se trouvent sur EURES (toute l'UE, recherche par sens — vous pouvez nommer votre métier dans n'importe quelle langue), sur Arbeitsagentur (Allemagne, mots allemands uniquement) et sur JobTech (Suède).",
 "keys_title": "Clés Adzuna et Jooble — pays hors UE et États-Unis",
 "keys_hint": "Sans clés, le programme couvre bien l'UE (l'Allemagne surtout) et le télétravail pour des entreprises occidentales. Ukraine, Émirats, Chine, Inde, Turquie, Russie — presque rien. Jooble annonce environ soixante-dix pays, Adzuna dix-neuf ; les deux clés sont gratuites et délivrées immédiatement. Si vous cherchez hors de l'UE et des États-Unis, commencez par là : sinon la recherche trouvera quelques offres, non parce qu'il n'y en a pas, mais parce qu'il n'y a nulle part où chercher.",
+"export_md": "Markdown",
+"export_json": "JSON",
+"export_print": "Imprimer ou enregistrer en PDF",
 }

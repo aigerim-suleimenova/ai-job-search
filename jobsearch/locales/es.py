@@ -297,7 +297,7 @@ STRINGS = {
 "results_shown": "Ofertas con puntuación ≥",
 "export_csv": "CSV (tabla)",
 "export_report": "Informe (HTML/PDF)",
-"export_hint": "Exporte las ofertas mostradas para la persona: CSV para llevar el control de las candidaturas, informe para abrir e imprimir en PDF.",
+"export_hint": "Exporte las ofertas mostradas: el informe para leerlo e imprimirlo en PDF, CSV para seguir las candidaturas, Markdown para pegarlo en notas o un correo, JSON para procesarlo con su propio programa.",
 "badge_verified": "verificado",
 "badge_preliminary": "preliminar",
 "verified_hint": "«verificado»: puntuación precisa del análisis a fondo; «preliminar»: triaje rápido (suele ser optimista).",
@@ -648,4 +648,7 @@ STRINGS = {
 "sources_trades_hint": "La mayoría de las fuentes de arriba son portales de informática. Los oficios y las profesiones no informáticas se encuentran en EURES (toda la UE, busca por significado — puede escribir su profesión en cualquier idioma), en Arbeitsagentur (Alemania, solo palabras en alemán) y en JobTech (Suecia).",
 "keys_title": "Claves de Adzuna y Jooble — países fuera de la UE y EE. UU.",
 "keys_hint": "Sin claves el programa cubre bien la UE (Alemania sobre todo) y el trabajo remoto para empresas occidentales. Ucrania, Emiratos, China, India, Turquía, Rusia — casi nada. Jooble declara unos setenta países, Adzuna diecinueve; ambas claves son gratuitas y se entregan al momento. Si busca fuera de la UE y EE. UU., empiece por aquí; de lo contrario la búsqueda encontrará unas pocas ofertas, no porque no existan, sino porque no hay dónde buscar.",
+"export_md": "Markdown",
+"export_json": "JSON",
+"export_print": "Imprimir o guardar en PDF",
 }

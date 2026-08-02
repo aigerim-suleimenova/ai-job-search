@@ -1341,6 +1341,40 @@ def export_csv(min: int = 0, sort: str = "default", viewed: str = "all",
     )
 
 
+@app.get("/export/md")
+def export_markdown(min: int = 0, sort: str = "default", viewed: str = "all",
+                    source: str = "all", run: int = 0,
+                    posted_from: str = "", posted_to: str = ""):
+    """Разметкой — её вставляют в заметки, письмо или переписку."""
+    cfg = config.load()
+    lang = cfg.get("ui", {}).get("lang", "ru")
+    jobs, name, safe = _export_jobs(min, sort, viewed, source, run, posted_from, posted_to)
+    text = export_mod.to_markdown(jobs, name, db.now(), min,
+                                  note=_filter_note(lang, min, sort, viewed, source, run,
+                                                    posted_from, posted_to))
+    return Response(
+        content=text, media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="jobs_{safe}.md"'},
+    )
+
+
+@app.get("/export/json")
+def export_json(min: int = 0, sort: str = "default", viewed: str = "all",
+                source: str = "all", run: int = 0,
+                posted_from: str = "", posted_to: str = ""):
+    """Для тех, кто хочет обработать выгрузку своей программой."""
+    cfg = config.load()
+    lang = cfg.get("ui", {}).get("lang", "ru")
+    jobs, name, safe = _export_jobs(min, sort, viewed, source, run, posted_from, posted_to)
+    text = export_mod.to_json(jobs, name, db.now(), min,
+                              note=_filter_note(lang, min, sort, viewed, source, run,
+                                                posted_from, posted_to))
+    return Response(
+        content=text, media_type="application/json; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="jobs_{safe}.json"'},
+    )
+
+
 @app.get("/export/report")
 def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
                   source: str = "all", run: int = 0,
@@ -1352,7 +1386,8 @@ def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
         j["posted_label"] = _posted_label(j.get("posted_at") or "", lang)
     html_doc = export_mod.to_html(jobs, name, db.now(), min,
                                   note=_filter_note(lang, min, sort, viewed, source, run,
-                                                    posted_from, posted_to))
+                                                    posted_from, posted_to),
+                                  print_label=i18n.t(lang, "export_print"))
     # Отчёт открывается, а не скачивается, и это не мелочь: подсказка рядом с
     # кнопкой обещает «открыть и распечатать в PDF», а отдавался он файлом на
     # скачивание. В окне программы от этого не происходило вообще ничего —

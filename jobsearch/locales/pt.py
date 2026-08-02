@@ -297,7 +297,7 @@ STRINGS = {
 "results_shown": "Vagas com pontuação ≥",
 "export_csv": "CSV (tabela)",
 "export_report": "Relatório (HTML/PDF)",
-"export_hint": "Exporte as vagas mostradas para a pessoa: CSV para acompanhar as candidaturas, relatório para abrir e imprimir em PDF.",
+"export_hint": "Exporte as vagas mostradas: o relatório para ler e imprimir em PDF, CSV para acompanhar as candidaturas, Markdown para colar em notas ou num e-mail, JSON para processar com o seu próprio programa.",
 "badge_verified": "verificado",
 "badge_preliminary": "preliminar",
 "verified_hint": "«verificado» — pontuação precisa da análise profunda; «preliminar» — triagem rápida (costuma ser otimista).",
@@ -648,4 +648,7 @@ STRINGS = {
 "sources_trades_hint": "A maioria das fontes acima são portais de informática. Os ofícios e as profissões não informáticas encontram-se no EURES (toda a UE, procura por significado — pode escrever a sua profissão em qualquer língua), na Arbeitsagentur (Alemanha, só palavras alemãs) e no JobTech (Suécia).",
 "keys_title": "Chaves Adzuna e Jooble — países fora da UE e dos EUA",
 "keys_hint": "Sem chaves o programa cobre bem a UE (sobretudo a Alemanha) e o trabalho remoto para empresas ocidentais. Ucrânia, Emirados, China, Índia, Turquia, Rússia — quase nada. O Jooble declara cerca de setenta países, o Adzuna dezanove; ambas as chaves são gratuitas e emitidas de imediato. Se procura fora da UE e dos EUA, comece por aqui — caso contrário a pesquisa encontrará meia dúzia de vagas, não por não existirem, mas por não haver onde procurar.",
+"export_md": "Markdown",
+"export_json": "JSON",
+"export_print": "Imprimir ou guardar em PDF",
 }

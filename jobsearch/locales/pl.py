@@ -297,7 +297,7 @@ STRINGS = {
 "results_shown": "Oferty z oceną ≥",
 "export_csv": "CSV (tabela)",
 "export_report": "Raport (HTML/PDF)",
-"export_hint": "Wyeksportuj pokazane oferty dla tej osoby: CSV do pilnowania zgłoszeń, raport do otwarcia i wydruku w PDF.",
+"export_hint": "Wyeksportuj pokazane oferty: raport do przeczytania i wydruku w PDF, CSV do śledzenia aplikacji, Markdown do wklejenia w notatki lub e-mail, JSON do obróbki własnym programem.",
 "badge_verified": "sprawdzone",
 "badge_preliminary": "wstępne",
 "verified_hint": "„sprawdzone” — dokładna ocena z głębokiej analizy; „wstępne” — szybki przesiew (zwykle optymistyczny).",
@@ -648,4 +648,7 @@ STRINGS = {
 "sources_trades_hint": "Większość powyższych źródeł to giełdy pracy dla IT. Zawody rzemieślnicze i niekomputerowe znajdziesz w EURES (cała UE, szuka po znaczeniu — zawód możesz wpisać w dowolnym języku), w Arbeitsagentur (Niemcy, tylko niemieckie słowa) i w JobTech (Szwecja).",
 "keys_title": "Klucze Adzuna i Jooble — kraje poza UE i USA",
 "keys_hint": "Bez kluczy program dobrze pokrywa UE (zwłaszcza Niemcy) i pracę zdalną dla firm zachodnich. Ukraina, Emiraty, Chiny, Indie, Turcja, Rosja — prawie nic. Jooble deklaruje około siedemdziesięciu krajów, Adzuna dziewiętnaście; oba klucze są darmowe i wydawane od razu. Jeśli szukasz poza UE i USA, zacznij stąd — inaczej wyszukiwanie znajdzie kilka ofert, nie dlatego że ich nie ma, lecz dlatego że nie ma gdzie szukać.",
+"export_md": "Markdown",
+"export_json": "JSON",
+"export_print": "Drukuj lub zapisz jako PDF",
 }

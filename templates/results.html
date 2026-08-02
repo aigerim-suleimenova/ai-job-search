@@ -113,8 +113,10 @@
 {% if jobs %}
 <section class="card">
   <div class="row">
-    <a href="/export/csv?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}"><button type="button">{{ t('export_csv') }}</button></a>
     <a href="/export/report?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}" target="_blank" rel="noopener"><button type="button">{{ t('export_report') }}</button></a>
+    <a href="/export/csv?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}"><button type="button">{{ t('export_csv') }}</button></a>
+    <a href="/export/md?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}"><button type="button">{{ t('export_md') }}</button></a>
+    <a href="/export/json?min={{ min_score }}&sort={{ sort }}&viewed={{ viewed }}&source={{ source }}&run={{ run }}&posted_from={{ posted_from }}&posted_to={{ posted_to }}"><button type="button">{{ t('export_json') }}</button></a>
   </div>
   <p class="hint" style="margin:8px 0 0">{{ t('export_hint') }}</p>
   <p class="hint" style="margin:6px 0 0">{{ t('verified_hint') }}</p>
