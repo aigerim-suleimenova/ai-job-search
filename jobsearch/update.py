@@ -31,7 +31,7 @@ from urllib.parse import unquote, urlparse
 
 import requests
 
-from . import appstate, net, version
+from . import appstate, net, removal, version
 
 REPO = "mrWD/ai-job-search"
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -82,16 +82,21 @@ def _asset_for_this_os(assets: list) -> dict:
     """The file this computer can actually install.
 
     On Windows that is the installer: it puts the new version over the old one,
-    with no uninstalling first. Elsewhere there is nothing to run unattended — a
-    disk image has to be dragged across, an archive unpacked — so those are left
-    to the release page and a pair of human hands.
+    with no uninstalling first. On macOS — the disk image: внутри лежит готовый
+    пакет .app, и подставить его вместо старого мы умеем сами (см. install).
+
+    Linux остаётся за страницей выпуска: там архив, который человек распаковал
+    туда, куда захотел, и угадывать это место — значит однажды не угадать и
+    затереть чужое.
     """
-    if platform.system() != "Windows":
+    system = platform.system()
+    хвост = {"Windows": "setup.exe", "Darwin": ".dmg"}.get(system)
+    if not хвост:
         return {}
     for a in assets:
         name = str(a.get("name", ""))
         url = str(a.get("browser_download_url", ""))
-        if name.lower().endswith("setup.exe") and _is_our_download(url):
+        if name.lower().endswith(хвост) and _is_our_download(url):
             return {"name": name, "url": url, "size": int(a.get("size") or 0),
                     # чем сверить скачанное; GitHub присылает "sha256:<hex>"
                     "digest": str(a.get("digest") or "")}
@@ -243,24 +248,95 @@ def download(asset: dict, progress=None) -> Path:
     return target
 
 
+# Подставляет новую копию вместо старой. Отдельным сценарием, а не из самой
+# программы, потому что программа в это время закрывается: заменить пакет, пока
+# он открыт, нельзя, а дождаться собственного закрытия изнутри — тем более.
+_MAC_SWAP = r"""#!/bin/sh
+set -u
+dmg="$1"; target="$2"; pid="$3"
+
+# Ждём, пока старая копия уйдёт. Не дождались за двадцать секунд — не трогаем
+# ничего: подменить работающую программу под собой хуже, чем не обновиться.
+n=0
+while kill -0 "$pid" 2>/dev/null; do
+  n=$((n + 1))
+  [ "$n" -gt 200 ] && exit 1
+  sleep 0.1
+done
+
+mnt="$(mktemp -d)"
+hdiutil attach -nobrowse -readonly -quiet -mountpoint "$mnt" "$dmg" || exit 1
+
+# Имя пакета внутри образа не угадываем — берём тот, что там лежит.
+src=""
+for p in "$mnt"/*.app; do [ -d "$p" ] && src="$p"; done
+if [ -z "$src" ]; then hdiutil detach "$mnt" -quiet -force; exit 1; fi
+
+# Сначала уводим старую копию в сторону и только потом кладём новую. Оборвись
+# копирование на середине — старую вернём, и человек останется с работающей
+# программой, а не с половиной пакета, которая не запускается.
+old="$(dirname "$target")/.$(basename "$target").old"
+rm -rf "$old"
+if mv "$target" "$old"; then
+  # ditto, а не cp: он один переносит пакет как есть — права, ссылки, подпись.
+  if ditto "$src" "$target"; then
+    rm -rf "$old"
+  else
+    rm -rf "$target"
+    mv "$old" "$target"
+  fi
+fi
+
+hdiutil detach "$mnt" -quiet -force
+rmdir "$mnt" 2>/dev/null
+rm -rf "$(dirname "$dmg")"
+open -n "$target"
+"""
+
+
 def install(path: Path) -> None:
-    """Hands the downloaded installer over and steps aside.
+    """Hands the downloaded update over and steps aside.
 
-    The installer cannot replace files that are open, so the program has to go.
-    It is started detached and then we quit; the installer closes whatever is
-    left of us, writes the new version and opens it again.
+    Neither system can replace files that are open, so the program has to go
+    first. Что запускается вместо неё, зависит от системы, но порядок один:
+    открепиться, дождаться нашего ухода, заменить, открыть новую копию.
 
-    /RELAUNCH is our own flag and the installer looks for it: a silent install
-    started by somebody's script should not throw a window on the screen, but an
-    update the person asked for must give them their program back. Without it
-    they would press "Update" and be left with nothing on screen.
+    Windows: /RELAUNCH is our own flag and the installer looks for it. A silent
+    install started by somebody's script should not throw a window on the
+    screen, but an update the person asked for must give them their program
+    back. Without it they would press "Update" and be left with nothing.
+
+    macOS: обновления не было вовсе — там показывали «ставится вручную», хотя
+    внутри образа лежит готовый пакет и подставить его несложно. Право на запись
+    проверяем здесь, до закрытия программы: иначе она просто исчезла бы с
+    экрана, а обновление молча не случилось бы.
     """
-    if platform.system() != "Windows":
-        raise UpdateError("update_err_manual")
-    subprocess.Popen([str(path), "/SILENT", "/NOCANCEL", "/RELAUNCH"],
-                     creationflags=getattr(subprocess, "DETACHED_PROCESS", 0)
-                     | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
-                     close_fds=True)
+    system = platform.system()
+    if system == "Windows":
+        subprocess.Popen([str(path), "/SILENT", "/NOCANCEL", "/RELAUNCH"],
+                         creationflags=getattr(subprocess, "DETACHED_PROCESS", 0)
+                         | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+                         close_fds=True)
+        return
+    if system == "Darwin":
+        _install_macos(path)
+        return
+    raise UpdateError("update_err_manual")
+
+
+def _install_macos(image: Path) -> None:
+    bundle = removal.program_path()
+    if not bundle.endswith(".app") or not os.path.isdir(bundle):
+        raise UpdateError("update_err_manual")      # запуск из исходников
+    # Менять надо и сам пакет, и папку вокруг него: подстановка идёт через mv.
+    if not (os.access(bundle, os.W_OK) and os.access(os.path.dirname(bundle), os.W_OK)):
+        raise UpdateError("update_err_readonly", where=bundle)
+    script = image.parent / "swap.sh"
+    script.write_text(_MAC_SWAP, encoding="utf-8")
+    script.chmod(0o755)
+    subprocess.Popen(["/bin/sh", str(script), str(image), bundle, str(os.getpid())],
+                     start_new_session=True, close_fds=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def quit_soon(seconds: float = 1.5) -> None:

@@ -651,4 +651,5 @@ STRINGS = {
 "export_md": "Markdown",
 "export_json": "JSON",
 "export_print": "打印或保存为 PDF",
+"update_err_readonly": "没有写入 {where} 的权限 — 请把程序移到“应用程序”里，或从发布页手动更新。",
 }

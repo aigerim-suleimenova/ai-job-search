@@ -7,7 +7,9 @@
 только там, где его выбирали.
 """
 import hashlib
-
+import os
+import platform
+import subprocess
 import time
 
 import pytest
@@ -259,11 +261,30 @@ def test_установщик_с_чужого_адреса_не_предлага
     assert update._asset_for_this_os(assets) == {}
 
 
-def test_где_ставить_руками_ничего_не_предлагается(monkeypatch):
-    """Образ надо перетащить, архив распаковать — без человека не обойтись."""
+def test_на_macos_берётся_образ(monkeypatch):
+    """Кнопки «Обновить» на macOS не было вовсе — там показывали «ставится
+    вручную», хотя внутри образа лежит готовый пакет."""
     monkeypatch.setattr(update.platform, "system", lambda: "Darwin")
-    assets = [{"name": "AI Job Search Setup.exe",
-               "browser_download_url": update.DOWNLOAD_PREFIX + "v1/s.exe"}]
+    assets = [
+        {"name": "AI Job Search Setup.exe", "browser_download_url": update.DOWNLOAD_PREFIX + "v1/s.exe"},
+        {"name": "AI Job Search.dmg", "browser_download_url": update.DOWNLOAD_PREFIX + "v1/a.dmg"},
+    ]
+    assert update._asset_for_this_os(assets)["name"] == "AI Job Search.dmg"
+
+
+def test_образ_с_чужого_адреса_не_предлагается(monkeypatch):
+    monkeypatch.setattr(update.platform, "system", lambda: "Darwin")
+    assets = [{"name": "AI Job Search.dmg",
+               "browser_download_url": "https://example.com/a.dmg"}]
+    assert update._asset_for_this_os(assets) == {}
+
+
+def test_где_ставить_руками_ничего_не_предлагается(monkeypatch):
+    """Linux остаётся за страницей выпуска: там архив, который человек распаковал
+    туда, куда захотел, и угадывать это место — значит однажды не угадать."""
+    monkeypatch.setattr(update.platform, "system", lambda: "Linux")
+    assets = [{"name": "AI Job Search-linux.tar.gz",
+               "browser_download_url": update.DOWNLOAD_PREFIX + "v1/l.tar.gz"}]
     assert update._asset_for_this_os(assets) == {}
 
 
@@ -470,3 +491,164 @@ def test_страница_заводит_проверку(monkeypatch, profile):
     client_for(приложение.app, profile).get("/results")
 
     assert звали, "страница отрисовалась, а спросить не пошли"
+
+
+# --- Установка на macOS ---------------------------------------------------------
+#
+# Кнопки «Обновить» тут не было: программа говорила «ставится вручную». Внутри
+# образа при этом лежит готовый пакет .app, и подставить его вместо старого —
+# ровно то, что человек делает руками, перетаскивая пакет в «Программы».
+
+def test_из_исходников_ставить_нечего(monkeypatch, tmp_path):
+    """Пакета .app нет — значит, программа запущена у разработчика."""
+    monkeypatch.setattr(update.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(update.removal, "program_path", lambda: "")
+    with pytest.raises(update.UpdateError) as e:
+        update.install(tmp_path / "a.dmg")
+    assert e.value.key == "update_err_manual"
+
+
+def test_без_прав_на_запись_программу_не_закрываем(monkeypatch, tmp_path):
+    """Право проверяем ДО закрытия программы. Иначе она просто исчезла бы с
+    экрана, а обновление молча не случилось бы — и человек остался бы ни с чем."""
+    пакет = tmp_path / "AI Job Search.app"
+    пакет.mkdir()
+    monkeypatch.setattr(update.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(update.removal, "program_path", lambda: str(пакет))
+    monkeypatch.setattr(update.os, "access", lambda p, m: False)
+    запускали = []
+    monkeypatch.setattr(update.subprocess, "Popen", lambda *a, **k: запускали.append(a))
+
+    with pytest.raises(update.UpdateError) as e:
+        update.install(tmp_path / "a.dmg")
+    assert e.value.key == "update_err_readonly"
+    assert e.value.fmt["where"] == str(пакет)
+    assert запускали == [], "программа пошла бы закрываться впустую"
+
+
+def test_на_linux_по_прежнему_вручную(monkeypatch, tmp_path):
+    monkeypatch.setattr(update.platform, "system", lambda: "Linux")
+    with pytest.raises(update.UpdateError) as e:
+        update.install(tmp_path / "a.tar.gz")
+    assert e.value.key == "update_err_manual"
+
+
+# --- Та же подстановка, но на настоящей macOS -----------------------------------
+#
+# Всё, что выше, проверяет наши развилки на заглушках. А подставляет пакет
+# сценарий на sh: там hdiutil, ditto и ожидание чужого процесса, и ни одно из
+# этого заглушкой не проверишь. Поэтому здесь — по-настоящему: собираем образ,
+# кладём «установленную» копию, запускаем сценарий и смотрим, что стало.
+# В сборке это гоняется на macos-latest (см. .github/workflows/build.yml).
+
+только_на_маке = pytest.mark.skipif(platform.system() != "Darwin",
+                                    reason="подстановка пакета бывает только на macOS")
+
+
+def _образ(tmp_path, что_внутри: str, имя_пакета: str = "AI Job Search.app"):
+    """Собирает .dmg с пакетом внутри — как тот, что выкладывается в выпуске."""
+    склад = tmp_path / "склад"
+    внутри = склад / имя_пакета / "Contents" / "MacOS"
+    внутри.mkdir(parents=True)
+    (внутри / "AI Job Search").write_text(что_внутри)
+    (внутри.parent / "Info.plist").write_text("<plist/>")
+    рядом = tmp_path / "скачано"          # сценарий сносит папку целиком
+    рядом.mkdir()
+    образ = рядом / "AI Job Search.dmg"
+    subprocess.run(["hdiutil", "create", "-volname", "AI Job Search",
+                    "-srcfolder", str(склад), "-ov", "-format", "UDZO", str(образ)],
+                   check=True, capture_output=True)
+    return образ
+
+
+def _установлено(tmp_path, что_внутри: str):
+    пакет = tmp_path / "Applications" / "AI Job Search.app"
+    (пакет / "Contents" / "MacOS").mkdir(parents=True)
+    (пакет / "Contents" / "MacOS" / "AI Job Search").write_text(что_внутри)
+    return пакет
+
+
+def _прогнать(tmp_path, образ, пакет, подложить: dict = None):
+    """Гоняет сценарий вместо программы, подсунув ему заглушки в PATH.
+
+    open подменяется всегда: настоящий открыл бы окно прямо в сборке.
+    """
+    свои = tmp_path / "свои-команды"
+    свои.mkdir(exist_ok=True)
+    (свои / "open").write_text(f'#!/bin/sh\necho "$@" >> "{tmp_path}/открывали"\n')
+    for имя, тело in (подложить or {}).items():
+        (свои / имя).write_text(тело)
+    for f in свои.iterdir():
+        f.chmod(0o755)
+
+    # Чужой процесс вместо нашей программы: сценарий ждёт, пока он уйдёт.
+    вместо_программы = subprocess.Popen(["sleep", "1"])
+    сценарий = tmp_path / "swap.sh"
+    сценарий.write_text(update._MAC_SWAP, encoding="utf-8")
+    сценарий.chmod(0o755)
+    return subprocess.run(
+        ["/bin/sh", str(сценарий), str(образ), str(пакет), str(вместо_программы.pid)],
+        env={**os.environ, "PATH": f"{свои}:{os.environ['PATH']}"},
+        capture_output=True, text=True, timeout=180)
+
+
+@только_на_маке
+def test_пакет_подставляется(tmp_path):
+    образ = _образ(tmp_path, "новая\n")
+    пакет = _установлено(tmp_path, "старая\n")
+
+    _прогнать(tmp_path, образ, пакет)
+
+    assert (пакет / "Contents" / "MacOS" / "AI Job Search").read_text() == "новая\n"
+    assert "AI Job Search.app" in (tmp_path / "открывали").read_text(), \
+        "подставили и не открыли — человек остался без программы"
+    assert not образ.parent.exists(), "скачанное осталось лежать"
+    assert not (tmp_path / "Applications" / ".AI Job Search.app.old").exists()
+
+
+@только_на_маке
+def test_если_копирование_сорвалось_старая_возвращается(tmp_path):
+    """Самая опасная минута: старая копия уже отодвинута, новая ещё не легла.
+    Оборвись всё здесь — человек остался бы с половиной пакета."""
+    образ = _образ(tmp_path, "новая\n")
+    пакет = _установлено(tmp_path, "старая\n")
+
+    _прогнать(tmp_path, образ, пакет, {"ditto": "#!/bin/sh\nexit 1\n"})
+
+    assert пакет.is_dir(), "программа пропала совсем"
+    assert (пакет / "Contents" / "MacOS" / "AI Job Search").read_text() == "старая\n"
+
+
+@только_на_маке
+def test_образ_без_пакета_ничего_не_трогает(tmp_path):
+    склад = tmp_path / "пусто"
+    склад.mkdir()
+    (склад / "readme.txt").write_text("тут пакета нет")
+    рядом = tmp_path / "скачано"
+    рядом.mkdir()
+    образ = рядом / "AI Job Search.dmg"
+    subprocess.run(["hdiutil", "create", "-volname", "AI Job Search", "-srcfolder", str(склад),
+                    "-ov", "-format", "UDZO", str(образ)], check=True, capture_output=True)
+    пакет = _установлено(tmp_path, "старая\n")
+
+    _прогнать(tmp_path, образ, пакет)
+
+    assert (пакет / "Contents" / "MacOS" / "AI Job Search").read_text() == "старая\n"
+
+
+@только_на_маке
+def test_пока_программа_жива_ничего_не_меняем(tmp_path):
+    """Подменить работающую программу под собой хуже, чем не обновиться."""
+    образ = _образ(tmp_path, "новая\n")
+    пакет = _установлено(tmp_path, "старая\n")
+    долгий = subprocess.Popen(["sleep", "120"])
+    сценарий = tmp_path / "swap.sh"
+    сценарий.write_text(update._MAC_SWAP, encoding="utf-8")
+    сценарий.chmod(0o755)
+    try:
+        r = subprocess.run(["/bin/sh", str(сценарий), str(образ), str(пакет), str(долгий.pid)],
+                           capture_output=True, text=True, timeout=180)
+        assert r.returncode != 0, "не дождались, но полезли менять"
+        assert (пакет / "Contents" / "MacOS" / "AI Job Search").read_text() == "старая\n"
+    finally:
+        долгий.kill()

@@ -1699,6 +1699,15 @@ TR = {
         "en": "On this system the update is installed by hand",
         "it": "Su questo sistema l'aggiornamento si installa a mano",
         "de": "Auf diesem System wird das Update von Hand installiert"},
+    "update_err_readonly": {
+        "ru": "Нет прав на запись в {where} — перетащите программу в «Программы» "
+              "или обновите её вручную со страницы выпуска",
+        "en": "No permission to write to {where} — move the program to Applications "
+              "or update it by hand from the release page",
+        "it": "Non ci sono i permessi per scrivere in {where} — sposti il programma "
+              "in Applicazioni o lo aggiorni a mano dalla pagina della versione",
+        "de": "Keine Schreibrechte für {where} — verschieben Sie das Programm nach "
+              "«Programme» oder aktualisieren Sie es von Hand über die Release-Seite"},
     "update_err_broken": {
         "ru": "Скачанный файл не совпал с тем, что обещал GitHub, — обновление отменено.",
         "en": "The downloaded file did not match what GitHub promised — the update has been called off.",

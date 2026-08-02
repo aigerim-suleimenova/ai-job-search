@@ -24,8 +24,26 @@ jobs:
       - name: Run tests
         run: python -m pytest
 
+  # Часть тестов на Linux пропускается: подстановка пакета .app бывает только на
+  # macOS, и внутри неё hdiutil, ditto и ожидание чужого процесса — заглушками
+  # такое не проверишь. Без этой работы обновление для macOS уехало бы к людям
+  # непроверенным, а промахнуться там дороже всего: программа заменяет сама себя.
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests
+        run: python -m pytest
+
   build:
-    needs: test
+    needs: [test, test-macos]
     strategy:
       fail-fast: false
       matrix:

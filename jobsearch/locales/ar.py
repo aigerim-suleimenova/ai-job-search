@@ -652,4 +652,5 @@ STRINGS = {
 "export_md": "Markdown",
 "export_json": "JSON",
 "export_print": "اطبع أو احفظ بصيغة PDF",
+"update_err_readonly": "لا توجد صلاحية للكتابة في {where} — انقل البرنامج إلى «التطبيقات» أو حدّثه يدويًا من صفحة الإصدار",
 }

@@ -651,4 +651,5 @@ STRINGS = {
 "export_md": "Markdown",
 "export_json": "JSON",
 "export_print": "प्रिंट करें या PDF में सहेजें",
+"update_err_readonly": "{where} में लिखने की अनुमति नहीं है — प्रोग्राम को «एप्लिकेशन» में ले जाएँ या रिलीज़ पेज से हाथ से अपडेट करें",
 }

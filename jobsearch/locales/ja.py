@@ -651,4 +651,5 @@ STRINGS = {
 "export_md": "Markdown",
 "export_json": "JSON",
 "export_print": "印刷、または PDF として保存",
+"update_err_readonly": "{where} に書き込む権限がありません。プログラムを「アプリケーション」へ移すか、リリースページから手動で更新してください。",
 }

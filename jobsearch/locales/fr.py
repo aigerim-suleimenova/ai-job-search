@@ -651,4 +651,5 @@ STRINGS = {
 "export_md": "Markdown",
 "export_json": "JSON",
 "export_print": "Imprimer ou enregistrer en PDF",
+"update_err_readonly": "Pas de droit d'écriture sur {where} — déplacez le programme dans Applications ou mettez-le à jour à la main depuis la page de la version",
 }

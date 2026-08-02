@@ -651,4 +651,5 @@ STRINGS = {
 "export_md": "Markdown",
 "export_json": "JSON",
 "export_print": "Yazdır veya PDF olarak kaydet",
+"update_err_readonly": "{where} konumuna yazma izni yok — programı Uygulamalar'a taşıyın ya da sürüm sayfasından elle güncelleyin",
 }
