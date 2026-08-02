@@ -586,10 +586,16 @@ def _прогнать(tmp_path, образ, пакет, подложить: dict
     сценарий = tmp_path / "swap.sh"
     сценарий.write_text(update._MAC_SWAP, encoding="utf-8")
     сценарий.chmod(0o755)
-    return subprocess.run(
+    процесс = subprocess.Popen(
         ["/bin/sh", str(сценарий), str(образ), str(пакет), str(вместо_программы.pid)],
         env={**os.environ, "PATH": f"{свои}:{os.environ['PATH']}"},
-        capture_output=True, text=True, timeout=180)
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # Дожидаемся и хороним. Без этого процесс остаётся незахороненным и на
+    # kill -0 отвечает «жив» — сценарий честно ждал его все двадцать секунд и
+    # уходил ни с чем, а тест показывал «пакет не подставился» без причины.
+    вместо_программы.wait()
+    out, err = процесс.communicate(timeout=180)
+    return subprocess.CompletedProcess(процесс.args, процесс.returncode, out, err)
 
 
 @только_на_маке
@@ -597,9 +603,10 @@ def test_пакет_подставляется(tmp_path):
     образ = _образ(tmp_path, "новая\n")
     пакет = _установлено(tmp_path, "старая\n")
 
-    _прогнать(tmp_path, образ, пакет)
+    r = _прогнать(tmp_path, образ, пакет)
 
-    assert (пакет / "Contents" / "MacOS" / "AI Job Search").read_text() == "новая\n"
+    assert (пакет / "Contents" / "MacOS" / "AI Job Search").read_text() == "новая\n", \
+        f"сценарий вышел с {r.returncode}: {r.stderr}"
     assert "AI Job Search.app" in (tmp_path / "открывали").read_text(), \
         "подставили и не открыли — человек остался без программы"
     assert not образ.parent.exists(), "скачанное осталось лежать"
@@ -613,8 +620,12 @@ def test_если_копирование_сорвалось_старая_воз�
     образ = _образ(tmp_path, "новая\n")
     пакет = _установлено(tmp_path, "старая\n")
 
-    _прогнать(tmp_path, образ, пакет, {"ditto": "#!/bin/sh\nexit 1\n"})
+    _прогнать(tmp_path, образ, пакет,
+              {"ditto": f'#!/bin/sh\necho сорвалось >> "{tmp_path}/копировали"\nexit 1\n'})
 
+    # Иначе тест проходил бы и когда сценарий вообще не дошёл до подстановки:
+    # «старая на месте» — правда и в том случае, а проверяем мы не это.
+    assert (tmp_path / "копировали").exists(), "до подстановки дело не дошло"
     assert пакет.is_dir(), "программа пропала совсем"
     assert (пакет / "Contents" / "MacOS" / "AI Job Search").read_text() == "старая\n"
 
