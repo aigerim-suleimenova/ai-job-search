@@ -646,4 +646,6 @@ STRINGS = {
 "log_all_sources_failed": "{n} kaynağın hiçbiri yanıt vermedi — bağlantılar ulaşmıyor gibi görünüyor. «Kapsam»a bakın: orada her birinin ne yanıtladığı yazıyor. Sık görülen sebep, güvenli bağlantıları inceleyen bir antivirüs ya da kurumsal ağ geçididir.",
 "person_add_prompt": "Kimi ekliyoruz? Kendi ayarları, CV'si ve iş listesi olacak.",
 "sources_trades_hint": "Yukarıdaki kaynakların çoğu bilişim iş ilanı sitesidir. Zanaat ve bilgisayar dışı meslekler EURES'te (tüm AB, anlama göre arar — mesleğinizi herhangi bir dilde yazabilirsiniz), Arbeitsagentur'da (Almanya, yalnızca Almanca kelimeler) ve JobTech'te (İsveç) bulunur.",
+"keys_title": "Adzuna ve Jooble anahtarları — AB ve ABD dışındaki ülkeler",
+"keys_hint": "Anahtarsız program AB'yi (özellikle Almanya'yı) ve batılı şirketler için uzaktan çalışmayı iyi kapsar. Ukrayna, BAE, Çin, Hindistan, Türkiye, Rusya — neredeyse boş. Jooble yaklaşık yetmiş ülke, Adzuna on dokuz ülke belirtiyor; her ikisinin anahtarı da ücretsiz ve anında veriliyor. AB ve ABD dışında arıyorsanız buradan başlayın; yoksa arama birkaç ilan bulur — ilan olmadığı için değil, arayacak yer olmadığı için.",
 }

@@ -295,8 +295,13 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
     </div>
   </details>
 
+  {# Раздел был свёрнут и молчал о том, что даёт. Человек, ищущий работу за
+     пределами ЕС и США, до него не добирался: он просто получал десяток
+     вакансий и решал, что программа не работает. Считано на 1511 собранных
+     вакансиях — по Украине их было восемь, по ОАЭ семь, по России одна. #}
   <details>
-    <summary>Adzuna &amp; Jooble (API keys)</summary>
+    <summary>{{ t('keys_title') }}</summary>
+    <p class="hint" style="margin:8px 0 12px">{{ t('keys_hint') }}</p>
     <div class="grid3">
       <label>Adzuna app_id <input name="adzuna_app_id" value="{{ cfg.sources.adzuna_app_id }}"></label>
       <label>Adzuna app_key <input name="adzuna_app_key" value="{{ cfg.sources.adzuna_app_key }}"></label>

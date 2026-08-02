@@ -646,4 +646,6 @@ STRINGS = {
 "log_all_sources_failed": "Nie odpowiedziało żadne z {n} źródeł — wygląda na to, że połączenia nie dochodzą. Zajrzyj do „Pokrycia”: tam napisano, co odpowiedziało każde. Częsta przyczyna to antywirus albo firmowa bramka sprawdzająca połączenia szyfrowane.",
 "person_add_prompt": "Kogo dodajemy? Będzie mieć własne ustawienia, CV i listę ofert.",
 "sources_trades_hint": "Większość powyższych źródeł to giełdy pracy dla IT. Zawody rzemieślnicze i niekomputerowe znajdziesz w EURES (cała UE, szuka po znaczeniu — zawód możesz wpisać w dowolnym języku), w Arbeitsagentur (Niemcy, tylko niemieckie słowa) i w JobTech (Szwecja).",
+"keys_title": "Klucze Adzuna i Jooble — kraje poza UE i USA",
+"keys_hint": "Bez kluczy program dobrze pokrywa UE (zwłaszcza Niemcy) i pracę zdalną dla firm zachodnich. Ukraina, Emiraty, Chiny, Indie, Turcja, Rosja — prawie nic. Jooble deklaruje około siedemdziesięciu krajów, Adzuna dziewiętnaście; oba klucze są darmowe i wydawane od razu. Jeśli szukasz poza UE i USA, zacznij stąd — inaczej wyszukiwanie znajdzie kilka ofert, nie dlatego że ich nie ma, lecz dlatego że nie ma gdzie szukać.",
 }

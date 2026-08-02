@@ -893,6 +893,20 @@ TR = {
     # антивирус, перехватывающий соединения, корпоративный шлюз, нет сети.
     # Восемь источников из десяти — доски для программистов. Человек, ищущий
     # работу руками, иначе решит, что вакансий по его профессии просто нет.
+    # Раздел с ключами был свёрнут и молчал о том, что даёт. Человек, ищущий
+    # работу за пределами ЕС и США, до него не добирался: получал десяток
+    # вакансий и решал, что программа не работает. Считано на 1511 собранных:
+    # по Украине их было восемь, по ОАЭ семь, по России одна.
+    "keys_title": {
+        "ru": "Ключи Adzuna и Jooble — страны за пределами ЕС и США",
+        "en": "Adzuna and Jooble keys — countries outside the EU and the US",
+        "it": "Chiavi Adzuna e Jooble — paesi fuori dall'UE e dagli USA",
+        "de": "Adzuna- und Jooble-Schlüssel — Länder außerhalb der EU und der USA"},
+    "keys_hint": {
+        "ru": "Без ключей программа хорошо покрывает ЕС (особенно Германию) и удалённую работу на западные компании. Украина, ОАЭ, Китай, Индия, Турция, Россия — почти пусто. Jooble заявляет около семидесяти стран, Adzuna — девятнадцать; ключи у обоих бесплатные и выдаются сразу. Если ищете за пределами ЕС и США, начните с них, иначе поиск найдёт единицы вакансий не потому, что их нет, а потому, что искать негде.",
+        "en": "Without keys the app covers the EU well (Germany especially) and remote work for Western companies. Ukraine, the UAE, China, India, Turkey, Russia — almost nothing. Jooble claims about seventy countries, Adzuna nineteen; both keys are free and issued immediately. If you are looking outside the EU and the US, start here — otherwise the search will find a handful of jobs, not because there are none, but because there is nowhere to look.",
+        "it": "Senza chiavi il programma copre bene l'UE (soprattutto la Germania) e il lavoro da remoto per aziende occidentali. Ucraina, Emirati, Cina, India, Turchia, Russia — quasi nulla. Jooble dichiara circa settanta paesi, Adzuna diciannove; le chiavi di entrambi sono gratuite e rilasciate subito. Se cerca fuori dall'UE e dagli USA, cominci da qui, altrimenti la ricerca troverà poche offerte non perché non ce ne siano, ma perché non c'è dove cercare.",
+        "de": "Ohne Schlüssel deckt das Programm die EU gut ab (Deutschland besonders) sowie Fernarbeit für westliche Unternehmen. Ukraine, VAE, China, Indien, Türkei, Russland — fast nichts. Jooble nennt etwa siebzig Länder, Adzuna neunzehn; beide Schlüssel sind kostenlos und werden sofort ausgestellt. Wenn Sie außerhalb der EU und der USA suchen, fangen Sie hier an — sonst findet die Suche wenige Stellen, nicht weil es keine gibt, sondern weil es nichts zu durchsuchen gibt."},
     "sources_trades_hint": {
         "ru": "Большинство источников выше — доски для IT. Рабочие и не-компьютерные профессии находятся в EURES (весь ЕС, ищет по смыслу — можно писать профессию на любом языке), в Arbeitsagentur (Германия, только немецкие слова) и в JobTech (Швеция).",
         "en": "Most of the sources above are IT job boards. Trades and non-computer professions are found in EURES (the whole EU, matches by meaning — you can name your trade in any language), in Arbeitsagentur (Germany, German words only) and in JobTech (Sweden).",

@@ -646,4 +646,6 @@ STRINGS = {
 "log_all_sources_failed": "Ninguna de las {n} fuentes respondió: parece que las conexiones no llegan. Mire «Cobertura»: allí se indica qué respondió cada una. Una causa frecuente es un antivirus o una pasarela corporativa que inspecciona las conexiones seguras.",
 "person_add_prompt": "¿A quién añadimos? Tendrá sus propios ajustes, CV y lista de ofertas.",
 "sources_trades_hint": "La mayoría de las fuentes de arriba son portales de informática. Los oficios y las profesiones no informáticas se encuentran en EURES (toda la UE, busca por significado — puede escribir su profesión en cualquier idioma), en Arbeitsagentur (Alemania, solo palabras en alemán) y en JobTech (Suecia).",
+"keys_title": "Claves de Adzuna y Jooble — países fuera de la UE y EE. UU.",
+"keys_hint": "Sin claves el programa cubre bien la UE (Alemania sobre todo) y el trabajo remoto para empresas occidentales. Ucrania, Emiratos, China, India, Turquía, Rusia — casi nada. Jooble declara unos setenta países, Adzuna diecinueve; ambas claves son gratuitas y se entregan al momento. Si busca fuera de la UE y EE. UU., empiece por aquí; de lo contrario la búsqueda encontrará unas pocas ofertas, no porque no existan, sino porque no hay dónde buscar.",
 }
