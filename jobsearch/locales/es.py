@@ -61,7 +61,7 @@ STRINGS = {
 "models_not_installed": "no instalado",
 "models_websearch": "busca en la web",
 "models_no_websearch": "sin búsqueda web",
-"models_websearch_warning": "El modelo elegido no puede buscar en la web. Eso no le obliga a configurar empresas a mano: las ofertas siguen llegando de {n} fuentes, entre ellas los portales de las propias empresas, y la lista de empresas sigue creciendo sola, desde los enlaces dentro de las ofertas ya encontradas. Solo se pierden dos cosas: el modelo no irá a buscar por toda la web, donde aparecerían empresas fuera de esas fuentes, y no reunirá horquillas salariales ni datos de las empresas.",
+"models_websearch_warning": "El modelo elegido no puede buscar en la web. Eso no le obliga a configurar empresas a mano: las ofertas siguen llegando de {n} agregadores y la lista de empleadores sigue creciendo sola, desde los enlaces dentro de las ofertas ya encontradas. Solo se pierden dos cosas: el modelo no irá a buscar empresas que nadie ha mencionado todavía y no reunirá horquillas salariales ni datos de las empresas.",
 "models_select": "Elegir",
 "models_selected": "✓ Elegido",
 "models_your_device": "Su dispositivo",

@@ -61,7 +61,7 @@ STRINGS = {
 "models_not_installed": "未安装",
 "models_websearch": "可联网搜索",
 "models_no_websearch": "不能联网搜索",
-"models_websearch_warning": "所选模型不会上网搜索。但你不必手动配置公司：职位仍然来自 {n} 个来源，其中包括企业自己的招聘板，公司名单也仍会自己增长 —— 从已找到职位里的链接中来。只少两样：模型不会去搜遍整个互联网，那里还会出现这些来源之外的公司；也不会收集薪资区间和公司信息。",
+"models_websearch_warning": "所选模型不能联网搜索。但这并不意味着要手动添加公司：职位依旧从{n} 个聚合站汇总而来，雇主名单也会自己增长——来自已找到职位里的链接。真正失去的只有两样：模型不会去寻找还没人提过的公司，也不会收集薪资区间和公司信息。",
 "models_select": "选择",
 "models_selected": "✓ 已选",
 "models_your_device": "你的设备",

@@ -61,7 +61,7 @@ STRINGS = {
 "models_not_installed": "kurulu değil",
 "models_websearch": "web'de arar",
 "models_no_websearch": "web araması yok",
-"models_websearch_warning": "Seçilen model internette arama yapamaz. Bu yüzden şirketleri elle girmeniz gerekmez: ilanlar yine {n} kaynaktan geliyor, aralarında işverenlerin kendi ilan panoları da var, ve şirket listesi yine kendiliğinden büyür — bulunmuş ilanların içindeki bağlantılardan. Yalnızca iki şey eksilir: model tüm internette arama yapmaz, ki orada bu kaynakların dışındaki şirketler de çıkardı, ve maaş aralıklarıyla şirket bilgilerini toplamaz.",
+"models_websearch_warning": "Seçilen model web'de arayamaz. Bu yüzden şirketleri elle girmeniz gerekmez: ilanlar yine {n} toplayıcıdan gelmeye devam eder, işveren listesi de bulunan ilanların içindeki bağlantılardan kendiliğinden büyür. Yalnızca iki şey eksik kalır: model, kimsenin henüz adını anmadığı şirketleri aramaya gitmez ve maaş aralıklarıyla şirket bilgilerini toplamaz.",
 "models_select": "Seç",
 "models_selected": "✓ Seçildi",
 "models_your_device": "Cihazınız",
