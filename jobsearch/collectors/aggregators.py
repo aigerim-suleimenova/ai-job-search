@@ -590,21 +590,64 @@ def jooble(cfg: dict, log) -> list:
     return jobs
 
 
+# Все источники одним списком. Раньше они были расписаны вызовами внутри
+# collect(), и посчитать их снаружи было нечем — оттого на странице «Модель»
+# годами висело «собираются с девяти агрегаторов», хотя их давно двенадцать.
+# Теперь считать неоткуда, кроме как отсюда, и разойтись это уже не может.
+#
+#   (ключ настройки, включён ли без спроса, имя, адрес, имя сборщика)
+#
+# У последних двух вместо галочки ключ: без него служба не отвечает, поэтому
+# «включён» для них значит «ключ введён».
+#
+# Сборщик назван строкой, а не положен сюда сам, и это не описка. Список
+# складывается при загрузке модуля, и функция, положенная в него тогда,
+# остаётся в нём навсегда: подменить сборщик по имени — а так его подменяют и
+# тесты, и разбор отказов — стало бы невозможно, вызывался бы всё равно
+# первоначальный. Один раз это уже случилось: тест с заглушкой вместо Remotive
+# втихую сходил в настоящий Remotive и принёс оттуда тридцать три вакансии.
+ИСТОЧНИКИ = [
+    ("use_remotive", True, "Remotive", "https://remotive.com", "remotive"),
+    ("use_arbeitnow", True, "Arbeitnow", "https://arbeitnow.com", "arbeitnow"),
+    ("use_wwr", True, "WeWorkRemotely", "https://weworkremotely.com", "wwr"),
+    ("use_hnhiring", True, "HN Who is Hiring", "https://news.ycombinator.com", "hn_hiring"),
+    ("use_remoteok", True, "RemoteOK", "https://remoteok.com", "remoteok"),
+    ("use_jobicy", True, "Jobicy", "https://jobicy.com", "jobicy"),
+    ("use_himalayas", True, "Himalayas", "https://himalayas.app", "himalayas"),
+    ("use_themuse", True, "The Muse", "https://themuse.com", "themuse"),
+    ("use_arbeitsagentur", True, "Arbeitsagentur (DE)", "https://arbeitsagentur.de", "arbeitsagentur"),
+    # Два источника, знающих все профессии, а не только IT. Восемь остальных —
+    # доски для программистов, и на них швея, бариста и слесарь не находятся.
+    ("use_eures", True, "EURES (EU)", "https://europa.eu/eures", "eures"),
+    ("use_jobtech", True, "JobTech (SE)", "https://jobtechdev.se", "jobtech"),
+    # Доски самих работодателей: объявление размещает компания в своей же
+    # системе найма, посредника между ней и человеком нет.
+    ("use_workable", True, "Workable (employers)", "https://jobs.workable.com", "workable"),
+    ("adzuna_app_id", False, "Adzuna", "https://adzuna.com", "adzuna"),
+    ("jooble_key", False, "Jooble", "https://jooble.org", "jooble"),
+]
+
+
+def enabled(cfg: dict) -> list:
+    """Какие источники сейчас опрашиваются — их и называем человеку."""
+    src = cfg.get("sources", {})
+    return [и for и in ИСТОЧНИКИ if bool(src.get(и[0], и[1]))]
+
+
 def collect(cfg: dict, log, coverage: list = None) -> list:
     jobs = []
-    src = cfg["sources"]
 
     def track(enabled, name, url, fn):
         """Сколько источник дал — и, если ничего, почему.
 
         Поле error было здесь всегда, и всегда было пустым: сборщики ловят свои
         ошибки сами и возвращают пустой список, так что снаружи отказ выглядел
-        точь-в-точь как «ничего не нашлось». На странице «Покрытие» девять
-        источников стояли с нулями и без единого слова — человек с антивирусом,
-        который перехватывает соединения, читал это как «таких вакансий нет».
+        точь-в-точь как «ничего не нашлось». На странице «Покрытие» источники
+        стояли с нулями и без единого слова — человек с антивирусом, который
+        перехватывает соединения, читал это как «таких вакансий нет».
 
-        Ошибку берём из того, что сборщик написал в журнал: все одиннадцать
-        пишут туда только при отказе, и записать больше им нечего.
+        Ошибку берём из того, что сборщик написал в журнал: все они пишут туда
+        только при отказе, и записать больше им нечего.
         """
         if not enabled:
             return
@@ -621,22 +664,7 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
                              "count": len(got),
                              "error": "; ".join(сказанное)[:300] or None})
 
-    track(src.get("use_remotive"), "Remotive", "https://remotive.com", remotive)
-    track(src.get("use_arbeitnow"), "Arbeitnow", "https://arbeitnow.com", arbeitnow)
-    track(src.get("use_wwr", True), "WeWorkRemotely", "https://weworkremotely.com", wwr)
-    track(src.get("use_hnhiring"), "HN Who is Hiring", "https://news.ycombinator.com", hn_hiring)
-    track(src.get("use_remoteok", True), "RemoteOK", "https://remoteok.com", remoteok)
-    track(src.get("use_jobicy", True), "Jobicy", "https://jobicy.com", jobicy)
-    track(src.get("use_himalayas", True), "Himalayas", "https://himalayas.app", himalayas)
-    track(src.get("use_themuse", True), "The Muse", "https://themuse.com", themuse)
-    track(src.get("use_arbeitsagentur", True), "Arbeitsagentur (DE)", "https://arbeitsagentur.de", arbeitsagentur)
-    # Два источника, знающих все профессии, а не только IT. Восемь остальных —
-    # доски для программистов, и на них швея, бариста и слесарь не находятся.
-    track(src.get("use_eures", True), "EURES (EU)", "https://europa.eu/eures", eures)
-    track(src.get("use_jobtech", True), "JobTech (SE)", "https://jobtechdev.se", jobtech)
-    # Доски самих работодателей: объявление размещает компания в своей же
-    # системе найма, посредника между ней и человеком нет.
-    track(src.get("use_workable", True), "Workable (employers)", "https://jobs.workable.com", workable)
-    track(bool(src.get("adzuna_app_id")), "Adzuna", "https://adzuna.com", adzuna)
-    track(bool(src.get("jooble_key")), "Jooble", "https://jooble.org", jooble)
+    src = cfg["sources"]
+    for ключ, без_спроса, name, url, сборщик in ИСТОЧНИКИ:
+        track(bool(src.get(ключ, без_спроса)), name, url, globals()[сборщик])
     return jobs

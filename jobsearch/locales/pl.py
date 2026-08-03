@@ -61,7 +61,7 @@ STRINGS = {
 "models_not_installed": "niezainstalowany",
 "models_websearch": "szuka w sieci",
 "models_no_websearch": "bez szukania w sieci",
-"models_websearch_warning": "Wybrany model nie umie szukać w sieci. Nie znaczy to, że firmy trzeba będzie wpisywać ręcznie: oferty nadal spływają z dziewięciu agregatorów, a lista pracodawców rośnie sama — z linków w już znalezionych ofertach. Ubywają tylko dwie rzeczy: model nie pójdzie szukać firm, o których nikt jeszcze nie wspomniał, i nie zbierze widełek płacowych ani danych o firmach.",
+"models_websearch_warning": "Wybrany model nie potrafi szukać w internecie. Nie znaczy to, że firmy trzeba wpisywać ręcznie: oferty pochodzą z {n} źródeł, w tym z tablic ogłoszeń samych pracodawców, gdzie ogłoszenie idzie wprost od firmy, a lista firm nadal rośnie sama, z linków wewnątrz już znalezionych ofert. Ubywa jedno: rozpoznanie w całym internecie. Dlatego nie zbiorą się też widełki płacowe ani informacje o firmach — model bierze je z wyników wyszukiwania, a tych nie będzie.",
 "models_select": "Wybierz",
 "models_selected": "✓ Wybrany",
 "models_your_device": "Twoje urządzenie",

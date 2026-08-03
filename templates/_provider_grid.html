@@ -82,5 +82,5 @@
   {% endfor %}
 </div>
 {% if not provs[current_provider].web_search %}
-<p class="hint" style="margin-top:12px; color:var(--warn)">{{ t('models_websearch_warning') }}</p>
+<p class="hint" style="margin-top:12px; color:var(--warn)">{{ t('models_websearch_warning').format(n=sources_on) }}</p>
 {% endif %}

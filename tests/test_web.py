@@ -228,3 +228,31 @@ def test_robots_у_внутреннего_адреса_тоже_не_спраш�
     web.allowed("http://127.0.0.1:11434/robots-ok")
 
     assert сходили == [], "за robots.txt всё-таки сходили внутрь машины"
+
+
+# --- Сколько источников называем человеку ----------------------------------------
+
+def test_считаем_источники_а_не_пишем_словом():
+    """На странице «Модель» годами висело «собираются с девяти агрегаторов», а их
+    было двенадцать: число стояло в переводе, источники — в коде, и сверить их
+    было нечем."""
+    from jobsearch import config
+    from jobsearch.collectors import aggregators
+    сейчас = aggregators.enabled(config.DEFAULTS)
+    assert len(сейчас) == 12, f"источников {len(сейчас)}, а плашка обещает другое"
+
+
+def test_список_источников_и_опрос_не_расходятся(monkeypatch):
+    """enabled() и collect() должны ходить по одному списку, иначе счётчик снова
+    начнёт обещать не то, что делается."""
+    from jobsearch import config
+    from jobsearch.collectors import aggregators
+    # Сборщики подменяем: проверяем, кого позвали, а не что ответит сеть.
+    for *_, сборщик in aggregators.ИСТОЧНИКИ:
+        monkeypatch.setattr(aggregators, сборщик, lambda cfg, log: [])
+    опрошены = []
+    cfg = config.DEFAULTS
+    aggregators.collect(cfg, lambda *a: None, опрошены)
+    имена_опроса = {c["name"] for c in опрошены}
+    имена_списка = {и[2] for и in aggregators.enabled(cfg)}
+    assert имена_опроса == имена_списка

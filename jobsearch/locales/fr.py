@@ -61,7 +61,7 @@ STRINGS = {
 "models_not_installed": "non installé",
 "models_websearch": "recherche web",
 "models_no_websearch": "sans recherche web",
-"models_websearch_warning": "Le modèle choisi ne sait pas chercher sur le web. Cela ne vous oblige pas pour autant à saisir les entreprises à la main : les offres continuent d'arriver de neuf agrégateurs, et la liste des employeurs s'allonge d'elle-même, à partir des liens contenus dans les offres déjà trouvées. Deux choses seulement se perdent : le modèle n'ira pas chercher les entreprises que personne n'a encore citées, et il ne réunira pas les fourchettes de salaire ni les informations sur les entreprises.",
+"models_websearch_warning": "Le modèle choisi ne sait pas chercher sur le web. Cela ne vous oblige pas pour autant à saisir les entreprises à la main : les offres arrivent de {n} sources, dont les sites d'emploi des entreprises elles-mêmes, où l'annonce vient directement d'elles, et la liste des entreprises s'allonge d'elle-même, à partir des liens contenus dans les offres déjà trouvées. Une seule chose se perd : la reconnaissance de tout le web. C'est aussi pourquoi les fourchettes de salaire et les informations sur les entreprises ne seront pas réunies — le modèle les tire des résultats de recherche, et il n'y en aura pas.",
 "models_select": "Choisir",
 "models_selected": "✓ Choisi",
 "models_your_device": "Votre appareil",

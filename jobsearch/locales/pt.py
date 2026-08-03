@@ -61,7 +61,7 @@ STRINGS = {
 "models_not_installed": "não instalado",
 "models_websearch": "pesquisa na web",
 "models_no_websearch": "sem pesquisa na web",
-"models_websearch_warning": "O modelo escolhido não sabe pesquisar na web. Nem por isso terá de configurar empresas à mão: as vagas continuam a chegar de nove agregadores e a lista de empregadores continua a crescer sozinha, a partir dos links dentro das vagas já encontradas. Perdem-se apenas duas coisas: o modelo não irá procurar empresas que ninguém mencionou ainda e não recolherá faixas salariais nem dados das empresas.",
+"models_websearch_warning": "O modelo escolhido não consegue pesquisar na web. Isso não o obriga a configurar empresas à mão: as vagas chegam de {n} fontes, entre elas os portais de emprego das próprias empresas, onde o anúncio vem diretamente delas, e a lista de empresas continua a crescer sozinha, a partir dos links dentro das vagas já encontradas. Perde-se uma coisa: o reconhecimento de toda a web. Por isso também não se reunirão faixas salariais nem dados sobre as empresas — o modelo tira-os dos resultados de pesquisa, e não os haverá.",
 "models_select": "Escolher",
 "models_selected": "✓ Escolhido",
 "models_your_device": "O seu dispositivo",

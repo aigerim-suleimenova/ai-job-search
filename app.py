@@ -21,6 +21,7 @@ from jobsearch import (appstate, autostart, config, coverage as coverage_check,
                        llm, mailer, notify, pipeline, profiles, providers, removal, scheduler,
                        websearch,
                        scoring, update as update_mod, version)
+from jobsearch.collectors import aggregators
 
 BASE = Path(__file__).resolve().parent
 app = FastAPI(title="AI Job Search")
@@ -254,6 +255,9 @@ def render(request, template: str, ctx: dict, cfg: dict = None):
     # ответа его тут никто не ждёт; страница читает, что записал прошлый.
     update_mod.check_in_background()
     ctx = {**ctx, "provider_status": _provider_status(cfg_), "asset_v": _asset_version(),
+           # Сколько источников опрашивается — считаем, а не пишем словом:
+           # написанное словом разошлось с делом и годами обещало девять из двенадцати.
+           "sources_on": len(aggregators.enabled(cfg_)),
            "lang": lang, "t": lambda key: i18n.t(lang, key), "theme": appstate.theme(),
            "app_version": version.current(),
            # read from what the last check wrote down — the page never waits on the network

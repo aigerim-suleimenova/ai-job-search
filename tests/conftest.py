@@ -36,7 +36,7 @@ def настроено(monkeypatch):
     Tests about the introduction itself override this, and the ones about
     erasing everything take the mark away on purpose.
     """
-    from jobsearch import appstate, autostart, providers, update
+    from jobsearch import appstate, autostart, net, providers, update
     monkeypatch.setattr(providers, "_bin_exists", lambda name: True)
     monkeypatch.setattr(providers, "ollama_running", lambda: True)
     monkeypatch.setattr(providers, "ollama_installed_models",
@@ -52,6 +52,13 @@ def настроено(monkeypatch):
     # somebody else's server how often the tests run.
     monkeypatch.setattr(update, "fetch_latest", lambda: {})
     monkeypatch.setattr(update, "check_in_background", lambda: None)
+    # net запоминает, что до сети пришлось идти через хранилище системы, — так и
+    # задумано: у кого антивирус перехватывает соединения, тому иначе не пройти.
+    # Но память эта на весь модуль, и в прогоне тестов она их связывала: стоило
+    # одному нарваться на настоящий отказ TLS, как все следующие переставали
+    # видеть свои подмены requests.get и уходили в интернет по-настоящему.
+    # Прогон становился зависим от того, стоит ли на машине антивирус.
+    net.забыть()
     appstate.mark_setup_done(config.load()["llm"])
 
 
