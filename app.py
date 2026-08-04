@@ -1173,12 +1173,20 @@ _update_state: dict = {"running": False, "percent": 0, "error": ""}
 
 
 @app.post("/app/update/check")
-def app_update_check():
-    """Спросить о новой версии прямо сейчас, не дожидаясь суточной проверки."""
+async def app_update_check(request: Request):
+    """Спросить о новой версии прямо сейчас, не дожидаясь суточной проверки.
+
+    Возвращаем туда, откуда нажали. Прежде возвращали на главную всегда — это
+    годилось, пока кнопка была одна и стояла в настройках. Теперь она есть и в
+    шапке, то есть на всякой странице, и человека, спросившего про версию с
+    «Результатов», уносило в настройки, к чужому для него разговору.
+    """
+    form = await request.form()
+    back = str(form.get("back", "/"))
     found = update_mod.check(force=True)
     if found.get("version"):
-        return _redirect(_msg("update_found", version=found["version"]))
-    return _redirect(_msg("update_none", version=version.current()))
+        return _redirect_to(back, _msg("update_found", version=found["version"]))
+    return _redirect_to(back, _msg("update_none", version=version.current()))
 
 
 @app.post("/app/update/install")

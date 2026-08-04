@@ -13,6 +13,15 @@
   <h1>AI Job Search <span class="app-version">{{ app_version }}</span>
     {% if update.version %}<a class="badge ok update-badge" href="/#update"
        title="{{ t('update_available').format(version=update.version, current=app_version) }}">{{ t('update_badge') }}</a>{% endif %}
+    {# Спросить о новой версии — рядом с номером той, что стоит: это один и тот
+       же вопрос, и человек задаёт его там, где смотрит на версию. Кнопка была
+       только в настройках, в карточке ниже середины страницы, — то есть там,
+       куда за этим не ходят. Метка выше показывается, лишь когда о новой версии
+       уже известно; спросить самому было нечем. #}
+    <form method="post" action="/app/update/check" class="update-check">
+      <input type="hidden" name="back" value="{{ path }}">
+      <button type="submit">{{ t('update_check') }}</button>
+    </form>
   </h1>
   <div class="toolbar-right">
     <form method="post" action="/profile/switch" class="profile-switch">

@@ -418,6 +418,40 @@ def test_экран_осталось_одно_действие_даёт_кома
     assert "desktop app" in страница, "про десктопное приложение не сказано"
 
 
+def test_спросить_про_обновление_можно_с_любой_страницы(client, profile, monkeypatch):
+    """Кнопка была одна и лежала в настройках, ниже середины страницы, — то есть
+    там, куда за этим не ходят. Номер версии при этом стоит в шапке на каждой
+    странице, и вопрос «а не устарел ли я» задают, глядя на него.
+
+    Возврат — на ту же страницу. Прежде обработчик всегда уводил на главную: это
+    годилось, пока кнопка стояла на главной и была одна.
+    """
+    from jobsearch import update as update_mod
+    monkeypatch.setattr(update_mod, "check", lambda force=False: {})
+
+    for адрес in ("/results", "/coverage", "/models"):
+        assert 'action="/app/update/check"' in client.get(адрес).text, f"нет кнопки на {адрес}"
+
+    ответ = client.post("/app/update/check", data={"back": "/results"},
+                        follow_redirects=False)
+
+    assert ответ.status_code == 303
+    assert ответ.headers["location"].startswith("/results"), ответ.headers["location"]
+
+
+def test_возврат_после_проверки_только_внутрь_программы(client, profile, monkeypatch):
+    """back приходит со страницы, и в него можно положить чужой адрес. Своё окно
+    человек считает своей программой и на чужой странице, открытой из него, ведёт
+    себя доверчиво."""
+    from jobsearch import update as update_mod
+    monkeypatch.setattr(update_mod, "check", lambda force=False: {})
+
+    ответ = client.post("/app/update/check", data={"back": "https://example.com/"},
+                        follow_redirects=False)
+
+    assert not ответ.headers["location"].startswith("http"), ответ.headers["location"]
+
+
 def test_команда_установки_подходит_этой_системе(monkeypatch):
     """На Windows curl … | bash не выполнить, а на маке — PowerShell. Показывать
     надо ту, что человек сможет набрать у себя."""
