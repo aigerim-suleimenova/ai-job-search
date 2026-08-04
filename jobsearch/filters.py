@@ -62,22 +62,119 @@ def parse_locations(raw: str) -> list:
     return [t.strip().lower() for t in re.split(r"[,;]", raw or "") if t.strip()]
 
 
+# Страны, каждая одной строкой: код — каким её называет источник, имя — каким
+# её пишем мы, дальше как её пишут люди и её города.
+#
+# Код понадобился из-за EURES: он отдаёт место двухбуквенным кодом и ничем
+# больше — «BE», «SE», «FR». Мы клали этот код в поле места как есть, а фильтр
+# сравнивал его со словом «нидерланды» — и выбрасывал всё. Двести двадцать семь
+# вакансий за прогон, до единой, каждый раз. И это при том, что EURES —
+# единственный наш источник, который знает все профессии и все страны ЕС: ради
+# него всё и затевалось, а он не отдал ни одной вакансии ни разу.
+#
+# Имена нужны были и сами по себе. Страны, кроме Италии и Германии, здесь не
+# значились вовсе, и «Франция» сверялась простым вхождением: место «Paris,
+# France» человеку, написавшему «Франция», не годилось. По-русски искать можно
+# было в двух странах из тридцати одной.
+#
+# Города — потому что в объявлении часто стоит только город: «Milano»,
+# «München», и страну надо узнать по нему.
+#
+#     код: (имя, как ещё пишут, города)
+СТРАНЫ = {
+    "AT": ("Austria", ["österreich", "oesterreich", "австрия"],
+           ["vienna", "wien", "graz", "linz", "salzburg", "innsbruck"]),
+    "BE": ("Belgium", ["belgië", "belgie", "belgique", "belgien", "бельгия"],
+           ["brussels", "bruxelles", "brussel", "antwerp", "antwerpen", "gent",
+            "ghent", "leuven", "liège", "charleroi"]),
+    "BG": ("Bulgaria", ["българия", "болгария"],
+           ["sofia", "plovdiv", "varna", "burgas"]),
+    "CH": ("Switzerland", ["schweiz", "suisse", "svizzera", "швейцария"],
+           ["zurich", "zürich", "geneva", "genève", "basel", "bern", "lausanne", "zug"]),
+    "CY": ("Cyprus", ["κύπρος", "кипр"], ["nicosia", "limassol", "larnaca"]),
+    "CZ": ("Czechia", ["czech republic", "česko", "cesko", "чехия"],
+           ["prague", "praha", "brno", "ostrava", "plzeň", "plzen"]),
+    "DE": ("Germany", ["deutschland", "германия"],
+           ["berlin", "munich", "münchen", "muenchen", "hamburg", "frankfurt",
+            "cologne", "köln", "koeln", "düsseldorf", "duesseldorf", "stuttgart",
+            "leipzig", "dresden", "hannover", "bremen", "nürnberg", "nuernberg",
+            "bayern", "bavaria", "hessen", "sachsen", "nordrhein",
+            "baden-württemberg", "baden-wuerttemberg"]),
+    "DK": ("Denmark", ["danmark", "дания"],
+           ["copenhagen", "københavn", "kobenhavn", "aarhus", "odense", "aalborg"]),
+    "EE": ("Estonia", ["eesti", "эстония"], ["tallinn", "tartu"]),
+    "ES": ("Spain", ["españa", "espana", "spanien", "испания"],
+           ["madrid", "barcelona", "valencia", "sevilla", "seville", "bilbao",
+            "málaga", "malaga", "zaragoza", "cataluña", "catalunya", "catalonia"]),
+    "FI": ("Finland", ["suomi", "финляндия"],
+           ["helsinki", "espoo", "tampere", "turku", "oulu"]),
+    "FR": ("France", ["франция"],
+           ["paris", "lyon", "marseille", "toulouse", "lille", "bordeaux",
+            "nantes", "nice", "strasbourg", "montpellier", "rennes", "grenoble"]),
+    "GR": ("Greece", ["ελλάδα", "hellas", "греция"],
+           ["athens", "athina", "thessaloniki", "patras"]),
+    "HR": ("Croatia", ["hrvatska", "хорватия"], ["zagreb", "split", "rijeka"]),
+    "HU": ("Hungary", ["magyarország", "magyarorszag", "венгрия"],
+           ["budapest", "debrecen", "szeged"]),
+    "IE": ("Ireland", ["éire", "eire", "ирландия"],
+           ["dublin", "cork", "galway", "limerick"]),
+    "IS": ("Iceland", ["ísland", "island", "исландия"], ["reykjavik", "reykjavík"]),
+    "IT": ("Italy", ["italia", "italien", "италия"],
+           ["milan", "milano", "rome", "roma", "turin", "torino", "bologna",
+            "naples", "napoli", "florence", "firenze", "padova", "padua", "verona",
+            "genova", "genoa", "bergamo", "brescia", "trieste", "trento", "modena",
+            "parma", "emilia", "lombardia", "lombardy", "lazio", "piemonte",
+            "veneto", "toscana", "tuscany"]),
+    "LI": ("Liechtenstein", ["лихтенштейн"], ["vaduz"]),
+    "LT": ("Lithuania", ["lietuva", "литва"], ["vilnius", "kaunas", "klaipėda"]),
+    "LU": ("Luxembourg", ["luxemburg", "люксембург"], []),
+    "LV": ("Latvia", ["latvija", "латвия"], ["riga", "rīga", "daugavpils"]),
+    "MT": ("Malta", ["мальта"], ["valletta", "sliema"]),
+    "NL": ("Netherlands", ["nederland", "holland", "niederlande", "нидерланды",
+                           "голландия"],
+           ["amsterdam", "rotterdam", "the hague", "den haag", "utrecht",
+            "eindhoven", "groningen", "tilburg", "lijnden"]),
+    "NO": ("Norway", ["norge", "noreg", "норвегия"],
+           ["oslo", "bergen", "trondheim", "stavanger"]),
+    "PL": ("Poland", ["polska", "polen", "польша"],
+           ["warsaw", "warszawa", "kraków", "krakow", "cracow", "wrocław",
+            "wroclaw", "poznań", "poznan", "gdańsk", "gdansk", "łódź", "lodz"]),
+    "PT": ("Portugal", ["португалия"],
+           ["lisbon", "lisboa", "porto", "braga", "coimbra"]),
+    "RO": ("Romania", ["românia", "romania", "румыния"],
+           ["bucharest", "bucurești", "bucuresti", "cluj", "timișoara", "timisoara"]),
+    "SE": ("Sweden", ["sverige", "швеция"],
+           ["stockholm", "gothenburg", "göteborg", "goteborg", "malmö", "malmo",
+            "uppsala", "lund", "linköping", "linkoping", "solna", "södertälje"]),
+    "SI": ("Slovenia", ["slovenija", "словения"], ["ljubljana", "maribor"]),
+    "SK": ("Slovakia", ["slovensko", "словакия"], ["bratislava", "košice", "kosice"]),
+}
+
+
+def country_name(code: str) -> str:
+    """Имя страны по коду — тем источникам, что отдают только код."""
+    сведения = СТРАНЫ.get((code or "").strip().upper())
+    return сведения[0] if сведения else (code or "")
+
+
+def country_codes(wanted: list) -> list:
+    """Коды стран, которые человек назвал, — тем источникам, что умеют по ним
+    ограничивать выдачу. Названо «ЕС» или ничего — не ограничиваем."""
+    коды = []
+    for код, (имя, псевдонимы, города) in СТРАНЫ.items():
+        свои = {имя.lower(), *псевдонимы}
+        if any(t in свои or any(t == п for п in свои) for t in wanted):
+            коды.append(код)
+    return коды
+
+
 # individual countries: postings often name only the city ("Milano", "München")
 # without the country — so a country token has to match its cities too
-COUNTRY_MARKERS = {
-    "italy": ["italy", "italia", "italien", "milan", "milano", "rome", "roma",
-              "turin", "torino", "bologna", "naples", "napoli", "florence", "firenze",
-              "padova", "padua", "verona", "genova", "genoa", "bergamo", "brescia",
-              "trieste", "trento", "modena", "parma", "emilia", "lombardia", "lombardy",
-              "lazio", "piemonte", "veneto", "toscana", "tuscany"],
-    "germany": ["germany", "deutschland", "berlin", "munich", "münchen", "muenchen",
-                "hamburg", "frankfurt", "cologne", "köln", "koeln", "düsseldorf",
-                "duesseldorf", "stuttgart", "leipzig", "dresden", "hannover", "bremen",
-                "nürnberg", "nuernberg", "bayern", "bavaria", "hessen", "sachsen",
-                "nordrhein", "baden-württemberg", "baden-wuerttemberg"],
-}
-COUNTRY_MARKERS["италия"] = COUNTRY_MARKERS["italy"]
-COUNTRY_MARKERS["германия"] = COUNTRY_MARKERS["germany"]
+COUNTRY_MARKERS = {}
+for _код, (_имя, _псевдонимы, _города) in СТРАНЫ.items():
+    _маркеры = sorted({_имя.lower(), *_псевдонимы, *_города})
+    for _как_пишут in {_имя.lower(), *_псевдонимы}:
+        COUNTRY_MARKERS[_как_пишут] = _маркеры
 
 
 # Область целиком, а не отдельная страна: вакансия, названная так, подходит

@@ -652,4 +652,5 @@ STRINGS = {
 "export_json": "JSON",
 "export_print": "प्रिंट करें या PDF में सहेजें",
 "update_err_readonly": "{where} में लिखने की अनुमति नहीं है — प्रोग्राम को «एप्लिकेशन» में ले जाएँ या रिलीज़ पेज से हाथ से अपडेट करें",
+"log_deep_verdict_caps": "«{title}»: विश्लेषण ने पेशा «{verdict}» बताया पर {was} अंक दिए — घटाकर {now} किया",
 }

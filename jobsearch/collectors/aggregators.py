@@ -16,6 +16,7 @@ import xml.etree.ElementTree as ET
 import requests
 
 from . import iso_date, web
+from .. import filters
 
 UA = web.UA   # an honest name rather than pretending to be a browser
 TIMEOUT = 30
@@ -48,9 +49,41 @@ def _strip_html(raw: str, limit: int = 5000) -> str:
 MAX_SEARCH_TERMS = 6
 
 
+# Слова, из которых должность состоит в любой отрасли. Сами по себе они не
+# говорят ни о чём: «Product Developer» бывает в химии, в железе и в софте,
+# «Technical Designer» — обычная должность в игровой студии.
+_НИЧЕЙНЫЕ_СЛОВА = {
+    "product", "technical", "project", "program", "senior", "junior", "lead",
+    "principal", "staff", "head", "chief", "deputy", "assistant", "associate",
+    "developer", "designer", "engineer", "manager", "specialist", "consultant",
+    "analyst", "coordinator", "director", "officer", "expert", "architect",
+    "administrator", "supervisor", "operator", "technician", "advisor",
+    "разработчик", "дизайнер", "инженер", "менеджер", "специалист", "консультант",
+    "аналитик", "руководитель", "старший", "младший", "ведущий", "главный",
+}
+
+
+def _ничейное(term: str) -> bool:
+    """Состоит ли запрос только из слов, ничего не говорящих об отрасли."""
+    слова = [w for w in re.split(r"[\s/&+-]+", term.lower()) if w]
+    return bool(слова) and all(w in _НИЧЕЙНЫЕ_СЛОВА for w in слова)
+
+
 def _search_terms(cfg: dict) -> list:
-    """For Adzuna/Jooble — these APIs, unlike Remotive/Arbeitnow, really do filter by
-    keyword on their side. We take the skills and the priority into account."""
+    """Слова, по которым ищут те источники, что умеют искать: EURES, Workable,
+    JobTech, Jobicy. Остальные семь отдают всю ленту, и на них эти слова не влияют.
+
+    Ничейные запросы выбрасываем — но только если остаётся хоть один свой.
+    Регина Мохова, конструктор белья, посмотрев выдачу, написала: «возможно,
+    алгоритм сбивает название вакансии Product Developer». Так и было: её роли
+    дали шесть запросов, и два из них — «Product Developer» и «Technical
+    Designer» — уходили в источники как есть, а те честно приносили химиков и
+    дизайнеров игровых уровней. Мы сами их и просили.
+
+    Оговорка про «хоть один свой» нужна тем, у кого все роли такие: у
+    программиста «Developer» — единственное слово, каким он себя зовёт, и
+    отнимать его нельзя.
+    """
     p, s = cfg["profile"], cfg["search"]
     prio = s.get("match_priority", "both")
     parts = []
@@ -61,7 +94,8 @@ def _search_terms(cfg: dict) -> list:
     parts.append(s.get("keywords_include", ""))
     raw = ",".join(x for x in parts if x)
     terms = [t.strip() for t in raw.split(",") if t.strip()]
-    return terms[:MAX_SEARCH_TERMS] or [""]
+    свои = [t for t in terms if not _ничейное(t)]
+    return (свои or terms)[:MAX_SEARCH_TERMS] or [""]
 
 
 def remotive(cfg: dict, log) -> list:
@@ -401,6 +435,11 @@ def eures(cfg: dict, log) -> list:
     перестать, и тогда источник просто отдаст ноль с записью в журнал.
     """
     jobs, seen = [], set()
+    # Спрашиваем сразу про нужные страны. Раньше не спрашивали, и на запрос по
+    # Италии с Германией приезжали Норвегия с Бельгией — полсотни мест на запрос
+    # уходили на страны, о которых не спрашивали. Не назвал стран или назвал «ЕС»
+    # — не ограничиваем, тогда и правда нужен весь союз.
+    страны = filters.country_codes(filters.parse_locations(cfg["search"].get("locations", "")))
     for term in _search_terms(cfg):
         if not term:
             continue
@@ -413,7 +452,7 @@ def eures(cfg: dict, log) -> list:
                     "occupationUris": [], "skillUris": [], "requiredExperienceCodes": [],
                     "positionScheduleCodes": [], "sectorCodes": [],
                     "educationAndQualificationLevelCodes": [], "positionOfferingCodes": [],
-                    "locationCodes": [], "euresFlagCodes": [], "otherBenefitsCodes": [],
+                    "locationCodes": страны, "euresFlagCodes": [], "otherBenefitsCodes": [],
                     "requiredLanguages": [], "requestLanguage": "en",
                 },
                 headers={"Content-Type": "application/json"}, timeout=TIMEOUT)
@@ -427,11 +466,14 @@ def eures(cfg: dict, log) -> list:
             if not ref or ref in seen:
                 continue
             seen.add(ref)
-            страны = list((j.get("locationMap") or {}).keys())
+            # Место приходит одним кодом: {"FR": ["FRL04"]}. Города в ответе нет
+            # вовсе, а код — не то, что человек пишет в настройках, и фильтр
+            # выбрасывал все вакансии до единой. Переводим в имя.
+            где = [filters.country_name(k) for k in (j.get("locationMap") or {})]
             jobs.append({
                 "title": j.get("title", ""),
                 "company": (j.get("employer") or {}).get("name", ""),
-                "location": ", ".join(страны) or "EU",
+                "location": ", ".join(где) or "EU",
                 "url": f"https://europa.eu/eures/portal/jv-se/jv-details/{ref}?lang=en",
                 "description": _strip_html(j.get("description") or "")[:6000],
                 "posted_at": _from_millis(j.get("creationDate")),
@@ -628,6 +670,22 @@ def jooble(cfg: dict, log) -> list:
 ]
 
 
+# Кто ищет по нашим словам, а кто просто отдаёт всю свою ленту.
+#
+# Разница решает больше, чем кажется. Ленту отдают семь источников, и все семь —
+# доски для программистов: на запрос конструктора белья они присылают свои
+# полтысячи IT-вакансий целиком. А ищут по словам четыре, и среди них EURES,
+# который ищет по смыслу через европейский справочник профессий и приносит
+# «Szwaczka» на запрос «seamstress».
+#
+# Дальше вакансии выстраиваются по совпадению слов с профилем — и польская
+# «Szwaczka» с английским «Lingerie Pattern Maker» не совпадает ни одной буквой,
+# а IT-вакансия со словом «Designer» совпадает. В итоге найденное по смыслу
+# уходило в хвост, за черту, а случайно совпавшее шло на оценку.
+ИЩУТ_ПО_СЛОВАМ = {"eures", "workable", "jobtech", "jobicy", "arbeitsagentur",
+                  "adzuna", "jooble"}
+
+
 def enabled(cfg: dict) -> list:
     """Какие источники сейчас опрашиваются — их и называем человеку."""
     src = cfg.get("sources", {})
@@ -666,5 +724,9 @@ def collect(cfg: dict, log, coverage: list = None) -> list:
 
     src = cfg["sources"]
     for ключ, без_спроса, name, url, сборщик in ИСТОЧНИКИ:
+        до = len(jobs)
         track(bool(src.get(ключ, без_спроса)), name, url, globals()[сборщик])
+        if сборщик in ИЩУТ_ПО_СЛОВАМ:
+            for j in jobs[до:]:
+                j["by_query"] = True
     return jobs

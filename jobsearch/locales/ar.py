@@ -653,4 +653,5 @@ STRINGS = {
 "export_json": "JSON",
 "export_print": "اطبع أو احفظ بصيغة PDF",
 "update_err_readonly": "لا توجد صلاحية للكتابة في {where} — انقل البرنامج إلى «التطبيقات» أو حدّثه يدويًا من صفحة الإصدار",
+"log_deep_verdict_caps": "«{title}»: وصف التحليل المهنة بأنها «{verdict}» لكنه منحها {was} — خُفِّضت إلى {now}",
 }

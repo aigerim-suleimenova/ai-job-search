@@ -801,6 +801,11 @@ TR = {
         "en": "analysis of “{title}”: {error}",
         "it": "analisi di «{title}»: {error}",
         "de": "Analyse von „{title}“: {error}"},
+    "log_deep_verdict_caps": {
+        "ru": "«{title}»: разбор назвал профессию «{verdict}», а балл поставил {was} — снижен до {now}",
+        "en": "“{title}”: the analysis called the profession “{verdict}” but scored {was} — lowered to {now}",
+        "it": "«{title}»: l'analisi ha detto «{verdict}» ma ha dato {was} — abbassato a {now}",
+        "de": "„{title}“: die Analyse nannte den Beruf „{verdict}“, gab aber {was} — auf {now} gesenkt"},
     "log_disc_err": {
         "ru": "поиск компаний (заход {r}): {error}",
         "en": "company search (pass {r}): {error}",

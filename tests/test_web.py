@@ -256,3 +256,73 @@ def test_список_источников_и_опрос_не_расходятс
     имена_опроса = {c["name"] for c in опрошены}
     имена_списка = {и[2] for и in aggregators.enabled(cfg)}
     assert имена_опроса == имена_списка
+
+
+# --- Место, пришедшее кодом страны ----------------------------------------------
+
+def test_код_страны_превращается_в_имя():
+    """EURES отдаёт место одним кодом — «BE», «SE», «FR», — и мы клали его в
+    поле места как есть. Фильтр сравнивал код со словом «нидерланды» и
+    выбрасывал всё: 227 вакансий за прогон, до единой, каждый раз. А EURES —
+    единственный источник, знающий все профессии и все страны ЕС."""
+    from jobsearch import filters
+    assert filters.country_name("NL") == "Netherlands"
+    assert filters.country_name("fr") == "France"
+    assert filters.country_name("") == ""
+    assert filters.country_name("ZZ") == "ZZ", "незнакомый код не выдумываем"
+
+
+def test_страна_из_кода_проходит_фильтр():
+    from jobsearch import filters
+    хочу = filters.parse_locations("Италия, Германия, Франция, Нидерланды")
+    for код in ("IT", "DE", "FR", "NL"):
+        место = filters.country_name(код)
+        assert filters.location_ok(место, хочу, True), f"{код} → {место} не прошло"
+    assert not filters.location_ok(filters.country_name("NO"), хочу, True)
+
+
+def test_по_русски_ищутся_не_только_италия_с_германией():
+    """Страны, кроме этих двух, здесь не значились вовсе, и «Франция» сверялась
+    простым вхождением: «Paris, France» человеку, написавшему «Франция», не
+    годилось. По-русски искать можно было в двух странах из тридцати одной."""
+    from jobsearch import filters
+    случаи = [("Paris, France", "Франция"), ("Madrid", "Испания"),
+              ("Amsterdam", "Нидерланды"), ("Warszawa", "Польша"),
+              ("Lisboa", "Португалия"), ("Stockholm", "Швеция"),
+              ("Praha", "Чехия"), ("Wien", "Австрия")]
+    for место, страна in случаи:
+        assert filters.location_ok(место, filters.parse_locations(страна), True), \
+            f"«{место}» не нашлось по слову «{страна}»"
+
+
+def test_коды_стран_для_источника():
+    """Запрос к EURES не был ограничен странами, и на Италию с Германией
+    приезжали Норвегия с Бельгией."""
+    from jobsearch import filters
+    коды = filters.country_codes(filters.parse_locations("Италия, Germany, нидерланды"))
+    assert set(коды) == {"IT", "DE", "NL"}
+    assert filters.country_codes(filters.parse_locations("ЕС")) == [], \
+        "назвал весь союз — не сужаем"
+
+
+# --- Ничейные запросы ------------------------------------------------------------
+
+def test_ничейные_запросы_не_уходят_в_источники():
+    """Регина, конструктор белья, посмотрев выдачу: «возможно, алгоритм сбивает
+    название вакансии Product Developer». Так и было — мы сами его и просили, а
+    источники честно приносили химиков."""
+    from jobsearch.collectors.aggregators import _search_terms
+    cfg = {"profile": {"roles": "Lingerie Pattern Maker, Technical Designer, "
+                                "Product Developer, Garment Technologist", "skills": ""},
+           "search": {}}
+    вышло = _search_terms(cfg)
+    assert "Product Developer" not in вышло
+    assert "Technical Designer" not in вышло
+    assert "Lingerie Pattern Maker" in вышло and "Garment Technologist" in вышло
+
+
+def test_у_кого_все_роли_ничейные_запросы_остаются():
+    """У программиста «Developer» — единственное слово, каким он себя зовёт."""
+    from jobsearch.collectors.aggregators import _search_terms
+    cfg = {"profile": {"roles": "Developer, Senior Engineer", "skills": ""}, "search": {}}
+    assert _search_terms(cfg) == ["Developer", "Senior Engineer"]

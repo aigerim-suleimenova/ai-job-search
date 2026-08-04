@@ -652,4 +652,5 @@ STRINGS = {
 "export_json": "JSON",
 "export_print": "Imprimir ou guardar em PDF",
 "update_err_readonly": "Não há permissão de escrita em {where} — mova o programa para Aplicações ou atualize-o à mão a partir da página da versão",
+"log_deep_verdict_caps": "«{title}»: a análise disse «{verdict}» mas pontuou {was} — baixado para {now}",
 }

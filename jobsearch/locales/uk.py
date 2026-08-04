@@ -652,4 +652,5 @@ STRINGS = {
 "export_json": "JSON",
 "export_print": "Друк або зберегти в PDF",
 "update_err_readonly": "Немає прав на запис у {where} — перетягніть програму до «Програм» або оновіть її вручну зі сторінки випуску",
+"log_deep_verdict_caps": "«{title}»: розбір назвав професію «{verdict}», а бал поставив {was} — знижено до {now}",
 }

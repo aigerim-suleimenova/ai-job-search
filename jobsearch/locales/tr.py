@@ -652,4 +652,5 @@ STRINGS = {
 "export_json": "JSON",
 "export_print": "Yazdır veya PDF olarak kaydet",
 "update_err_readonly": "{where} konumuna yazma izni yok — programı Uygulamalar'a taşıyın ya da sürüm sayfasından elle güncelleyin",
+"log_deep_verdict_caps": "«{title}»: analiz mesleği «{verdict}» dedi ama {was} puan verdi — {now} değerine düşürüldü",
 }

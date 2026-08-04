@@ -306,10 +306,28 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         for j in jobs:
             j["_lex"] = scoring.lexical_score(j, terms)
         limit = int(cfg["search"].get("triage_limit", 400))
-        watch = sorted((j for j in jobs if j.get("from_watchlist")), key=lambda j: -j["_lex"])
-        others = sorted((j for j in jobs if not j.get("from_watchlist")), key=lambda j: -j["_lex"])
-        candidates = (watch + others)[:limit]
-        deferred = (watch + others)[limit:]  # not marked seen — they get their turn next run
+        # Три очереди, а не две. Средняя — то, что источник нашёл ПО НАШЕМУ
+        # запросу, а не вывалил всей лентой.
+        #
+        # Без неё выходило вот что. Порядок задаёт совпадение слов с профилем, а
+        # EURES ищет по смыслу и приносит названия на родных языках: на
+        # «seamstress» — польскую «Szwaczka». Общих букв у них нет, совпадение
+        # ноль, и все двести восемьдесят три его вакансии уходили за черту — под
+        # четыреста IT-вакансий с досок для программистов, куда они попали
+        # потому, что в названии случилось слово «Designer».
+        #
+        # Найденное по запросу уже прошло чужой отбор — тот, что умеет в языки и
+        # в смысл. Ставить его после случайно совпавшего значило бы верить своему
+        # счёту букв больше, чем поисковой машине EURES.
+        по_словам = lambda j: -j["_lex"]  # noqa: E731
+        watch = sorted((j for j in jobs if j.get("from_watchlist")), key=по_словам)
+        нашли = sorted((j for j in jobs
+                        if not j.get("from_watchlist") and j.get("by_query")), key=по_словам)
+        others = sorted((j for j in jobs
+                         if not j.get("from_watchlist") and not j.get("by_query")), key=по_словам)
+        по_порядку = watch + нашли + others
+        candidates = по_порядку[:limit]
+        deferred = по_порядку[limit:]  # not marked seen — they get their turn next run
         _logk("log_to_triage", n=len(candidates), own=min(len(watch), limit))
         if deferred:
             _logk("log_deferred", n=len(deferred))

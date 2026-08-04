@@ -324,3 +324,101 @@ def test_совет_не_подсказывает_соврать():
     запрос = scoring.DEEP_PROMPT.lower()
     assert "не предлагай упоминать навыки" in запрос
     assert "которых у кандидата нет" in запрос
+
+
+# --- Что модель успевает посмотреть ---------------------------------------------
+
+def test_найденное_по_запросу_идёт_раньше_вываленного_лентой():
+    """Порядок задаёт совпадение слов с профилем. EURES ищет по смыслу и
+    приносит названия на родных языках: на «seamstress» — польскую «Szwaczka».
+    Общих букв нет, совпадение ноль — и все 283 его вакансии уходили за черту,
+    под 400 IT-вакансий, попавших туда из-за слова «Designer» в названии."""
+    from jobsearch import pipeline  # noqa: F401  (проверяем сам порядок, ниже)
+
+    свои_слова = {"lingerie", "pattern", "maker", "garment"}
+
+    def лексика(j):
+        return len(свои_слова & set(j["title"].lower().split()))
+
+    вакансии = [
+        {"title": "Szwaczka", "by_query": True},                    # 0 общих слов
+        {"title": "Technical Designer Pattern", "by_query": False},  # 1 общее слово
+        {"title": "Lingerie Pattern Maker", "by_query": True},       # 3 общих
+    ]
+    for j in вакансии:
+        j["_lex"] = лексика(j)
+
+    по_словам = lambda j: -j["_lex"]  # noqa: E731
+    нашли = sorted((j for j in вакансии if j.get("by_query")), key=по_словам)
+    прочие = sorted((j for j in вакансии if not j.get("by_query")), key=по_словам)
+    порядок = [j["title"] for j in нашли + прочие]
+
+    assert порядок.index("Szwaczka") < порядок.index("Technical Designer Pattern"), \
+        "найденное по запросу снова уехало под случайно совпавшее"
+
+
+def test_источники_помечают_найденное_по_запросу():
+    """Метку ставит collect(), по одному списку — иначе она разойдётся с тем,
+    кто на самом деле ищет по словам."""
+    from jobsearch.collectors import aggregators
+    имена = {и[4] for и in aggregators.ИСТОЧНИКИ}
+    assert aggregators.ИЩУТ_ПО_СЛОВАМ <= имена, "в списке ищущих есть несуществующий сборщик"
+    assert "eures" in aggregators.ИЩУТ_ПО_СЛОВАМ
+    assert "arbeitnow" not in aggregators.ИЩУТ_ПО_СЛОВАМ, "он отдаёт всю ленту"
+
+
+def test_метка_ставится_только_ищущим(monkeypatch):
+    from jobsearch import config
+    from jobsearch.collectors import aggregators
+    for имя in {и[4] for и in aggregators.ИСТОЧНИКИ}:
+        monkeypatch.setattr(aggregators, имя,
+                            lambda cfg, log, _и=имя: [{"title": _и, "source": _и}])
+    вакансии = aggregators.collect(config.DEFAULTS, lambda *a: None, [])
+    помечены = {j["source"] for j in вакансии if j.get("by_query")}
+    без_метки = {j["source"] for j in вакансии if not j.get("by_query")}
+    assert "eures" in помечены and "workable" in помечены
+    assert "arbeitnow" in без_метки and "hn_hiring" in без_метки
+
+
+# --- Разбор не спорит сам с собой ------------------------------------------------
+
+def test_вердикт_чужая_держит_балл_внизу(monkeypatch, cfg):
+    """Модель писала «отвечает за разработку решений для игр, а не одежды» — и
+    ставила 55. Рассуждение верное, число нет. Верим рассуждению: оно идёт
+    первым, то есть придумано раньше, чем она успела подогнать цифру."""
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
+        "verdict": "чужая", "reason": "другая профессия", "match": 85,
+        "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
+    вакансия = {"title": "iOS Developer", "description": "x" * 400}
+
+    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+
+    assert вакансия["score"] <= 20, f"чужая профессия ушла на {вакансия['score']}%"
+    assert вакансия["verified"] is True
+
+
+def test_своя_профессия_балл_не_теряет(monkeypatch, cfg):
+    """Обратная сторона: занижать своё нельзя."""
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
+        "verdict": "своя", "reason": "та же профессия", "match": 90,
+        "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
+    вакансия = {"title": "Lingerie Pattern Maker", "description": "x" * 400}
+
+    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+
+    assert вакансия["score"] == 90
+
+
+def test_разбор_думает_прежде_чем_ставить_балл():
+    """Оценка стояла ПЕРВЫМ полем — модель отвечает слева направо и придумывала
+    число раньше, чем успевала подумать. У триажа это давно исправлено, а до
+    разбора починка не дошла."""
+    from jobsearch import scoring
+    поля = list(scoring.DEEP_SCHEMA["properties"])
+    assert поля.index("verdict") < поля.index("match")
+    assert поля.index("reason") < поля.index("match")
+    тело = scoring.DEEP_PROMPT
+    assert тело.index('"verdict"') < тело.index('"match"')
+    assert тело.index('"reason"') < тело.index('"match"')
