@@ -452,6 +452,50 @@ def test_возврат_после_проверки_только_внутрь_п
     assert not ответ.headers["location"].startswith("http"), ответ.headers["location"]
 
 
+def test_команда_видна_и_у_установленного(client, profile, monkeypatch):
+    """Вопрос Виктора: «почему для claude code не написано как установить?»
+
+    Написано — но весь блок висел под «ещё не установлено», и у того, у кого
+    Claude Code стоял, карточка выходила пустой: соседи её растягивали, а внутри
+    ничего. Прятали мы это ровно от того, кто дошёл до конца и хотел свериться.
+
+    Теперь команды видно всегда, и они же отвечают на «а ту ли программу вы у
+    меня нашли»: команда проверки называет ровно то, что мы ищем.
+    """
+    from jobsearch import config, i18n, providers
+    доступны(monkeypatch, claude_cli=True)     # установлен
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    config.save(cfg)
+
+    страница = client.get("/models").text
+    карточка = страница[страница.index('id="provider-claude_cli"'):]
+    карточка = карточка[:карточка.index("provider-cursor_cli")]
+
+    assert i18n.t("en", "models_ready") in карточка, "тест не о том: он не установлен"
+    assert providers.install_cmd("claude_cli") in карточка, "команды установки нет"
+    assert "claude --version" in карточка, "нечем свериться"
+    # А вот подсказка про десктопное приложение — только тому, у кого ещё нет:
+    # она про выбор, который он вот-вот сделает.
+    assert i18n.t("en", "prov_claude_cli_hint") not in карточка
+
+
+def test_у_ollama_подсказка_не_врёт_когда_она_работает(client, profile, monkeypatch):
+    """Её подсказка зовёт скачать с ollama.com и запустить. Показывать это тому,
+    у кого Ollama уже работает, значило бы врать в глаза — потому подсказка и
+    осталась под условием, когда команды из-под него вышли."""
+    from jobsearch import config, i18n
+    доступны(monkeypatch, ollama=True)
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    config.save(cfg)
+
+    страница = client.get("/models").text
+    карточка = страница[страница.index('id="provider-ollama"'):]
+
+    assert i18n.t("en", "prov_ollama_hint") not in карточка
+
+
 def test_команда_установки_подходит_этой_системе(monkeypatch):
     """На Windows curl … | bash не выполнить, а на маке — PowerShell. Показывать
     надо ту, что человек сможет набрать у себя."""
