@@ -131,7 +131,11 @@ def _provider_status(cfg: dict) -> dict:
                                 cfg.get("llm", {}))
     p = provs.get(key, {})
     lang = cfg.get("ui", {}).get("lang", "en")
-    return {"key": key, "ready": bool(p.get("ready")), "name": i18n.t(lang, f"prov_{key}")}
+    # Команды идут с собой: экран «осталось одно действие» — это первое, что
+    # видит тот, у кого ничего ещё не поставлено, и отправлять его оттуда читать
+    # ссылку значит терять его ровно там, где он и терялся.
+    return {"key": key, "ready": bool(p.get("ready")), "name": i18n.t(lang, f"prov_{key}"),
+            "install_cmd": p.get("install_cmd", ""), "verify_cmd": p.get("verify_cmd", "")}
 
 
 def _timing() -> dict:

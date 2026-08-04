@@ -381,6 +381,24 @@ a:has(> button) { text-decoration: none; }
   max-height: 280px; overflow: auto; white-space: pre-wrap; word-break: break-word;
 }
 
+/* Команда установки в карточке провайдера. Её сюда и принесли затем, чтобы
+   выделить и скопировать, — потому user-select и разрешён явно, а перенос идёт
+   по любому месту: в узкой карточке curl-строка иначе уезжает вбок за край, и
+   виден от неё только огрызок. */
+pre.cmd {
+  margin: 0 0 8px; background: var(--card-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 7px 9px; overflow-x: auto;
+}
+pre.cmd code {
+  background: none; padding: 0; user-select: all;
+  font: 11.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+  white-space: pre-wrap; word-break: break-all;
+  /* Команду всегда читают слева направо, даже когда весь остальной
+     интерфейс — арабский: это не текст, а то, что набирают в терминале. */
+  direction: ltr; text-align: left;
+}
+
 /* --- Tables --- */
 
 table { width: 100%; border-collapse: collapse; font-size: 12.5px; }

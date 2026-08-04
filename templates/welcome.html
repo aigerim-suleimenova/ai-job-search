@@ -139,7 +139,15 @@
        provider=t('prov_' + current_provider), model=current_model_name) }}</p>
   {% else %}
   <button class="primary" disabled>{{ t('welcome_continue') }}</button>
-  <p class="hint" style="margin:8px 0 0; color:var(--warn)">{{ t('welcome_blocked_model') }}</p>
+  {# Не хватать может двух разных вещей, и говорить о них одними словами нельзя.
+     У Ollama модель качается — и там к месту «нажмите „Скачать“ в списке выше».
+     У своего адреса качать нечего: модель на чужом сервере, а не хватает
+     вписанных адреса и имени модели. Прежний текст говорил и ему про кнопку
+     «Скачать» — кнопки этой на той странице нет вовсе, и человек оставался
+     перед запертым «Продолжить» с советом нажать то, чего не существует. #}
+  <p class="hint" style="margin:8px 0 0; color:var(--warn)">{{
+       t('welcome_blocked_endpoint') if current_provider == 'openai_api'
+       else t('welcome_blocked_model') }}</p>
   {% endif %}
   <p style="margin:14px 0 0"><a class="hint" href="/welcome">← {{ t('welcome_back') }}</a></p>
 </section>

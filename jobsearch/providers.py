@@ -413,6 +413,64 @@ def forget_binaries() -> None:
     forget_ollama()
 
 
+# Как поставить командную строку — командой, а не пересказом.
+#
+# Пришло от человека: «не видит claude code на моём маке». Мы отправляли его на
+# claude.com/claude-code, а там первым делом предлагают десктопное приложение —
+# он его и поставил. Приложение это к делу не идёт: нам нужна именно командная
+# строка, программа claude в терминале. Одна строчка, которую видно и можно
+# скопировать, отвечает на это лучше любого описания.
+#
+# Команды от языка не зависят и потому лежат здесь, а не в переводах: строка
+# curl одинакова на всех четырнадцати, а держать её в четырнадцати местах —
+# значит однажды поправить в тринадцати.
+#
+# Взято из официальной документации каждого и сверено с ней. Чего проверить не
+# удалось, того здесь нет: пустая клетка честнее выдуманной команды, а команда
+# вида curl … | bash, отправленная не на тот адрес, — это уже не опечатка.
+_INSTALL_CMD = {
+    "claude_cli": {"posix": "curl -fsSL https://claude.ai/install.sh | bash",
+                   "windows": "irm https://claude.ai/install.ps1 | iex"},
+    "cursor_cli": {"posix": "curl https://cursor.com/install -fsS | bash",
+                   "windows": "irm 'https://cursor.com/install?win32=true' | iex"},
+    "codex_cli": {"posix": "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
+                  "windows": "npm install -g @openai/codex"},
+    "copilot_cli": {"posix": "npm install -g @github/copilot",
+                    "windows": "npm install -g @github/copilot"},
+    "qwen_cli": {"posix": "npm install -g @qwen-code/qwen-code",
+                 "windows": "npm install -g @qwen-code/qwen-code"},
+}
+
+# Чем проверить, что встало. Тот же вопрос, которым начинается любой разговор о
+# «не находит»: пусть человек задаст его себе сам и раньше нас.
+_VERIFY_CMD = {
+    "claude_cli": "claude --version",
+    "cursor_cli": "cursor-agent --version",
+    "codex_cli": "codex --version",
+    "copilot_cli": "copilot --version",
+    "goose_cli": "goose --version",
+    "qwen_cli": "qwen --version",
+}
+
+
+def install_cmd(key: str) -> str:
+    """Команда установки для той системы, где приложение сейчас и работает.
+
+    Показывать все три сразу незачем: человек сидит за одной машиной, а лишние
+    две ему только выбор, которого он не просил.
+    """
+    pair = _INSTALL_CMD.get(key)
+    if not pair:
+        return ""
+    return pair["windows" if os.name == "nt" else "posix"]
+
+
+def verify_cmd(key: str) -> str:
+    """Чем человеку проверить, что программа встала. Пусто у того, кому нечего
+    проверять: у Ollama и у своего адреса командной строки нет вовсе."""
+    return _VERIFY_CMD.get(key, "")
+
+
 def available(claude_bin: str = "claude", llm: dict = None) -> dict:
     """Which providers are actually ready to work on this machine.
 
@@ -424,7 +482,7 @@ def available(claude_bin: str = "claude", llm: dict = None) -> dict:
     искать на диске, он готов ровно тогда, когда адрес вписан.
     """
     llm = llm or {}
-    return {
+    provs = {
         "claude_cli": {
             "ready": _bin_exists(claude_bin or "claude"),
             "web_search": True, "kind": "cloud",
@@ -477,6 +535,12 @@ def available(claude_bin: str = "claude", llm: dict = None) -> dict:
             "install_url": "",
         },
     }
+    # Команды приписываются всем разом, а не вписываются в каждую карточку
+    # руками: так у нового провайдера они не забудутся, а у прежних не разойдутся.
+    for key, p in provs.items():
+        p["install_cmd"] = install_cmd(key)
+        p["verify_cmd"] = verify_cmd(key)
+    return provs
 
 
 def missing_piece(llm: dict) -> str:

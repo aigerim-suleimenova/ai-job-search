@@ -127,10 +127,17 @@ TR = {
                           "en": "The app relies on “{name}”, but it is not installed on this computer yet. The search cannot run without it.",
                           "it": "L'app si appoggia a «{name}», ma non è ancora installato su questo computer. Senza, la ricerca non parte.",
                           "de": "Die App nutzt „{name}“, aber es ist auf diesem Rechner noch nicht installiert. Ohne das startet die Suche nicht."},
-    "setup_claude_1": {"ru": "Откройте claude.com/claude-code и установите Claude Code — это отдельная бесплатная программа, через неё приложение обращается к модели.",
-                       "en": "Open claude.com/claude-code and install Claude Code — a separate free program the app uses to reach the model.",
-                       "it": "Apra claude.com/claude-code e installi Claude Code — un programma gratuito separato che l'app usa per raggiungere il modello.",
-                       "de": "Öffnen Sie claude.com/claude-code und installieren Sie Claude Code — ein separates kostenloses Programm, über das die App das Modell erreicht."},
+    # Шаг первый переписан по жалобе: «не видит claude code на моём маке». Он
+    # отправлял на claude.com/claude-code и называл Claude Code просто отдельной
+    # программой — а на той странице первым делом предлагают десктопное
+    # приложение, его и ставили. Оно к делу не идёт: приложению нужна программа
+    # claude в терминале. Теперь шаг говорит об этом прямо, а команду страница
+    # показывает строкой ниже — набрать её вернее, чем ходить по ссылке и
+    # выбирать там между двумя разными вещами с одинаковым именем.
+    "setup_claude_1": {"ru": "Установите командную строку Claude Code — программу claude в терминале. Это не десктопное приложение Claude: приложение приложению не помощник, нужна именно команда.",
+                       "en": "Install the Claude Code command line — the claude program in your terminal. This is not the Claude desktop app: one app cannot serve another, the command itself is what is needed.",
+                       "it": "Installi la riga di comando di Claude Code — il programma claude nel terminale. Non è l'app desktop Claude: un'app non serve a un'altra, serve proprio il comando.",
+                       "de": "Installieren Sie die Kommandozeile von Claude Code — das Programm claude im Terminal. Das ist nicht die Claude-Desktop-App: Eine App hilft der anderen nicht, gebraucht wird der Befehl selbst."},
     "setup_claude_2": {"ru": "Запустите его один раз и войдите в свою учётную запись Anthropic — нужна подписка или оплата по мере использования.",
                        "en": "Run it once and sign in to your Anthropic account — a subscription or pay-as-you-go is required.",
                        "it": "Lo avvii una volta e acceda al suo account Anthropic — serve un abbonamento o il pagamento a consumo.",
@@ -221,14 +228,30 @@ TR = {
     "prov_cursor_cli": {"ru": "Cursor", "en": "Cursor", "it": "Cursor", "de": "Cursor"},
     "prov_ollama": {"ru": "Локальная модель (Ollama)", "en": "Local model (Ollama)",
                     "it": "Modello locale (Ollama)", "de": "Lokales Modell (Ollama)"},
-    "prov_claude_cli_hint": {"ru": "Установите с claude.com/claude-code",
-                             "en": "Install from claude.com/claude-code",
-                             "it": "Installi da claude.com/claude-code",
-                             "de": "Installieren von claude.com/claude-code"},
-    "prov_cursor_cli_hint": {"ru": "Установите Cursor и его командную строку (cursor-agent)",
-                             "en": "Install Cursor and its CLI (cursor-agent)",
-                             "it": "Installi Cursor e la sua CLI (cursor-agent)",
-                             "de": "Installieren Sie Cursor und dessen CLI (cursor-agent)"},
+    # Пришло от человека: «очень хочу попробовать, но оно не видит claude code на
+    # моём маке». Прежний текст говорил только «установите с claude.com/claude-code»
+    # — а там первым делом предлагают десктопное приложение, его и ставят. Оно к
+    # делу не идёт: приложению нужна программа claude в терминале. Теперь про это
+    # сказано прямо, а сама команда стоит строкой ниже, в карточке.
+    "prov_claude_cli_hint": {
+        "ru": "Нужна командная строка Claude Code — это не то же, что десктопное приложение Claude.",
+        "en": "You need the Claude Code command line — not the same thing as the Claude desktop app.",
+        "it": "Serve la riga di comando di Claude Code — non è la stessa cosa dell'app desktop Claude.",
+        "de": "Gebraucht wird die Kommandozeile von Claude Code — nicht die Claude-Desktop-App."},
+    "install_cmd_label": {
+        "ru": "Команда для установки:", "en": "Install command:",
+        "it": "Comando di installazione:", "de": "Installationsbefehl:"},
+    "install_verify_label": {
+        "ru": "Проверить, что встало:", "en": "Check that it worked:",
+        "it": "Per verificare che sia installato:", "de": "Prüfen, ob es geklappt hat:"},
+    # У всех командных строк подсказка теперь говорит одно и то же: нужна именно
+    # командная строка. Саму команду карточка показывает ниже отдельной строкой,
+    # и повторять её здесь словами значило бы держать её в двух местах на
+    # четырнадцати языках — то есть однажды поправить в одном.
+    "prov_cursor_cli_hint": {"ru": "Нужна командная строка Cursor (cursor-agent), а не сам редактор.",
+                             "en": "You need the Cursor command line (cursor-agent), not the editor itself.",
+                             "it": "Serve la riga di comando di Cursor (cursor-agent), non l'editor.",
+                             "de": "Gebraucht wird die Cursor-Kommandozeile (cursor-agent), nicht der Editor."},
     "prov_ollama_hint": {"ru": "Скачайте с ollama.com, запустите — и модели можно будет качать прямо отсюда",
                          "en": "Download from ollama.com and run it — then models can be downloaded right here",
                          "it": "Scarichi da ollama.com e lo avvii — poi i modelli si scaricano da qui",
@@ -686,6 +709,16 @@ TR = {
         "en": "The tool you picked is not installed yet — the search cannot run without it. Install it using the hint above, or pick another one.",
         "it": "Lo strumento scelto non è ancora installato — senza di esso la ricerca non parte. Installatelo seguendo il suggerimento sopra, oppure sceglietene un altro.",
         "de": "Das gewählte Programm ist noch nicht installiert — ohne es startet die Suche nicht. Installieren Sie es nach dem Hinweis oben, oder wählen Sie ein anderes."},
+    # А у своего адреса не хватает третьего, и говорить о нём словами Ollama
+    # нельзя (issue #5). Качать там нечего — модель на чужом сервере, — но
+    # прежний текст велел нажать «Скачать» в списке выше. Ни списка, ни кнопки на
+    # той странице нет: вместо них поля для адреса и имени модели. Человек
+    # оставался перед запертым «Продолжить» с советом нажать несуществующее.
+    "welcome_blocked_endpoint": {
+        "ru": "Впишите адрес и имя модели выше и нажмите «Сохранить настройки» — без них поиск не запустится. Скачивать здесь нечего: модель работает на сервере той службы, чей адрес вы укажете.",
+        "en": "Fill in the address and the model name above, then press “Save settings” — the search cannot run without them. There is nothing to download here: the model runs on the server of whichever service you point to.",
+        "it": "Inserisca l'indirizzo e il nome del modello qui sopra, poi prema «Salva impostazioni» — senza di essi la ricerca non parte. Qui non c'è nulla da scaricare: il modello gira sul server del servizio che indica.",
+        "de": "Tragen Sie oben die Adresse und den Modellnamen ein und drücken Sie «Einstellungen speichern» — ohne sie startet die Suche nicht. Hier gibt es nichts herunterzuladen: Das Modell läuft auf dem Server des Dienstes, den Sie angeben."},
     # Программа на месте, а модель к ней — нет: причина другая, и подсказка «установите
     # по подсказке выше» отправляла человека чинить то, что уже работает.
     "welcome_blocked_model": {
@@ -1728,10 +1761,10 @@ TR = {
     # Codex CLI — третья облачная командная строка рядом с Claude Code и Cursor.
     "prov_codex_cli": {"ru": "Codex", "en": "Codex", "it": "Codex", "de": "Codex"},
     "prov_codex_cli_hint": {
-        "ru": "Установите Codex CLI с developers.openai.com/codex",
-        "en": "Install Codex CLI from developers.openai.com/codex",
-        "it": "Installi Codex CLI da developers.openai.com/codex",
-        "de": "Installieren Sie Codex CLI von developers.openai.com/codex"},
+        "ru": "Нужна командная строка Codex, а не приложение ChatGPT.",
+        "en": "You need the Codex command line, not the ChatGPT app.",
+        "it": "Serve la riga di comando Codex, non l'app ChatGPT.",
+        "de": "Gebraucht wird die Codex-Kommandozeile, nicht die ChatGPT-App."},
     "prov_codex_cli_about": {
         "ru": "Командная строка OpenAI Codex. Считает в облаке по вашей подписке ChatGPT.",
         "en": "OpenAI's Codex command line. Runs in the cloud on your ChatGPT subscription.",
@@ -1855,21 +1888,24 @@ TR = {
     "prov_copilot_cli": {"ru": "GitHub Copilot", "en": "GitHub Copilot",
                          "it": "GitHub Copilot", "de": "GitHub Copilot"},
     "prov_copilot_cli_hint": {
-        "ru": "Установите Copilot CLI: npm install -g @github/copilot",
-        "en": "Install Copilot CLI: npm install -g @github/copilot",
-        "it": "Installi Copilot CLI: npm install -g @github/copilot",
-        "de": "Installieren Sie Copilot CLI: npm install -g @github/copilot"},
+        "ru": "Нужна командная строка Copilot, а не расширение для редактора. Команде нужен установленный node.",
+        "en": "You need the Copilot command line, not the editor extension. The command needs node installed.",
+        "it": "Serve la riga di comando Copilot, non l'estensione per l'editor. Il comando richiede node installato.",
+        "de": "Gebraucht wird die Copilot-Kommandozeile, nicht die Editor-Erweiterung. Der Befehl braucht ein installiertes node."},
     "prov_copilot_cli_about": {
         "ru": "Командная строка GitHub Copilot. Считает в облаке по вашей подписке Copilot — у многих она уже есть.",
         "en": "GitHub's Copilot command line. Runs in the cloud on your Copilot subscription — many people already have one.",
         "it": "La riga di comando Copilot di GitHub. Lavora nel cloud con il suo abbonamento Copilot — molti ce l'hanno già.",
         "de": "Die Copilot-Kommandozeile von GitHub. Rechnet in der Cloud über Ihr Copilot-Abo — viele haben eines bereits."},
     "prov_goose_cli": {"ru": "Goose", "en": "Goose", "it": "Goose", "de": "Goose"},
+    # У одного Goose команды в карточке нет: в его документации адрес установщика
+    # ведёт на репозиторий, которого я не сумел сверить, а curl … | bash не на тот
+    # адрес — это уже не опечатка. Пусть лучше ссылка, чем непроверенная строка.
     "prov_goose_cli_hint": {
-        "ru": "Установите Goose с goose-docs.ai и дайте ему ключ от вашей модели",
-        "en": "Install Goose from goose-docs.ai and give it a key for your model",
-        "it": "Installi Goose da goose-docs.ai e gli dia una chiave per il suo modello",
-        "de": "Installieren Sie Goose von goose-docs.ai und geben Sie ihm einen Schlüssel für Ihr Modell"},
+        "ru": "Нужна командная строка goose — возьмите её с goose-docs.ai и дайте ей ключ от вашей модели.",
+        "en": "You need the goose command line — get it from goose-docs.ai and give it a key for your model.",
+        "it": "Serve la riga di comando goose — la prenda da goose-docs.ai e le dia una chiave per il suo modello.",
+        "de": "Gebraucht wird die goose-Kommandozeile — von goose-docs.ai holen und ihr einen Schlüssel für Ihr Modell geben."},
     "prov_goose_cli_about": {
         "ru": "Открытая программа под крылом Linux Foundation. Сама по себе моделей не имеет: вы даёте ей ключ от той службы, которой пользуетесь.",
         "en": "An open program under the Linux Foundation. It has no models of its own: you give it a key for whichever service you use.",
@@ -1878,10 +1914,10 @@ TR = {
     "prov_qwen_cli": {"ru": "Qwen Code", "en": "Qwen Code",
                       "it": "Qwen Code", "de": "Qwen Code"},
     "prov_qwen_cli_hint": {
-        "ru": "Установите: npm install -g @qwen-code/qwen-code — и дайте ключ от вашей модели",
-        "en": "Install: npm install -g @qwen-code/qwen-code — and give it a key for your model",
-        "it": "Installi: npm install -g @qwen-code/qwen-code — e gli dia una chiave del suo modello",
-        "de": "Installieren: npm install -g @qwen-code/qwen-code — und geben Sie ihm einen Schlüssel für Ihr Modell"},
+        "ru": "Нужна командная строка Qwen, и ей нужен ключ от вашей модели. Команде нужен установленный node.",
+        "en": "You need the Qwen command line, and it needs a key for your model. The command needs node installed.",
+        "it": "Serve la riga di comando Qwen, e le serve una chiave del suo modello. Il comando richiede node installato.",
+        "de": "Gebraucht wird die Qwen-Kommandozeile, und sie braucht einen Schlüssel für Ihr Modell. Der Befehl braucht ein installiertes node."},
     "prov_qwen_cli_about": {
         "ru": "Командная строка Qwen. Работает по вашему ключу — от Alibaba или от любой другой службы, которую вы ей укажете. Бесплатного входа у неё больше нет.",
         "en": "The Qwen command line. Runs on a key of yours — from Alibaba or any other service you point it at. Its free tier is gone.",
@@ -1900,8 +1936,14 @@ TR = {
         "it": "Qwen Code non trovato: installi qwen", "de": "Qwen Code nicht gefunden: qwen installieren"},
     # Свой адрес, говорящий на языке OpenAI: одним провайдером накрываются
     # OpenRouter, LM Studio, vLLM, llama.cpp, корпоративный шлюз и сам OpenAI.
-    "prov_openai_api": {"ru": "Свой адрес (OpenAI API)", "en": "Your own endpoint (OpenAI API)",
-                        "it": "Indirizzo proprio (API OpenAI)", "de": "Eigene Adresse (OpenAI-API)"},
+    # Имя переписано по жалобе (issue #4): «Свой адрес (OpenAI API)» читалось как
+    # «это OpenAI» — и мимо шли все, кому он и нужен был: OpenRouter, LM Studio,
+    # свой сервер. Теперь имя перечисляет то, чем пользуются на деле, а про язык
+    # OpenAI сказано в описании, где на это есть место.
+    "prov_openai_api": {"ru": "OpenRouter, LM Studio, свой сервер",
+                        "en": "OpenRouter, LM Studio, your server",
+                        "it": "OpenRouter, LM Studio, il suo server",
+                        "de": "OpenRouter, LM Studio, eigener Server"},
     "prov_openai_api_hint": {
         "ru": "Впишите адрес — например, OpenRouter, LM Studio или ваш собственный сервер",
         "en": "Enter an address — OpenRouter, LM Studio or a server of your own",

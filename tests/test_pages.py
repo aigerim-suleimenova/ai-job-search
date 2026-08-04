@@ -272,6 +272,11 @@ def доступны(monkeypatch, **готовы):
     avail = {k: dict(v) for k, v in ПРОВАЙДЕРЫ.items()}
     for key, ready in готовы.items():
         avail[key]["ready"] = ready
+    # Команды берём у настоящего источника, а не переписываем в дубль: переписанные
+    # разошлись бы с ним молча, и тест продолжил бы уверять, что команда на месте.
+    for key, p in avail.items():
+        p["install_cmd"] = providers.install_cmd(key)
+        p["verify_cmd"] = providers.verify_cmd(key)
     # второй аргумент — блок настроек: он нужен своему адресу, у которого
     # готовность определяется не файлом на диске, а вписанным адресом
     monkeypatch.setattr(providers, "available",
@@ -334,6 +339,96 @@ def test_знакомство_различает_нет_программы_и_н
     assert "disabled" in хвост.split("</button>")[0]
     assert i18n.t("en", "welcome_blocked_model") in хвост
     assert i18n.t("en", "welcome_blocked") not in хвост, "причина названа неверно"
+
+
+def test_своему_адресу_не_советуют_нажать_скачать(client, profile, monkeypatch):
+    """Жалоба (issue #5): «просит скачать модель, а кнопки скачать нет».
+
+    У своего адреса качать нечего — модель на чужом сервере, — но не хватать
+    может адреса и имени модели, и тогда «Продолжить» заперто. Заперто верно, а
+    вот говорилось при этом чужими словами: текст Ollama велел нажать «Скачать»
+    в списке выше. Ни списка, ни кнопки на той странице нет: вместо них поля.
+    Человек оставался перед запертой кнопкой с советом нажать несуществующее.
+    """
+    from jobsearch import config, i18n
+    # Свой адрес готов всегда: устанавливать нечего, это не программа, а адрес.
+    доступны(monkeypatch, openai_api=True)
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    cfg["llm"].update(provider="openai_api", api_base="", api_model="")
+    config.save(cfg)
+
+    страница = client.get("/welcome?step=model").text
+    хвост = страница[страница.index('id="welcome-continue"'):]
+
+    assert "disabled" in хвост.split("</button>")[0]
+    assert i18n.t("en", "welcome_blocked_endpoint") in хвост
+    assert i18n.t("en", "welcome_blocked_model") not in хвост, "совет от Ollama"
+    assert "Download" not in хвост, "кнопки с таким именем на странице нет"
+
+
+def test_карточка_называет_команду_установки(client, profile, monkeypatch):
+    """Жалоба человека: «не видит claude code на моём маке».
+
+    Мы отправляли его на claude.com/claude-code, а там первым делом предлагают
+    десктопное приложение — его и ставили. Оно к делу не идёт: нужна программа
+    claude в терминале. Теперь карточка говорит это прямо и показывает команду.
+    """
+    from jobsearch import config, i18n, providers
+    доступны(monkeypatch)                      # ничего не установлено
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    config.save(cfg)
+
+    страница = client.get("/welcome").text
+
+    assert providers.install_cmd("claude_cli") in страница, "команды установки нет"
+    assert "claude --version" in страница, "нечем проверить, что встало"
+    assert i18n.t("en", "install_cmd_label") in страница
+    # И главное — сказано, что это не десктопное приложение
+    assert "desktop app" in i18n.t("en", "prov_claude_cli_hint")
+
+
+@pytest.mark.parametrize("адрес", ["/", "/simple"])
+def test_экран_осталось_одно_действие_даёт_команду(client, profile, monkeypatch, адрес):
+    """Тот самый экран, с которого всё и началось: человек видит «осталось одно
+    действие» и три шага. Первый шаг звал на claude.com/claude-code, где рядом
+    лежат десктопное приложение и командная строка под одним именем, — оттуда и
+    приносили не то. Теперь шаг говорит про терминал и показывает команду.
+
+    Обе страницы разом: блок у них общий, а раньше стоял в каждой своим списком,
+    и правка в одной тихо расходилась со второй.
+    """
+    from jobsearch import appstate, config, i18n, providers
+    доступны(monkeypatch)                      # claude не установлен
+    # Знакомство пройдено: иначе middleware уводит с этих страниц на /welcome, и
+    # экран «осталось одно действие» показывается как раз тому, кто своё уже
+    # прошёл, а программа у него потом пропала.
+    monkeypatch.setattr(appstate, "needs_setup", lambda: False)
+    cfg = config.load()
+    cfg["ui"]["lang"] = "en"
+    cfg["llm"]["provider"] = "claude_cli"
+    config.save(cfg)
+
+    страница = client.get(адрес).text
+
+    assert i18n.t("en", "setup_needed") in страница, "экрана нет — тест ни о чём"
+    assert providers.install_cmd("claude_cli") in страница, "команды установки нет"
+    assert "claude --version" in страница, "нечем проверить, что встало"
+    assert "desktop app" in страница, "про десктопное приложение не сказано"
+
+
+def test_команда_установки_подходит_этой_системе(monkeypatch):
+    """На Windows curl … | bash не выполнить, а на маке — PowerShell. Показывать
+    надо ту, что человек сможет набрать у себя."""
+    from jobsearch import providers
+    monkeypatch.setattr(providers.os, "name", "posix")
+    assert providers.install_cmd("claude_cli").startswith("curl -fsSL https://claude.ai")
+    monkeypatch.setattr(providers.os, "name", "nt")
+    assert providers.install_cmd("claude_cli").startswith("irm https://claude.ai")
+    # У чего команды нет — там пусто, и карточка про неё промолчит, а не соврёт
+    assert providers.install_cmd("goose_cli") == ""
+    assert providers.install_cmd("ollama") == ""
 
 
 def test_знакомство_пускает_когда_модель_на_месте(client, profile, monkeypatch):

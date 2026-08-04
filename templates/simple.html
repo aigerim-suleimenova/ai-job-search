@@ -17,13 +17,7 @@
 <section class="card" style="border-left:4px solid var(--warn)">
   <h2>{{ t('setup_needed') }}</h2>
   <p>{{ t('setup_no_provider').format(name=provider_status.name) }}</p>
-  {% if provider_status.key == 'claude_cli' %}
-  <ol class="steps">
-    <li>{{ t('setup_claude_1') }}</li>
-    <li>{{ t('setup_claude_2') }}</li>
-    <li>{{ t('setup_claude_3') }}</li>
-  </ol>
-  {% endif %}
+  {% if provider_status.key == 'claude_cli' %}{% include "_setup_steps.html" %}{% endif %}
   <div class="row" style="margin-top:12px">
     <a href="{{ request.url.path }}"><button type="button" class="primary">{{ t('setup_recheck') }}</button></a>
     <a href="/models"><button type="button">{{ t('setup_other_model') }}</button></a>
