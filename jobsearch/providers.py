@@ -130,6 +130,79 @@ _EXTRA_DIRS = [
     Path("/opt/local/bin"),
 ]
 
+# And node version managers keep what npm installed inside their own tree, one
+# directory per node version, adding it to PATH from .zshrc. Someone who ran
+# "npm install -g @anthropic-ai/claude-code" under nvm has claude in none of the
+# directories above — and .zshrc is not read by the shell we ask below either.
+# Patterns rather than paths: the version in the middle changes by itself.
+_MANAGER_GLOBS = [
+    ".nvm/versions/node/*/bin",                                          # nvm
+    "Library/Application Support/fnm/node-versions/*/installation/bin",  # fnm
+    ".volta/bin",                                                        # Volta
+    ".bun/bin",                                                          # bun
+    ".npm-global/bin", ".npm-packages/bin",   # npm prefix set by hand
+    ".asdf/shims",                            # asdf
+    ".local/share/mise/shims",                # mise
+]
+
+
+def _search_dirs():
+    """Where to look besides PATH.
+
+    The globs are expanded on every call rather than once at import: a person
+    who installs node while the app is open should not have to restart it.
+    """
+    yield from _EXTRA_DIRS
+    home = Path.home()
+    for pattern in _MANAGER_GLOBS:
+        try:
+            # Reversed so that of several node versions the newer is tried
+            # first. Sorting is by name, so it only mostly agrees with the
+            # order of the versions — but any of them with the CLI inside will
+            # do, and the loop goes on until one has it.
+            yield from sorted(home.glob(pattern), reverse=True)
+        except OSError:            # an unreadable directory is not a reason to stop
+            continue
+
+
+def _ask_login_shell(command: str) -> str:
+    """Runs a command in this person's shell and returns what it printed.
+
+    Interactive (-i) as well as login (-l). zsh reads .zshrc only for an
+    interactive shell, and .zshrc is exactly where nvm sets itself up and where
+    everyone is told to write export PATH. Without -i a CLI installed by npm
+    under nvm is invisible: it is in neither PATH, nor the directories above,
+    nor the answer of a quiet shell.
+
+    An interactive shell is also the riskier one: someone's .zshrc waits for a
+    keypress or takes its time. So stdin is closed and the wait is bounded, and
+    if it still goes badly we ask again the quiet way — an answer without .zshrc
+    beats no answer at all.
+    """
+    shell = os.environ.get("SHELL") or "/bin/zsh"
+    if not os.path.exists(shell):
+        return ""
+    for flags in ("-ilc", "-lc"):
+        try:
+            # encoding задана прямо. Без неё берётся кодировка системы — cp1252
+            # на Windows, ascii при локали C, — и первая же нелатинская буква в
+            # чужой переменной среды рушит разбор. А она там есть у всякого,
+            # чьё имя не латиницей: оно лежит в HOME и в PATH. Падало при этом
+            # не понятным исключением, а AttributeError: ошибка случалась в
+            # потоке чтения, и stdout молча оказывался None. И переставали
+            # работать разом все командные строки.
+            out = subprocess.run([shell, flags, command], capture_output=True,
+                                 text=True, encoding="utf-8", errors="replace",
+                                 timeout=10, cwd=work_dir(),
+                                 stdin=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            continue                       # .zshrc hung — try without it
+        except (OSError, subprocess.SubprocessError):
+            return ""
+        if out.stdout:
+            return out.stdout
+    return ""
+
 
 def work_dir() -> str:
     """An empty directory the external CLIs are launched from.
@@ -154,24 +227,12 @@ def login_env() -> dict:
     variables from ~/.zshrc. We ask the login shell for them once per launch.
     """
     env = dict(os.environ)
-    shell = os.environ.get("SHELL") or "/bin/zsh"
-    if not os.path.exists(shell):
-        return env
-    try:
-        # encoding задана прямо. Без неё берётся кодировка системы — cp1252 на
-        # Windows, ascii при локали C, — и первая же нелатинская буква в чужой
-        # переменной среды рушит разбор. А она там есть у всякого, чьё имя не
-        # латиницей: оно лежит в HOME и в PATH. Падало при этом не понятным
-        # исключением, а AttributeError: ошибка случалась в потоке чтения, и
-        # stdout молча оказывался None. И переставали работать разом все
-        # командные строки.
-        out = subprocess.run([shell, "-lc", "env -0"], capture_output=True,
-                             text=True, encoding="utf-8", errors="replace",
-                             timeout=10, cwd=work_dir())
-    except (OSError, subprocess.SubprocessError):
-        return env
-    for pair in (out.stdout or "").split("\0"):
+    for pair in _ask_login_shell("env -0").split("\0"):
         key, sep, value = pair.partition("=")
+        # A talkative .zshrc prints its own before env gets to run, and that
+        # lands glued to the very first variable. It ends with a newline, and
+        # the name of a variable never contains one — so the glue cuts here.
+        key = key.rpartition("\n")[2]
         if sep and key and not key.startswith(("BASH_FUNC", "_")):
             env[key] = value
     return env
@@ -188,22 +249,21 @@ def resolve_bin(name: str) -> str:
     found = shutil.which(name)
     if found:
         return found
-    for d in _EXTRA_DIRS:
+    for d in _search_dirs():
         candidate = d / name
         if candidate.exists() and os.access(candidate, os.X_OK):
             return str(candidate)
-    # last chance: ask the login shell — it will read .zshrc/.bash_profile
-    shell = os.environ.get("SHELL") or "/bin/zsh"
-    try:
-        out = subprocess.run([shell, "-lc", f"command -v {name}"], cwd=work_dir(),
-                             capture_output=True, text=True, encoding="utf-8",
-                             errors="replace", timeout=10)
-        вывод = (out.stdout or "").strip()
-        path = вывод.splitlines()[-1] if вывод else ""
-        if path and os.access(path, os.X_OK):
-            return path
-    except (OSError, subprocess.SubprocessError, IndexError):
-        pass
+    # last chance: the PATH as this person's terminal sees it — with .zshrc and
+    # everything it sets up. Taken from login_env rather than by asking the
+    # shell here: the setup page checks seven CLIs at once, and seven
+    # conversations with a shell that loads oh-my-zsh would be felt. login_env
+    # is asked once and remembered; forget_binaries() forgets it along with us,
+    # so "install it and press again" still works.
+    путь = login_env().get("PATH", "")
+    if путь:
+        found = shutil.which(name, path=путь)
+        if found and os.access(found, os.X_OK):
+            return found
     return ""
 
 
@@ -344,6 +404,11 @@ def tool_info(tool: str) -> dict:
 def forget_binaries() -> None:
     """Forget the paths found: the person may have installed the program just now."""
     resolve_bin.cache_clear()
+    # And the environment along with them: resolve_bin looks for the program in
+    # the PATH that came from there. An installer had just added a directory to
+    # it, and remembering the PATH from before the install would mean answering
+    # "still not visible" to someone who has just done everything right.
+    login_env.cache_clear()
     tool_state.cache_clear()
     forget_ollama()
 

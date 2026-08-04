@@ -183,3 +183,67 @@ def test_кириллица_в_среде_не_ломает_запуск(monkeyp
     assert env.get("ИМЯ") == "Лаврентьев"
     # И сам вызов доходит до конца, а не падает по дороге
     assert providers.call_codex("привет", "", timeout=60) == "ответ от codex"
+
+
+@pytest.mark.skipif(not os.path.exists("/bin/zsh"), reason="нужен настоящий zsh")
+def test_командная_строка_из_nvm_находится(monkeypatch, tmp_path):
+    """Пришло от человека: «не видит claude code на моём маке».
+
+    Так выглядит машина того, кто поставил CLI через npm под nvm: программа
+    лежит в дереве nvm, а в PATH это дерево добавляет .zshrc. Приложение,
+    запущенное из Finder, получает голый системный PATH — и спрашивало оболочку
+    через zsh -lc. Вот в чём была беда: -l это вход, но не разговор, а .zshrc
+    читается только разговорной оболочкой. Программы не видел никто: ни PATH, ни
+    список каталогов, ни оболочка.
+
+    Имя нарочно небывалое: настоящий claude есть на машине разработчика в
+    ~/.local/bin, и тест с ним прошёл бы вхолостую, ничего не проверив.
+    """
+    имя = "aijs-fake-cli"
+    дерево = tmp_path / ".nvm" / "versions" / "node" / "v22.17.0" / "bin"
+    дерево.mkdir(parents=True)
+    файл = дерево / имя
+    файл.write_text("#!/bin/sh\necho 1.0\n", encoding="utf-8")
+    файл.chmod(файл.stat().st_mode | stat.S_IEXEC)
+    (tmp_path / ".zshrc").write_text(
+        f'export PATH="{дерево}:$PATH"\n', encoding="utf-8")
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("ZDOTDIR", raising=False)   # иначе .zshrc возьмётся не наш
+    monkeypatch.setenv("SHELL", "/bin/zsh")
+    monkeypatch.setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")  # как из Finder
+    providers.forget_binaries()
+
+    assert providers.resolve_bin(имя) == str(файл), "программа из дерева nvm не нашлась"
+    # И среде, с которой её позовут, дерево тоже видно — иначе она найдётся, но
+    # не запустится: рядом с ней в том же каталоге лежит и node, которым она жива.
+    providers.login_env.cache_clear()
+    assert str(дерево) in providers.login_env().get("PATH", "")
+    providers.forget_binaries()
+    providers.login_env.cache_clear()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="подставная оболочка здесь — sh-скрипт")
+def test_болтливый_zshrc_не_портит_переменные(monkeypatch, двор):
+    """Плата за разговорную оболочку: .zshrc печатает своё, и печатает раньше,
+    чем дойдёт до env. Его слова липнут к первой же переменной — а первой может
+    оказаться любая, в том числе PATH."""
+    свалка = двор / "болтун.py"
+    свалка.write_text(
+        "import sys" + chr(10) +
+        'sys.stdout.buffer.write("Добро пожаловать!' + chr(92) + 'n'
+        'PATH=/из/оболочки' + chr(92) + '0ИМЯ=Лаврентьев' + chr(92) + '0".encode("utf-8"))'
+        + chr(10),
+        encoding="utf-8")
+    оболочка = двор / "shell.sh"
+    оболочка.write_text("#!/bin/sh" + chr(10) + f'exec "{sys.executable}" "{свалка}"' + chr(10),
+                        encoding="utf-8")
+    оболочка.chmod(оболочка.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("SHELL", str(оболочка))
+    providers.login_env.cache_clear()
+
+    env = providers.login_env()
+
+    assert env.get("PATH") == "/из/оболочки", f"приветствие прилипло: {env.get('PATH')!r}"
+    assert env.get("ИМЯ") == "Лаврентьев"
+    providers.login_env.cache_clear()
