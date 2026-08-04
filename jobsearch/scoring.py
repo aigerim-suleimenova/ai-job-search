@@ -286,6 +286,26 @@ CV:
 {cv}"""
 
 
+def _строкой(значение) -> str:
+    """Ответ модели — в поле профиля, которое везде считается строкой.
+
+    Просят у модели «должности через запятую», а слабая присылает список. Через
+    str() он превращался в «['Purchasing Manager', 'Supply Chain Manager']» — и
+    так и записывался в профиль. Дальше это разбиралось по запятой, и в
+    источники уходили запросы «['Purchasing Manager'» и «'Logistics Manager'», а
+    модель получала пример «['Purchasing Manager'» → своя. Померено на резюме
+    руководителя ОМТС: испорчены были все шесть поисковых слов и все примеры.
+    """
+    if isinstance(значение, (list, tuple)):
+        части = [str(x).strip() for x in значение if str(x).strip()]
+    else:
+        части = [str(значение).strip()]
+    # Скобки и кавычки могли прийти и внутри строки — модель иногда пишет список
+    # текстом. Убираем их с краёв, а не отовсюду: в «C++ (advanced)» скобки свои.
+    очищенные = [ч.strip(" \t\"'[]") for ч in части]
+    return ", ".join(ч for ч in очищенные if ч)
+
+
 def profile_from_cv(cfg: dict, cv: str) -> dict:
     """Fills the empty profile fields from the CV. Returns the updated cfg."""
     data = llm.ask_json(
@@ -299,7 +319,7 @@ def profile_from_cv(cfg: dict, cv: str) -> dict:
     if isinstance(data, dict):
         for key in ("roles", "skills", "seniority", "summary", "languages"):
             if data.get(key) and not cfg["profile"].get(key):
-                cfg["profile"][key] = str(data[key]).strip()
+                cfg["profile"][key] = _строкой(data[key])
     return cfg
 
 

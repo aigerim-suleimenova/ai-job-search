@@ -527,3 +527,39 @@ def test_без_профессии_блока_нет(cfg):
     from jobsearch import scoring
     assert scoring._occupation_block(cfg, {}) == ""
     assert scoring._occupation_block(cfg, {"occupation": "  "}) == ""
+
+
+# --- Профиль из CV: ответ модели превращается в поле, а не в его пересказ -------
+
+@pytest.mark.parametrize("ответ,ожидание", [
+    (["Purchasing Manager", "Supply Chain Manager"], "Purchasing Manager, Supply Chain Manager"),
+    ("Purchasing Manager, Supply Chain Manager", "Purchasing Manager, Supply Chain Manager"),
+    (["  Logistics Manager  ", "", "Procurement Lead"], "Logistics Manager, Procurement Lead"),
+    ("['Purchasing Manager', 'Supply Chain Manager']", "Purchasing Manager', 'Supply Chain Manager"),
+    ("Middle", "Middle"),
+    ("C++ (advanced)", "C++ (advanced)"),
+])
+def test_список_от_модели_становится_строкой(ответ, ожидание):
+    """Просим «должности через запятую», слабая модель присылает список. Через
+    str() он записывался в профиль как «['Purchasing Manager', ...]», дальше
+    разбирался по запятой — и в источники уходил запрос «['Purchasing Manager'»,
+    а модель получала такой же пример «своей» профессии."""
+    from jobsearch import scoring
+    assert scoring._строкой(ответ) == ожидание
+
+
+def test_профиль_из_cv_не_приносит_скобок(monkeypatch, cfg):
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
+        "roles": ["Purchasing Manager", "Logistics Manager"],
+        "skills": ["Procurement", "MS Excel"],
+        "seniority": "Middle", "summary": ["10 лет в снабжении"],
+        "languages": ["Russian (native)", "English (B1)"]})
+    cfg["profile"].update(roles="", skills="", seniority="", summary="", languages="")
+
+    получилось = scoring.profile_from_cv(cfg, "CV")["profile"]
+
+    for поле in ("roles", "skills", "summary", "languages"):
+        assert "[" not in получилось[поле] and "'" not in получилось[поле], \
+            f"{поле}: {получилось[поле]}"
+    assert получилось["roles"] == "Purchasing Manager, Logistics Manager"
