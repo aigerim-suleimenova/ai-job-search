@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 
 import requests
 
-from . import iso_date, web
+from . import esco, iso_date, web
 from .. import filters
 
 UA = web.UA   # an honest name rather than pretending to be a browser
@@ -470,8 +470,12 @@ def eures(cfg: dict, log) -> list:
             # вовсе, а код — не то, что человек пишет в настройках, и фильтр
             # выбрасывал все вакансии до единой. Переводим в имя.
             где = [filters.country_name(k) for k in (j.get("locationMap") or {})]
+            # Профессия кодом ESCO — она одна и та же на всех языках. Объявление
+            # придёт по-польски, а модель прочтёт «tailor» и поймёт, чья работа.
+            коды = j.get("jobCategoriesCodes") or []
             jobs.append({
                 "title": j.get("title", ""),
+                "occupation": esco.label(коды[0]) if коды else "",
                 "company": (j.get("employer") or {}).get("name", ""),
                 "location": ", ".join(где) or "EU",
                 "url": f"https://europa.eu/eures/portal/jv-se/jv-details/{ref}?lang=en",

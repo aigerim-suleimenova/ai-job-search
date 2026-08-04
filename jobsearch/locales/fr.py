@@ -656,4 +656,5 @@ STRINGS = {
 "export_print": "Imprimer ou enregistrer en PDF",
 "update_err_readonly": "Pas de droit d'écriture sur {where} — déplacez le programme dans Applications ou mettez-le à jour à la main depuis la page de la version",
 "log_deep_verdict_caps": "« {title} » : l'analyse a dit « {verdict} » mais a noté {was} — abaissé à {now}",
+"log_deep_unreadable": "« {title} » : l'annonce n'est pas en anglais et la profession n'est pas indiquée — {was} abaissé à {now}, sans « vérifié »",
 }

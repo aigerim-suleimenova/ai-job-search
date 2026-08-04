@@ -422,3 +422,108 @@ def test_разбор_думает_прежде_чем_ставить_балл()
     тело = scoring.DEEP_PROMPT
     assert тело.index('"verdict"') < тело.index('"match"')
     assert тело.index('"reason"') < тело.index('"match"')
+
+
+# --- Чего модель не прочитала, за то не ручаемся ---------------------------------
+
+# Куски настоящих объявлений из прогона — короткие обрывки язык не определяют,
+# и правильно: судить надо то, что модели и правда достаётся.
+ОБЪЯВЛЕНИЯ = [
+    ("Engineering Manager (Data Science). What you will do: build, mentor and lead "
+     "an elite data science team as a trusted player-coach, while clearly "
+     "communicating complex technical ideas to executives, customers and partners. "
+     "You will personally design and train models, and you should have experience "
+     "with production systems that serve millions of requests.", True),
+    ("Kontroler jakości wyrobów odzieżowych. Zakres obowiązków: kontrola wyrobów "
+     "gotowych, sprawdzanie zgodności wymiarów odzieży z tabelą miar oraz "
+     "specyfikacją techniczną, sporządzanie raportów jakościowych, identyfikacja "
+     "wad. Wymagania: wykształcenie zasadnicze zawodowe o kierunku krawiec, "
+     "technolog odzieżowy lub pokrewne, znajomość technologii krawieckiej.", False),
+    ("Technico-commercial itinérant. Vous recherchez un métier de découvertes et "
+     "d'audace pour interagir tous les jours avec de nouvelles personnes tout en "
+     "présentant des produits et services innovants ? Rejoignez l'aventure et "
+     "développez votre portefeuille clients sur votre secteur géographique.", False),
+    ("Wij zoeken een gemotiveerde medewerker voor onze afdeling productie en "
+     "montage. Je werkt in een klein team, bedient machines en controleert de "
+     "kwaliteit van de onderdelen. Ervaring in de techniek is een pluspunt, maar "
+     "wij leiden je graag zelf op. Wij bieden een vast contract.", False),
+    ("Konstruktor", True),          # слов почти нет — не придираемся
+    # Перечень технологий: по-английски, но служебных слов нет ни одного, и язык
+    # по ним не определить. Раз нельзя — не придираемся.
+    ("Ruby on Rails, RSpec, PostgreSQL. " * 40, True),
+]
+
+
+@pytest.mark.parametrize("текст,ожидание", ОБЪЯВЛЕНИЯ)
+def test_узнаём_английский(текст, ожидание):
+    from jobsearch import scoring
+    assert scoring._по_английски(текст) is ожидание
+
+
+def test_непрочитанное_не_помечается_проверенным(monkeypatch, cfg):
+    """Не поняв текста, модель не говорит «не поняла»: пересказывает профиль и
+    ставит балл из примера. Конструктору белья столяр, маляр, садовник и
+    кладовщик достались по 90% — все с галочкой «проверено», все на польском."""
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
+        "verdict": "своя", "reason": "кандидат имеет опыт", "match": 90,
+        "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
+    вакансия = {"title": "Osoba na stanowisku stolarz",
+                "description": "Zakres obowiązków: wykonywanie mebli na wymiar, "
+                               "obsługa maszyn stolarskich, praca w warsztacie " * 6}
+
+    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+
+    assert вакансия["verified"] is False, "поручились за то, чего не прочли"
+    assert вакансия["score"] <= scoring.ПОТОЛОК_НЕПРОЧИТАННОГО
+
+
+def test_профессия_из_справочника_снимает_вопрос(monkeypatch, cfg):
+    """Название профессии приходит по-английски и одинаково для всех языков —
+    по нему судить можно, даже когда объявление непрочитано."""
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
+        "verdict": "своя", "reason": "та же профессия", "match": 90,
+        "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
+    вакансия = {"title": "Szwaczka", "occupation": "tailor",
+                "description": "Zakres obowiązków: szycie odzieży na maszynie " * 8}
+
+    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+
+    assert вакансия["verified"] is True
+    assert вакансия["score"] == 90
+
+
+def test_профессия_из_справочника_доходит_до_модели(monkeypatch, cfg):
+    from jobsearch import llm, scoring
+    видел = {}
+    monkeypatch.setattr(llm, "ask_json",
+                        lambda prompt, **k: видел.setdefault("prompt", prompt) and None
+                        or {"verdict": "чужая", "reason": "—", "match": 5,
+                            "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
+    scoring.deep_analyze({"title": "Magazynier M/K", "occupation": "warehouse worker",
+                          "description": "x" * 400},
+                         cfg, "CV", lambda *a: None, research=False)
+    assert "warehouse worker" in видел["prompt"], "справочник до модели не дошёл"
+
+
+def test_профессия_называется_вместе_с_чьей_она(cfg):
+    """Первая редакция писала просто «Профессия по справочнику: CNC machine
+    operator», и слабая модель читала это как профессию КАНДИДАТА: оператор
+    станка получал «своя» и 90%, тогда как без строки вовсе — «смежная» и 55.
+    Подсказка делала модель не умнее, а увереннее в неправоте. Померено на
+    прогоне конструктора белья."""
+    from jobsearch import scoring
+    cfg["profile"]["roles"] = "Lingerie Pattern Maker, Garment Technologist"
+    блок = scoring._occupation_block(cfg, {"occupation": "CNC machine operator"})
+
+    assert "CNC machine operator" in блок
+    assert "Lingerie Pattern Maker" in блок, "не сказано, с чем сравнивать"
+    assert "ВАКАНСИИ" in блок, "не сказано, чья это профессия"
+    assert блок.index("ВАКАНСИИ") < блок.index("кандидата")
+
+
+def test_без_профессии_блока_нет(cfg):
+    from jobsearch import scoring
+    assert scoring._occupation_block(cfg, {}) == ""
+    assert scoring._occupation_block(cfg, {"occupation": "  "}) == ""

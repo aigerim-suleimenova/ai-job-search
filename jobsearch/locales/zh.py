@@ -656,4 +656,5 @@ STRINGS = {
 "export_print": "打印或保存为 PDF",
 "update_err_readonly": "没有写入 {where} 的权限 — 请把程序移到“应用程序”里，或从发布页手动更新。",
 "log_deep_verdict_caps": "“{title}”：分析判定职业为“{verdict}”却给了 {was} 分 —— 已降为 {now}",
+"log_deep_unreadable": "“{title}”：招聘不是英文且未标明职业 —— {was} 分降为 {now}，不标记为“已核实”",
 }

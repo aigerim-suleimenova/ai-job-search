@@ -834,6 +834,11 @@ TR = {
         "en": "analysis of “{title}”: {error}",
         "it": "analisi di «{title}»: {error}",
         "de": "Analyse von „{title}“: {error}"},
+    "log_deep_unreadable": {
+        "ru": "«{title}»: объявление не на английском и профессия по справочнику не указана — балл {was} снижен до {now}, «проверено» не ставим",
+        "en": "“{title}”: the posting is not in English and no occupation is given — {was} lowered to {now}, not marked verified",
+        "it": "«{title}»: l'annuncio non è in inglese e la professione non è indicata — {was} abbassato a {now}, senza «verificato»",
+        "de": "„{title}“: die Anzeige ist nicht auf Englisch und kein Beruf angegeben — {was} auf {now} gesenkt, nicht als geprüft markiert"},
     "log_deep_verdict_caps": {
         "ru": "«{title}»: разбор назвал профессию «{verdict}», а балл поставил {was} — снижен до {now}",
         "en": "“{title}”: the analysis called the profession “{verdict}” but scored {was} — lowered to {now}",
