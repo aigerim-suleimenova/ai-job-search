@@ -663,4 +663,6 @@ STRINGS = {
 "prov_err_ollama_no_model": "Ollama 在运行，但没有名为“{model}”的模型。请在“模型”页面选择一个，或在那里下载。",
 "log_profile_unparsed": "注意：有简历，但没能从中得出职位和描述 —— 评分将会很粗糙。",
 "log_profile_unparsed_fix": "打开“搜索设置”，手动填写职位和技能 —— 或再次点击“从简历填充空白字段”。",
+"log_quote_not_found": "“{title}”：理由依据“{quote}”，但简历里没有 —— 不标记为“已核实”。",
+"log_advice_dropped": "已丢弃该建议 —— 它提议简历中没有的内容：“{advice}”",
 }

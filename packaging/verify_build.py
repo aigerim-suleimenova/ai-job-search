@@ -7,6 +7,8 @@ forgotten hidden imports, an empty binary.
 import sys
 from pathlib import Path
 
+import system_libraries
+
 # The Windows console is not UTF-8 by default, and non-Latin text in the output
 # brings the script down with an encoding error — after the check itself has
 # already passed.
@@ -47,6 +49,19 @@ def main() -> int:
     if sys.platform == "win32":
         if not (bundle / "pythonnet" / "runtime" / "Python.Runtime.dll").exists():
             problems.append("нет pythonnet/runtime/Python.Runtime.dll — окно не откроется")
+
+    # On Linux the reverse: these libraries must NOT be inside. The build's copies
+    # shadow the machine's own, and the window — drawn by the system's WebKit —
+    # stops opening; the program falls back to the browser and nobody knows why.
+    # The spec throws them out, and here we make sure it really did: PyInstaller
+    # collects them by itself, so a version of it that names them differently
+    # would quietly bring the trouble back.
+    if sys.platform.startswith("linux"):
+        strays = sorted({p.name for p in bundle.rglob("*.so*")
+                         if system_libraries.is_system_library(p.name)})
+        if strays:
+            problems.append("в сборку попали системные библиотеки — окно не откроется: "
+                            + ", ".join(strays[:6]))
 
     if problems:
         print("Проверка сборки не пройдена:")
