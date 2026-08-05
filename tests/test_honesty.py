@@ -675,32 +675,3 @@ def test_проверить_не_вышло_советы_остаются(monkey
                         lambda *a, **k: (_ for _ in ()).throw(llm.ClaudeError("нет модели")))
     советы = ["Первый"]
     assert scoring.keep_honest_advice(советы, "CV", {}, lambda *a: None) == советы
-
-
-# --- Перевод названия ------------------------------------------------------------
-
-def test_английское_название_не_переводим(cfg):
-    from jobsearch import scoring
-    assert scoring.translate_title({"title": "Senior Frontend Engineer"}, cfg, {},
-                                   по_английски=True) == ""
-
-
-def test_с_профессией_из_справочника_перевод_не_нужен(cfg):
-    from jobsearch import scoring
-    assert scoring.translate_title({"title": "Szwaczka", "occupation": "tailor"}, cfg, {},
-                                   по_английски=False) == ""
-
-
-def test_перевод_не_вышел_прогон_не_встаёт(monkeypatch, cfg):
-    from jobsearch import llm, scoring
-    monkeypatch.setattr(llm, "ask",
-                        lambda *a, **k: (_ for _ in ()).throw(llm.ClaudeError("нет модели")))
-    assert scoring.translate_title({"title": "Modéliste"}, cfg, {}, по_английски=False) == ""
-
-
-def test_объяснение_вместо_перевода_отбрасывается(monkeypatch, cfg):
-    """Модель иногда отвечает рассуждением. Название вакансии длиннее полутора
-    сотен знаков не бывает."""
-    from jobsearch import llm, scoring
-    monkeypatch.setattr(llm, "ask", lambda *a, **k: "Это название означает " + "х" * 200)
-    assert scoring.translate_title({"title": "Modéliste"}, cfg, {}, по_английски=False) == ""

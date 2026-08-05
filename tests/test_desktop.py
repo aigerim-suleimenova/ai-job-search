@@ -304,3 +304,84 @@ def test_не_json_в_ответе_не_роняет(monkeypatch):
 
     monkeypatch.setattr(desktop.urllib.request, "urlopen", lambda url, timeout=None: R())
     assert desktop._alive(8765) is False
+
+
+# --- Закрыть программу --------------------------------------------------------
+#
+# «Не закрывается на Ctrl+C, пришлось руками убивать через kill» — так и было.
+# Без своего окна программа ждёт в спячке, и перехват прерывания там означал не
+# «закрыться», а «выйти из этой спячки»: дальше она шла ждать в следующую и с
+# виду не происходило ничего.
+
+
+def _прервать(*_a, **_kw):
+    """Ctrl+C ровно там, где программа ждёт."""
+    raise KeyboardInterrupt
+
+
+def test_ctrl_c_без_окна_закрывает_программу(tmp_path, monkeypatch):
+    """Тот самый случай: окна нет, программа живёт вкладкой в браузере."""
+    monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
+    monkeypatch.setattr(desktop.webbrowser, "open", lambda url: None)
+    monkeypatch.setattr(desktop.time, "sleep", _прервать)
+    свернулись = []
+    monkeypatch.setattr(desktop, "_shutdown", lambda: свернулись.append(True))
+
+    with pytest.raises(SystemExit):
+        desktop._open_in_browser(8765, own_server=True)
+
+    assert свернулись, "программа не свернула работу — Ctrl+C снова ушёл впустую"
+
+
+def test_сигналы_остановки_перехватываются(monkeypatch):
+    """Ctrl+C и kill значат то же, что закрытое окно."""
+    поймано = []
+    monkeypatch.setattr(desktop.signal, "signal",
+                        lambda сигнал, обработчик: поймано.append(сигнал))
+
+    desktop._install_stop_signals()
+
+    assert desktop.signal.SIGINT in поймано, "Ctrl+C остался без обработчика"
+    assert desktop.signal.SIGTERM in поймано, "kill остался без обработчика"
+
+
+def test_отказ_подписаться_на_сигнал_не_мешает_запуску(monkeypatch):
+    """signal.signal ругается, если его позвали не из главного потока, и не на
+    всякой системе есть всякий сигнал. Закрыться красиво — не повод не открыться."""
+    def отказать(*_a):
+        raise ValueError("signal only works in main thread")
+
+    monkeypatch.setattr(desktop.signal, "signal", отказать)
+    desktop._install_stop_signals()
+
+
+def test_закрытие_подстраховано(tmp_path, monkeypatch):
+    """Все наши потоки — демоны, и всё равно уход зависит не только от нас: сервер,
+    пул расписания и потоки самого веб-каркаса имеют право задержать процесс."""
+    monkeypatch.setattr(desktop, "_state_dir", lambda: tmp_path)
+    заведено = []
+    monkeypatch.setattr(desktop, "_force_exit_later", lambda: заведено.append(True))
+
+    desktop._shutdown()
+
+    assert заведено, "уход ничем не подстрахован — программа снова может повиснуть"
+
+
+def test_сторож_ухода_сам_не_держит_программу(monkeypatch):
+    """Недемонский сторож был бы ровно той бедой, от которой он поставлен."""
+    заведённые = []
+
+    class _Таймер:
+        def __init__(self, секунды, что):
+            self.секунды, self.что, self.daemon = секунды, что, False
+
+        def start(self):
+            заведённые.append(self)
+
+    monkeypatch.setattr(desktop.threading, "Timer", _Таймер)
+
+    desktop._force_exit_later()
+
+    assert заведённые, "сторож не заведён"
+    assert заведённые[0].daemon, "сторож сам будет держать выход"
+    assert заведённые[0].секунды <= 10, "столько никто ждать не станет"

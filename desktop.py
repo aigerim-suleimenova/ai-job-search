@@ -10,6 +10,7 @@ open for days is awkward, and cutting the search short on closing is a shame.
 """
 import json
 import os
+import signal
 import socket
 import sys
 import threading
@@ -232,7 +233,27 @@ def _keep_running_in_background() -> bool:
         return False
 
 
+def _force_exit_later(seconds: float = 3.0) -> None:
+    """A promise that the program really will close.
+
+    Every thread of ours is a daemon, and even so the leaving is not ours alone to
+    decide: the web server, the scheduler's pool and the framework's own workers
+    each get a say when the interpreter shuts down, and any one of them can hold
+    the process. From the person's side that looks like Ctrl+C doing nothing at
+    all, and the only way left is kill — which is exactly what someone had to do.
+
+    So we tidy up, give the program a moment to leave decently, and if it is still
+    here after that we leave without asking. Nothing is lost by it: by the time we
+    get here every save has been written and the settings are on disk.
+    """
+    сторож = threading.Timer(seconds, lambda: os._exit(0))
+    сторож.daemon = True               # a non-daemon watchdog would hold the exit itself
+    сторож.start()
+
+
 def _shutdown() -> None:
+    """Everything that has to happen before the program goes. It is always going:
+    every path that reaches here is a path out."""
     try:
         from jobsearch import pipeline, scheduler
         if pipeline.state.get("running"):
@@ -246,6 +267,35 @@ def _shutdown() -> None:
         pass
     if _server is not None:
         _server.should_exit = True
+    _force_exit_later()
+
+
+def _leave(*_signal) -> None:
+    """Closing the program — by Ctrl+C, by kill, by the terminal being shut."""
+    _shutdown()
+    sys.exit(0)
+
+
+def _install_stop_signals() -> None:
+    """Ctrl+C and kill must mean what closing the window means.
+
+    They did not. The interrupt landed in whichever sleep the program happened to
+    be waiting in, was caught there and dropped on the floor — and the program
+    walked on to the next wait. One press did nothing, a second one sometimes did;
+    people killed it by hand, and they were right to.
+
+    A signal can only be subscribed to from the main thread, and not every system
+    has every signal. Where it will not go, the program starts all the same: this
+    is about closing nicely, not about starting at all.
+    """
+    for имя in ("SIGINT", "SIGTERM", "SIGHUP"):
+        сигнал = getattr(signal, имя, None)
+        if сигнал is None:
+            continue                   # Windows has no SIGHUP — nothing to subscribe to
+        try:
+            signal.signal(сигнал, _leave)
+        except (OSError, ValueError):
+            pass
 
 
 def _on_closing() -> bool:
@@ -343,7 +393,7 @@ def _open_in_browser(port: int, own_server: bool) -> None:
         while True:
             time.sleep(3600)           # no window — hold the server while the tab is needed
     except KeyboardInterrupt:
-        pass
+        _leave()                       # Ctrl+C means close, not "go and wait somewhere else"
 
 
 def _open_window(port: int, own_server: bool) -> None:
@@ -372,6 +422,7 @@ def _open_window(port: int, own_server: bool) -> None:
 
 def main() -> int:
     _prepare_windows_gui()
+    _install_stop_signals()
 
     # Already running? Then this is a second click on the icon — just show the window.
     lock = _read_lock()
