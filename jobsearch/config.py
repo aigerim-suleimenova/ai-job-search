@@ -74,7 +74,8 @@ DEFAULTS = {
         "use_jobicy": True,
         "use_himalayas": True,
         "use_themuse": True,
-        "use_arbeitsagentur": True,
+        # Выключена: открытый API немецкой биржи отвечает отказом на любой путь.
+        "use_arbeitsagentur": False,
         # Все профессии, а не только IT: EURES — по всему ЕС и ищет по смыслу,
         # а не по буквам (запрос по-английски приводит голландские вакансии);
         # JobTech — биржа труда Швеции, отдаёт описание сразу в выдаче.

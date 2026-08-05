@@ -401,6 +401,32 @@ def tool_info(tool: str) -> dict:
             "too_old": bool(version) and not ready}
 
 
+@lru_cache(maxsize=4)
+def claude_logged_in(claude_bin: str = "claude") -> bool:
+    """Выполнен ли вход в Claude Code.
+
+    Готовность провайдера проверялась одним: лежит ли программа на диске. На
+    странице «Модель» она стояла зелёная, человек её выбирал, запускал поиск — и
+    прогон обрывался через пять секунд с «Not logged in · Please run /login».
+    Узнать заранее было нельзя.
+
+    Спрашиваем у самой программы: она отвечает JSON с полем loggedIn. Не
+    ответила или ответила непонятно — считаем, что вход есть: загородить дорогу
+    из-за того, что мы не разобрали чужой вывод, хуже, чем пропустить вперёд.
+    """
+    exe = resolve_bin(claude_bin or "claude")
+    if not exe:
+        return False
+    try:
+        out = subprocess.run([exe, "auth", "status"], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace", timeout=15,
+                             cwd=work_dir(), env=login_env())
+        данные = json.loads(out.stdout or "{}")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return True
+    return bool(данные.get("loggedIn", True))
+
+
 def forget_binaries() -> None:
     """Forget the paths found: the person may have installed the program just now."""
     resolve_bin.cache_clear()
@@ -410,6 +436,7 @@ def forget_binaries() -> None:
     # "still not visible" to someone who has just done everything right.
     login_env.cache_clear()
     tool_state.cache_clear()
+    claude_logged_in.cache_clear()
     forget_ollama()
 
 
@@ -485,6 +512,10 @@ def available(claude_bin: str = "claude", llm: dict = None) -> dict:
     provs = {
         "claude_cli": {
             "ready": _bin_exists(claude_bin or "claude"),
+            # Установлена — ещё не значит готова: без входа она отвечает «Not
+            # logged in» и прогон обрывается на первом же вопросе.
+            "needs_login": (_bin_exists(claude_bin or "claude")
+                            and not claude_logged_in(claude_bin or "claude")),
             "web_search": True, "kind": "cloud",
             "install_url": "https://claude.com/claude-code",
         },
@@ -883,6 +914,13 @@ def call_ollama(prompt: str, model: str, timeout: int, schema: dict = None) -> s
         тело["format"] = schema
     try:
         r = requests.post(f"{OLLAMA_URL}/api/generate", json=тело, timeout=timeout)
+        # 404 у Ollama значит «нет такой модели», а не «меня нет». Писали же на
+        # это «Ollama недоступна», и человек шёл проверять, запущена ли она, — а
+        # запущена она была всегда. Промахнуться так можно, оставив в настройках
+        # имя модели от прежнего провайдера: у Ollama спрашивали «haiku», и все
+        # двадцать пять пачек подряд отвечали отказом.
+        if r.status_code == 404:
+            raise ProviderError(key="prov_err_ollama_no_model", model=model)
         r.raise_for_status()
         return str(r.json().get("response", "")).strip()
     except requests.RequestException as e:

@@ -341,6 +341,17 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         if not (cfg["profile"].get("roles") or cfg["profile"].get("summary") or cv):
             _logk("log_empty_profile")
             _logk("log_empty_profile_fix")
+        elif cv and not (cfg["profile"].get("roles") or cfg["profile"].get("summary")):
+            # CV есть, а профиль из него не вышел — и это худший случай, потому
+            # что снаружи он выглядит благополучно. Разбор резюме идёт одним
+            # вызовом модели, и у слабой он может не удаться; тогда примеров для
+            # оценки не строится, в источники уходит пустой запрос, а оценки
+            # вырождаются. На настоящем прогоне все тридцать семь вакансий
+            # получили ровно шестьдесят процентов — и все с галочкой «проверено».
+            # Прежняя проверка этого не ловила: ей хватало того, что CV есть.
+            status = "warn"
+            _logk("log_profile_unparsed")
+            _logk("log_profile_unparsed_fix")
         # Saved to the database as they are scored: a person may have opened
         # "Results" right after starting, and waiting out the whole run to see the
         # first line would be poor.

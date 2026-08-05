@@ -239,7 +239,11 @@ def test_считаем_источники_а_не_пишем_словом():
     from jobsearch import config
     from jobsearch.collectors import aggregators
     сейчас = aggregators.enabled(config.DEFAULTS)
-    assert len(сейчас) == 12, f"источников {len(сейчас)}, а плашка обещает другое"
+    # Одиннадцать: немецкая биржа выключена — её открытый API отвечает отказом
+    # на любой путь, и включённой она давала только строку с ошибкой в
+    # «Покрытии» каждый прогон.
+    assert len(сейчас) == 11, f"источников {len(сейчас)}, а плашка обещает другое"
+    assert "arbeitsagentur" not in {и[4] for и in сейчас}
 
 
 def test_список_источников_и_опрос_не_расходятся(monkeypatch):

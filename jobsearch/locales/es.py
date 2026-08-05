@@ -659,4 +659,8 @@ STRINGS = {
 "log_deep_unreadable": "«{title}»: el anuncio no está en inglés y no se indica la profesión — {was} bajado a {now}, sin «verificado»",
 "badge_no_visa": "sin patrocinio de visado",
 "badge_visa_ok": "visado apoyado",
+"models_needs_login": "El programa está instalado, pero no ha iniciado sesión. Abra un terminal y ejecute:",
+"prov_err_ollama_no_model": "Ollama funciona, pero no tiene el modelo «{model}». Elija un modelo en la página «Modelo» o descárguelo allí.",
+"log_profile_unparsed": "ATENCIÓN: hay un CV, pero no salieron de él roles ni descripción — las valoraciones serán burdas",
+"log_profile_unparsed_fix": "Abra «Ajustes de búsqueda» y rellene los puestos y competencias a mano — o pulse «Rellenar campos vacíos desde el CV» otra vez",
 }
