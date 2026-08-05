@@ -846,6 +846,16 @@ TR = {
         "en": "analysis of “{title}”: {error}",
         "it": "analisi di «{title}»: {error}",
         "de": "Analyse von „{title}“: {error}"},
+    "log_quote_not_found": {
+        "ru": "«{title}»: довод опирается на «{quote}», а этого в резюме нет — «проверено» не ставим",
+        "en": "“{title}”: the reason rests on “{quote}”, which is not in the CV — not marked verified",
+        "it": "«{title}»: la motivazione si basa su «{quote}», che nel CV non c'è — senza «verificato»",
+        "de": "„{title}“: die Begründung stützt sich auf „{quote}“, das im Lebenslauf nicht steht — nicht als geprüft markiert"},
+    "log_advice_dropped": {
+        "ru": "совет отброшен — предлагает то, чего в резюме нет: «{advice}»",
+        "en": "advice dropped — it suggests something the CV does not contain: “{advice}”",
+        "it": "consiglio scartato — propone qualcosa che il CV non contiene: «{advice}»",
+        "de": "Rat verworfen — er schlägt etwas vor, das im Lebenslauf nicht steht: „{advice}“"},
     "log_deep_unreadable": {
         "ru": "«{title}»: объявление не на английском и профессия по справочнику не указана — балл {was} снижен до {now}, «проверено» не ставим",
         "en": "“{title}”: the posting is not in English and no occupation is given — {was} lowered to {now}, not marked verified",

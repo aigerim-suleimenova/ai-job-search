@@ -663,4 +663,6 @@ STRINGS = {
 "prov_err_ollama_no_model": "Ollama は動いていますが、「{model}」というモデルがありません。「モデル」ページで選ぶか、そこから入手してください。",
 "log_profile_unparsed": "注意: 履歴書はありますが、そこから役割も説明も得られませんでした。評価は粗くなります。",
 "log_profile_unparsed_fix": "「検索設定」を開いて職種とスキルを手で入力するか、「空欄を履歴書から埋める」をもう一度押してください。",
+"log_quote_not_found": "「{title}」: 根拠が「{quote}」に依っていますが、履歴書にありません。「確認済み」は付けません。",
+"log_advice_dropped": "助言を除外しました。履歴書にないことを勧めています:「{advice}」",
 }

@@ -663,4 +663,6 @@ STRINGS = {
 "prov_err_ollama_no_model": "Ollama działa, ale nie ma modelu «{model}». Wybierz model na stronie «Model» albo pobierz go tam.",
 "log_profile_unparsed": "UWAGA: CV jest, ale nie wyszły z niego role ani opis — oceny będą zgrubne",
 "log_profile_unparsed_fix": "Otwórz «Ustawienia wyszukiwania» i wpisz stanowiska oraz umiejętności ręcznie — albo naciśnij ponownie «Wypełnij puste pola z CV»",
+"log_quote_not_found": "«{title}»: uzasadnienie opiera się na «{quote}», czego w CV nie ma — bez «zweryfikowano»",
+"log_advice_dropped": "rada odrzucona — proponuje coś, czego w CV nie ma: «{advice}»",
 }

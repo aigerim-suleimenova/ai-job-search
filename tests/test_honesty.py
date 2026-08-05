@@ -594,3 +594,113 @@ def test_отказ_важнее_согласия():
 def test_молчание_не_считается_ни_за_что():
     from jobsearch import filters
     assert filters.visa_stance({"description": ""}) == ""
+
+
+# --- Цитата из резюме: против выдумок --------------------------------------------
+
+@pytest.mark.parametrize("цитата,есть", [
+    ("React, TypeScript", True),
+    ("react   typescript", True),          # пробелы и регистр не в счёт
+    ("опыт в области электротехники", False),
+    ("Salesforce Commerce Cloud", False),
+    ("React", False),                      # одно слово — не цитата
+    ("", False),
+])
+def test_цитата_сверяется_с_резюме(цитата, есть):
+    """Модель написала конструктору белья «кандидат имеет опыт и образование в
+    области электротехники» — вакансия лектора по электротехнике на 90% с
+    галочкой «проверено». Никакой электротехники у человека нет."""
+    from jobsearch import scoring
+    cv = "Восемь лет во фронтенде. React, TypeScript, Vite. Вёл переход на монорепозиторий."
+    assert scoring._цитата_настоящая(цитата, cv) is есть
+
+
+def test_выдуманный_довод_не_получает_галочки(monkeypatch, cfg):
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
+        "verdict": "своя", "reason": "опыт в области электротехники",
+        "quote": "опыт в области электротехники", "match": 90,
+        "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
+    вакансия = {"title": "Senior lecturers in Electrical Engineering",
+                "occupation": "lecturer", "description": "x" * 400}
+
+    scoring.deep_analyze(вакансия, cfg, "Конструктор белья. Valentina, лекала.",
+                         lambda *a: None, research=False)
+
+    assert вакансия["verified"] is False, "поручились за выдуманное"
+    assert вакансия["score"] == 90, "балл при этом терять незачем"
+
+
+def test_настоящая_цитата_галочку_не_отнимает(monkeypatch, cfg):
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
+        "verdict": "своя", "reason": "работал с лекалами",
+        "quote": "Valentina, лекала", "match": 90,
+        "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
+    вакансия = {"title": "Modéliste", "occupation": "tailor", "description": "x" * 400}
+
+    scoring.deep_analyze(вакансия, cfg, "Конструктор белья. Valentina, лекала.",
+                         lambda *a: None, research=False)
+
+    assert вакансия["verified"] is True
+
+
+# --- Второй проход: советы проверяются отдельным вопросом ------------------------
+
+def test_совет_дописать_несуществующее_отбрасывается(monkeypatch, cfg):
+    """Запрет выдумывать стоит в самом промпте разбора, и слабая модель его
+    перебивает: руководителю ОМТС она советовала «Добавить опыт работы с
+    Salesforce Commerce Cloud»."""
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {"ok": [0]})
+    советы = ["Вынести дизайн-систему в первую строку",
+              "Добавить опыт работы с Salesforce Commerce Cloud"]
+
+    осталось = scoring.keep_honest_advice(советы, "CV: дизайн-система, React", {}, lambda *a: None)
+
+    assert осталось == ["Вынести дизайн-систему в первую строку"]
+
+
+def test_если_забраковали_всё_ничего_не_выбрасываем(monkeypatch, cfg):
+    """Скорее всего модель не поняла вопроса, а не все советы плохи."""
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {"ok": []})
+    советы = ["Первый", "Второй"]
+    assert scoring.keep_honest_advice(советы, "CV", {}, lambda *a: None) == советы
+
+
+def test_проверить_не_вышло_советы_остаются(monkeypatch, cfg):
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask_json",
+                        lambda *a, **k: (_ for _ in ()).throw(llm.ClaudeError("нет модели")))
+    советы = ["Первый"]
+    assert scoring.keep_honest_advice(советы, "CV", {}, lambda *a: None) == советы
+
+
+# --- Перевод названия ------------------------------------------------------------
+
+def test_английское_название_не_переводим(cfg):
+    from jobsearch import scoring
+    assert scoring.translate_title({"title": "Senior Frontend Engineer"}, cfg, {},
+                                   по_английски=True) == ""
+
+
+def test_с_профессией_из_справочника_перевод_не_нужен(cfg):
+    from jobsearch import scoring
+    assert scoring.translate_title({"title": "Szwaczka", "occupation": "tailor"}, cfg, {},
+                                   по_английски=False) == ""
+
+
+def test_перевод_не_вышел_прогон_не_встаёт(monkeypatch, cfg):
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask",
+                        lambda *a, **k: (_ for _ in ()).throw(llm.ClaudeError("нет модели")))
+    assert scoring.translate_title({"title": "Modéliste"}, cfg, {}, по_английски=False) == ""
+
+
+def test_объяснение_вместо_перевода_отбрасывается(monkeypatch, cfg):
+    """Модель иногда отвечает рассуждением. Название вакансии длиннее полутора
+    сотен знаков не бывает."""
+    from jobsearch import llm, scoring
+    monkeypatch.setattr(llm, "ask", lambda *a, **k: "Это название означает " + "х" * 200)
+    assert scoring.translate_title({"title": "Modéliste"}, cfg, {}, по_английски=False) == ""

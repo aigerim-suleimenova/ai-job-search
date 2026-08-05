@@ -63,7 +63,11 @@ The app opens like an ordinary program — a window, no terminal.
   as "came from the internet", and .NET — which draws the app's window — refuses
   to load libraries with that mark. The app clears the mark itself on startup,
   and if the window still will not open it opens in your browser instead.
-- **Linux** — unpack `AI Job Search-linux.tar.gz` and run `AI Job Search`.
+- **Linux** — unpack `AI Job Search-linux.tar.gz` and run `AI Job Search`. The
+  window is drawn by the system's own GTK and WebKit — on Debian and Ubuntu that
+  is `gir1.2-webkit2-4.1`, elsewhere whichever package carries the WebKitGTK 4.1
+  typelib. Without it little is lost: the program says so and opens in your
+  browser instead, and it is the same program there.
 
 On first launch the program asks what to think with: Claude Code, Cursor CLI or a
 local model through Ollama. The "Download" button opens the relevant program's

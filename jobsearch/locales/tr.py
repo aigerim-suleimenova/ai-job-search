@@ -663,4 +663,6 @@ STRINGS = {
 "prov_err_ollama_no_model": "Ollama çalışıyor ama «{model}» adlı modeli yok. «Model» sayfasından bir model seçin ya da oradan indirin.",
 "log_profile_unparsed": "DİKKAT: özgeçmiş var, ama ondan roller ve açıklama çıkmadı — puanlar kaba olacak",
 "log_profile_unparsed_fix": "«Arama ayarları»nı açıp rolleri ve becerileri elle doldurun — ya da «Boş alanları özgeçmişten doldur»a yeniden basın",
+"log_quote_not_found": "«{title}»: gerekçe «{quote}» ifadesine dayanıyor, ama özgeçmişte yok — «doğrulandı» konmadı",
+"log_advice_dropped": "öneri atıldı — özgeçmişte olmayan bir şeyi öneriyor: «{advice}»",
 }

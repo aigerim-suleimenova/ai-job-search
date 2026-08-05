@@ -63,6 +63,16 @@ a = Analysis(
     excludes=["tkinter", "matplotlib", "numpy", "PIL"],
     noarchive=False,
 )
+
+# On Linux the window is drawn by the system's GTK and WebKit, so everything
+# underneath them has to be the system's as well: the build's own copies shadow
+# the machine's, and the two halves stop fitting together. That is not a guess —
+# it is how the window stopped opening. The reasoning is in system_libraries.py.
+if sys.platform.startswith("linux"):
+    import system_libraries                                # noqa: E402
+
+    a.binaries = [b for b in a.binaries if not system_libraries.is_system_library(b[0])]
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
