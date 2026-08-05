@@ -599,11 +599,16 @@ def test_молчание_не_считается_ни_за_что():
 # --- Цитата из резюме: против выдумок --------------------------------------------
 
 @pytest.mark.parametrize("цитата,есть", [
-    ("React, TypeScript", True),
-    ("react   typescript", True),          # пробелы и регистр не в счёт
+    ("React, TypeScript, Vite", True),
+    ("react   typescript   vite", True),      # пробелы и регистр не в счёт
+    # Опечатка в одну букву. Требовать совпадения буква в букву я попробовал, и
+    # у Белоногова цитата «с 10-летним опыром работы» не нашлась — в резюме
+    # «опытом». У Лаврова так отбраковалось 102 цитаты из 125, почти все за
+    # пересказ вместо копирования.
+    ("Восемь лет во фронтенде: React, TypeScrpt, Vite", True),
     ("опыт в области электротехники", False),
-    ("Salesforce Commerce Cloud", False),
-    ("React", False),                      # одно слово — не цитата
+    ("Salesforce Commerce Cloud integration", False),
+    ("React Vite", False),                    # два слова — не цитата
     ("", False),
 ])
 def test_цитата_сверяется_с_резюме(цитата, есть):
@@ -635,7 +640,7 @@ def test_настоящая_цитата_галочку_не_отнимает(mo
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "verdict": "своя", "reason": "работал с лекалами",
-        "quote": "Valentina, лекала", "match": 90,
+        "quote": "Конструктор белья, Valentina, лекала", "match": 90,
         "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
     вакансия = {"title": "Modéliste", "occupation": "tailor", "description": "x" * 400}
 
