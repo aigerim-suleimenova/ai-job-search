@@ -185,6 +185,12 @@ def load() -> dict:
         else:
             stored = {}
     cfg = _merge(DEFAULTS, stored)
+    # Немецкая биржа выключается и у тех, кто уже настроен. Её открытый API
+    # отвечает отказом на любой путь и любое имя, токен по OAuth не выдаётся —
+    # включённой она даёт не вакансии, а строку с ошибкой в «Покрытии» каждый
+    # прогон. Никто её и не включал: она просто стояла в умолчаниях. Понадобится
+    # снова — галочка на месте, и её видно.
+    cfg["sources"]["use_arbeitsagentur"] = False
     # compatibility: the old schedule.enabled → schedule.mode
     sched = stored.get("schedule", {})
     if "mode" not in sched and "enabled" in sched:
