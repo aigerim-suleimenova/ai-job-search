@@ -116,6 +116,29 @@ function renamePerson(form) {
   return true;
 }
 
+// Высота шапки — в --header-h, по ней считается отступ для якорей. Шапка
+// липкая, и без отступа браузер ставит цель ровно под неё. Раньше здесь стояло
+// число, посчитанное по «самой высокой шапке», и оно расходилось с настоящей:
+// высота зависит от ширины окна, от языка (подписи разной длины переносятся
+// по-разному) и от того, в сколько рядов шапка встала.
+(() => {
+  const header = document.querySelector('header');
+  if (!header) return;
+  // 12px сверху — чтобы цель не прилипала к шапке вплотную.
+  const put = () => document.documentElement.style.setProperty(
+    '--header-h', (header.offsetHeight + 12) + 'px');
+  put();
+  // Шапка меняет высоту молча: от ширины окна и от того, как легли подписи.
+  // Слушаем и то и другое. Наблюдатель держится за window нарочно: заведённый
+  // без ссылки, он живёт до первой уборки мусора, а потом молча перестаёт
+  // звать — и высота остаётся от прежней ширины окна. Так и было поймано.
+  addEventListener('resize', put);
+  if (window.ResizeObserver) {
+    window._headerRO = new ResizeObserver(put);
+    window._headerRO.observe(header);
+  }
+})();
+
 // The button shows what it will turn on: a sun means "make it light", a moon "dark".
 (() => {
   const root = document.documentElement;

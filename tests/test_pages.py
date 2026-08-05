@@ -439,6 +439,40 @@ def test_спросить_про_обновление_можно_с_любой_�
     assert ответ.headers["location"].startswith("/results"), ответ.headers["location"]
 
 
+def test_когда_обновление_нашлось_ведём_к_кнопке(client, profile, monkeypatch):
+    """Найдено Виктором на живой программе, и это была настоящая поломка.
+
+    Сообщение говорит «поставить её можно ниже». Кнопка установки одна на всю
+    программу и живёт в настройках, а спросить об обновлении можно из шапки, то
+    есть с любой страницы. С «Быстрого поиска» человек получал это «ниже» — и
+    ниже не было ничего.
+
+    Ровно то же мы правили у своего адреса (issue #5): текст велел нажать то,
+    чего на странице нет. Здесь я завёл это заново, когда стал возвращать на
+    страницу, откуда спросили.
+    """
+    import app as app_module
+    from jobsearch import update as update_mod
+    найдено = {"version": "9.9.9", "notes_url": "",
+               "asset": {"url": "https://example.invalid/app.dmg"}}
+    monkeypatch.setattr(update_mod, "check", lambda force=False: найдено)
+    # Страница рисует кнопку из записанного прошлой проверкой, а не из ответа
+    # check(): она никогда не ждёт сети. Подменять надо и это.
+    monkeypatch.setattr(update_mod, "state", lambda: найдено)
+    monkeypatch.setattr(app_module.update_mod, "state", update_mod.state)
+
+    ответ = client.post("/app/update/check", data={"back": "/simple"},
+                        follow_redirects=False)
+    куда = ответ.headers["location"]
+
+    assert not куда.startswith("/simple"), f"увели туда, где кнопки нет: {куда}"
+    assert куда.endswith("#update"), f"привели на страницу, но не к кнопке: {куда}"
+    # И кнопка там действительно есть — иначе тест сторожил бы пустоту
+    assert 'action="/app/update/install"' in client.get("/").text
+    # А на «Быстром поиске» её нет — ради чего всё и затевалось
+    assert 'action="/app/update/install"' not in client.get("/simple").text
+
+
 def test_возврат_после_проверки_только_внутрь_программы(client, profile, monkeypatch):
     """back приходит со страницы, и в него можно положить чужой адрес. Своё окно
     человек считает своей программой и на чужой странице, открытой из него, ведёт

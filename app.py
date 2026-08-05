@@ -1185,7 +1185,14 @@ async def app_update_check(request: Request):
     back = str(form.get("back", "/"))
     found = update_mod.check(force=True)
     if found.get("version"):
-        return _redirect_to(back, _msg("update_found", version=found["version"]))
+        # Нашлось — ведём к кнопке установки. Она одна на всю программу и живёт
+        # в настройках, а сообщение говорит «поставить её можно ниже»: на всякой
+        # другой странице ниже нет ничего, и человек ищет то, чего там нет.
+        # Ровно это мы правили у своего адреса — и завели заново тем, что стали
+        # возвращать на страницу, откуда спросили.
+        return _redirect_to("/", _msg("update_found", version=found["version"]),
+                            anchor="update")
+    # А когда ставить нечего, делать человеку негде — и уводить его незачем.
     return _redirect_to(back, _msg("update_none", version=version.current()))
 
 
