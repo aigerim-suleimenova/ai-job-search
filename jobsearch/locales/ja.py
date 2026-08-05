@@ -657,4 +657,10 @@ STRINGS = {
 "update_err_readonly": "{where} に書き込む権限がありません。プログラムを「アプリケーション」へ移すか、リリースページから手動で更新してください。",
 "log_deep_verdict_caps": "「{title}」: 分析は職種を「{verdict}」としながら {was} 点を付けました — {now} に下げました",
 "log_deep_unreadable": "「{title}」: 求人が英語ではなく職種も示されていません — {was} 点を {now} に下げ、「確認済み」は付けません",
+"badge_no_visa": "ビザ支援なし",
+"badge_visa_ok": "ビザ支援あり",
+"models_needs_login": "プログラムは入っていますが、サインインしていません。ターミナルを開いて次を実行してください。",
+"prov_err_ollama_no_model": "Ollama は動いていますが、「{model}」というモデルがありません。「モデル」ページで選ぶか、そこから入手してください。",
+"log_profile_unparsed": "注意: 履歴書はありますが、そこから役割も説明も得られませんでした。評価は粗くなります。",
+"log_profile_unparsed_fix": "「検索設定」を開いて職種とスキルを手で入力するか、「空欄を履歴書から埋める」をもう一度押してください。",
 }

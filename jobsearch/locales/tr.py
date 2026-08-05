@@ -657,4 +657,10 @@ STRINGS = {
 "update_err_readonly": "{where} konumuna yazma izni yok — programı Uygulamalar'a taşıyın ya da sürüm sayfasından elle güncelleyin",
 "log_deep_verdict_caps": "«{title}»: analiz mesleği «{verdict}» dedi ama {was} puan verdi — {now} değerine düşürüldü",
 "log_deep_unreadable": "«{title}»: ilan İngilizce değil ve meslek belirtilmemiş — {was} puan {now} değerine düşürüldü, «doğrulandı» konmadı",
+"badge_no_visa": "vize sponsorluğu yok",
+"badge_visa_ok": "vize destekleniyor",
+"models_needs_login": "Program kurulu, ancak oturum açılmamış. Bir terminal açın ve şunu çalıştırın:",
+"prov_err_ollama_no_model": "Ollama çalışıyor ama «{model}» adlı modeli yok. «Model» sayfasından bir model seçin ya da oradan indirin.",
+"log_profile_unparsed": "DİKKAT: özgeçmiş var, ama ondan roller ve açıklama çıkmadı — puanlar kaba olacak",
+"log_profile_unparsed_fix": "«Arama ayarları»nı açıp rolleri ve becerileri elle doldurun — ya da «Boş alanları özgeçmişten doldur»a yeniden basın",
 }

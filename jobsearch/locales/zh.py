@@ -657,4 +657,10 @@ STRINGS = {
 "update_err_readonly": "没有写入 {where} 的权限 — 请把程序移到“应用程序”里，或从发布页手动更新。",
 "log_deep_verdict_caps": "“{title}”：分析判定职业为“{verdict}”却给了 {was} 分 —— 已降为 {now}",
 "log_deep_unreadable": "“{title}”：招聘不是英文且未标明职业 —— {was} 分降为 {now}，不标记为“已核实”",
+"badge_no_visa": "不提供签证担保",
+"badge_visa_ok": "提供签证支持",
+"models_needs_login": "程序已安装，但尚未登录。请打开终端并运行：",
+"prov_err_ollama_no_model": "Ollama 在运行，但没有名为“{model}”的模型。请在“模型”页面选择一个，或在那里下载。",
+"log_profile_unparsed": "注意：有简历，但没能从中得出职位和描述 —— 评分将会很粗糙。",
+"log_profile_unparsed_fix": "打开“搜索设置”，手动填写职位和技能 —— 或再次点击“从简历填充空白字段”。",
 }

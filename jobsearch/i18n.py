@@ -375,6 +375,18 @@ TR = {
                          "en": "The model's answer contains no JSON: {text}",
                          "it": "La risposta del modello non contiene JSON: {text}",
                          "de": "Die Antwort des Modells enthält kein JSON: {text}"},
+    # 404 у Ollama значит «нет такой модели», а не «меня нет». Писали же на это
+    # «Ollama недоступна», и человек шёл проверять, запущена ли она.
+    "models_needs_login": {
+        "ru": "Программа установлена, но вход не выполнен. Откройте командную строку и выполните:",
+        "en": "The program is installed, but you are not signed in. Open a terminal and run:",
+        "it": "Il programma è installato, ma non ha effettuato l'accesso. Apra un terminale ed esegua:",
+        "de": "Das Programm ist installiert, aber Sie sind nicht angemeldet. Öffnen Sie ein Terminal und führen Sie aus:"},
+    "prov_err_ollama_no_model": {
+        "ru": "Ollama работает, но модели «{model}» у неё нет. Выберите модель на странице «Модель» или скачайте её там же.",
+        "en": "Ollama is running, but it has no model called “{model}”. Pick a model on the “Model” page, or download it there.",
+        "it": "Ollama è in funzione, ma non ha alcun modello «{model}». Scelga un modello nella pagina «Modello», o lo scarichi lì.",
+        "de": "Ollama läuft, hat aber kein Modell namens „{model}“. Wählen Sie auf der Seite „Modell“ ein Modell aus oder laden Sie es dort herunter."},
     "prov_err_ollama_unreachable": {"ru": "Ollama недоступна: {error}",
                                     "en": "Ollama is unreachable: {error}",
                                     "it": "Ollama non è raggiungibile: {error}",
@@ -943,13 +955,13 @@ TR = {
     # вакансий и решал, что программа не работает. Считано на 1511 собранных:
     # по Украине их было восемь, по ОАЭ семь, по России одна.
     "keys_title": {
-        "ru": "Ключи Adzuna и Jooble — страны за пределами ЕС и США",
-        "en": "Adzuna and Jooble keys — countries outside the EU and the US",
+        "ru": "Ключи Adzuna и Jooble — США и страны за пределами ЕС",
+        "en": "Adzuna and Jooble keys — the US and countries outside the EU",
         "it": "Chiavi Adzuna e Jooble — paesi fuori dall'UE e dagli USA",
         "de": "Adzuna- und Jooble-Schlüssel — Länder außerhalb der EU und der USA"},
     "keys_hint": {
-        "ru": "Без ключей программа хорошо покрывает ЕС (особенно Германию) и удалённую работу на западные компании. Украина, ОАЭ, Китай, Индия, Турция, Россия — почти пусто. Jooble заявляет около семидесяти стран, Adzuna — девятнадцать; ключи у обоих бесплатные и выдаются сразу. Если ищете за пределами ЕС и США, начните с них, иначе поиск найдёт единицы вакансий не потому, что их нет, а потому, что искать негде.",
-        "en": "Without keys the app covers the EU well (Germany especially) and remote work for Western companies. Ukraine, the UAE, China, India, Turkey, Russia — almost nothing. Jooble claims about seventy countries, Adzuna nineteen; both keys are free and issued immediately. If you are looking outside the EU and the US, start here — otherwise the search will find a handful of jobs, not because there are none, but because there is nowhere to look.",
+        "ru": "Без ключей программа хорошо покрывает ЕС (особенно Германию) и удалённую работу на западные компании. США закрыты слабо: там работают только доски работодателей и The Muse, и вакансии вне IT находятся плохо. Украина, ОАЭ, Китай, Индия, Турция, Россия — почти пусто. Jooble заявляет около семидесяти стран, Adzuna — девятнадцать; ключи у обоих бесплатные и выдаются сразу. Если ищете за пределами ЕС и США, начните с них, иначе поиск найдёт единицы вакансий не потому, что их нет, а потому, что искать негде.",
+        "en": "Without keys the app covers the EU well (Germany especially) and remote work for Western companies. The US is covered poorly: only employers' own boards and The Muse work there, and jobs outside IT are hard to find. Ukraine, the UAE, China, India, Turkey, Russia — almost nothing. Jooble claims about seventy countries, Adzuna nineteen; both keys are free and issued immediately. If you are looking outside the EU and the US, start here — otherwise the search will find a handful of jobs, not because there are none, but because there is nowhere to look.",
         "it": "Senza chiavi il programma copre bene l'UE (soprattutto la Germania) e il lavoro da remoto per aziende occidentali. Ucraina, Emirati, Cina, India, Turchia, Russia — quasi nulla. Jooble dichiara circa settanta paesi, Adzuna diciannove; le chiavi di entrambi sono gratuite e rilasciate subito. Se cerca fuori dall'UE e dagli USA, cominci da qui, altrimenti la ricerca troverà poche offerte non perché non ce ne siano, ma perché non c'è dove cercare.",
         "de": "Ohne Schlüssel deckt das Programm die EU gut ab (Deutschland besonders) sowie Fernarbeit für westliche Unternehmen. Ukraine, VAE, China, Indien, Türkei, Russland — fast nichts. Jooble nennt etwa siebzig Länder, Adzuna neunzehn; beide Schlüssel sind kostenlos und werden sofort ausgestellt. Wenn Sie außerhalb der EU und der USA suchen, fangen Sie hier an — sonst findet die Suche wenige Stellen, nicht weil es keine gibt, sondern weil es nichts zu durchsuchen gibt."},
     "sources_trades_hint": {
@@ -1002,6 +1014,16 @@ TR = {
         "en": "WARNING: the profile is empty and no CV is uploaded — the scores will be meaningless",
         "it": "ATTENZIONE: il profilo è vuoto e non c'è alcun CV — le valutazioni saranno casuali",
         "de": "ACHTUNG: das Profil ist leer und es ist kein Lebenslauf geladen — die Bewertungen sind zufällig"},
+    "log_profile_unparsed": {
+        "ru": "ВНИМАНИЕ: резюме есть, но роли и описание из него не вышли — оценки будут грубыми",
+        "en": "WARNING: there is a CV, but no roles or summary came out of it — the scores will be rough",
+        "it": "ATTENZIONE: il CV c'è, ma da esso non sono usciti ruoli né descrizione — le valutazioni saranno grossolane",
+        "de": "ACHTUNG: es gibt einen Lebenslauf, aber weder Rollen noch Beschreibung kamen dabei heraus — die Bewertungen werden grob"},
+    "log_profile_unparsed_fix": {
+        "ru": "Откройте «Настройки поиска» и заполните роли и навыки руками — или нажмите «Заполнить пустые поля из CV» ещё раз",
+        "en": "Open “Search settings” and fill in roles and skills by hand — or press “Fill empty fields from CV” again",
+        "it": "Apra «Impostazioni di ricerca» e compili ruoli e competenze a mano — oppure prema di nuovo «Compila i campi vuoti dal CV»",
+        "de": "Öffnen Sie „Sucheinstellungen“ und tragen Sie Rollen und Fähigkeiten von Hand ein — oder drücken Sie erneut „Leere Felder aus dem CV ausfüllen“"},
     "log_second_vote": {
         "ru": "второе мнение: {n} пограничных ({lo}–{hi}%)",
         "en": "second opinion: {n} borderline ({lo}–{hi}%)",
@@ -1420,6 +1442,12 @@ TR = {
     "export_hint": {"ru": "Выгрузить показанные вакансии: отчёт — прочитать и распечатать в PDF, CSV — для отслеживания откликов, разметка — вставить в заметки или письмо, JSON — обработать своей программой.", "en": "Export the shown jobs: report to read and print to PDF, CSV for tracking applications, Markdown to paste into notes or an email, JSON to process with your own program.", "it": "Esporta le offerte mostrate: il report per leggerlo e stamparlo in PDF, CSV per tenere traccia delle candidature, Markdown da incollare in appunti o e-mail, JSON da elaborare con un suo programma.", "de": "Exportieren Sie die angezeigten Stellen: den Bericht zum Lesen und Drucken als PDF, CSV zur Nachverfolgung der Bewerbungen, Markdown zum Einfügen in Notizen oder eine E-Mail, JSON zur Verarbeitung mit dem eigenen Programm."},
     "badge_verified": {"ru": "проверено", "en": "verified", "it": "verificato", "de": "geprüft"},
     "badge_preliminary": {"ru": "предварительно", "en": "preliminary", "it": "preliminare", "de": "vorläufig"},
+    # Право на работу — тому, кому нужна виза. Читается из самого объявления, а не
+    # у модели: её об этом спрашивали, и она молчала во всех ста девяти случаях.
+    "badge_no_visa": {"ru": "без спонсорства визы", "en": "no visa sponsorship",
+                      "it": "senza sponsorizzazione del visto", "de": "kein Visa-Sponsoring"},
+    "badge_visa_ok": {"ru": "визу поддерживают", "en": "visa supported",
+                      "it": "visto supportato", "de": "Visum wird unterstützt"},
     "verified_hint": {"ru": "«проверено» — точная оценка глубоким разбором; «предварительно» — быстрый триаж (обычно завышает).", "en": "“verified” — precise deep-analysis score; “preliminary” — quick triage (usually optimistic).", "it": "«verificato» — punteggio preciso da analisi approfondita; «preliminare» — triage rapido (di solito ottimistico).", "de": "„geprüft“ — präzise Bewertung durch Tiefenanalyse; „vorläufig“ — schnelle Vorauswahl (meist optimistisch)."},
     "suggest_banner": {"ru": "Выше порога {cur}% почти ничего. Ваш реальный диапазон ниже — покажите вакансии от {sugg}%:", "en": "Almost nothing above {cur}%. Your realistic range is lower — show jobs from {sugg}%:", "it": "Quasi nulla sopra la soglia {cur}%. Il vostro intervallo reale è più basso: mostrate le offerte da {sugg}%:", "de": "Kaum etwas über der Schwelle {cur}%. Ihr realistischer Bereich liegt niedriger — zeigen Sie Stellen ab {sugg}%:"},
     "suggest_show": {"ru": "показать от {sugg}%", "en": "show from {sugg}%", "it": "mostra da {sugg}%", "de": "ab {sugg}% anzeigen"},

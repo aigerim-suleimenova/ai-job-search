@@ -657,4 +657,10 @@ STRINGS = {
 "update_err_readonly": "Não há permissão de escrita em {where} — mova o programa para Aplicações ou atualize-o à mão a partir da página da versão",
 "log_deep_verdict_caps": "«{title}»: a análise disse «{verdict}» mas pontuou {was} — baixado para {now}",
 "log_deep_unreadable": "«{title}»: o anúncio não está em inglês e a profissão não é indicada — {was} baixado para {now}, sem «verificado»",
+"badge_no_visa": "sem patrocínio de visto",
+"badge_visa_ok": "visto apoiado",
+"models_needs_login": "O programa está instalado, mas não iniciou sessão. Abra um terminal e execute:",
+"prov_err_ollama_no_model": "O Ollama funciona, mas não tem o modelo «{model}». Escolha um modelo na página «Modelo» ou descarregue-o aí.",
+"log_profile_unparsed": "ATENÇÃO: há um CV, mas dele não saíram funções nem descrição — as avaliações serão grosseiras",
+"log_profile_unparsed_fix": "Abra «Definições de pesquisa» e preencha as funções e competências à mão — ou carregue de novo em «Preencher campos vazios a partir do CV»",
 }

@@ -75,6 +75,14 @@
     {% elif current_provider == key and current_model_name %}
     <p class="hint">{{ t('models_current') }}: {{ current_model_name }}</p>
     {% endif %}
+    {# Установлена — ещё не значит готова. Раньше проверялось одно: лежит ли
+       программа на диске. Карточка стояла зелёная, человек её выбирал, запускал
+       поиск — и прогон обрывался через пять секунд с «Not logged in». Узнать
+       заранее было нельзя. #}
+    {% if p.needs_login %}
+    <p class="hint" style="color:var(--warn); margin:6px 0 2px">{{ t('models_needs_login') }}</p>
+    <pre class="cmd"><code>claude auth login</code></pre>
+    {% endif %}
 
     <div class="provider-actions">
       {# Своему адресу здесь только кнопка «Выбрать», как у всех: устанавливать

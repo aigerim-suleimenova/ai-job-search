@@ -563,3 +563,34 @@ def test_профиль_из_cv_не_приносит_скобок(monkeypatch, 
         assert "[" not in получилось[поле] and "'" not in получилось[поле], \
             f"{поле}: {получилось[поле]}"
     assert получилось["roles"] == "Purchasing Manager, Logistics Manager"
+
+
+# --- Право на работу читаем из объявления, а не спрашиваем модель ----------------
+
+@pytest.mark.parametrize("текст,ожидание", [
+    ("We are unable to sponsor visas for this position at this time.", "no"),
+    ("Candidates must be authorized to work in the United States.", "no"),
+    ("No visa sponsorship is available for this role.", "no"),
+    ("Relocation package and visa sponsorship provided for the right candidate.", "yes"),
+    ("We help with the visa and offer relocation support to Berlin.", "yes"),
+    ("Join our team of engineers building payment systems.", ""),
+])
+def test_что_объявление_говорит_про_визу(текст, ожидание):
+    """Спрашивать модель бесполезно: на прогоне Дмитрия в профиле стояло «нужно
+    спонсорство», строка попадала в запрос — и ни в одном из ста девяти доводов
+    виза не была упомянута ни разу."""
+    from jobsearch import filters
+    assert filters.visa_stance({"title": "Engineer", "description": текст}) == ожидание
+
+
+def test_отказ_важнее_согласия():
+    """«no visa sponsorship» содержит «visa sponsorship» — отказ должен побеждать,
+    иначе объявление, которое прямо отказывает, покажется приглашающим."""
+    from jobsearch import filters
+    assert filters.visa_stance(
+        {"description": "Visa sponsorship: no visa sponsorship for this role."}) == "no"
+
+
+def test_молчание_не_считается_ни_за_что():
+    from jobsearch import filters
+    assert filters.visa_stance({"description": ""}) == ""

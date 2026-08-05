@@ -3,7 +3,7 @@ import hashlib
 import re
 
 EU_MARKERS = [
-    "europe", "european union", " eu", "eu ", "emea",
+    "europe", "european union", "eu", "emea",
     # the broad regions a location is often described by
     "dach", "benelux", "nordics", "baltics", "cet timezone", "cet time",
     "germany", "berlin", "munich", "hamburg", "frankfurt", "cologne",
@@ -37,11 +37,17 @@ EU_MARKERS = [
     "nicosia", "limassol", "braga",
 ]
 US_MARKERS = [
-    "united states", "usa", "u.s.", " us", "us ", "america",
+    "united states", "usa", "u.s.", "us", "america",
     "new york", "san francisco", "bay area", "seattle", "austin", "boston",
     "los angeles", "chicago", "denver", "miami", "atlanta", "washington",
-    ", ny", ", ca", ", tx", ", wa", ", ma", ", co", ", fl", ", il",
+    # Сокращения штатов. Раньше писались с запятой — «, ca» — и искались простой
+    # подстрокой, отчего «Calgary, Canada» совпадало с Калифорнией и канадские
+    # вакансии шли в поиск по США. Двадцать шесть штук за один прогон. Теперь
+    # ищется целым словом, и «, canada» больше ни с чем не путается.
+    "ny", "ca", "tx", "wa", "ma", "co", "fl", "il",
 ]
+
+
 REMOTE_MARKERS = ["remote", "anywhere", "worldwide", "удал", "distributed", "work from home", "wfh"]
 
 AGENCY_MARKERS = [
@@ -51,6 +57,19 @@ AGENCY_MARKERS = [
     "human capital", "manpower", "randstad", "adecco", "hays", "kelly services",
     "robert half", "michael page", "experis", "gulp", "akkodis",
 ]
+
+
+def _есть(loc: str, маркеры) -> bool:
+    """Встречается ли в строке хоть один признак — целым словом, а не куском.
+
+    Простое вхождение подводило одинаково всюду: короткий признак садился внутрь
+    длинного слова. «ca» — сокращение Калифорнии — находилось в «Calgary,
+    Canada», и канадские вакансии шли в поиск по США: двадцать шесть штук за
+    один прогон у человека, который Канады не просил. Чем короче признак, тем
+    чаще так выходит, а короткие признаки как раз самые нужные — коды штатов и
+    названия стран.
+    """
+    return any(re.search(rf"(?<!\w){re.escape(m)}(?!\w)", loc) for m in маркеры)
 
 
 def job_key(company: str, title: str) -> str:
@@ -150,6 +169,95 @@ def parse_locations(raw: str) -> list:
     "SK": ("Slovakia", ["slovensko", "словакия"], ["bratislava", "košice", "kosice"]),
 }
 
+# Коды, которые понимает EURES, — ровно те тридцать одна страна, что выше. Ниже
+# идёт остальной мир: он нужен фильтру, но спрашивать про него EURES бесполезно.
+EURES_КОДЫ = frozenset(СТРАНЫ)
+
+# Остальной мир. Без него выходило вот что: человек пишет «Россия, Омск», а
+# «Москва» отсеивается — слова «россия» в строке нет, а справочника, который
+# связал бы одно с другим, не было. И наоборот, «Kenya, Remote» проходило в
+# поиск по России как «работа откуда угодно»: Кении в списках не значилось,
+# значит место как бы и не названо.
+#
+# Города здесь скупее, чем у европейских: список нужен, чтобы узнать страну и не
+# перепутать её с чужой, а не чтобы знать все её города.
+СТРАНЫ.update({
+    "US": ("United States", ["сша", "америка", "usa", "u.s."],
+           ["new york", "san francisco", "bay area", "seattle", "austin", "boston",
+            "los angeles", "chicago", "denver", "miami", "atlanta", "washington",
+            "houston", "dallas", "phoenix", "philadelphia", "san diego", "portland"]),
+    "CA": ("Canada", ["канада"],
+           ["toronto", "vancouver", "montreal", "montréal", "calgary", "ottawa",
+            "winnipeg", "edmonton", "quebec", "québec"]),
+    "GB": ("United Kingdom", ["uk", "britain", "great britain", "england", "scotland",
+                              "wales", "великобритания", "англия"],
+           ["london", "manchester", "birmingham", "edinburgh", "glasgow", "bristol",
+            "leeds", "cambridge", "oxford"]),
+    "RU": ("Russia", ["россия", "russian federation", "рф"],
+           ["moscow", "москва", "saint petersburg", "st petersburg", "санкт-петербург",
+            "петербург", "novosibirsk", "новосибирск", "yekaterinburg", "екатеринбург",
+            "kazan", "казань", "omsk", "омск", "samara", "самара", "ufa", "уфа",
+            "krasnoyarsk", "красноярск", "nizhny novgorod", "нижний новгород",
+            "chelyabinsk", "челябинск", "rostov", "ростов", "krasnodar", "краснодар",
+            "voronezh", "воронеж", "perm", "пермь", "volgograd", "волгоград",
+            "tyumen", "тюмень", "irkutsk", "иркутск", "tomsk", "томск"]),
+    "UA": ("Ukraine", ["украина", "україна"],
+           ["kyiv", "kiev", "киев", "київ", "lviv", "львов", "kharkiv", "харьков",
+            "odesa", "odessa", "одесса", "dnipro", "днепр"]),
+    "BY": ("Belarus", ["беларусь", "белоруссия"], ["minsk", "минск", "gomel", "гомель"]),
+    "KZ": ("Kazakhstan", ["казахстан", "qazaqstan"],
+           ["almaty", "алматы", "astana", "астана", "pavlodar", "павлодар",
+            "shymkent", "шымкент", "karaganda", "караганда"]),
+    "GE": ("Georgia", ["грузия", "sakartvelo"], ["tbilisi", "тбилиси", "batumi", "батуми"]),
+    "AM": ("Armenia", ["армения"], ["yerevan", "ереван"]),
+    "RS": ("Serbia", ["сербия", "srbija"], ["belgrade", "beograd", "novi sad"]),
+    "MD": ("Moldova", ["молдова", "молдавия"], ["chisinau", "chișinău", "кишинёв"]),
+    "TR": ("Turkey", ["türkiye", "turkiye", "турция"],
+           ["istanbul", "стамбул", "ankara", "анкара", "izmir", "измир", "antalya"]),
+    "IL": ("Israel", ["израиль"], ["tel aviv", "тель-авив", "jerusalem", "иерусалим", "haifa"]),
+    "AE": ("United Arab Emirates", ["uae", "оаэ", "эмираты"],
+           ["dubai", "дубай", "abu dhabi", "абу-даби", "sharjah"]),
+    "SA": ("Saudi Arabia", ["саудовская аравия"], ["riyadh", "эр-рияд", "jeddah"]),
+    "QA": ("Qatar", ["катар"], ["doha", "доха"]),
+    "EG": ("Egypt", ["египет"], ["cairo", "каир", "alexandria"]),
+    "MA": ("Morocco", ["марокко", "maroc"], ["casablanca", "rabat", "marrakesh"]),
+    "JO": ("Jordan", ["иордания"], ["amman", "амман"]),
+    "KE": ("Kenya", ["кения"], ["nairobi", "найроби", "mombasa"]),
+    "NG": ("Nigeria", ["нигерия"], ["lagos", "лагос", "abuja"]),
+    "ZA": ("South Africa", ["юар", "южная африка"],
+           ["johannesburg", "cape town", "кейптаун", "pretoria", "durban"]),
+    "MU": ("Mauritius", ["маврикий"], ["port louis", "belle rose", "ebene", "ebène"]),
+    "IN": ("India", ["индия"],
+           ["bangalore", "bengaluru", "бангалор", "mumbai", "мумбаи", "delhi", "дели",
+            "hyderabad", "pune", "chennai", "gurgaon", "noida"]),
+    "CN": ("China", ["китай"],
+           ["beijing", "пекин", "shanghai", "шанхай", "shenzhen", "guangzhou", "hangzhou"]),
+    "JP": ("Japan", ["япония", "nippon"], ["tokyo", "токио", "osaka", "осака", "kyoto"]),
+    "KR": ("South Korea", ["korea", "корея", "южная корея"], ["seoul", "сеул", "busan"]),
+    "SG": ("Singapore", ["сингапур"], []),
+    "MY": ("Malaysia", ["малайзия"], ["kuala lumpur", "куала-лумпур", "penang"]),
+    "ID": ("Indonesia", ["индонезия"], ["jakarta", "джакарта", "bali", "бали"]),
+    "TH": ("Thailand", ["таиланд"], ["bangkok", "бангкок", "phuket"]),
+    "VN": ("Vietnam", ["вьетнам"], ["hanoi", "ханой", "ho chi minh", "saigon"]),
+    "PH": ("Philippines", ["филиппины"], ["manila", "манила", "cebu", "davao"]),
+    "PK": ("Pakistan", ["пакистан"], ["karachi", "lahore", "islamabad"]),
+    "BD": ("Bangladesh", ["бангладеш"], ["dhaka"]),
+    "AU": ("Australia", ["австралия"],
+           ["sydney", "сидней", "melbourne", "мельбурн", "brisbane", "perth", "canberra"]),
+    "NZ": ("New Zealand", ["новая зеландия"], ["auckland", "окленд", "wellington"]),
+    "BR": ("Brazil", ["brasil", "бразилия"],
+           ["são paulo", "sao paulo", "сан-паулу", "rio de janeiro", "рио-де-жанейро",
+            "belo horizonte", "curitiba", "porto alegre"]),
+    "MX": ("Mexico", ["méxico", "мексика"],
+           ["mexico city", "ciudad de méxico", "мехико", "guadalajara", "monterrey"]),
+    "AR": ("Argentina", ["аргентина"], ["buenos aires", "буэнос-айрес", "córdoba"]),
+    "CL": ("Chile", ["чили"], ["santiago", "сантьяго"]),
+    "CO": ("Colombia", ["колумбия"], ["bogotá", "bogota", "богота", "medellín", "medellin"]),
+    "PE": ("Peru", ["перу"], ["lima", "лима"]),
+    "PA": ("Panama", ["панама"], ["panama city", "ciudad de panamá"]),
+    "CR": ("Costa Rica", ["коста-рика"], ["san josé", "san jose"]),
+})
+
 
 def country_name(code: str) -> str:
     """Имя страны по коду — тем источникам, что отдают только код."""
@@ -157,13 +265,20 @@ def country_name(code: str) -> str:
     return сведения[0] if сведения else (code or "")
 
 
-def country_codes(wanted: list) -> list:
+def country_codes(wanted: list, только=None) -> list:
     """Коды стран, которые человек назвал, — тем источникам, что умеют по ним
-    ограничивать выдачу. Названо «ЕС» или ничего — не ограничиваем."""
+    ограничивать выдачу. Названо «ЕС» или ничего — не ограничиваем.
+
+    «только» сужает ответ до тех кодов, которые источник вообще понимает: EURES
+    знает свои тридцать одну страну, и спрашивать у него про Бразилию — впустую
+    потратить запрос.
+    """
     коды = []
     for код, (имя, псевдонимы, города) in СТРАНЫ.items():
+        if только is not None and код not in только:
+            continue
         свои = {имя.lower(), *псевдонимы}
-        if any(t in свои or any(t == п for п in свои) for t in wanted):
+        if any(t in свои for t in wanted):
             коды.append(код)
     return коды
 
@@ -176,10 +291,15 @@ for _код, (_имя, _псевдонимы, _города) in СТРАНЫ.ite
     for _как_пишут in {_имя.lower(), *_псевдонимы}:
         COUNTRY_MARKERS[_как_пишут] = _маркеры
 
+# Все места, какие мы вообще знаем, одним списком — чтобы отвечать на вопрос
+# «названо ли тут хоть что-то, кроме слова „удалённо“». Без Кении в этом списке
+# «Kenya, Remote» считалось работой откуда угодно и шло в поиск по России.
+ВСЕ_МЕСТА = sorted({м for _маркеры in COUNTRY_MARKERS.values() for м in _маркеры})
+
 
 # Область целиком, а не отдельная страна: вакансия, названная так, подходит
 # любому, кто ищет внутри этой области.
-WIDE_EU_MARKERS = ["europe", "european union", " eu ", "eu-", "emea",
+WIDE_EU_MARKERS = ["europe", "european union", "eu", "emea",
                    "dach", "benelux", "nordics", "baltics", "европ"]
 
 
@@ -203,9 +323,8 @@ def _only_remote(wanted: list) -> bool:
 
 def _names_a_place(loc: str) -> bool:
     """Названо ли в строке хоть какое-то место, кроме слова «удалённо»."""
-    return (any(m in loc for m in US_MARKERS) or any(m in loc for m in EU_MARKERS)
-            or any(m in loc for m in OTHER_PLACE_MARKERS)
-            or any(m in места for места in COUNTRY_MARKERS.values() for m in места if m in loc))
+    return (_есть(loc, US_MARKERS) or _есть(loc, EU_MARKERS)
+            or _есть(loc, OTHER_PLACE_MARKERS) or _есть(loc, ВСЕ_МЕСТА))
 
 
 def location_ok(location: str, wanted: list, include_remote: bool = True) -> bool:
@@ -222,16 +341,16 @@ def location_ok(location: str, wanted: list, include_remote: bool = True) -> boo
     #
     # Если рядом с «удалённо» названа страна, она и решает. Если не названо
     # ничего — работа и правда откуда угодно, и её пропускаем.
-    if include_remote and any(m in loc for m in REMOTE_MARKERS) and not _names_a_place(loc):
+    if include_remote and _есть(loc, REMOTE_MARKERS) and not _names_a_place(loc):
         return True
     if not location:
         return True  # an unknown location is not cut off — triage will decide
     for token in wanted:
         if token in ("eu", "ес", "europe", "европа", "евросоюз"):
-            if any(m in loc for m in EU_MARKERS):
+            if _есть(loc, EU_MARKERS):
                 return True
         elif token in ("us", "usa", "сша", "united states", "америка"):
-            if any(m in loc for m in US_MARKERS):
+            if _есть(loc, US_MARKERS):
                 return True
         elif token in ("remote", "удаленно", "удалённо"):
             # То же правило, что и для галочки «удалённые тоже»: «удалённо» —
@@ -245,20 +364,63 @@ def location_ok(location: str, wanted: list, include_remote: bool = True) -> boo
             # Если человек не назвал никаких мест, кроме «удалённо», он и правда
             # готов работать откуда угодно — тогда пропускаем любую удалённую.
             # А если места названы, они и решают, куда эта удалённая годится.
-            if any(m in loc for m in REMOTE_MARKERS) and (
+            if _есть(loc, REMOTE_MARKERS) and (
                     not _names_a_place(loc) or _only_remote(wanted)):
                 return True
         elif token in COUNTRY_MARKERS:
-            if any(m in loc for m in COUNTRY_MARKERS[token]):
+            if _есть(loc, COUNTRY_MARKERS[token]):
                 return True
             # «Удалённо по Европе» человеку, который ищет в Германии, годится:
             # страна входит в названную область. Без этой оговорки отказ от
             # огульного «удалённо» выбросил бы вместе с американскими и такие.
-            if any(m in loc for m in WIDE_EU_MARKERS):
+            if _есть(loc, WIDE_EU_MARKERS):
                 return True
         elif token in loc:
             return True
     return False
+
+
+# Про право на работу объявления пишут словами, и почти всегда одними и теми же.
+#
+# Спрашивать об этом модель бесполезно: на прогоне Дмитрия Кириляка в профиле
+# стояло «нужно спонсорство для США и ЕС», строка попадала в запрос — и ни в
+# одном из ста девяти доводов виза не была упомянута ни разу. А для человека это
+# главное: у Виктора Белоногова двадцать шесть канадских вакансий, куда без
+# спонсорства не попасть, и узнать об этом надо до отклика, а не после.
+#
+# Порядок важен: «no visa sponsorship» содержит «visa sponsorship», поэтому
+# отказы ищем первыми.
+_НЕТ_СПОНСОРСТВА = [
+    "no sponsorship", "no visa sponsorship", "not able to sponsor", "unable to sponsor",
+    "will not sponsor", "do not sponsor", "does not sponsor", "cannot sponsor",
+    "without sponsorship", "sponsorship is not", "sponsorship not available",
+    "no relocation", "relocation is not", "must be authorized to work",
+    "must be legally authorized", "must already have", "must have the right to work",
+    "authorized to work in the united states", "us work authorization required",
+    "eu work permit required", "valid work permit required", "no work permit",
+    "keine visa", "kein sponsoring", "arbeitserlaubnis erforderlich",
+]
+_ЕСТЬ_СПОНСОРСТВО = [
+    "visa sponsorship", "we sponsor", "sponsorship available", "sponsorship provided",
+    "relocation package", "relocation support", "relocation assistance",
+    "visa support", "work permit support", "blue card", "we help with the visa",
+    "visa assistance", "umzugshilfe", "visum", "sponsoring möglich",
+]
+
+
+def visa_stance(job: dict) -> str:
+    """Что объявление говорит про право на работу: «нет», «есть» или ничего.
+
+    Ничего — самый частый ответ, и он честный: молчание не значит ни отказа, ни
+    согласия. Догадываться за работодателя мы не станем, но если он сказал —
+    человек должен это увидеть, не открывая объявления.
+    """
+    текст = f"{job.get('title', '')} {job.get('description', '')}".lower()
+    if any(ф in текст for ф in _НЕТ_СПОНСОРСТВА):
+        return "no"
+    if any(ф in текст for ф in _ЕСТЬ_СПОНСОРСТВО):
+        return "yes"
+    return ""
 
 
 def has_excluded(job: dict, exclude_terms: list) -> bool:

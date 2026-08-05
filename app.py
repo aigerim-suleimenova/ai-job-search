@@ -774,7 +774,9 @@ def results(request: Request, min: int = 50, sort: str = "default",
     runs = db.recent_runs(10)
     return render(
         request, "results.html",
-        {"jobs": jobs, "runs": runs, "min_score": min,
+        # cfg нужен и самой странице: метку про право на работу показываем
+        # только тому, кому нужна виза, — остальным она лишний шум.
+        {"cfg": cfg, "jobs": jobs, "runs": runs, "min_score": min,
          "threshold": threshold, "suggest_threshold": suggest,
          "sort": sort, "viewed": viewed, "source": source, "run": run,
          "posted_from": posted_from, "posted_to": posted_to, "msg": msg,

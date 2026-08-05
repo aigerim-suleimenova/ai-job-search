@@ -63,10 +63,26 @@ _НИЧЕЙНЫЕ_СЛОВА = {
 }
 
 
+# Языки общения. Модель кладёт их в навыки, хотя для них есть отдельное поле, и
+# запрос «English» уходил в источники наравне с профессией. У Дмитрия Кириляка
+# из шести слов два ушли на «English» и «Russian» — треть поиска впустую.
+_ЯЗЫКИ_ОБЩЕНИЯ = {
+    "english", "russian", "german", "french", "spanish", "italian", "polish",
+    "dutch", "portuguese", "swedish", "danish", "norwegian", "finnish", "czech",
+    "greek", "turkish", "arabic", "chinese", "japanese", "korean", "hindi",
+    "ukrainian", "kazakh", "hebrew", "romanian", "hungarian", "bulgarian",
+    "английский", "русский", "немецкий", "французский", "испанский", "казахский",
+}
+
+
 def _ничейное(term: str) -> bool:
     """Состоит ли запрос только из слов, ничего не говорящих об отрасли."""
     слова = [w for w in re.split(r"[\s/&+-]+", term.lower()) if w]
-    return bool(слова) and all(w in _НИЧЕЙНЫЕ_СЛОВА for w in слова)
+    if not слова:
+        return False
+    if all(w in _ЯЗЫКИ_ОБЩЕНИЯ for w in слова):
+        return True
+    return all(w in _НИЧЕЙНЫЕ_СЛОВА for w in слова)
 
 
 def _search_terms(cfg: dict) -> list:
@@ -439,7 +455,8 @@ def eures(cfg: dict, log) -> list:
     # Италии с Германией приезжали Норвегия с Бельгией — полсотни мест на запрос
     # уходили на страны, о которых не спрашивали. Не назвал стран или назвал «ЕС»
     # — не ограничиваем, тогда и правда нужен весь союз.
-    страны = filters.country_codes(filters.parse_locations(cfg["search"].get("locations", "")))
+    страны = filters.country_codes(filters.parse_locations(cfg["search"].get("locations", "")),
+                                   только=filters.EURES_КОДЫ)
     for term in _search_terms(cfg):
         if not term:
             continue
@@ -574,18 +591,32 @@ def arbeitsagentur(cfg: dict, log) -> list:
     return jobs
 
 
+# Девятнадцать стран, которые знает Adzuna, — её же кодами. Спрашивать про
+# остальные бесполезно: ответит отказом и потратит запрос.
+ADZUNA_КОДЫ = frozenset({"AT", "AU", "BE", "BR", "CA", "CH", "DE", "ES", "FR",
+                         "GB", "IN", "IT", "MX", "NL", "NZ", "PL", "SG", "US", "ZA"})
+
+
 def adzuna(cfg: dict, log) -> list:
     src = cfg["sources"]
     app_id, app_key = src.get("adzuna_app_id", ""), src.get("adzuna_app_key", "")
     if not (app_id and app_key):
         return []
     jobs = []
-    countries = [c.strip() for c in src.get("adzuna_countries", "").split(",") if c.strip()]
+    # Страны берём из того, что человек написал в «Локациях». Раньше был отдельный
+    # список в настройках, и он жил своей жизнью: ищешь только по США — Adzuna всё
+    # равно опрашивала девять стран, напишешь Японию — не спросит про неё никогда.
+    # Отдельный список остаётся запасным: он же и подскажет, если наш справочник
+    # чего-то не знает.
+    названные = filters.country_codes(
+        filters.parse_locations(cfg["search"].get("locations", "")), только=ADZUNA_КОДЫ)
+    countries = названные or [c.strip() for c in src.get("adzuna_countries", "").split(",")
+                              if c.strip()]
     what = " ".join(_search_terms(cfg))[:100]
     for cc in countries[:10]:
         try:
             r = web.get(
-                f"https://api.adzuna.com/v1/api/jobs/{cc}/search/1",
+                f"https://api.adzuna.com/v1/api/jobs/{cc.lower()}/search/1",
                 params={"app_id": app_id, "app_key": app_key, "what": what,
                         "results_per_page": 50, "content-type": "application/json"},
             timeout=TIMEOUT,
@@ -599,7 +630,7 @@ def adzuna(cfg: dict, log) -> list:
                     "url": j.get("redirect_url", ""),
                     "description": (j.get("description") or "")[:5000],
                     "posted_at": iso_date(j.get("created")),
-                    "source": f"adzuna:{cc}",
+                    "source": f"adzuna:{cc.lower()}",
                     "is_direct": False,
                 })
         except requests.RequestException as e:
@@ -612,7 +643,13 @@ def jooble(cfg: dict, log) -> list:
     if not key:
         return []
     jobs = []
-    for loc in ["", "remote"]:
+    # Места — те, что человек написал. Раньше стояли зашитые «» и «remote», то
+    # есть Jooble спрашивали вообще без страны: он заявляет около семидесяти
+    # стран, и это был единственный источник, способный закрыть Россию, ОАЭ или
+    # Индию, — а мы у него про них не спрашивали ни разу.
+    места = [м for м in filters.parse_locations(cfg["search"].get("locations", ""))
+             if м not in ("ес", "eu", "европа", "europe")][:5]
+    for loc in (места or [""]) + ["remote"]:
         try:
             r = requests.post(
                 f"https://jooble.org/api/{key}",
@@ -661,9 +698,14 @@ def jooble(cfg: dict, log) -> list:
     ("use_jobicy", True, "Jobicy", "https://jobicy.com", "jobicy"),
     ("use_himalayas", True, "Himalayas", "https://himalayas.app", "himalayas"),
     ("use_themuse", True, "The Muse", "https://themuse.com", "themuse"),
-    ("use_arbeitsagentur", True, "Arbeitsagentur (DE)", "https://arbeitsagentur.de", "arbeitsagentur"),
-    # Два источника, знающих все профессии, а не только IT. Восемь остальных —
-    # доски для программистов, и на них швея, бариста и слесарь не находятся.
+    # Выключена: служба отвечает отказом на любой путь и любое имя, а токен по
+    # OAuth не выдаётся. Сам сайт при этом открывается — похоже, открытый API
+    # закрыли или загородили от роботов. Оставленная включённой, она давала
+    # только строку с ошибкой в «Покрытии» каждый прогон и ни одной вакансии.
+    # Германию теперь закрывает EURES, который знает и её, и все прочие страны ЕС.
+    ("use_arbeitsagentur", False, "Arbeitsagentur (DE)", "https://arbeitsagentur.de", "arbeitsagentur"),
+    # Источники, знающие все профессии, а не только IT. Остальные — доски для
+    # программистов, и на них швея, бариста и слесарь не находятся.
     ("use_eures", True, "EURES (EU)", "https://europa.eu/eures", "eures"),
     ("use_jobtech", True, "JobTech (SE)", "https://jobtechdev.se", "jobtech"),
     # Доски самих работодателей: объявление размещает компания в своей же

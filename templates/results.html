@@ -157,6 +157,15 @@
         {% else %}<span class="badge">{{ t('badge_aggregator') }}</span>{% endif %}
         {% if j.verified %}<span class="badge ok">✓ {{ t('badge_verified') }}</span>
         {% else %}<span class="badge warn">{{ t('badge_preliminary') }}</span>{% endif %}
+        {# Что объявление само сказало про право на работу. Показываем только
+           тому, кому оно нужно: у кого виза есть, эта метка — лишний шум. #}
+        {% if cfg.profile.visa_required and j.visa == 'no' %}
+        <span class="badge warn">{{ t('badge_no_visa') }}</span>
+        {% elif cfg.profile.visa_required and j.visa == 'yes' %}
+        <span class="badge ok">{{ t('badge_visa_ok') }}</span>{% endif %}
+        {# Профессия по общеевропейскому справочнику — она приходит на английском
+           и одна для всех языков, а объявление бывает на любом. #}
+        {% if j.occupation %}<span class="badge">{{ j.occupation }}</span>{% endif %}
         {% if j.posted_label %} · {{ t('posted_label') }} {{ j.posted_label }}{% endif %}
         · {{ t('run') }} #{{ j.run_id }} · {{ j.first_seen }}
       </p>

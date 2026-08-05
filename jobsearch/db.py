@@ -47,7 +47,13 @@ def conn():
                           "ALTER TABLE jobs ADD COLUMN verified INTEGER DEFAULT 0",
                           "ALTER TABLE jobs ADD COLUMN tailored_cv TEXT",
                           "ALTER TABLE jobs ADD COLUMN posted_at TEXT",
-                          "ALTER TABLE jobs ADD COLUMN viewed INTEGER DEFAULT 0"):
+                          "ALTER TABLE jobs ADD COLUMN viewed INTEGER DEFAULT 0",
+                          # Профессия по общеевропейскому справочнику: до модели
+                          # доходила, а посмотреть потом было нельзя — и на
+                          # карточке не показать.
+                          "ALTER TABLE jobs ADD COLUMN occupation TEXT",
+                          # Что объявление само говорит про право на работу.
+                          "ALTER TABLE jobs ADD COLUMN visa TEXT"):
                 try:
                     c.execute(alter)
                 except sqlite3.OperationalError:
@@ -104,8 +110,9 @@ def save_job(job: dict, run_id: int) -> None:
         c.execute(
             """INSERT INTO jobs
                (key, title, company, location, url, source, is_direct, is_agency,
-                description, score, reason, advice, verified, posted_at, first_seen, run_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                description, score, reason, advice, verified, posted_at, first_seen, run_id,
+                occupation, visa)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(key) DO UPDATE SET
                  score    = CASE WHEN excluded.verified = 1 OR jobs.score IS NULL
                                  THEN excluded.score ELSE jobs.score END,
@@ -116,7 +123,11 @@ def save_job(job: dict, run_id: int) -> None:
                  verified = MAX(jobs.verified, excluded.verified),
                  posted_at = CASE WHEN excluded.posted_at != '' THEN excluded.posted_at
                                   ELSE jobs.posted_at END,
-                 run_id   = excluded.run_id""",
+                 run_id   = excluded.run_id,
+                 occupation = CASE WHEN excluded.occupation != '' THEN excluded.occupation
+                                   ELSE jobs.occupation END,
+                 visa     = CASE WHEN excluded.visa != '' THEN excluded.visa
+                                 ELSE jobs.visa END""",
             (
                 job["key"], job.get("title", ""), job.get("company", ""),
                 job.get("location", ""), job.get("url", ""), job.get("source", ""),
@@ -126,6 +137,8 @@ def save_job(job: dict, run_id: int) -> None:
                 1 if job.get("verified") else 0,
                 job.get("posted_at", "") or "",
                 now(), run_id,
+                job.get("occupation", "") or "",
+                job.get("visa", "") or "",
             ),
         )
 
