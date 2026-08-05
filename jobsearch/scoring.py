@@ -742,8 +742,15 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
     # Второй проход: советы проверяются отдельным вопросом, без вакансии — чтобы
     # не было соблазна подогнать ответ под её требования. Запрет выдумывать
     # стоит и в самом промпте разбора, но слабая модель его перебивает.
-    правки = keep_honest_advice(result.get("cv_changes", []), cv, ask, log)
-    в_профиль = keep_honest_advice(result.get("linkedin_changes", []), cv, ask, log)
+    #
+    # Оба списка одним вопросом: на местной модели каждый вызов стоит минуту, а
+    # вакансий на разбор бывает по тридцать. Два вопроса вместо одного добавляли
+    # к прогону около часа и ничего не уточняли — резюме-то одно и то же.
+    из_cv = [str(с).strip() for с in (result.get("cv_changes") or []) if str(с).strip()]
+    из_linkedin = [str(с).strip() for с in (result.get("linkedin_changes") or []) if str(с).strip()]
+    честные = set(keep_honest_advice(из_cv + из_linkedin, cv, ask, log))
+    правки = [с for с in из_cv if с in честные]
+    в_профиль = [с for с in из_linkedin if с in честные]
     job["advice"] = json.dumps(
         {
             "cv_changes": правки,
