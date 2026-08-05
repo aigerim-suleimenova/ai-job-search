@@ -258,6 +258,10 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         if drop_date:
             _logk("log_drop_dates", n=len(drop_date), since=since or "…", until=until or "…")
         for j in jobs:
+            # Что объявление само сказало про право на работу. Читаем словами, а
+            # не спрашиваем модель: её об этом спрашивали, и она молчала во всех
+            # ста девяти случаях подряд.
+            j["visa"] = filters.visa_stance(j)
             if filters.looks_like_agency(j.get("company", "")):
                 j["is_agency"] = True
         _logk("log_after_filters", n=len(jobs), loc=len(drop_loc), kw=len(drop_kw))

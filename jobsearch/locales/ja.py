@@ -657,4 +657,6 @@ STRINGS = {
 "update_err_readonly": "{where} に書き込む権限がありません。プログラムを「アプリケーション」へ移すか、リリースページから手動で更新してください。",
 "log_deep_verdict_caps": "「{title}」: 分析は職種を「{verdict}」としながら {was} 点を付けました — {now} に下げました",
 "log_deep_unreadable": "「{title}」: 求人が英語ではなく職種も示されていません — {was} 点を {now} に下げ、「確認済み」は付けません",
+"badge_no_visa": "ビザ支援なし",
+"badge_visa_ok": "ビザ支援あり",
 }

@@ -657,4 +657,6 @@ STRINGS = {
 "update_err_readonly": "No hay permiso de escritura en {where} — mueva el programa a Aplicaciones o actualícelo a mano desde la página de la versión",
 "log_deep_verdict_caps": "«{title}»: el análisis dijo «{verdict}» pero puntuó {was} — bajado a {now}",
 "log_deep_unreadable": "«{title}»: el anuncio no está en inglés y no se indica la profesión — {was} bajado a {now}, sin «verificado»",
+"badge_no_visa": "sin patrocinio de visado",
+"badge_visa_ok": "visado apoyado",
 }

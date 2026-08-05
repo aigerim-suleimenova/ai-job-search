@@ -657,4 +657,6 @@ STRINGS = {
 "update_err_readonly": "Brak prawa zapisu w {where} — przenieś program do Aplikacji albo zaktualizuj go ręcznie ze strony wydania",
 "log_deep_verdict_caps": "«{title}»: analiza określiła zawód jako «{verdict}», a dała {was} — obniżono do {now}",
 "log_deep_unreadable": "«{title}»: ogłoszenie nie jest po angielsku i nie podano zawodu — {was} obniżono do {now}, bez «zweryfikowano»",
+"badge_no_visa": "bez sponsorowania wizy",
+"badge_visa_ok": "wiza wspierana",
 }

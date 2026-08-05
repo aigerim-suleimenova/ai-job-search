@@ -380,6 +380,49 @@ def location_ok(location: str, wanted: list, include_remote: bool = True) -> boo
     return False
 
 
+# Про право на работу объявления пишут словами, и почти всегда одними и теми же.
+#
+# Спрашивать об этом модель бесполезно: на прогоне Дмитрия Кириляка в профиле
+# стояло «нужно спонсорство для США и ЕС», строка попадала в запрос — и ни в
+# одном из ста девяти доводов виза не была упомянута ни разу. А для человека это
+# главное: у Виктора Белоногова двадцать шесть канадских вакансий, куда без
+# спонсорства не попасть, и узнать об этом надо до отклика, а не после.
+#
+# Порядок важен: «no visa sponsorship» содержит «visa sponsorship», поэтому
+# отказы ищем первыми.
+_НЕТ_СПОНСОРСТВА = [
+    "no sponsorship", "no visa sponsorship", "not able to sponsor", "unable to sponsor",
+    "will not sponsor", "do not sponsor", "does not sponsor", "cannot sponsor",
+    "without sponsorship", "sponsorship is not", "sponsorship not available",
+    "no relocation", "relocation is not", "must be authorized to work",
+    "must be legally authorized", "must already have", "must have the right to work",
+    "authorized to work in the united states", "us work authorization required",
+    "eu work permit required", "valid work permit required", "no work permit",
+    "keine visa", "kein sponsoring", "arbeitserlaubnis erforderlich",
+]
+_ЕСТЬ_СПОНСОРСТВО = [
+    "visa sponsorship", "we sponsor", "sponsorship available", "sponsorship provided",
+    "relocation package", "relocation support", "relocation assistance",
+    "visa support", "work permit support", "blue card", "we help with the visa",
+    "visa assistance", "umzugshilfe", "visum", "sponsoring möglich",
+]
+
+
+def visa_stance(job: dict) -> str:
+    """Что объявление говорит про право на работу: «нет», «есть» или ничего.
+
+    Ничего — самый частый ответ, и он честный: молчание не значит ни отказа, ни
+    согласия. Догадываться за работодателя мы не станем, но если он сказал —
+    человек должен это увидеть, не открывая объявления.
+    """
+    текст = f"{job.get('title', '')} {job.get('description', '')}".lower()
+    if any(ф in текст for ф in _НЕТ_СПОНСОРСТВА):
+        return "no"
+    if any(ф in текст for ф in _ЕСТЬ_СПОНСОРСТВО):
+        return "yes"
+    return ""
+
+
 def has_excluded(job: dict, exclude_terms: list) -> bool:
     """Stop words match on word boundaries, not as substrings: excluding "java"
     must not kill JavaScript, nor "go" kill Google."""
