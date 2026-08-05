@@ -439,7 +439,8 @@ def eures(cfg: dict, log) -> list:
     # Италии с Германией приезжали Норвегия с Бельгией — полсотни мест на запрос
     # уходили на страны, о которых не спрашивали. Не назвал стран или назвал «ЕС»
     # — не ограничиваем, тогда и правда нужен весь союз.
-    страны = filters.country_codes(filters.parse_locations(cfg["search"].get("locations", "")))
+    страны = filters.country_codes(filters.parse_locations(cfg["search"].get("locations", "")),
+                                   только=filters.EURES_КОДЫ)
     for term in _search_terms(cfg):
         if not term:
             continue

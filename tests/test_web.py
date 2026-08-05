@@ -326,3 +326,60 @@ def test_у_кого_все_роли_ничейные_запросы_остаю�
     from jobsearch.collectors.aggregators import _search_terms
     cfg = {"profile": {"roles": "Developer, Senior Engineer", "skills": ""}, "search": {}}
     assert _search_terms(cfg) == ["Developer", "Senior Engineer"]
+
+
+# --- Места: то, что подводило на настоящих прогонах --------------------------------
+
+МЕСТА = [
+    # (что человек написал, что стоит в вакансии, годится ли)
+    #
+    # Канада приезжала в поиск по США двадцать шесть раз за прогон: «ca» —
+    # сокращение Калифорнии — искалось простой подстрокой и находилось в
+    # «Calgary, Canada».
+    ("США, Германия, ЕС", "Calgary, Canada", False),
+    ("США, Германия, ЕС", "Ottawa, Canada", False),
+    ("США, Германия, ЕС", "Berkeley, CA", True),
+    # А Греция и Швеция приходили правильно: человек просил ЕС, они в ЕС.
+    ("США, Германия, ЕС", "Gaios, Greece", True),
+    ("США, Германия, ЕС", "Umeå, Sweden", True),
+    ("США, Германия, ЕС", "Missoula, United States", True),
+    # России в справочнике не было вовсе, и «Москва» отсеивалась у того, кто
+    # написал «Россия»: слова «россия» в строке нет, а связать их было нечем.
+    ("Россия, Омск, удалённо", "Москва", True),
+    ("Россия, Омск, удалённо", "Омск", True),
+    ("Россия, Омск, удалённо", "Novosibirsk", True),
+    # И наоборот: страна, которой нет в списках, читалась как «место не названо»,
+    # то есть «работа откуда угодно», и шла в любой поиск.
+    ("Россия, Омск, удалённо", "Kenya, Remote", False),
+    ("Россия, Омск, удалённо", "Panama, Remote", False),
+    ("Германия, ЕС", "Amman, Jordan", False),
+    ("Германия, ЕС", "Morocco, Remote", False),
+    # Настоящая удалёнка без страны — годится всем.
+    ("Россия, Омск, удалённо", "Remote", True),
+    ("Германия, Нидерланды, ЕС", "Walldorf, Germany", True),
+]
+
+
+@pytest.mark.parametrize("написал,вакансия,годится", МЕСТА)
+def test_места_из_настоящих_прогонов(написал, вакансия, годится):
+    from jobsearch import filters
+    assert filters.location_ok(вакансия, filters.parse_locations(написал), True) is годится
+
+
+def test_признак_ищется_целым_словом():
+    """Короткий признак садился внутрь длинного слова. Это и есть корень всех
+    промахов выше: «ca» в «Canada», «us» нашлось бы в «Belarus»."""
+    from jobsearch import filters
+    assert filters._есть(" berkeley, ca ", ["ca"]) is True
+    assert filters._есть(" calgary, canada ", ["ca"]) is False
+    assert filters._есть(" minsk, belarus ", ["us"]) is False
+    assert filters._есть(" austin, us ", ["us"]) is True
+
+
+def test_eures_спрашиваем_только_про_свои_страны():
+    """EURES знает тридцать одну страну. Спрашивать у него про Бразилию —
+    впустую потратить запрос, а их всего по одному на слово."""
+    from jobsearch import filters
+    места = filters.parse_locations("США, Германия, Бразилия, Нидерланды")
+    assert set(filters.country_codes(места, только=filters.EURES_КОДЫ)) == {"DE", "NL"}
+    assert set(filters.country_codes(места)) == {"US", "DE", "BR", "NL"}
