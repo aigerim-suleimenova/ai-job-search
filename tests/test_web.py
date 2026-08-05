@@ -387,3 +387,65 @@ def test_eures_спрашиваем_только_про_свои_страны():
     места = filters.parse_locations("США, Германия, Бразилия, Нидерланды")
     assert set(filters.country_codes(места, только=filters.EURES_КОДЫ)) == {"DE", "NL"}
     assert set(filters.country_codes(места)) == {"US", "DE", "BR", "NL"}
+
+
+# --- EURES спрашиваем кодами профессий, а не угаданными словами ------------------
+
+def test_роль_отображается_в_коды_справочника(monkeypatch):
+    """Поиск по словам у EURES зависит от угаданного слова, а не от смысла.
+    Померено вживую, из пятидесяти вакансий по профессии оказывалось:
+    «dressmaker» 28, «lingerie» 3, «Lingerie Pattern Maker» 1, «seamstress» 0.
+    Швея по-английски — seamstress, и по нему не находится ничего."""
+    from jobsearch.collectors import esco
+    esco.забыть()
+    monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("О", (), {
+        "status_code": 200,
+        "json": lambda s: {"_embedded": {"results": [
+            {"uri": "http://data.europa.eu/esco/occupation/aaa", "title": "dressmaker"},
+            {"uri": "http://data.europa.eu/esco/occupation/bbb", "title": "tailor"}]}},
+    })())
+    assert esco.occupations("seamstress") == [
+        "http://data.europa.eu/esco/occupation/aaa",
+        "http://data.europa.eu/esco/occupation/bbb"]
+
+
+def test_справочник_молчит_роль_не_выдумываем(monkeypatch):
+    from jobsearch.collectors import esco
+    esco.забыть()
+    monkeypatch.setattr(esco.web, "get", lambda url, **kw: (_ for _ in ()).throw(
+        esco.requests.RequestException("нет связи")))
+    assert esco.occupations("seamstress") == []
+    assert esco.occupations("") == []
+
+
+def test_eures_спрашивает_и_кодами_и_словами(monkeypatch):
+    """Коды дают плотность, слова — широту, и одно другое не заменяет: роли,
+    выписанные из резюме, отображаются в справочнике не всегда точно."""
+    from jobsearch import config
+    from jobsearch.collectors import aggregators, esco
+    esco.забыть()
+    отправленное = []
+
+    class Ответ:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"jvs": []}
+
+    monkeypatch.setattr(esco, "occupations", lambda роль, **kw: ["esco:" + роль])
+    monkeypatch.setattr(aggregators.web, "post",
+                        lambda url, **kw: отправленное.append(kw["json"]) or Ответ())
+    cfg = dict(config.DEFAULTS)
+    cfg["profile"] = {**cfg["profile"], "roles": "Швея, Портная", "skills": ""}
+    cfg["search"] = {**cfg["search"], "locations": "Германия"}
+
+    aggregators.eures(cfg, lambda *a: None)
+
+    с_кодами = [з for з in отправленное if з["occupationUris"]]
+    со_словами = [з for з in отправленное if з["keywords"]]
+    assert с_кодами, "кодами не спросили"
+    assert со_словами, "словами не спросили"
+    assert с_кодами[0]["keywords"] == [], "коды и слова смешались в одном запросе"

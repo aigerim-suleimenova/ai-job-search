@@ -457,16 +457,34 @@ def eures(cfg: dict, log) -> list:
     # — не ограничиваем, тогда и правда нужен весь союз.
     страны = filters.country_codes(filters.parse_locations(cfg["search"].get("locations", "")),
                                    только=filters.EURES_КОДЫ)
-    for term in _search_terms(cfg):
-        if not term:
-            continue
+    слова = _search_terms(cfg)
+    # Сперва переводим роли в коды профессий справочника и спрашиваем ими.
+    # Поиск по словам у EURES зависит от угаданного слова, а не от смысла: на
+    # «dressmaker» приходит 28 подходящих из 50, на «seamstress» — ни одной, на
+    # «Lingerie Pattern Maker» — одна. Роли же программа выписывает из резюме
+    # длинными, и по ним не находится ничего. С кодами на том же запросе стало
+    # 29 из 50. Не нашлось кодов — спрашиваем словами, как прежде.
+    коды = []
+    for term in слова[:4]:
+        for uri in esco.occupations(term):
+            if uri not in коды:
+                коды.append(uri)
+    # Спрашиваем и так, и так: коды дают плотность, слова — широту. Одно другое
+    # не заменяет. Роли, выписанные из резюме, отображаются в справочнике не
+    # всегда точно: «Lingerie Pattern Maker» ведёт к обувным и литейным
+    # профессиям, потому что швейного конструктора белья в справочнике нет
+    # вовсе, — зато по слову «lingerie» кое-что находится.
+    запросы = ([([], коды)] if коды else []) + \
+              [([{"keyword": t, "specificSearchCode": "EVERYWHERE"}], []) for t in слова if t]
+    for ключи, occ in запросы:
+        term = ключи[0]["keyword"] if ключи else "по справочнику"
         try:
             r = web.post(
                 "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search",
                 json={
                     "resultsPerPage": 50, "page": 1, "sortSearch": "MOST_RECENT",
-                    "keywords": [{"keyword": term, "specificSearchCode": "EVERYWHERE"}],
-                    "occupationUris": [], "skillUris": [], "requiredExperienceCodes": [],
+                    "keywords": ключи,
+                    "occupationUris": occ, "skillUris": [], "requiredExperienceCodes": [],
                     "positionScheduleCodes": [], "sectorCodes": [],
                     "educationAndQualificationLevelCodes": [], "positionOfferingCodes": [],
                     "locationCodes": страны, "euresFlagCodes": [], "otherBenefitsCodes": [],
