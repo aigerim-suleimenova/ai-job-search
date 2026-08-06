@@ -43,48 +43,49 @@ def _host(url: str) -> str:
 
 
 class Refused(requests.RequestException):
-    """Адрес, по которому мы не пойдём."""
+    """An address we will not go to."""
 
 
 MAX_HOPS = 5
 
 
 def check(url: str) -> None:
-    """Пускать ли нас по этому адресу вообще.
+    """Whether we may go to this address at all.
 
-    Ходим мы не только туда, куда человек попросил. Работодатели попадают в
-    список по ссылкам внутри уже собранных вакансий, а вакансии эти пишет кто
-    угодно. Ссылка на http://127.0.0.1:11434 или на 169.254.169.254 — это
-    просьба сходить внутрь машины, где стоит программа, и принести оттуда то,
-    до чего снаружи не дотянуться: ответ локальной Ollama, ключи облачной
-    учётки. Программа это делала, потому что ходила по любому адресу.
+    We do not only go where the person asked. Employers land in the list through
+    links inside jobs already collected, and those jobs are written by anyone at
+    all. A link to http://127.0.0.1:11434 or to 169.254.169.254 is a request to
+    step inside the machine the program runs on and fetch what cannot be reached
+    from outside: the answer of a local Ollama, the keys of a cloud account. The
+    program used to do it, because it went to any address given.
 
-    Схемы, кроме http и https, отсекаются заодно: file:// и подавно не для
-    сбора вакансий.
+    Schemes other than http and https are cut off along the way: file:// is
+    certainly not for collecting jobs.
 
-    Чего это не закрывает: имя можно перерешить между нашей проверкой и самим
-    запросом — мы спрашиваем адрес у DNS, а requests потом спрашивает ещё раз.
-    Закрыть щель до конца можно, только приколотив найденный адрес к соединению;
-    пока не приколочено, и писать, будто закрыто, нельзя.
+    What this does not close: the name can be resolved again between our check
+    and the request itself — we ask DNS for the address, and requests then asks
+    a second time. Closing the gap completely means pinning the resolved address
+    to the connection; until it is pinned, we must not write as though it were.
     """
     parts = urlparse(url)
     if parts.scheme not in ("http", "https"):
-        raise Refused(f"схема {parts.scheme or '—'} не для сбора вакансий")
+        raise Refused(f"scheme {parts.scheme or '—'} is not for collecting jobs")
     host = parts.hostname
     if not host:
-        raise Refused("в адресе нет хоста")
+        raise Refused("the address has no host")
     try:
-        адреса = socket.getaddrinfo(host, parts.port or (443 if parts.scheme == "https" else 80),
-                                    proto=socket.IPPROTO_TCP)
+        addresses = socket.getaddrinfo(host, parts.port or (443 if parts.scheme == "https" else 80),
+                                       proto=socket.IPPROTO_TCP)
     except socket.gaierror as e:
-        raise Refused(f"имя {host} не нашлось") from e
-    for *_, sockaddr in адреса:
+        raise Refused(f"the name {host} did not resolve") from e
+    for *_, sockaddr in addresses:
         ip = ipaddress.ip_address(sockaddr[0])
-        # is_global разом отсекает петлю, частные сети, link-local (а с ним и
-        # 169.254.169.254, откуда облака отдают ключи), зарезервированное и
-        # многоадресное. Перечислять диапазоны руками значило бы однажды забыть один.
+        # is_global cuts off, in one go, the loopback, private networks,
+        # link-local (and with it 169.254.169.254, where clouds hand out keys),
+        # reserved and multicast. Listing the ranges by hand would mean forgetting
+        # one of them some day.
         if not ip.is_global:
-            raise Refused(f"{host} ведёт внутрь машины или сети ({ip})")
+            raise Refused(f"{host} leads inside the machine or the network ({ip})")
 
 
 def _wait_turn(host: str, delay: float) -> None:
@@ -108,11 +109,11 @@ def _robots_for(host: str, scheme: str = "https"):
     parser = None
     delay = None
     try:
-        # robots.txt берётся у того же хоста и той же проверкой: спросить «а можно
-        # к вам?» у 127.0.0.1 — это уже сходить к 127.0.0.1.
-        адрес = f"{scheme}://{host}/robots.txt"
-        check(адрес)
-        r = net.get(адрес, headers=UA, timeout=ROBOTS_TIMEOUT)
+        # robots.txt is fetched from the same host and through the same check:
+        # asking 127.0.0.1 "may we come in?" is already a trip to 127.0.0.1.
+        address = f"{scheme}://{host}/robots.txt"
+        check(address)
+        r = net.get(address, headers=UA, timeout=ROBOTS_TIMEOUT)
         if r.status_code == 200 and len(r.text) < 500_000:
             parser = RobotFileParser()
             parser.parse(r.text.splitlines())
@@ -147,10 +148,11 @@ def allowed(url: str) -> bool:
 
 
 def post(url: str, **kw):
-    """POST с теми же правилами, что и GET: пауза, честное имя, проверка адреса.
+    """A POST under the same rules as GET: the pause, the honest name, the address
+    check.
 
-    Нужен одному источнику — общеевропейскому EURES, который принимает запрос
-    только телом. Переходов у него не бывает, поэтому и вести их тут нечего.
+    One source needs it — the Europe-wide EURES, which takes the query only in
+    the body. It never redirects, so there is nothing to follow here.
     """
     check(url)
     host = _host(url)
@@ -164,9 +166,10 @@ def get(url: str, *, respect_robots: bool = False, **kw):
     """A GET with the pause and the honest name. respect_robots=True is for ordinary
     sites; when forbidden it returns None rather than raising.
 
-    Переходы ведём сами, по одному. Иначе проверка адреса стоила бы ровно
-    ничего: сайт отвечает «идите на http://127.0.0.1», requests послушно идёт, и
-    первый — единственный проверенный — адрес оказывается ни при чём.
+    We follow redirects ourselves, one at a time. Otherwise the address check
+    would be worth exactly nothing: the site answers "go to http://127.0.0.1",
+    requests obediently goes, and the first address — the only checked one —
+    turns out to be beside the point.
     """
     if respect_robots and not allowed(url):
         return None
@@ -179,9 +182,9 @@ def get(url: str, *, respect_robots: bool = False, **kw):
         _, robots_delay = _robots.get(host, (None, None))
         _wait_turn(host, max(DELAY, float(robots_delay or 0)))
         r = net.get(url, headers=headers, timeout=timeout, allow_redirects=False, **kw)
-        куда = r.headers.get("location", "")
-        if r.status_code not in (301, 302, 303, 307, 308) or not куда:
+        where = r.headers.get("location", "")
+        if r.status_code not in (301, 302, 303, 307, 308) or not where:
             return r
-        r.close()          # тело перехода нам не нужно, а соединение освободить надо
-        url = urljoin(url, куда)
-    raise Refused(f"переходов больше {MAX_HOPS} — похоже на кольцо")
+        r.close()          # we do not need the redirect body, but the connection must go back
+        url = urljoin(url, where)
+    raise Refused(f"more than {MAX_HOPS} redirects — this looks like a loop")

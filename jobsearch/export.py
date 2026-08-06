@@ -36,49 +36,52 @@ def to_csv(jobs: list) -> str:
 
 
 def to_markdown(jobs: list, candidate: str, when: str, min_score: int, note: str = "") -> str:
-    """Тот же отчёт разметкой. Её можно вставить куда угодно — в заметки, в
-    письмо, в переписку — и она останется читаемой даже там, где разметку не
-    понимают."""
-    строки = [f"# Подходящие вакансии — {candidate}", "",
-              f"{when} · вакансий: {len(jobs)}"
-              + (f" · {note}" if note else f" · оценка ≥ {min_score}%"), ""]
+    """The same report as markup. It can be pasted anywhere — into notes, into a
+    letter, into a chat — and stays readable even where the markup is not
+    understood.
+
+    In English, like the CSV above it: neither export goes through i18n, and two
+    exports out of one module should not speak two different languages."""
+    lines = [f"# Matching jobs — {candidate}", "",
+             f"{when} · jobs: {len(jobs)}"
+             + (f" · {note}" if note else f" · score ≥ {min_score}%"), ""]
     for j in jobs:
         a = _advice(j)
-        назв = j.get("title") or "—"
-        строки.append(f"## {j.get('score', '—')}% · "
-                      + (f"[{назв}]({j['url']})" if j.get("url") else назв))
-        хвост = " · ".join(x for x in (j.get("company"), j.get("location"),
-                                       j.get("posted_at"),
-                                       "проверено" if j.get("verified") else "предварительно") if x)
-        строки += [f"*{хвост}*", ""]
+        title = j.get("title") or "—"
+        lines.append(f"## {j.get('score', '—')}% · "
+                     + (f"[{title}]({j['url']})" if j.get("url") else title))
+        tail = " · ".join(x for x in (j.get("company"), j.get("location"),
+                                      j.get("posted_at"),
+                                      "verified" if j.get("verified") else "preliminary") if x)
+        lines += [f"*{tail}*", ""]
         if j.get("reason"):
-            строки += [j["reason"], ""]
+            lines += [j["reason"], ""]
         if a.get("salary_estimate"):
-            строки += [f"**Зарплата:** {a['salary_estimate']}", ""]
-        for заголовок, ключ in (("Правки в CV", "cv_changes"),
-                                ("Правки в LinkedIn", "linkedin_changes")):
-            if a.get(ключ):
-                строки.append(f"**{заголовок}:**")
-                строки += [f"- {c}" for c in a[ключ]]
-                строки.append("")
+            lines += [f"**Salary:** {a['salary_estimate']}", ""]
+        for heading, key in (("CV changes", "cv_changes"),
+                             ("LinkedIn changes", "linkedin_changes")):
+            if a.get(key):
+                lines.append(f"**{heading}:**")
+                lines += [f"- {c}" for c in a[key]]
+                lines.append("")
         if a.get("cover_hint"):
-            строки += [f"**В отклике:** {a['cover_hint']}", ""]
+            lines += [f"**In the cover letter:** {a['cover_hint']}", ""]
     if not jobs:
-        строки.append("Показывать нечего.")
-    return "\n".join(строки)
+        lines.append("Nothing to show.")
+    return "\n".join(lines)
 
 
 def to_json(jobs: list, candidate: str, when: str, min_score: int, note: str = "") -> str:
-    """Для тех, кто хочет обработать выгрузку своей программой.
+    """For anyone who wants to process the export with their own program.
 
-    Советы разворачиваются из строки в настоящие поля: в базе они лежат текстом
-    с JSON внутри, и отдавать наружу текст, который надо разбирать второй раз,
-    значило бы перекладывать нашу работу на человека.
+    The advice is unpacked from a string into real fields: in the database it
+    sits as text with JSON inside, and handing out text that has to be parsed a
+    second time would be shifting our work onto the person.
     """
-    наружу = []
+    out = []
     for j in jobs:
         a = _advice(j)
-        наружу.append({
+        out.append({
             "score": j.get("score"),
             "verified": bool(j.get("verified")),
             "title": j.get("title", ""),
@@ -97,7 +100,7 @@ def to_json(jobs: list, candidate: str, when: str, min_score: int, note: str = "
         })
     return json.dumps({"candidate": candidate, "generated": when,
                        "min_score": min_score, "note": note,
-                       "count": len(наружу), "jobs": наружу},
+                       "count": len(out), "jobs": out},
                       ensure_ascii=False, indent=2)
 
 
@@ -153,9 +156,9 @@ def to_html(jobs: list, candidate: str, when: str, min_score: int, note: str = "
 </style></head><body>
 <h1>Job matches — {_e(candidate)}</h1>
 <p class="sub">Generated {_e(when)} · {len(jobs)} jobs{f" · {_e(note)}" if note else f" with score ≥ {min_score}%"}</p>
-<!-- Кнопка, а не совет искать печать в меню браузера. PDF из этой страницы и
-     получается — «сохранить как PDF» стоит в том же окне печати. Сама кнопка при
-     печати не видна: ей на бумаге делать нечего. -->
+<!-- A button, not advice to go hunting for print in the browser menu. The PDF
+     comes out of this very page — "save as PDF" sits in that same print dialog.
+     The button itself is invisible when printing: it has no business on paper. -->
 <p class="noprint"><button onclick="window.print()">{_e(print_label)}</button></p>
 {"".join(rows) or "<p>No jobs to show.</p>"}
 </body></html>"""
