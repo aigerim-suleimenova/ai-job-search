@@ -38,19 +38,20 @@ API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES = f"https://github.com/{REPO}/releases"
 DOWNLOAD_PREFIX = f"https://github.com/{REPO}/releases/download/"
 _DOWNLOAD_PATH = f"/{REPO}/releases/download/"
-# Больше файла всё равно не бывает, а место на диске занимать нечем.
+# No file we hand out is ever bigger, and there is nothing to fill a disk with.
 MAX_DOWNLOAD = 400 * 1024 * 1024
 
 
 def _is_our_download(url: str) -> bool:
-    """Ведёт ли адрес в выпуски именно этого репозитория.
+    """Whether the address leads into the releases of this repository and no other.
 
-    Сравнивать началом строки нельзя, и это была настоящая ошибка, а не
-    осторожность: requests схлопывает «..» уже ПОСЛЕ такой проверки, поэтому
-    .../ai-job-search/releases/download/../../../evilcorp/evil/... начало
-    проходило, а запрос уходил в чужой репозиторий. Адрес сначала приводится к
-    тому виду, в котором его увидит сеть, и лишь потом сверяется — и по частям,
-    а не по буквам: имя узла отдельно, путь отдельно.
+    Comparing by the start of the string will not do, and that was a real bug
+    rather than caution: requests collapses ".." only AFTER such a check, so
+    .../ai-job-search/releases/download/../../../evilcorp/evil/... passed the
+    prefix test while the request went off to somebody else's repository. The
+    address is first brought to the form the network will see, and only then
+    compared — and in parts rather than in letters: the host separately, the path
+    separately.
     """
     parsed = urlparse(url)
     if parsed.scheme != "https" or (parsed.hostname or "").lower() != "github.com":
@@ -58,7 +59,7 @@ def _is_our_download(url: str) -> bool:
     path = posixpath.normpath(unquote(parsed.path))
     return path.startswith(_DOWNLOAD_PATH) and len(path) > len(_DOWNLOAD_PATH)
 
-CHECK_EVERY = 24 * 3600      # чаще незачем: релизы выходят не по часам
+CHECK_EVERY = 24 * 3600      # no point more often: releases do not come out hourly
 
 
 def _numbers(text: str) -> tuple:
@@ -82,23 +83,24 @@ def _asset_for_this_os(assets: list) -> dict:
     """The file this computer can actually install.
 
     On Windows that is the installer: it puts the new version over the old one,
-    with no uninstalling first. On macOS — the disk image: внутри лежит готовый
-    пакет .app, и подставить его вместо старого мы умеем сами (см. install).
+    with no uninstalling first. On macOS — the disk image: a ready .app bundle
+    sits inside it, and swapping it in for the old one is something we can do
+    ourselves (see install).
 
-    Linux остаётся за страницей выпуска: там архив, который человек распаковал
-    туда, куда захотел, и угадывать это место — значит однажды не угадать и
-    затереть чужое.
+    Linux stays behind the release page: there it is an archive the person
+    unpacked wherever they wanted, and guessing that place means guessing wrong
+    one day and overwriting somebody else's files.
     """
     system = platform.system()
-    хвост = {"Windows": "setup.exe", "Darwin": ".dmg"}.get(system)
-    if not хвост:
+    suffix = {"Windows": "setup.exe", "Darwin": ".dmg"}.get(system)
+    if not suffix:
         return {}
     for a in assets:
         name = str(a.get("name", ""))
         url = str(a.get("browser_download_url", ""))
-        if name.lower().endswith(хвост) and _is_our_download(url):
+        if name.lower().endswith(suffix) and _is_our_download(url):
             return {"name": name, "url": url, "size": int(a.get("size") or 0),
-                    # чем сверить скачанное; GitHub присылает "sha256:<hex>"
+                    # what to check the download against; GitHub sends "sha256:<hex>"
                     "digest": str(a.get("digest") or "")}
     return {}
 
@@ -125,11 +127,12 @@ def fetch_latest() -> dict:
 def state() -> dict:
     """What the last check found — read by the pages, which never wait on the network.
 
-    Сверяется с установленной версией при каждом чтении, а не только в час
-    опроса. Иначе выходит так: программа нашла новую версию и записала это,
-    человек её поставил — а запись пережила установку (данные лежат отдельно) и
-    ещё сутки предлагала обновиться до того, что уже стоит. «Вышла версия
-    0.8.20 — у вас 0.8.20», и кнопка «Обновить» рядом.
+    Checked against the installed version on every read, not only at the hour of
+    asking. Otherwise this happens: the program found a new version and wrote it
+    down, the person installed it — and the note outlived the install (the data
+    lives separately) and went on offering an update to what was already there
+    for another day. "Version 0.8.20 is out — you have 0.8.20", with an "Update"
+    button beside it.
     """
     saved = appstate.load().get("update") or {}
     if is_newer(saved.get("version", ""), version.current()):
@@ -155,22 +158,23 @@ def check(force: bool = False) -> dict:
 
 
 def due() -> bool:
-    """Пора ли спрашивать заново."""
-    было = (appstate.load().get("update") or {}).get("checked_at")
-    return not было or time.time() - было >= CHECK_EVERY
+    """Whether it is time to ask again."""
+    last = (appstate.load().get("update") or {}).get("checked_at")
+    return not last or time.time() - last >= CHECK_EVERY
 
 
 def check_in_background() -> None:
     """A check must never hold up the program starting, nor a page being drawn.
 
-    Спрашиваем не только при запуске. Раньше — только при нём, и выходило вот
-    что: человек открыл программу утром, днём вышла новая версия, а он о ней не
-    узнал, потому что программа больше не спрашивала. А закрывать её незачем —
-    у неё фоновый режим и расписание, она и должна стоять открытой сутками.
+    We ask not only at startup. It used to be only then, and this is what came of
+    it: a person opened the program in the morning, a new version came out during
+    the day, and they never learned of it because the program did not ask again.
+    And there is no reason to close it — it has a background mode and a schedule,
+    it is meant to stand open for days.
 
-    Отдельного расписания для этого не нужно: сама check() спрашивает не чаще
-    раза в сутки, а здесь мы лишь не заводим поток впустую, когда срок ещё не
-    вышел. Иначе на каждую отрисовку страницы приходился бы свой.
+    No separate schedule is needed for this: check() itself asks no more than
+    once a day, and all we do here is not start a thread for nothing while the
+    time has not come. Otherwise every page draw would get one of its own.
     """
     if not due():
         return
@@ -180,7 +184,7 @@ def check_in_background() -> None:
 def _quietly(fn) -> None:
     try:
         fn()
-    except Exception:  # noqa: BLE001 — не узнать про обновление не беда
+    except Exception:  # noqa: BLE001 — not learning about an update is no disaster
         pass
 
 
@@ -208,9 +212,9 @@ def download(asset: dict, progress=None) -> Path:
     url = str((asset or {}).get("url") or "")
     if not _is_our_download(url):
         raise UpdateError("update_err_bad_url")
-    # Имя файла тоже пришло снаружи. Берётся только последняя часть пути, и в ней
-    # остаются лишь безобидные знаки: скачанное должно лечь в нашу временную папку
-    # и никуда больше — что бы в ответе ни было написано.
+    # The file name came from outside too. Only the last part of the path is
+    # taken, and only harmless characters are left in it: the download must land
+    # in our temporary folder and nowhere else — whatever the response says.
     tail = re.split(r"[\\/]", str(asset.get("name") or ""))[-1]
     safe = re.sub(r"[^\w.-]", "_", tail).lstrip(".") or "setup.exe"
     target = Path(tempfile.mkdtemp(prefix="aijs-update-")) / safe
@@ -240,7 +244,7 @@ def download(asset: dict, progress=None) -> Path:
         raise
 
     if expected_size and done != expected_size:
-        target.unlink(missing_ok=True)      # обрыв связи оставлял огрызок, и он запускался
+        target.unlink(missing_ok=True)      # a dropped connection left a stub, and it ran
         raise UpdateError("update_err_broken")
     if expected_hash.startswith("sha256:") and sha.hexdigest() != expected_hash[7:].lower():
         target.unlink(missing_ok=True)
@@ -248,19 +252,21 @@ def download(asset: dict, progress=None) -> Path:
     return target
 
 
-# Подставляет новую копию вместо старой. Отдельным сценарием, а не из самой
-# программы, потому что программа в это время закрывается: заменить пакет, пока
-# он открыт, нельзя, а дождаться собственного закрытия изнутри — тем более.
+# Puts the new copy in place of the old one. As a separate script rather than
+# from the program itself, because the program is closing at that moment:
+# replacing a bundle while it is open is impossible, and waiting out your own
+# shutdown from inside even more so.
 _MAC_SWAP = r"""#!/bin/sh
 set -u
 dmg="$1"; target="$2"; pid="$3"
 
-# Ждём, пока старая копия уйдёт. Не дождались за двадцать секунд — не трогаем
-# ничего: подменить работающую программу под собой хуже, чем не обновиться.
+# Wait for the old copy to go. If it has not gone in twenty seconds, touch
+# nothing: swapping a running program out from under itself is worse than not
+# updating at all.
 #
-# Одного kill -0 мало: закончившийся процесс отвечает на него «жив», пока его не
-# похоронит родитель. Такой процесс уже ничего не держит открытым — для нас он
-# ушёл, и ждать его не нужно.
+# kill -0 alone is not enough: a finished process still answers it with "alive"
+# until its parent buries it. Such a process holds nothing open any more — as far
+# as we are concerned it has gone, and there is no need to wait for it.
 n=0
 while kill -0 "$pid" 2>/dev/null; do
   case "$(ps -o stat= -p "$pid" 2>/dev/null)" in Z*) break ;; esac
@@ -272,18 +278,19 @@ done
 mnt="$(mktemp -d)"
 hdiutil attach -nobrowse -readonly -quiet -mountpoint "$mnt" "$dmg" || exit 1
 
-# Имя пакета внутри образа не угадываем — берём тот, что там лежит.
+# We do not guess the bundle's name inside the image — we take the one lying there.
 src=""
 for p in "$mnt"/*.app; do [ -d "$p" ] && src="$p"; done
 if [ -z "$src" ]; then hdiutil detach "$mnt" -quiet -force; exit 1; fi
 
-# Сначала уводим старую копию в сторону и только потом кладём новую. Оборвись
-# копирование на середине — старую вернём, и человек останется с работающей
-# программой, а не с половиной пакета, которая не запускается.
+# First we move the old copy aside, and only then put the new one down. Should
+# the copy break off halfway, the old one comes back and the person is left with
+# a working program rather than half a bundle that will not start.
 old="$(dirname "$target")/.$(basename "$target").old"
 rm -rf "$old"
 if mv "$target" "$old"; then
-  # ditto, а не cp: он один переносит пакет как есть — права, ссылки, подпись.
+  # ditto, not cp: it alone carries the bundle across as it is — permissions,
+  # symlinks, signature.
   if ditto "$src" "$target"; then
     rm -rf "$old"
   else
@@ -303,18 +310,18 @@ def install(path: Path) -> None:
     """Hands the downloaded update over and steps aside.
 
     Neither system can replace files that are open, so the program has to go
-    first. Что запускается вместо неё, зависит от системы, но порядок один:
-    открепиться, дождаться нашего ухода, заменить, открыть новую копию.
+    first. What runs in its place depends on the system, but the order is always
+    the same: detach, wait for us to go, replace, open the new copy.
 
     Windows: /RELAUNCH is our own flag and the installer looks for it. A silent
     install started by somebody's script should not throw a window on the
     screen, but an update the person asked for must give them their program
     back. Without it they would press "Update" and be left with nothing.
 
-    macOS: обновления не было вовсе — там показывали «ставится вручную», хотя
-    внутри образа лежит готовый пакет и подставить его несложно. Право на запись
-    проверяем здесь, до закрытия программы: иначе она просто исчезла бы с
-    экрана, а обновление молча не случилось бы.
+    macOS: there was no update at all — it said "install by hand", even though a
+    ready bundle sits inside the image and swapping it in is not hard. We check
+    for write permission here, before closing the program: otherwise it would
+    simply vanish from the screen and the update would silently fail to happen.
     """
     system = platform.system()
     if system == "Windows":
@@ -332,8 +339,9 @@ def install(path: Path) -> None:
 def _install_macos(image: Path) -> None:
     bundle = removal.program_path()
     if not bundle.endswith(".app") or not os.path.isdir(bundle):
-        raise UpdateError("update_err_manual")      # запуск из исходников
-    # Менять надо и сам пакет, и папку вокруг него: подстановка идёт через mv.
+        raise UpdateError("update_err_manual")      # running from source
+    # Both the bundle and the folder around it have to be writable: the swap goes
+    # through mv.
     if not (os.access(bundle, os.W_OK) and os.access(os.path.dirname(bundle), os.W_OK)):
         raise UpdateError("update_err_readonly", where=bundle)
     script = image.parent / "swap.sh"
@@ -348,8 +356,9 @@ def quit_soon(seconds: float = 1.5) -> None:
     """Leaves the page time to reach the browser before the program closes."""
     def later():
         time.sleep(seconds)
-        # os._exit, а не sys.exit: работа уже передана установщику, и ждать, пока
-        # догорят фоновые потоки, незачем — установщик всё равно их дождаться не сможет
+        # os._exit, not sys.exit: the work has already been handed to the
+        # installer, and waiting for background threads to burn out serves
+        # nothing — the installer cannot wait for them anyway
         os._exit(0)
 
     threading.Thread(target=later, daemon=True).start()
