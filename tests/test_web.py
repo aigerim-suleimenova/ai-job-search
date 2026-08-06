@@ -566,8 +566,38 @@ def test_профессии_по_навыкам(monkeypatch):
 
     monkeypatch.setattr(esco.web, "get", подделка)
     вышло = esco.occupations_by_skills(["CSS"])
-    assert вышло[0] == "esco:web-developer", "обязательный навык должен весить больше"
-    assert "esco:webmaster" in вышло
+    assert set(вышло) == {"esco:web-developer", "esco:webmaster"}
+
+
+def test_обязательные_и_желательные_связи_весят_поровну(monkeypatch):
+    """Сперва обязательные весили втрое, и вышло скверно: «JavaScript» в
+    справочнике обязателен ровно для двух профессий — оператора станка с ЧПУ и
+    оператора САПР, — а для web developer он лишь желательный, один из
+    полусотни. Две причуды перевешивали полсотни осмысленных связей, и охранник,
+    выучивший вёрстку, получал станок с ЧПУ."""
+    from jobsearch.collectors import esco
+    esco.забыть()
+    СВЯЗИ = {
+        "esco:js": {"isEssentialForOccupation": [{"uri": "станок", "title": "CNC"}],
+                    "isOptionalForOccupation": [{"uri": "веб", "title": "web developer"}]},
+        "esco:css": {"isEssentialForOccupation": [],
+                     "isOptionalForOccupation": [{"uri": "веб", "title": "web developer"}]},
+    }
+    найдено = {"JavaScript": "esco:js", "CSS": "esco:css"}
+
+    def подделка(url, **kw):
+        if "/resource/skill" in url:
+            uri = "esco:js" if "esco%3Ajs" in url or "esco:js" in url else "esco:css"
+            тело = {"_links": СВЯЗИ[uri]}
+        else:
+            слово = "JavaScript" if "JavaScript" in url else "CSS"
+            тело = {"_embedded": {"results": [{"uri": найдено[слово], "title": слово}]}}
+        return type("О", (), {"status_code": 200, "json": lambda s: тело})()
+
+    monkeypatch.setattr(esco.web, "get", подделка)
+    вышло = esco.occupations_by_skills(["JavaScript", "CSS"])
+
+    assert вышло[0] == "веб", "профессия, нужная обоим навыкам, должна быть первой"
 
 
 def test_нераспознанный_навык_ничего_не_приносит(monkeypatch):

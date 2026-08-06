@@ -174,8 +174,21 @@ def occupations_by_skills(навыки: list, сколько: int = 3, lang: str
     называет web developer, webmaster, digital media designer. Ни одного вопроса
     человеку не задано.
 
-    Считаем грубо: обязательный навык — три очка, желательный — одно. Долю
-    закрытых навыков я тоже пробовал, и она оказалась хуже: побеждают
+    Считаем просто: сколько навыков человека профессии вообще нужны. Обязательные
+    и желательные весят одинаково, и это померено на семи случаях.
+
+    Сперва обязательные весили втрое, и вышло скверно: «JavaScript» в справочнике
+    обязателен ровно для двух профессий — оператора станка с ЧПУ и оператора
+    САПР, — а для web developer он лишь желательный, один из полусотни. Две
+    причуды справочника перевешивали полсотни осмысленных связей, и охранник,
+    выучивший вёрстку, получал станок с ЧПУ.
+
+    Уравняв веса, из трёх верхних верными стали 14 из 21 против 11. Ни один
+    случай не ухудшился, три улучшились: у охранника наверх вышли digital media
+    designer и user interface developer, у фронтендера — web developer, а у
+    адвоката появился «lawyer», которого до того не было вовсе.
+
+    Долю закрытых навыков я тоже пробовал, и она оказалась хуже всех: побеждают
     профессии, у которых навыков в списке мало, и наверх лезут «movie
     distributor» и «tanning consultant».
 
@@ -195,10 +208,9 @@ def occupations_by_skills(навыки: list, сколько: int = 3, lang: str
             если = r.json().get("_links", {}) if r is not None and r.status_code == 200 else {}
         except (requests.RequestException, ValueError, AttributeError):
             continue
-        for о in (если.get("isEssentialForOccupation") or []):
-            очки[str(о.get("uri"))] = очки.get(str(о.get("uri")), 0) + 3
-        for о in (если.get("isOptionalForOccupation") or []):
-            очки[str(о.get("uri"))] = очки.get(str(о.get("uri")), 0) + 1
+        for ключ in ("isEssentialForOccupation", "isOptionalForOccupation"):
+            for о in (если.get(ключ) or []):
+                очки[str(о.get("uri"))] = очки.get(str(о.get("uri")), 0) + 1
     лучшие = sorted(очки.items(), key=lambda x: -x[1])[:сколько]
     return [u for u, _ in лучшие if u]
 
