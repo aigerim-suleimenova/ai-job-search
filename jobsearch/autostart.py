@@ -156,4 +156,7 @@ def set_enabled(on: bool) -> str:
         enable() if on else disable()
         return ""
     except Exception as e:  # noqa: BLE001
-        return f"Не удалось изменить автозапуск: {e}"
+        # Not a translation key, unlike the branch above: the exception text has
+        # nowhere to go in a key, and English is what an unknown key falls back
+        # to anyway.
+        return f"Could not change starting at login: {e}"

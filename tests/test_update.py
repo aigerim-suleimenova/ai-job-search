@@ -374,7 +374,7 @@ def test_при_перехвате_соединений_переходим_на_
     import requests
 
     from jobsearch import net
-    net.забыть()
+    net.forget()
     пошло_через = []
 
     class Ответ:
@@ -394,33 +394,33 @@ def test_при_перехвате_соединений_переходим_на_
             return Ответ()
 
     monkeypatch.setattr(net.requests, "get", обычный)
-    monkeypatch.setattr(net, "_сессия_системы", lambda: Сессия())
+    monkeypatch.setattr(net, "_system_session", lambda: Сессия())
 
     assert net.get("https://api.github.com/x").json() == {"ok": True}
     assert пошло_через == ["свой набор", "хранилище системы"]
-    assert net.через_хранилище_системы() is True
+    assert net.using_system_store() is True
 
     # и дальше ходим сразу туда: второй попытки на каждый запрос не надо
     пошло_через.clear()
     net.get("https://api.github.com/y")
     assert пошло_через == ["хранилище системы"]
-    net.забыть()
+    net.forget()
 
 
 def test_без_перехвата_ничего_не_меняется(monkeypatch):
     """У кого соединения не проверяют — для того всё как было."""
     from jobsearch import net
-    net.забыть()
+    net.forget()
     звали = []
 
     monkeypatch.setattr(net.requests, "get",
                         lambda url, **kw: звали.append(url) or "ответ")
-    monkeypatch.setattr(net, "_сессия_системы",
+    monkeypatch.setattr(net, "_system_session",
                         lambda: (_ for _ in ()).throw(AssertionError("зря полезли в хранилище")))
 
     assert net.get("https://example.com") == "ответ"
-    assert net.через_хранилище_системы() is False
-    net.забыть()
+    assert net.using_system_store() is False
+    net.forget()
 
 
 def test_другие_беды_сети_на_хранилище_не_списываются(monkeypatch):
@@ -429,15 +429,15 @@ def test_другие_беды_сети_на_хранилище_не_списы�
     import requests
 
     from jobsearch import net
-    net.забыть()
+    net.forget()
     monkeypatch.setattr(net.requests, "get",
                         lambda url, **kw: (_ for _ in ()).throw(
                             requests.exceptions.ConnectionError("нет связи")))
 
     with pytest.raises(requests.exceptions.ConnectionError):
         net.get("https://example.com")
-    assert net.через_хранилище_системы() is False
-    net.забыть()
+    assert net.using_system_store() is False
+    net.forget()
 
 
 # --- Когда спрашиваем про новую версию -------------------------------------------
