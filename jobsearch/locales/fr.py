@@ -665,4 +665,7 @@ STRINGS = {
 "log_profile_unparsed_fix": "Ouvrez « Paramètres de recherche » et saisissez les postes et compétences à la main — ou appuyez à nouveau sur « Remplir les champs vides depuis le CV »",
 "log_quote_not_found": "« {title} » : la raison s'appuie sur « {quote} », absent du CV — sans « vérifié »",
 "log_advice_dropped": "conseil écarté — il propose quelque chose qui n'est pas dans le CV : « {advice} »",
+"same_role_elsewhere": "le même poste chez cet employeur dans {n} autres lieux :",
+"regulated_warning": "Votre profession est réglementée : à l'étranger, l'expérience seule ne suffit pas — le diplôme et le droit d'exercer doivent généralement être reconnus, parfois avec un examen local. Les offres ci-dessous correspondent au métier, mais vérifiez d'abord si chacune vous est réellement accessible.",
+"regulated_link": "Base de données de l'UE des professions réglementées — ce qu'exige le pays concerné",
 }

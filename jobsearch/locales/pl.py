@@ -665,4 +665,7 @@ STRINGS = {
 "log_profile_unparsed_fix": "Otwórz «Ustawienia wyszukiwania» i wpisz stanowiska oraz umiejętności ręcznie — albo naciśnij ponownie «Wypełnij puste pola z CV»",
 "log_quote_not_found": "«{title}»: uzasadnienie opiera się na «{quote}», czego w CV nie ma — bez «zweryfikowano»",
 "log_advice_dropped": "rada odrzucona — proponuje coś, czego w CV nie ma: «{advice}»",
+"same_role_elsewhere": "to samo stanowisko u tego pracodawcy w {n} innych miejscach:",
+"regulated_warning": "Twój zawód jest regulowany: w innym kraju samo doświadczenie nie wystarczy — dyplom i prawo wykonywania zawodu zwykle trzeba uznać, czasem zdać miejscowy egzamin. Poniższe oferty pasują do zawodu, ale sprawdź wcześniej, czy każda jest dla Ciebie za granicą dostępna.",
+"regulated_link": "Baza UE zawodów regulowanych — czego wymaga dany kraj",
 }

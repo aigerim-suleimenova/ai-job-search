@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from jobsearch import (appstate, autostart, config, coverage as coverage_check,
+from jobsearch import (appstate, autostart, config, coverage as coverage_check, filters,
                        cvcheck, db, discovery, export as export_mod, hardware, i18n,
                        llm, mailer, notify, pipeline, profiles, providers, removal, scheduler,
                        websearch,
@@ -763,6 +763,11 @@ def results(request: Request, min: int = 50, sort: str = "default",
     lang = cfg.get("ui", {}).get("lang", "ru")
     jobs = db.matched_jobs(min_score=min, sort=sort, viewed=viewed, source=source, run_id=run,
                            posted_from=posted_from, posted_to=posted_to)
+    # Сеть заведений вешает одну вакансию по всем своим точкам, меняя город в
+    # названии. У Виктора Белоногова первые двадцать строк принадлежали четырём
+    # работодателям, а десять подряд — одной сети. Схлопываем в одну строку, но
+    # ничего не выбрасываем: остальные города видны в ней же.
+    jobs = filters.group_same_role(jobs)
     for j in jobs:
         try:
             j["advice_data"] = json.loads(j["advice"]) if j.get("advice") else None
@@ -776,7 +781,11 @@ def results(request: Request, min: int = 50, sort: str = "default",
         request, "results.html",
         # cfg нужен и самой странице: метку про право на работу показываем
         # только тому, кому нужна виза, — остальным она лишний шум.
+        # Профессия из тех, что за границей требуют подтверждения. Смотрим по
+        # ролям, а не по вакансиям: вопрос про человека, а не про работу.
         {"cfg": cfg, "jobs": jobs, "runs": runs, "min_score": min,
+         "regulated": filters.regulated_profession(cfg["profile"].get("roles", ""),
+                                                   config.cv_text()),
          "threshold": threshold, "suggest_threshold": suggest,
          "sort": sort, "viewed": viewed, "source": source, "run": run,
          "posted_from": posted_from, "posted_to": posted_to, "msg": msg,

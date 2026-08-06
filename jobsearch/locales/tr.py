@@ -665,4 +665,7 @@ STRINGS = {
 "log_profile_unparsed_fix": "«Arama ayarları»nı açıp rolleri ve becerileri elle doldurun — ya da «Boş alanları özgeçmişten doldur»a yeniden basın",
 "log_quote_not_found": "«{title}»: gerekçe «{quote}» ifadesine dayanıyor, ama özgeçmişte yok — «doğrulandı» konmadı",
 "log_advice_dropped": "öneri atıldı — özgeçmişte olmayan bir şeyi öneriyor: «{advice}»",
+"same_role_elsewhere": "aynı pozisyon bu işverende {n} yerde daha:",
+"regulated_warning": "Mesleğiniz düzenlemeye tabi: başka bir ülkede deneyim tek başına yetmez — diploma ve mesleği icra hakkı genellikle tanınmalı, bazen yerel bir sınav gerekir. Aşağıdaki ilanlar mesleğe uyuyor, ama her birinin yurt dışında size gerçekten açık olup olmadığını önceden kontrol edin.",
+"regulated_link": "AB düzenlemeye tabi meslekler veritabanı — ilgili ülke ne istiyor",
 }
