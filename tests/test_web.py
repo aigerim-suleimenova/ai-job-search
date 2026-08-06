@@ -524,3 +524,58 @@ def test_роли_важнее_резюме():
     from jobsearch import filters
     assert filters.regulated_profession(
         "Frontend Engineer", "Работал с юристами над договорами, lawyer review") == ""
+
+
+# --- Навыки → профессии: кем человек мог бы работать -----------------------------
+
+@pytest.mark.parametrize("запрос,ответ,берём", [
+    ("CSS", "CSS", True),                                    # дословно
+    ("pattern grading", "pattern grading", True),
+    ("restaurant management", "manage restaurant service", True),   # иначе сказано, то же
+    ("SOAP", "harden soap", False),                          # мыло вместо протокола
+    ("REST", "promote balance between rest and activity", False),
+    ("XML", "AJAX", False),
+    ("vendor management", "use office systems", False),
+    ("bra construction", "construction industry", False),
+])
+def test_ответ_справочника_сверяется_с_запросом(запрос, ответ, берём):
+    """Брать первое совпадение подряд нельзя: справочник вместо «не знаю»
+    отвечает ближайшим по буквам, и дальше по графу расходится мусор. Отсев
+    поднял число тех, кому справочник называет их собственную профессию, с
+    одного из шести до трёх."""
+    from jobsearch.collectors import esco
+    assert esco.похоже(запрос, ответ) is берём
+
+
+def test_профессии_по_навыкам(monkeypatch):
+    """Охранник, выучивший вёрстку, напишет в резюме «охранник» и вакансий
+    начинающего верстальщика не увидит никогда. Справочник по трём его навыкам
+    называет web developer, ничего не спрашивая."""
+    from jobsearch.collectors import esco
+    esco.забыть()
+    ОТВЕТЫ = {
+        "skill?": {"_links": {
+            "isEssentialForOccupation": [{"uri": "esco:web-developer", "title": "web developer"}],
+            "isOptionalForOccupation": [{"uri": "esco:webmaster", "title": "webmaster"}]}},
+        "search": {"_embedded": {"results": [{"uri": "esco:css", "title": "CSS"}]}},
+    }
+
+    def подделка(url, **kw):
+        какой = "skill?" if "/resource/skill" in url else "search"
+        return type("О", (), {"status_code": 200, "json": lambda s: ОТВЕТЫ[какой]})()
+
+    monkeypatch.setattr(esco.web, "get", подделка)
+    вышло = esco.occupations_by_skills(["CSS"])
+    assert вышло[0] == "esco:web-developer", "обязательный навык должен весить больше"
+    assert "esco:webmaster" in вышло
+
+
+def test_нераспознанный_навык_ничего_не_приносит(monkeypatch):
+    from jobsearch.collectors import esco
+    esco.забыть()
+    monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("О", (), {
+        "status_code": 200,
+        "json": lambda s: {"_embedded": {"results": [{"uri": "esco:soap", "title": "harden soap"}]}},
+    })())
+    assert esco.skill("SOAP") == ""
+    assert esco.occupations_by_skills(["SOAP"]) == []

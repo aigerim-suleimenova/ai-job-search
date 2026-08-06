@@ -18,6 +18,7 @@ ESCO — общеевропейский справочник профессий.
 
 Ответы держим в памяти: кодов на прогон приходится десятки, а вакансий сотни.
 """
+import re
 import urllib.parse
 
 import requests
@@ -56,6 +57,7 @@ def label(uri: str, lang: str = "en") -> str:
 
 
 ПОИСК = "https://ec.europa.eu/esco/api/search"
+РЕСУРС = "https://ec.europa.eu/esco/api/resource"
 
 _профессии: dict = {}
 
@@ -105,6 +107,100 @@ def occupations(роль: str, сколько: int = 3, lang: str = "en") -> lis
 def data_results(данные: dict) -> list:
     """У справочника два вида ответа — с _embedded и без."""
     return данные.get("results") or []
+
+
+def _слова(текст: str) -> list:
+    return [w for w in re.findall(r"[a-zа-яё0-9#+]+", (текст or "").lower()) if len(w) > 1]
+
+
+def похоже(запрос: str, ответ: str) -> bool:
+    """Похож ли ответ справочника на то, что спрашивали.
+
+    Брать первое совпадение подряд нельзя, и это померено: «SOAP» справочник
+    понимает как «harden soap», «REST» — как «promote balance between rest and
+    activity», «XML» — как «AJAX», «vendor management» — как «use office
+    systems». Дальше по графу расходится уже мусор, и никакая мера соответствия
+    его не спасёт.
+
+    Правило вышло простое: дословное совпадение — берём; все слова запроса
+    нашлись в ответе — берём; одно слово и не дословно — не берём. На шести
+    настоящих резюме отсев поднял число тех, кому справочник называет их
+    собственную профессию, с одного до трёх.
+    """
+    з, о = _слова(запрос), _слова(ответ)
+    if not з or not о:
+        return False
+    if з == о:
+        return True
+    if len(з) == 1:
+        return False
+    # с точностью до окончания: «restaurant management» и «manage restaurant
+    # service» — одно и то же, а придираться к грамматике не за что
+    return all(any(w[:5] == x[:5] for x in о) for w in з)
+
+
+def skill(текст: str, lang: str = "en") -> str:
+    """Код навыка по его названию. Пустая строка, если справочник его не знает."""
+    текст = (текст or "").strip()
+    if not текст:
+        return ""
+    ключ = ("навык", текст.lower(), lang)
+    if ключ in _профессии:
+        return _профессии[ключ]
+    найдено = ""
+    try:
+        r = web.get(f"{ПОИСК}?type=skill&language={lang}&limit=5"
+                    f"&text={urllib.parse.quote(текст)}", timeout=20)
+        if r is not None and r.status_code == 200:
+            записи = (r.json().get("_embedded", {}) or {}).get("results") or []
+            найдено = next((str(i.get("uri", "")) for i in записи
+                            if похоже(текст, str(i.get("title", "")))), "")
+    except (requests.RequestException, ValueError, AttributeError):
+        найдено = ""
+    _профессии[ключ] = найдено
+    return найдено
+
+
+def occupations_by_skills(навыки: list, сколько: int = 3, lang: str = "en") -> list:
+    """Кем человек мог бы работать — по одним его навыкам.
+
+    Спрашивать «кем вы хотите» бесполезно: человек не знает, на что годится, он
+    для того и пришёл. Охранник, выучивший вёрстку, напишет в резюме «охранник»,
+    и вакансий начинающего верстальщика не увидит никогда — программа ищет по
+    тому, кем он был.
+
+    Справочник отвечает на этот вопрос сам: у него навык знает, каким профессиям
+    он нужен. Тому охраннику по трём навыкам — JavaScript, CSS, HTML — он
+    называет web developer, webmaster, digital media designer. Ни одного вопроса
+    человеку не задано.
+
+    Считаем грубо: обязательный навык — три очка, желательный — одно. Долю
+    закрытых навыков я тоже пробовал, и она оказалась хуже: побеждают
+    профессии, у которых навыков в списке мало, и наверх лезут «movie
+    distributor» и «tanning consultant».
+
+    Работает не у всех. У конструктора белья справочник знает один навык из
+    восьми, и тот привязан к обувным профессиям: граф у него неровный, обувь
+    расписана подробно, а одежда бедно. Поэтому это дополнение к поиску по
+    ролям, а не замена ему.
+    """
+    очки: dict = {}
+    for н in навыки:
+        uri = skill(н, lang)
+        if not uri:
+            continue
+        try:
+            r = web.get(f"{РЕСУРС}/skill?uri={urllib.parse.quote(uri, safe='')}"
+                        f"&language={lang}", timeout=20)
+            если = r.json().get("_links", {}) if r is not None and r.status_code == 200 else {}
+        except (requests.RequestException, ValueError, AttributeError):
+            continue
+        for о in (если.get("isEssentialForOccupation") or []):
+            очки[str(о.get("uri"))] = очки.get(str(о.get("uri")), 0) + 3
+        for о in (если.get("isOptionalForOccupation") or []):
+            очки[str(о.get("uri"))] = очки.get(str(о.get("uri")), 0) + 1
+    лучшие = sorted(очки.items(), key=lambda x: -x[1])[:сколько]
+    return [u for u, _ in лучшие if u]
 
 
 def забыть() -> None:
