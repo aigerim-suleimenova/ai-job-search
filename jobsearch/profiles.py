@@ -81,51 +81,54 @@ DEFAULT_NAME = "user"
 
 
 def _default_name() -> str:
-    """Как назвать профиль, который программа завела сама.
+    """What to call the profile the program created by itself.
 
-    Одинаково на всех языках, и это разрешение старой беды, а не небрежность.
-    Имя бралось по языку системы — единственному, который известен в этот
-    момент, потому что настроек ещё нет. Но язык системы и язык программы
-    сплошь и рядом разные: человек с русской Windows ставил английскую версию и
-    в переключателе людей видел «Я» посреди английского интерфейса.
+    The same in every language, and that is a fix for an old trouble rather than
+    carelessness. The name used to be taken from the system language — the only
+    one known at that moment, because there are no settings yet. But the system
+    language and the program's language differ all the time: someone on a Russian
+    Windows would install the English build and see «Я» sitting in the middle of
+    an English interface in the person picker.
 
-    Взять вместо этого выбранный язык нельзя: профиль заводится раньше, чем
-    появляется, где хранить выбор. Название же, одинаковое везде, не может
-    оказаться не тем языком — потому что не притворяется ничьим.
+    Taking the chosen language instead is not possible: the profile is created
+    before there is anywhere to keep the choice. A name that is the same
+    everywhere, on the other hand, cannot turn out to be the wrong language —
+    because it does not pretend to belong to any.
     """
     return DEFAULT_NAME
 
 
 def _auto_names() -> set:
-    """Имена, которые программа когда-либо давала профилю сама.
+    """Every name the program has ever given a profile by itself.
 
-    Нужны, чтобы отличить своё от чужого при переименовании: имя человек мог и
-    поменять руками, и такое трогать нельзя.
+    Needed to tell ours from theirs when renaming: the person may well have
+    changed the name by hand, and that must not be touched.
     """
     from . import i18n
-    return {i18n.t(код, "profile_default_name") for код in i18n.UI_LANGS} | {DEFAULT_NAME}
+    return {i18n.t(code, "profile_default_name") for code in i18n.UI_LANGS} | {DEFAULT_NAME}
 
 
 def rename_auto_defaults() -> None:
-    """Переводит на новое имя те профили, что до сих пор носят выданное нами.
+    """Moves profiles still carrying a name we handed out onto the new one.
 
-    Без этого смена умолчания не заметна никому, кроме тех, кто ставит программу
-    впервые: имя записано в profiles.json на первом запуске и само не меняется.
+    Without this, changing the default is invisible to everyone except people
+    installing the program for the first time: the name is written into
+    profiles.json on the first run and never changes on its own.
 
-    Трогаем только профиль с кодом «me» — тот единственный, что заводит сама
-    программа, — и только если он до сих пор носит имя из наших. По одному имени
-    судить нельзя: «Я» человек мог вписать и сам, и переименовывать за ним то,
-    что он назвал, мы не будем.
+    We touch only the profile with the slug "me" — the single one the program
+    creates itself — and only while it still carries one of our names. The name
+    alone is not enough to go on: the person could have typed «Я» themselves, and
+    we are not going to rename what they named.
     """
     with _lock:
         reg = _read_registry()
-        свои = _auto_names()
-        менялось = False
+        ours = _auto_names()
+        changed = False
         for p in reg.get("profiles", []):
-            if p.get("slug") == "me" and p.get("name") in свои and p["name"] != DEFAULT_NAME:
+            if p.get("slug") == "me" and p.get("name") in ours and p["name"] != DEFAULT_NAME:
                 p["name"] = DEFAULT_NAME
-                менялось = True
-        if менялось:
+                changed = True
+        if changed:
             _write_registry(reg)
 
 
