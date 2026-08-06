@@ -397,7 +397,7 @@ def test_роль_отображается_в_коды_справочника(mo
     «dressmaker» 28, «lingerie» 3, «Lingerie Pattern Maker» 1, «seamstress» 0.
     Швея по-английски — seamstress, и по нему не находится ничего."""
     from jobsearch.collectors import esco
-    esco.забыть()
+    esco.forget()
     monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("О", (), {
         "status_code": 200,
         "json": lambda s: {"_embedded": {"results": [
@@ -411,7 +411,7 @@ def test_роль_отображается_в_коды_справочника(mo
 
 def test_справочник_молчит_роль_не_выдумываем(monkeypatch):
     from jobsearch.collectors import esco
-    esco.забыть()
+    esco.forget()
     monkeypatch.setattr(esco.web, "get", lambda url, **kw: (_ for _ in ()).throw(
         esco.requests.RequestException("нет связи")))
     assert esco.occupations("seamstress") == []
@@ -423,7 +423,7 @@ def test_eures_спрашивает_и_кодами_и_словами(monkeypatc
     выписанные из резюме, отображаются в справочнике не всегда точно."""
     from jobsearch import config
     from jobsearch.collectors import aggregators, esco
-    esco.забыть()
+    esco.forget()
     отправленное = []
 
     class Ответ:
@@ -544,7 +544,7 @@ def test_ответ_справочника_сверяется_с_запросо�
     поднял число тех, кому справочник называет их собственную профессию, с
     одного из шести до трёх."""
     from jobsearch.collectors import esco
-    assert esco.похоже(запрос, ответ) is берём
+    assert esco.looks_like(запрос, ответ) is берём
 
 
 def test_профессии_по_навыкам(monkeypatch):
@@ -552,7 +552,7 @@ def test_профессии_по_навыкам(monkeypatch):
     начинающего верстальщика не увидит никогда. Справочник по трём его навыкам
     называет web developer, ничего не спрашивая."""
     from jobsearch.collectors import esco
-    esco.забыть()
+    esco.forget()
     ОТВЕТЫ = {
         "skill?": {"_links": {
             "isEssentialForOccupation": [{"uri": "esco:web-developer", "title": "web developer"}],
@@ -576,7 +576,7 @@ def test_обязательные_и_желательные_связи_веся�
     полусотни. Две причуды перевешивали полсотни осмысленных связей, и охранник,
     выучивший вёрстку, получал станок с ЧПУ."""
     from jobsearch.collectors import esco
-    esco.забыть()
+    esco.forget()
     СВЯЗИ = {
         "esco:js": {"isEssentialForOccupation": [{"uri": "станок", "title": "CNC"}],
                     "isOptionalForOccupation": [{"uri": "веб", "title": "web developer"}]},
@@ -602,7 +602,7 @@ def test_обязательные_и_желательные_связи_веся�
 
 def test_нераспознанный_навык_ничего_не_приносит(monkeypatch):
     from jobsearch.collectors import esco
-    esco.забыть()
+    esco.forget()
     monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("О", (), {
         "status_code": 200,
         "json": lambda s: {"_embedded": {"results": [{"uri": "esco:soap", "title": "harden soap"}]}},
