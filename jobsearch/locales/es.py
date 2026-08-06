@@ -665,4 +665,7 @@ STRINGS = {
 "log_profile_unparsed_fix": "Abra «Ajustes de búsqueda» y rellene los puestos y competencias a mano — o pulse «Rellenar campos vacíos desde el CV» otra vez",
 "log_quote_not_found": "«{title}»: la razón se apoya en «{quote}», que no está en el CV — sin «verificado»",
 "log_advice_dropped": "consejo descartado — propone algo que no está en el CV: «{advice}»",
+"same_role_elsewhere": "el mismo puesto en este empleador en {n} lugares más:",
+"regulated_warning": "La suya es una profesión regulada: en otro país la experiencia no basta — el título y el derecho a ejercer suelen tener que reconocerse, a veces con un examen local. Las ofertas de abajo coinciden con el oficio, pero conviene comprobar antes si cada una le está realmente abierta en el extranjero.",
+"regulated_link": "Base de datos de la UE de profesiones reguladas — qué exige el país que le interesa",
 }

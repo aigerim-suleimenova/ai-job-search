@@ -1454,6 +1454,21 @@ TR = {
     "badge_preliminary": {"ru": "предварительно", "en": "preliminary", "it": "preliminare", "de": "vorläufig"},
     # Право на работу — тому, кому нужна виза. Читается из самого объявления, а не
     # у модели: её об этом спрашивали, и она молчала во всех ста девяти случаях.
+    "regulated_warning": {
+        "ru": "Ваша профессия из числа регулируемых: в другой стране одного опыта мало — диплом и право работать по специальности обычно нужно подтверждать, а иногда и сдавать местный экзамен. Вакансии ниже подобраны по профессии, но доступность каждой в чужой стране стоит проверить заранее.",
+        "en": "Yours is a regulated profession: in another country experience alone is not enough — the qualification and the right to practise usually have to be recognised, sometimes with a local exam. The jobs below match the trade, but check beforehand whether each is actually open to you abroad.",
+        "it": "La sua è una professione regolamentata: in un altro paese l'esperienza da sola non basta — il titolo e il diritto di esercitare vanno di norma riconosciuti, a volte con un esame locale. Le offerte qui sotto corrispondono al mestiere, ma conviene verificare prima se ciascuna le è davvero accessibile all'estero.",
+        "de": "Ihr Beruf ist reglementiert: im Ausland genügt Erfahrung allein nicht — Abschluss und Berufszulassung müssen in der Regel anerkannt werden, mitunter mit einer örtlichen Prüfung. Die Stellen unten passen zum Beruf, aber prüfen Sie vorab, ob jede davon Ihnen im Ausland offensteht."},
+    "regulated_link": {
+        "ru": "База регулируемых профессий Евросоюза — посмотреть, что требуется в нужной стране",
+        "en": "The EU database of regulated professions — see what the country in question requires",
+        "it": "La banca dati UE delle professioni regolamentate — cosa richiede il paese che le interessa",
+        "de": "EU-Datenbank der reglementierten Berufe — was das betreffende Land verlangt"},
+    "same_role_elsewhere": {
+        "ru": "та же должность у этого работодателя ещё в {n} местах:",
+        "en": "the same role at this employer in {n} more places:",
+        "it": "la stessa posizione presso questo datore di lavoro in altri {n} luoghi:",
+        "de": "dieselbe Stelle bei diesem Arbeitgeber an {n} weiteren Orten:"},
     "badge_no_visa": {"ru": "без спонсорства визы", "en": "no visa sponsorship",
                       "it": "senza sponsorizzazione del visto", "de": "kein Visa-Sponsoring"},
     "badge_visa_ok": {"ru": "визу поддерживают", "en": "visa supported",

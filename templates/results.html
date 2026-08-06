@@ -123,6 +123,21 @@
 </section>
 {% endif %}
 
+{# Профессия, которой в чужой стране нельзя заняться просто так. Elisabetta —
+   адвокат, сдавшая экзамен в Италии; программа нашла ей двадцать четыре
+   вакансии юриста, из них в Италии две, а в Швеции и Греции она не адвокат,
+   пока не подтвердит квалификацию. Решать за ведомства, признают её диплом или
+   нет, мы не станем — но сказать, что вопрос есть, обязаны. #}
+{% if regulated %}
+<section class="card" style="border-left:4px solid var(--warn)">
+  <p style="margin:0 0 6px">{{ t('regulated_warning') }}</p>
+  <p class="hint" style="margin:0">
+    <a href="https://ec.europa.eu/growth/tools-databases/regprof/" target="_blank"
+       rel="noopener noreferrer">{{ t('regulated_link') }}</a>
+  </p>
+</section>
+{% endif %}
+
 {% if suggest_threshold %}
 <section class="card" style="border-left:4px solid var(--warn)">
   <p style="margin:0 0 8px">{{ t('suggest_banner').format(cur=threshold, sugg=suggest_threshold) }}</p>
@@ -171,6 +186,17 @@
       </p>
     </div>
   </div>
+  {# Та же должность в других городах у того же работодателя. Сеть заведений
+     вешает одну вакансию по всем точкам, меняя город в названии, и десять строк
+     подряд человек читает как десять разных работ. Показываем одной строкой —
+     но города перечисляем со ссылками: кому-то нужен именно Даллас. #}
+  {% if j.siblings %}
+  <p class="hint" style="margin:6px 0">
+    {{ t('same_role_elsewhere').format(n=j.siblings|length) }}
+    {% for s in j.siblings %}<a href="{{ s.url }}" target="_blank" rel="noopener noreferrer"
+       >{{ s.location or s.title }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+  {% endif %}
   {% if j.reason %}<p class="reason">{{ j.reason }}</p>{% endif %}
   {% if j.advice_data and (j.advice_data.salary_estimate or j.advice_data.company_insights) %}
   <details open class="research">

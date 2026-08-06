@@ -665,4 +665,7 @@ STRINGS = {
 "log_profile_unparsed_fix": "Abra «Definições de pesquisa» e preencha as funções e competências à mão — ou carregue de novo em «Preencher campos vazios a partir do CV»",
 "log_quote_not_found": "«{title}»: a razão apoia-se em «{quote}», que não está no CV — sem «verificado»",
 "log_advice_dropped": "conselho descartado — propõe algo que não está no CV: «{advice}»",
+"same_role_elsewhere": "a mesma função neste empregador em mais {n} locais:",
+"regulated_warning": "A sua é uma profissão regulamentada: noutro país a experiência não chega — o diploma e o direito de exercer têm normalmente de ser reconhecidos, por vezes com um exame local. As vagas abaixo correspondem ao ofício, mas verifique antes se cada uma lhe está realmente aberta no estrangeiro.",
+"regulated_link": "Base de dados da UE das profissões regulamentadas — o que exige o país em causa",
 }

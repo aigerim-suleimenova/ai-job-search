@@ -449,3 +449,78 @@ def test_eures_спрашивает_и_кодами_и_словами(monkeypatc
     assert с_кодами, "кодами не спросили"
     assert со_словами, "словами не спросили"
     assert с_кодами[0]["keywords"] == [], "коды и слова смешались в одном запросе"
+
+
+# --- Одна и та же должность в разных городах ------------------------------------
+
+def test_сеть_заведений_схлопывается_в_одну_строку():
+    """Сеть вешает одну вакансию по всем точкам, меняя город в названии. У
+    Виктора Белоногова десять строк подряд принадлежали одной сети «Pollo
+    Regio», и он читал их как десять разных работ."""
+    from jobsearch import filters
+    вакансии = [
+        {"title": "Restaurant Assistant Manager (Austin) TX", "company": "Pollo Regio",
+         "location": "Austin, United States", "score": 95},
+        {"title": "Restaurant Assistant Manager Fort Worth", "company": "Pollo Regio",
+         "location": "Fort Worth, United States", "score": 95},
+        {"title": "Restaurant Assistant Manager - Kyle TX", "company": "Pollo Regio",
+         "location": "Kyle, United States", "score": 95},
+        {"title": "Restaurant Manager", "company": "Pollo Regio",
+         "location": "Dallas, United States", "score": 90},
+    ]
+    вышло = filters.group_same_role(вакансии)
+
+    assert len(вышло) == 2, [j["title"] for j in вышло]
+    помощник = вышло[0]
+    assert помощник["title"].startswith("Restaurant Assistant Manager")
+    assert len(помощник["siblings"]) == 2, "остальные города потерялись"
+    assert вышло[1]["title"] == "Restaurant Manager", "другая должность не должна слипаться"
+
+
+def test_разные_работодатели_не_слипаются():
+    from jobsearch import filters
+    вакансии = [
+        {"title": "Restaurant Manager", "company": "Carbon", "location": "Göteborg"},
+        {"title": "Restaurant Manager", "company": "The June", "location": "Jacksonville"},
+    ]
+    assert len(filters.group_same_role(вакансии)) == 2
+
+
+def test_порядок_не_ломается():
+    """Первой в группе остаётся та, что была выше в списке: он уже отсортирован."""
+    from jobsearch import filters
+    вакансии = [
+        {"title": "Cook", "company": "A", "location": "X", "score": 90},
+        {"title": "Restaurant Manager Austin", "company": "B", "location": "Austin", "score": 80},
+        {"title": "Restaurant Manager Dallas", "company": "B", "location": "Dallas", "score": 70},
+    ]
+    вышло = filters.group_same_role(вакансии)
+    assert [j["title"] for j in вышло] == ["Cook", "Restaurant Manager Austin"]
+
+
+# --- Регулируемые профессии ------------------------------------------------------
+
+@pytest.mark.parametrize("роли,ожидание", [
+    ("Lawyer, Legal Counsel", "law"),
+    ("Avvocato civilista", "law"),
+    ("Registered Nurse", "medicine"),
+    ("Архитектор", "architecture"),
+    ("Restaurant Manager", ""),
+    ("Frontend Engineer", ""),
+    ("Lingerie Pattern Maker", ""),
+])
+def test_узнаём_регулируемую_профессию(роли, ожидание):
+    """Elisabetta Matassi — адвокат, сдавшая экзамен в Италии. Программа нашла
+    ей двадцать четыре вакансии юриста: Швеция 9, Греция 7, Италия 2. В Швеции
+    она не адвокат, пока не подтвердит квалификацию, и знать это надо до
+    отклика."""
+    from jobsearch import filters
+    assert filters.regulated_profession(роли) == ожидание
+
+
+def test_роли_важнее_резюме():
+    """В резюме слово «lawyer» может встретиться и у того, кто юристом не
+    работает: роли — то, кем человек себя называет."""
+    from jobsearch import filters
+    assert filters.regulated_profession(
+        "Frontend Engineer", "Работал с юристами над договорами, lawyer review") == ""

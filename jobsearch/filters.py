@@ -423,6 +423,120 @@ def visa_stance(job: dict) -> str:
     return ""
 
 
+# Сокращения штатов США — они попадают в названия вакансий и мешают понять, что
+# должность одна и та же: «Restaurant Assistant Manager (Austin) TX».
+_ШТАТЫ = set(
+    "tx ca ny fl il wa ma co pa oh ga nc mi az va nj tn in mo md wi mn sc al la "
+    "ky or ok ct ut ia nv ar ms ks nm ne wv id hi nh me ri mt de sd nd ak vt wy".split())
+
+
+def _роль(title: str, location: str) -> list:
+    """Название должности без города, штата и приписок в скобках.
+
+    Сеть заведений вешает одну и ту же вакансию по всем своим точкам, меняя в
+    названии город: «Restaurant Assistant Manager (Austin) TX», «… Fort Worth»,
+    «… - Kyle TX». Для человека это одна работа, и десять строк подряд он читает
+    как десять разных.
+    """
+    s = re.sub(r"\([^)]*\)", " ", (title or "").lower())
+    s = re.split(r"\s[-–—|]\s", s)[0]
+    места = set(re.findall(r"\w+", (location or "").lower()))
+    return [w for w in re.findall(r"[a-zа-яё]+", s)
+            if w not in места and w not in _ШТАТЫ and len(w) > 1]
+
+
+def group_same_role(jobs: list) -> list:
+    """Схлопывает вакансии одной компании на одну и ту же должность.
+
+    Возвращает те же вакансии, но у первой из каждой группы появляется поле
+    «siblings» — остальные. Ничего не выбрасывается: человек может искать работу
+    именно в Далласе, и решать за него, какой город ему нужен, мы не станем.
+
+    Померено на прогоне Виктора Белоногова: из ста восемнадцати вакансий выше
+    порога первые двадцать строк принадлежали четырём работодателям, а десять
+    подряд — одной сети «Pollo Regio». После схлопывания строк девяносто восемь,
+    и сеть занимает одну.
+
+    Город из названия убирается, но короткая роль поглощает длинную, если она её
+    начало: в «Restaurant Assistant Manager Frisco» города нет в поле локации
+    (там «Little Elm»), и убрать его иначе нечем.
+    """
+    роли = [(j, _роль(j.get("title", ""), j.get("location", ""))) for j in jobs]
+    основы: dict = {}          # компания → список найденных основ
+    первые: dict = {}          # (компания, основа) → первая вакансия группы
+    порядок = []
+    for j, слова in sorted(роли, key=lambda p: len(p[1])):
+        к = (j.get("company") or "").strip().lower()
+        if not к or not слова:
+            continue
+        свои = основы.setdefault(к, [])
+        основа = next((о for о in свои if слова[:len(о)] == о), None)
+        if основа is None:
+            основа = слова
+            свои.append(слова)
+        j["_группа"] = (к, " ".join(основа))
+    for j in jobs:
+        ключ = j.get("_группа")
+        j.pop("_группа", None)
+        if ключ is None:
+            порядок.append(j)
+            continue
+        if ключ in первые:
+            первые[ключ].setdefault("siblings", []).append(j)
+        else:
+            первые[ключ] = j
+            порядок.append(j)
+    return порядок
+
+
+# Профессии, которыми в чужой стране нельзя заняться просто так: нужен местный
+# диплом, экзамен или запись в реестре.
+#
+# Elisabetta Matassi — адвокат, сдавшая экзамен в Италии. Программа нашла ей
+# двадцать четыре вакансии юриста, и все по профессии: Legal Counsel, Associate
+# Lawyer, Corporate Legal Counsel. Только Швеция 9, Греция 7, Италия 2 — а
+# итальянский адвокат в Швеции не адвокат, пока не подтвердит квалификацию. Ни
+# модель, ни фильтры об этом не знают, и человек читает список как список
+# доступной работы.
+#
+# Мы не беремся решать, признают её диплом или нет: это ведомственный вопрос, и
+# ответ на него зависит от страны, стажа и договоров между ними. Но сказать, что
+# вопрос вообще есть, обязаны — иначе двадцать четыре надежды окажутся пустыми.
+РЕГУЛИРУЕМЫЕ = {
+    "law": ["lawyer", "attorney", "avvocat", "solicitor", "barrister", "notaio",
+            "notary", "rechtsanwalt", "advokat", "юрист", "адвокат", "нотариус",
+            "abogado", "avocat", "prawnik", "radca prawny"],
+    "medicine": ["doctor", "physician", "surgeon", "nurse", "medico", "arzt",
+                 "krankenschwester", "pharmacist", "apotheker", "dentist",
+                 "врач", "медсестра", "фармацевт", "стоматолог", "psychotherap"],
+    "engineering": ["chartered engineer", "structural engineer", "ingegnere",
+                    "geodet", "surveyor", "инженер-проектировщик"],
+    "architecture": ["architect", "architetto", "architekt", "архитектор"],
+    "accounting": ["auditor", "chartered accountant", "revisor", "wirtschaftsprüfer",
+                   "commercialista", "аудитор"],
+    "teaching": ["teacher", "lehrer", "insegnante", "nauczyciel", "учитель"],
+    "veterinary": ["veterinar", "veterinär", "ветеринар"],
+}
+
+
+def regulated_profession(roles: str, cv: str = "") -> str:
+    """Названа ли профессия из тех, что за границей требуют подтверждения.
+
+    Смотрим прежде всего на роли: в резюме слово «lawyer» может встретиться и у
+    того, кто юристом не работает. Роли — то, кем человек себя называет.
+    """
+    где = (roles or "").strip().lower()
+    if not где:
+        # Ролей нет вовсе — тогда по резюме, и только по первым строкам: там
+        # должность. Дальше в тексте «lawyer» встретится и у того, кто с
+        # юристами лишь работал рядом, и предупреждение досталось бы не тому.
+        где = (cv or "")[:400].lower()
+    for область, слова in РЕГУЛИРУЕМЫЕ.items():
+        if any(с in где for с in слова):
+            return область
+    return ""
+
+
 def has_excluded(job: dict, exclude_terms: list) -> bool:
     """Stop words match on word boundaries, not as substrings: excluding "java"
     must not kill JavaScript, nor "go" kill Google."""
