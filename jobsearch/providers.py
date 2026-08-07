@@ -42,10 +42,10 @@ CURSOR_MODELS = [
     {"id": "auto", "name": "Auto", "name_key": "model_auto_cursor", "power": 80},
 ]
 
-# Названия моделей у Codex меняются чаще, чем выходят наши версии: gpt-5.4
-# уступает место семейству gpt-5.6. Поэтому «Авто» стоит первым и выбрано по
-# умолчанию — при нём мы вообще не называем модель, и Codex берёт ту, что
-# настроена у него самого. Устаревшее имя в списке сломает поиск, «Авто» — нет.
+# Codex's model names change more often than our versions come out: gpt-5.4 gives
+# way to the gpt-5.6 family. So "Auto" comes first and is the default — with it we
+# do not name a model at all, and Codex takes the one configured on its own side.
+# A stale name in the list will break a search; "Auto" will not.
 CODEX_MODELS = [
     {"id": "auto", "name": "Auto", "name_key": "model_auto_codex", "power": 95},
     {"id": "gpt-5.6-terra", "name": "GPT-5.6 Terra", "power": 97},
@@ -61,9 +61,10 @@ COPILOT_MODELS = [
      "note_key": "model_note_fast_cheap"},
 ]
 
-# Goose и Qwen Code не привязаны к одной модели: какая доступна, решает ключ,
-# который человек им дал. Перечислять чужой список здесь нечестно — «Авто»
-# означает «не называть модель», и тогда берётся настроенная у самой программы.
+# Goose and Qwen Code are not tied to a single model: which one is available is
+# decided by the key the person gave them. Listing somebody else's line-up here
+# would be dishonest — "Auto" means "do not name a model", and then whatever the
+# program itself is set up with gets used.
 BYOK_MODELS = [
     {"id": "auto", "name": "Auto", "name_key": "model_auto_generic", "power": 90},
 ]
@@ -184,13 +185,14 @@ def _ask_login_shell(command: str) -> str:
         return ""
     for flags in ("-ilc", "-lc"):
         try:
-            # encoding задана прямо. Без неё берётся кодировка системы — cp1252
-            # на Windows, ascii при локали C, — и первая же нелатинская буква в
-            # чужой переменной среды рушит разбор. А она там есть у всякого,
-            # чьё имя не латиницей: оно лежит в HOME и в PATH. Падало при этом
-            # не понятным исключением, а AttributeError: ошибка случалась в
-            # потоке чтения, и stdout молча оказывался None. И переставали
-            # работать разом все командные строки.
+            # The encoding is given explicitly. Without it the system encoding is
+            # used — cp1252 on Windows, ascii under the C locale — and the first
+            # non-Latin letter in somebody's environment variable wrecks the
+            # parsing. And there is one for everyone whose name is not in Latin
+            # script: it sits in HOME and in PATH. What it failed with was not a
+            # comprehensible exception but an AttributeError: the error happened
+            # in the reading thread, and stdout silently came back None. And every
+            # command-line tool stopped working at once.
             out = subprocess.run([shell, flags, command], capture_output=True,
                                  text=True, encoding="utf-8", errors="replace",
                                  timeout=10, cwd=work_dir(),
@@ -259,9 +261,9 @@ def resolve_bin(name: str) -> str:
     # conversations with a shell that loads oh-my-zsh would be felt. login_env
     # is asked once and remembered; forget_binaries() forgets it along with us,
     # so "install it and press again" still works.
-    путь = login_env().get("PATH", "")
-    if путь:
-        found = shutil.which(name, path=путь)
+    path = login_env().get("PATH", "")
+    if path:
+        found = shutil.which(name, path=path)
         if found and os.access(found, os.X_OK):
             return found
     return ""
@@ -286,7 +288,7 @@ def _bin_exists(name: str) -> bool:
 # may think before it answers, and that is not a reason to call it missing.
 _tags = {"asked_at": 0.0, "alive": False, "models": frozenset()}
 _TAGS_TTL = 3.0
-_TAGS_TIMEOUT = (0.4, 3)          # (сколько ждём соединения, сколько — ответа)
+_TAGS_TIMEOUT = (0.4, 3)          # (how long we wait to connect, how long for the answer)
 
 
 def _ollama_tags() -> dict:
@@ -318,18 +320,18 @@ def ollama_installed_models() -> set:
     return set(_ollama_tags()["models"])
 
 
-# --- Чего требуют сами программы, кроме себя ----------------------------------
+# --- What the programs themselves need, besides themselves -------------------
 #
-# Claude Code, Cursor, Goose и Ollama приходят своими установщиками и не требуют
-# ничего. Copilot и Qwen ставятся только через npm, а npm приходит с Node.js,
-# которого на обычном компьютере нет. В карточке было написано «npm install -g
-# @github/copilot» — человек шёл в терминал и получал «npm: команда не найдена»,
-# причём уже вне нашей программы, где мы ему ничем не поможем. Про то, чего не
-# хватает, надо сказать здесь и до того, как он уйдёт.
+# Claude Code, Cursor, Goose and Ollama come with their own installers and need
+# nothing. Copilot and Qwen install only through npm, and npm comes with Node.js,
+# which an ordinary computer does not have. The card used to say "npm install -g
+# @github/copilot" — the person went to a terminal and got "npm: command not
+# found", and by then they were outside our program, where we can do nothing for
+# them. What is missing has to be said here, before they leave.
 #
-# Codex тоже ставится через npm, но у него есть и готовый бинарник, и страница
-# установки предлагает оба пути: требовать для него Node.js значило бы гнать
-# человека ставить то, без чего он прекрасно обойдётся.
+# Codex also installs through npm, but it has a ready binary too, and its install
+# page offers both roads: requiring Node.js for it would mean driving a person to
+# install something they can do perfectly well without.
 PREREQS = {
     "copilot_cli": "node",
     "qwen_cli": "node",
@@ -339,8 +341,8 @@ TOOLS = {
     "node": {
         "bin": "node",
         "version_arg": "-v",
-        # npm-пакеты обеих командных строк требуют Node.js 22. Со старым Node
-        # установка не падает сразу, а падает потом и невнятно.
+        # The npm packages of both CLIs require Node.js 22. With an old Node the
+        # install does not fail at once; it fails later and inarticulately.
         "min_major": 22,
         "url": "https://nodejs.org/en/download",
     },
@@ -348,7 +350,7 @@ TOOLS = {
 
 
 def _major(text: str) -> int:
-    """Старшее число версии из того, что программа сказала о себе: «v22.14.0» → 22."""
+    """The major version out of what a program said about itself: "v22.14.0" → 22."""
     import re
     m = re.search(r"(\d+)", text or "")
     return int(m.group(1)) if m else 0
@@ -356,10 +358,11 @@ def _major(text: str) -> int:
 
 @lru_cache(maxsize=8)
 def tool_state(tool: str) -> tuple:
-    """(есть ли, что ответила о версии). Кортеж — чтобы лёг в lru_cache.
+    """(is it there, what it said about its version). A tuple, so it fits lru_cache.
 
-    Версия не разобралась — считаем, что годится: не хватало ещё загородить
-    человеку дорогу из-за того, что мы не поняли чужой формат вывода.
+    If the version did not parse, we count it as good enough: barring a person's
+    way because we failed to read somebody else's output format would be the
+    last thing needed.
     """
     spec = TOOLS.get(tool)
     if not spec:
@@ -378,10 +381,11 @@ def tool_state(tool: str) -> tuple:
 
 
 def missing_tool(provider: str) -> str:
-    """Чего не хватает, чтобы вообще установить этого провайдера. Пусто — ничего.
+    """What is missing before this provider can be installed at all. Empty — nothing.
 
-    Спрашивается только про то, что ещё не установлено: если Copilot уже стоит,
-    как он туда попал — не наше дело, и гнать человека за Node.js поздно и незачем.
+    We ask only about what is not installed yet: if Copilot is already there, how
+    it got there is none of our business, and sending the person off for Node.js
+    is both too late and pointless.
     """
     tool = PREREQS.get(provider, "")
     if not tool or tool_state(tool)[0]:
@@ -390,29 +394,30 @@ def missing_tool(provider: str) -> str:
 
 
 def tool_info(tool: str) -> dict:
-    """Всё, что странице нужно знать об инструменте."""
+    """Everything the page needs to know about a tool."""
     ready, version = tool_state(tool)
     spec = TOOLS.get(tool, {})
     return {"key": tool, "ready": ready, "version": version,
             "url": spec.get("url", ""), "min_major": spec.get("min_major", 0),
-            # Нашёлся, но старый — это не то же самое, что «не нашёлся»: сказать
-            # «установите Node.js» тому, у кого он есть, значит послать его по
-            # кругу. Разные беды — разные слова.
+            # Found but old is not the same as not found: telling someone who has
+            # Node.js to "install Node.js" sends them round in a circle.
+            # Different troubles, different words.
             "too_old": bool(version) and not ready}
 
 
 @lru_cache(maxsize=4)
 def claude_logged_in(claude_bin: str = "claude") -> bool:
-    """Выполнен ли вход в Claude Code.
+    """Whether anyone is signed in to Claude Code.
 
-    Готовность провайдера проверялась одним: лежит ли программа на диске. На
-    странице «Модель» она стояла зелёная, человек её выбирал, запускал поиск — и
-    прогон обрывался через пять секунд с «Not logged in · Please run /login».
-    Узнать заранее было нельзя.
+    A provider's readiness used to be checked by one thing: whether the program
+    is on the disk. On the "Model" page it stood there green, the person picked
+    it, started a search — and the run broke off after five seconds with "Not
+    logged in · Please run /login". There was no way to know beforehand.
 
-    Спрашиваем у самой программы: она отвечает JSON с полем loggedIn. Не
-    ответила или ответила непонятно — считаем, что вход есть: загородить дорогу
-    из-за того, что мы не разобрали чужой вывод, хуже, чем пропустить вперёд.
+    We ask the program itself: it answers with JSON carrying a loggedIn field. If
+    it did not answer, or answered unintelligibly, we count it as signed in:
+    barring the way because we failed to read somebody else's output is worse
+    than letting through.
     """
     exe = resolve_bin(claude_bin or "claude")
     if not exe:
@@ -421,10 +426,10 @@ def claude_logged_in(claude_bin: str = "claude") -> bool:
         out = subprocess.run([exe, "auth", "status"], capture_output=True, text=True,
                              encoding="utf-8", errors="replace", timeout=15,
                              cwd=work_dir(), env=login_env())
-        данные = json.loads(out.stdout or "{}")
+        data = json.loads(out.stdout or "{}")
     except (OSError, subprocess.SubprocessError, ValueError):
         return True
-    return bool(данные.get("loggedIn", True))
+    return bool(data.get("loggedIn", True))
 
 
 def forget_binaries() -> None:
@@ -440,21 +445,23 @@ def forget_binaries() -> None:
     forget_ollama()
 
 
-# Как поставить командную строку — командой, а не пересказом.
+# How to install a CLI — as a command, not as a retelling.
 #
-# Пришло от человека: «не видит claude code на моём маке». Мы отправляли его на
-# claude.com/claude-code, а там первым делом предлагают десктопное приложение —
-# он его и поставил. Приложение это к делу не идёт: нам нужна именно командная
-# строка, программа claude в терминале. Одна строчка, которую видно и можно
-# скопировать, отвечает на это лучше любого описания.
+# This came from a person: "it does not see claude code on my mac". We were
+# sending them to claude.com/claude-code, and the first thing offered there is
+# the desktop application — so that is what they installed. That application is
+# beside the point: what we need is the command line, the claude program in a
+# terminal. One line you can see and copy answers this better than any
+# description.
 #
-# Команды от языка не зависят и потому лежат здесь, а не в переводах: строка
-# curl одинакова на всех четырнадцати, а держать её в четырнадцати местах —
-# значит однажды поправить в тринадцати.
+# The commands do not depend on language and therefore live here rather than in
+# the translations: the curl line is the same in all fourteen, and keeping it in
+# fourteen places means fixing it in thirteen one day.
 #
-# Взято из официальной документации каждого и сверено с ней. Чего проверить не
-# удалось, того здесь нет: пустая клетка честнее выдуманной команды, а команда
-# вида curl … | bash, отправленная не на тот адрес, — это уже не опечатка.
+# Taken from each one's official documentation and checked against it. What could
+# not be verified is not here: an empty cell is more honest than an invented
+# command, and a curl … | bash line pointed at the wrong address is no longer a
+# typo.
 _INSTALL_CMD = {
     "claude_cli": {"posix": "curl -fsSL https://claude.ai/install.sh | bash",
                    "windows": "irm https://claude.ai/install.ps1 | iex"},
@@ -468,8 +475,8 @@ _INSTALL_CMD = {
                  "windows": "npm install -g @qwen-code/qwen-code"},
 }
 
-# Чем проверить, что встало. Тот же вопрос, которым начинается любой разговор о
-# «не находит»: пусть человек задаст его себе сам и раньше нас.
+# How to check that it installed. The same question every "it does not find it"
+# conversation begins with: let the person ask it of themselves, before we do.
 _VERIFY_CMD = {
     "claude_cli": "claude --version",
     "cursor_cli": "cursor-agent --version",
@@ -481,10 +488,10 @@ _VERIFY_CMD = {
 
 
 def install_cmd(key: str) -> str:
-    """Команда установки для той системы, где приложение сейчас и работает.
+    """The install command for the system the application is actually running on.
 
-    Показывать все три сразу незачем: человек сидит за одной машиной, а лишние
-    две ему только выбор, которого он не просил.
+    There is no point showing all three at once: the person is sitting at one
+    machine, and the other two only give them a choice they did not ask for.
     """
     pair = _INSTALL_CMD.get(key)
     if not pair:
@@ -493,8 +500,8 @@ def install_cmd(key: str) -> str:
 
 
 def verify_cmd(key: str) -> str:
-    """Чем человеку проверить, что программа встала. Пусто у того, кому нечего
-    проверять: у Ollama и у своего адреса командной строки нет вовсе."""
+    """How a person can check the program installed. Empty for those with nothing
+    to check: Ollama and your own endpoint have no command line at all."""
     return _VERIFY_CMD.get(key, "")
 
 
@@ -505,15 +512,16 @@ def available(claude_bin: str = "claude", llm: dict = None) -> dict:
     keys prov_<code> and prov_<code>_hint — otherwise the provider's name would
     arrive on the page in Russian in the middle of an English sentence.
 
-    llm — настройки модели. Нужны одному провайдеру: у своего адреса нечего
-    искать на диске, он готов ровно тогда, когда адрес вписан.
+    llm — the model settings. Needed by one provider only: your own endpoint has
+    nothing to look for on the disk, it is ready exactly when the address is
+    filled in.
     """
     llm = llm or {}
     provs = {
         "claude_cli": {
             "ready": _bin_exists(claude_bin or "claude"),
-            # Установлена — ещё не значит готова: без входа она отвечает «Not
-            # logged in» и прогон обрывается на первом же вопросе.
+            # Installed does not yet mean ready: without a sign-in it answers
+            # "Not logged in" and the run breaks off at the very first question.
             "needs_login": (_bin_exists(claude_bin or "claude")
                             and not claude_logged_in(claude_bin or "claude")),
             "web_search": True, "kind": "cloud",
@@ -525,10 +533,11 @@ def available(claude_bin: str = "claude", llm: dict = None) -> dict:
             "install_url": "https://cursor.com/cli",
         },
         "codex_cli": {
-            # Codex умеет ходить в сеть, но по умолчанию заперт в песочнице
-            # только на чтение — и это ровно то, чего мы хотим от запуска без
-            # человека. Поиск новых компаний с ним пропускается: обещать
-            # веб-поиск, которого может не оказаться, хуже, чем не обещать.
+            # Codex can reach the network, but by default it is locked in a
+            # read-only sandbox — which is exactly what we want from a run with
+            # nobody watching. Scouting for new companies is skipped with it:
+            # promising a web search that may not be there is worse than not
+            # promising one.
             "ready": _bin_exists("codex"),
             "web_search": False, "kind": "cloud",
             "install_url": "https://developers.openai.com/codex/cli/",
@@ -553,21 +562,23 @@ def available(claude_bin: str = "claude", llm: dict = None) -> dict:
             "web_search": False, "kind": "local",
             "install_url": "https://ollama.com/download",
         },
-        # Последним — он для тех, кто знает, чего хочет: вместо кнопки здесь поля,
-        # и первым в списке он сбивал бы с толку тех, кому подойдёт любой из
-        # обычных вариантов выше.
+        # Last — it is for people who know what they want: fields instead of a
+        # button, and first in the list it would confuse everyone whom any of the
+        # ordinary options above would suit.
         "openai_api": {
-            # Устанавливать нечего: это не программа, а адрес. Поэтому «готов»
-            # всегда — выбрать его можно сразу, а настраивается он вторым шагом,
-            # там, где на поля есть ширина. В узкой карточке они не помещались:
-            # «Адрес» и «Ключ» вставали в строку и обрезались на середине.
+            # There is nothing to install: this is not a program but an address.
+            # Hence "ready" always — it can be picked straight away, and it gets
+            # configured at the second step, where there is width for the fields.
+            # They did not fit in the narrow card: "Address" and "Key" lined up
+            # side by side and were cut off halfway.
             "ready": True,
             "web_search": False, "kind": "custom",
             "install_url": "",
         },
     }
-    # Команды приписываются всем разом, а не вписываются в каждую карточку
-    # руками: так у нового провайдера они не забудутся, а у прежних не разойдутся.
+    # The commands are attached to everyone at once rather than written into each
+    # card by hand: that way a new provider will not be left without them, and the
+    # existing ones will not drift apart.
     for key, p in provs.items():
         p["install_cmd"] = install_cmd(key)
         p["verify_cmd"] = verify_cmd(key)
@@ -590,10 +601,11 @@ def missing_piece(llm: dict) -> str:
     if not available(llm.get("claude_bin", "claude"), llm).get(provider, {}).get("ready"):
         return "provider"
     if provider == "openai_api":
-        # Адрес и модель спрашиваются вместе, на втором шаге: без любого из них
-        # думать нечем, и разделять их на два экрана было бы придиркой.
-        есть = (llm.get("api_base") or "").strip() and (llm.get("api_model") or "").strip()
-        return "" if есть else "model"
+        # The address and the model are asked for together, at the second step:
+        # without either of them there is nothing to think with, and splitting
+        # them across two screens would be pedantry.
+        both = (llm.get("api_base") or "").strip() and (llm.get("api_model") or "").strip()
+        return "" if both else "model"
     if provider == "ollama":
         model = llm.get("triage_model") or ""
         if not model or model not in ollama_installed_models():
@@ -602,13 +614,14 @@ def missing_piece(llm: dict) -> str:
 
 
 def current_model(llm: dict) -> str:
-    """Чем сейчас считаем — так, как это называет сам провайдер.
+    """What we are thinking with right now, named the way the provider names it.
 
-    У всех, кроме своего адреса, модель лежит в triage_model. У своего адреса —
-    в api_model, потому что имя ей даёт чужая служба и в наш каталог оно не
-    ложится. Пока это не различали, карточка «Свой адрес» писала «используется:
-    haiku»: показывалось triage_model, оставшееся от Claude Code, то есть имя
-    модели, к которой этот адрес не имеет никакого отношения.
+    For everyone except your own endpoint, the model sits in triage_model. For
+    your own endpoint it is in api_model, because the name comes from somebody
+    else's service and does not fit our catalogue. Until the two were told apart,
+    the "Own endpoint" card said "in use: haiku": it showed triage_model, left
+    over from Claude Code — the name of a model that address has nothing
+    whatsoever to do with.
     """
     if (llm.get("provider") or "claude_cli") == "openai_api":
         return (llm.get("api_model") or "").strip()
@@ -720,16 +733,16 @@ def call_cursor(prompt: str, model: str, timeout: int) -> str:
 
 
 def call_codex(prompt: str, model: str, timeout: int) -> str:
-    """Codex CLI без интерактива.
+    """The Codex CLI with no interaction.
 
-    `codex exec -` читает задание из stdin и печатает в stdout только последний
-    ответ агента — ровно то, что нам нужно; ход работы уходит в stderr и нас не
-    касается. Песочница по умолчанию только на чтение, так что запуск без
-    человека ничего на диске не тронет.
+    `codex exec -` reads the task from stdin and prints only the agent's final
+    answer to stdout — exactly what we need; the working-out goes to stderr and is
+    none of our concern. The sandbox is read-only by default, so a run with nobody
+    watching touches nothing on the disk.
 
-    «auto» означает «не называть модель»: тогда Codex берёт настроенную у себя.
-    Имена моделей у него меняются быстрее наших версий, и это единственный
-    выбор, который не устареет.
+    "auto" means "do not name a model": then Codex takes the one configured on its
+    own side. Its model names change faster than our versions do, and this is the
+    one choice that will not go stale.
     """
     exe = resolve_bin("codex")
     if not exe:
@@ -751,13 +764,13 @@ def call_codex(prompt: str, model: str, timeout: int) -> str:
 
 
 def _run_cli(cmd: list, prompt: str, timeout: int, tool: str) -> str:
-    """Запускает командную строку, отдавая задание через stdin.
+    """Runs a command-line tool, handing it the task through stdin.
 
-    Через stdin, а не аргументом, — и это не придирка: наши запросы бывают в
-    тысячи знаков, с переносами, кавычками и кириллицей. Длина командной строки
-    ограничена (на Linux около двух мегабайт), и как раз на таких запросах она и
-    кончается. Отсюда же выбор самих программ: те, что умеют читать только
-    аргумент, сюда не годятся.
+    Through stdin rather than as an argument, and that is not pedantry: our
+    prompts run to thousands of characters, with newlines, quotes and Cyrillic in
+    them. The length of a command line is limited (about two megabytes on Linux),
+    and prompts like these are exactly where it runs out. The same reason governs
+    the choice of programs: those that can only read an argument will not do here.
     """
     proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           cwd=work_dir(), env=login_env(),
@@ -771,11 +784,11 @@ def _run_cli(cmd: list, prompt: str, timeout: int, tool: str) -> str:
 
 
 def call_copilot(prompt: str, model: str, timeout: int) -> str:
-    """GitHub Copilot CLI по подписке, которая у многих уже есть.
+    """The GitHub Copilot CLI, on a subscription many people already have.
 
-    Задание идёт трубой, а не через -p: в документации прямо сказано, что при
-    -p поданное на вход просто игнорируется. -s убирает украшения и оставляет в
-    выводе один ответ.
+    The task goes through a pipe rather than through -p: the documentation says
+    plainly that with -p whatever is fed to stdin is simply ignored. -s strips the
+    decoration and leaves one answer in the output.
     """
     exe = resolve_bin("copilot")
     if not exe:
@@ -787,11 +800,11 @@ def call_copilot(prompt: str, model: str, timeout: int) -> str:
 
 
 def call_goose(prompt: str, model: str, timeout: int) -> str:
-    """Goose — из всех проверенных лучше всего ложится на нашу задачу.
+    """Goose — of everything tried, this fits our task best.
 
-    `-i -` читает задание из stdin, `-q` печатает только ответ модели,
-    `--no-session` не оставляет за собой файлов сеанса: нам нужен один вопрос и
-    один ответ, а не переписка.
+    `-i -` reads the task from stdin, `-q` prints only the model's answer, and
+    `--no-session` leaves no session files behind: we want one question and one
+    answer, not a correspondence.
     """
     exe = resolve_bin("goose")
     if not exe:
@@ -803,7 +816,7 @@ def call_goose(prompt: str, model: str, timeout: int) -> str:
 
 
 def call_qwen(prompt: str, model: str, timeout: int) -> str:
-    """Qwen Code. Задание через трубу, ответ обычным текстом."""
+    """Qwen Code. The task through a pipe, the answer as plain text."""
     exe = resolve_bin("qwen")
     if not exe:
         raise ProviderError(key="prov_err_no_qwen")
@@ -814,16 +827,17 @@ def call_qwen(prompt: str, model: str, timeout: int) -> str:
 
 
 def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
-    """Любая служба, говорящая на языке OpenAI: /chat/completions.
+    """Any service that speaks OpenAI's language: /chat/completions.
 
-    Одна эта веточка накрывает столько же, сколько все командные строки вместе:
-    OpenRouter с сотнями моделей, LM Studio и llama.cpp на своём компьютере,
-    vLLM, корпоративный шлюз, сам OpenAI. Добавлять их по одной пришлось бы
-    бесконечно, а протокол у них общий.
+    This one branch covers as much as all the command-line tools together:
+    OpenRouter with its hundreds of models, LM Studio and llama.cpp on your own
+    computer, vLLM, a corporate gateway, OpenAI itself. Adding them one at a time
+    would never end, and the protocol they share is one.
 
-    Ключ уходит в заголовке, а не в адресе: адрес попадает в текст исключения
-    при обрыве связи, а оттуда — в журнал прогона, который человек показывает
-    другим. На токене Telegram мы это уже проходили.
+    The key goes in a header rather than in the address: the address ends up in
+    the text of the exception when a connection drops, and from there in the run
+    log, which people show to others. We have already been through this with the
+    Telegram token.
     """
     base = (cfg_llm.get("api_base") or "").strip().rstrip("/")
     key = (cfg_llm.get("api_key") or "").strip()
@@ -833,12 +847,13 @@ def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
     if not model:
         raise ProviderError(key="prov_err_no_api_model")
     headers = {"Content-Type": "application/json"}
-    if key:                      # у местных служб ключа может не быть вовсе
-        # В заголовок запроса нельзя положить что угодно: там латиница и только
-        # она. Ключ этого не нарушает — нарушает то, что скопировалось вместе с
-        # ним. Проверяем заранее, потому что иначе requests падает
-        # UnicodeEncodeError, а это ValueError, и человек получал «служба
-        # ответила не в формате JSON» — про службу, до которой не дошло.
+    if key:                      # a local service may have no key at all
+        # You cannot put just anything into a request header: it is Latin script
+        # and nothing else. The key does not break that — what was copied along
+        # with it does. We check in advance, because otherwise requests fails with
+        # a UnicodeEncodeError, which is a ValueError, and the person got "the
+        # service did not answer in JSON" — about a service the request never
+        # reached.
         try:
             key.encode("latin-1")
         except UnicodeEncodeError as e:
@@ -852,10 +867,11 @@ def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
         raise ProviderError(key="prov_err_api_unreachable",
                             error=_without_key(str(e), key)) from e
     if r.status_code >= 400:
-        # Служба ответила — и в ответе сказала, что не так. Раньше отсюда шло
-        # «служба недоступна» с голым «429 Client Error»: человек с кончившимися
-        # деньгами на OpenRouter читал, что до службы не достучаться, хотя она
-        # ответила исправно и назвала причину. Причину и показываем.
+        # The service answered — and in its answer said what was wrong. This used
+        # to produce "the service is unreachable" with a bare "429 Client Error":
+        # a person out of credit on OpenRouter read that the service could not be
+        # reached, when it had answered properly and named the reason. So we show
+        # the reason.
         raise ProviderError(_without_key(_api_error_text(r), key))
     try:
         data = r.json()
@@ -864,61 +880,64 @@ def call_openai_api(prompt: str, cfg_llm: dict, timeout: int) -> str:
     try:
         return str(data["choices"][0]["message"]["content"]).strip()
     except (KeyError, IndexError, TypeError) as e:
-        # у службы может быть своя форма ответа или своя ошибка в теле
+        # a service may have its own answer shape, or its own error in the body
         detail = str(data.get("error") or data)[:300] if isinstance(data, dict) else str(data)[:300]
         raise ProviderError(_without_key(detail, key)) from e
 
 
 def _api_error_text(r) -> str:
-    """Что служба сказала об отказе, её же словами.
+    """What the service said about the refusal, in its own words.
 
-    Форма ответа у всех разная: у OpenAI и OpenRouter — {"error": {"message": …}},
-    у иных просто {"error": "…"} или вовсе текст. Берём то, что нашлось, а если
-    не нашлось ничего — хотя бы номер отказа: он всё равно понятнее пустоты.
+    The answer's shape differs for everyone: OpenAI and OpenRouter use
+    {"error": {"message": …}}, others simply {"error": "…"} or plain text. We take
+    whatever was found, and if nothing was — at least the status code: even that
+    is clearer than emptiness.
     """
     try:
-        тело = r.json()
+        body = r.json()
     except ValueError:
-        тело = None
-    сообщение = ""
-    if isinstance(тело, dict):
-        ошибка = тело.get("error", тело.get("message", ""))
-        if isinstance(ошибка, dict):
-            сообщение = str(ошибка.get("message") or ошибка)
-        elif ошибка:
-            сообщение = str(ошибка)
-    if not сообщение:
-        сообщение = (r.text or "").strip()[:300]
-    return f"{r.status_code}: {сообщение}" if сообщение else f"{r.status_code}"
+        body = None
+    message = ""
+    if isinstance(body, dict):
+        error = body.get("error", body.get("message", ""))
+        if isinstance(error, dict):
+            message = str(error.get("message") or error)
+        elif error:
+            message = str(error)
+    if not message:
+        message = (r.text or "").strip()[:300]
+    return f"{r.status_code}: {message}" if message else f"{r.status_code}"
 
 
 def _without_key(text: str, key: str) -> str:
-    """Ключ не должен доехать до журнала, даже если служба вернула его в ошибке."""
+    """The key must not reach the log, even if the service echoed it in an error."""
     return text.replace(key, "***") if key else text
 
 
 def call_ollama(prompt: str, model: str, timeout: int, schema: dict = None) -> str:
-    """Запрос к местной модели.
+    """A call to the local model.
 
-    schema — описание ответа. Ollama умеет держать вывод в его рамках, и для
-    малой модели это не роскошь: она сплошь и рядом отвечает связным текстом без
-    нужного поля, а разбирать нам нечего. Со схемой поле есть всегда.
+    schema — the shape of the answer. Ollama can hold its output to it, and for a
+    small model that is no luxury: it answers with fluent prose and no required
+    field over and over, leaving us nothing to parse. With a schema the field is
+    always there.
 
-    temperature 0 — потому что здесь не сочиняют, а оценивают: один и тот же
-    вопрос должен давать один и тот же ответ. num_ctx задаётся явно: у Ollama
-    своё окно по умолчанию, и оно меньше того, что держит сама модель.
+    temperature 0, because nothing is being invented here, only judged: the same
+    question must give the same answer. num_ctx is set explicitly: Ollama has a
+    default window of its own, and it is smaller than what the model itself holds.
     """
-    тело = {"model": model, "prompt": prompt, "stream": False,
+    body = {"model": model, "prompt": prompt, "stream": False,
             "options": {"temperature": 0, "num_ctx": 8192}}
     if schema:
-        тело["format"] = schema
+        body["format"] = schema
     try:
-        r = requests.post(f"{OLLAMA_URL}/api/generate", json=тело, timeout=timeout)
-        # 404 у Ollama значит «нет такой модели», а не «меня нет». Писали же на
-        # это «Ollama недоступна», и человек шёл проверять, запущена ли она, — а
-        # запущена она была всегда. Промахнуться так можно, оставив в настройках
-        # имя модели от прежнего провайдера: у Ollama спрашивали «haiku», и все
-        # двадцать пять пачек подряд отвечали отказом.
+        r = requests.post(f"{OLLAMA_URL}/api/generate", json=body, timeout=timeout)
+        # A 404 from Ollama means "no such model", not "I am not here". We used to
+        # write "Ollama is unreachable" for it, and the person went off to check
+        # whether it was running — and it had been running all along. You can end
+        # up here by leaving the previous provider's model name in the settings:
+        # Ollama was being asked for "haiku", and all twenty-five batches in a row
+        # came back refused.
         if r.status_code == 404:
             raise ProviderError(key="prov_err_ollama_no_model", model=model)
         r.raise_for_status()
@@ -934,12 +953,13 @@ def call(prompt: str, provider: str, model: str, timeout: int = 600,
          schema: dict = None) -> str:
     """The single place a model is called. allowed_tools matters only to Claude Code CLI.
 
-    llm — весь блок настроек модели. Нужен своему адресу: у него, в отличие от
-    командных строк, кроме имени модели есть ещё адрес и ключ.
+    llm — the whole block of model settings. Needed by your own endpoint: unlike
+    the command-line tools, it has an address and a key besides the model's name.
 
-    schema — описание ожидаемого ответа. Понимает его пока только Ollama, и
-    именно ей оно и нужнее всех: малая модель без него теряет поля. Остальным
-    передавать нечего, и это не потеря — облачные модели держат формат сами.
+    schema — the shape of the expected answer. So far only Ollama understands it,
+    and it is the one that needs it most: without it a small model loses fields.
+    There is nothing to pass to the others, and that is no loss — cloud models
+    hold the format by themselves.
     """
     if provider == "cursor_cli":
         return call_cursor(prompt, model, timeout)
@@ -959,16 +979,17 @@ def call(prompt: str, provider: str, model: str, timeout: int = 600,
 
 
 def supports_web_search(provider: str) -> bool:
-    """Умеет ли ИСКАТЬ САМА программа-модель. Это только про её возможности."""
+    """Whether the model program can search ITSELF. This is about its own abilities only."""
     return provider in ("", "claude_cli")
 
 
 def web_search_possible(cfg: dict) -> bool:
-    """Есть ли веб-поиск вообще — неважно, чьими силами.
+    """Whether there is a web search at all — never mind by whose hands.
 
-    Либо ищет сама модель (так умеет только Claude Code), либо приложение своим
-    ключом и отдаёт ей найденное текстом. Для человека разницы нет: разведка
-    новых компаний и зарплатные вилки работают или не работают.
+    Either the model searches (only Claude Code can), or the application does with
+    its own key and hands it the results as text. To a person there is no
+    difference: scouting for new companies and salary ranges either work or they
+    do not.
     """
     from . import websearch
     return supports_web_search(cfg.get("llm", {}).get("provider", "claude_cli")) \
@@ -1043,7 +1064,7 @@ def delete_model(model: str) -> None:
         r = requests.delete(f"{OLLAMA_URL}/api/delete",
                             json={"model": model, "name": model}, timeout=120)
         r.raise_for_status()
-        forget_ollama()      # список скачанного только что изменился
+        forget_ollama()      # the list of downloaded models just changed
     except requests.ConnectionError as e:
         raise ProviderError(key="prov_err_ollama_down") from e
     except requests.RequestException as e:
@@ -1060,7 +1081,7 @@ def pull_async(model: str) -> None:
     def worker():
         try:
             pull(model)
-            forget_ollama()  # модель появилась — список скачанного устарел
+            forget_ollama()  # a model appeared — the downloaded list is stale
             _set_pull(percent=100, status="", status_key="pull_done", done=True)
         except ProviderError as e:
             # the values become strings: this state leaves as JSON for the page,
