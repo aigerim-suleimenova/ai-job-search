@@ -48,11 +48,11 @@ def conn():
                           "ALTER TABLE jobs ADD COLUMN tailored_cv TEXT",
                           "ALTER TABLE jobs ADD COLUMN posted_at TEXT",
                           "ALTER TABLE jobs ADD COLUMN viewed INTEGER DEFAULT 0",
-                          # Профессия по общеевропейскому справочнику: до модели
-                          # доходила, а посмотреть потом было нельзя — и на
-                          # карточке не показать.
+                          # The occupation from the Europe-wide taxonomy: it
+                          # reached the model, but afterwards there was no way to
+                          # look at it — and no way to show it on the card.
                           "ALTER TABLE jobs ADD COLUMN occupation TEXT",
-                          # Что объявление само говорит про право на работу.
+                          # What the posting itself says about the right to work.
                           "ALTER TABLE jobs ADD COLUMN visa TEXT"):
                 try:
                     c.execute(alter)

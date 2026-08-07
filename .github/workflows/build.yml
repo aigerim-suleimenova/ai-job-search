@@ -24,10 +24,11 @@ jobs:
       - name: Run tests
         run: python -m pytest
 
-  # Часть тестов на Linux пропускается: подстановка пакета .app бывает только на
-  # macOS, и внутри неё hdiutil, ditto и ожидание чужого процесса — заглушками
-  # такое не проверишь. Без этой работы обновление для macOS уехало бы к людям
-  # непроверенным, а промахнуться там дороже всего: программа заменяет сама себя.
+  # Some tests are skipped on Linux: swapping in an .app bundle only happens on
+  # macOS, and hdiutil, ditto and waiting on someone else's process cannot be
+  # checked with stubs. Without this job the macOS update would reach people
+  # untested — and that is the costliest place to miss, because the program
+  # replaces itself.
   test-macos:
     runs-on: macos-latest
     steps:
@@ -99,7 +100,7 @@ jobs:
           CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
           if [ -z "$CERT_P12" ]; then
-            echo "Сертификата в секретах нет — сборка останется неподписанной."
+            echo "No certificate in the secrets — the build stays unsigned."
             exit 0
           fi
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
@@ -118,7 +119,7 @@ jobs:
           # A silent import failure is the worst outcome: the build would go out
           # unsigned and the users would be the ones to find out. Better to fail here.
           if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
-            echo "Сертификат импортировался, но Developer ID не виден — проверьте MACOS_CERT_P12 и пароль."
+            echo "The certificate imported, but no Developer ID is visible — check MACOS_CERT_P12 and the password."
             exit 1
           fi
 
@@ -142,13 +143,13 @@ jobs:
           fi
 
       # An unverified signature is useless: spoiling one silently is the easiest thing there is.
-      - name: Проверяем, что образ примет Gatekeeper
+      - name: Check that Gatekeeper accepts the image
         if: runner.os == 'macOS'
         env:
           NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
         run: |
           if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
-            echo "Сборка без подписи — проверять нечего."
+            echo "An unsigned build — nothing to check."
             exit 0
           fi
           codesign --verify --deep --strict "dist/AI Job Search.app"
@@ -158,7 +159,7 @@ jobs:
             xcrun stapler validate "dist/AI Job Search.app"
             xcrun stapler validate "dist/AI Job Search.dmg"
           else
-            echo "Подписано, но не нотаризовано: нет данных для notarytool."
+            echo "Signed but not notarised: no credentials for notarytool."
           fi
 
       # The temporary keychain must not outlive the build, even if something failed above.
@@ -180,15 +181,15 @@ jobs:
           $version = if ($env:GITHUB_REF -like 'refs/tags/v*') {
             $env:GITHUB_REF_NAME.TrimStart('v')
           } else { '0.0.0' }
-          Write-Host "Версия установщика: $version"
+          Write-Host "Installer version: $version"
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) {
             choco install innosetup --no-progress -y
             $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           }
           & $iscc "/DAppVersion=$version" packaging\installer.iss
-          if ($LASTEXITCODE -ne 0) { throw "Установщик не собрался" }
-          Get-ChildItem dist\*.exe | ForEach-Object { "{0}  {1:N1} МБ" -f $_.Name, ($_.Length / 1MB) }
+          if ($LASTEXITCODE -ne 0) { throw "The installer did not build" }
+          Get-ChildItem dist\*.exe | ForEach-Object { "{0}  {1:N1} MB" -f $_.Name, ($_.Length / 1MB) }
 
       - name: Package Linux archive
         if: runner.os == 'Linux'
@@ -217,7 +218,7 @@ jobs:
         with:
           path: artifacts
 
-      - name: Собрать список файлов
+      - name: Gather the files to hand out
         run: |
           mkdir -p release
           # Only files ready to be handed out. A bare "AI Job Search.exe" does not

@@ -24,24 +24,25 @@ def _api(token: str, method: str) -> str:
 
 
 def _without_token(text: str, token: str) -> str:
-    """Тот же текст, но без токена.
+    """The same text, with the token taken out.
 
-    Telegram требует держать токен прямо в адресе, а requests вкладывает адрес в
-    текст своего исключения. Дальше это исключение попадало в журнал прогона —
-    тот, что хранится в базе и показывается на странице результатов, — и в
-    errors.log. То есть токен оседал открытым текстом ровно в тех файлах,
-    которые человек прикладывает к жалобе на ошибку. А токен — это полная власть
-    над ботом и вся его переписка.
+    Telegram wants the token right in the URL, and requests puts the URL into
+    the text of its own exception. That exception then went into the run log —
+    the one kept in the database and shown on the results page — and into
+    errors.log. So the token settled in plain text in exactly the files a person
+    attaches to a bug report. And the token is full power over the bot and all
+    of its correspondence.
     """
     return text.replace(token, "***") if token else text
 
 
 def _call(what, token: str):
-    """Запрос к Telegram, чья неудача не выносит наружу ни токена, ни лишнего.
+    """A call to Telegram whose failure leaks neither the token nor anything else.
 
-    Ещё и тип важен: requests.RequestException — это OSError, а не RuntimeError,
-    так что мимо всех наших `except RuntimeError` он пролетал прямо в общий
-    обработчик, а тот пишет traceback целиком.
+    The type matters too: requests.RequestException is an OSError, not a
+    RuntimeError, so it flew past every one of our `except RuntimeError` clauses
+    straight into the catch-all handler — and that one writes the whole
+    traceback.
     """
     try:
         return what()

@@ -81,11 +81,11 @@
       <input name="linkedin" value="{{ cfg.profile.linkedin }}" placeholder="https://linkedin.com/in/...">
     </label>
 
-    {# За какой срок брать вакансии. Поле такое же, как в фильтрах результатов:
-       свой текстовый порядок цифр плюс системный календарь под значком — иначе
-       браузер показывает дату в том порядке, какой стоит в настройках системы.
-       Пустые поля значат «без ограничения», и очистить их надо чем-то одним
-       нажатием: стирать две даты руками неудобно. #}
+    {# What date range to take jobs from. The same field as in the results
+       filters: our own textual order of the digits plus the system calendar under
+       the icon — otherwise the browser shows the date in whatever order the system
+       settings hold. Empty fields mean "no limit", and clearing them has to take
+       one press: wiping two dates by hand is a nuisance. #}
     <div class="grid2" style="margin-top:14px">
       {% for key, label, value in [('posted_from', t('filter_posted_from'), cfg.search.posted_from),
                                    ('posted_to', t('filter_posted_to'), cfg.search.posted_to)] %}

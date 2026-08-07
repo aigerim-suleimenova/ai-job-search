@@ -1,19 +1,19 @@
-"""С этим сервером вправе разговаривать только сама программа.
+"""Only the program itself is entitled to talk to this server.
 
-Он слушает петлю, из сети до него не дотянуться — но «только с этого компьютера»
-не то же самое, что «только из этой программы». Любая страница, открытая в
-обычном браузере, живёт на том же компьютере, и до сих пор ей никто не мешал:
-три десятка действий, меняющих состояние, не спрашивали, кто просит. Одной формы
-на чужом сайте хватало, чтобы перенаправить сводки в чужой Telegram, подменить
-путь к программе-модели или стереть все данные разом.
+It listens on the loopback and cannot be reached from the network — but "only
+from this computer" is not the same as "only from this program". Any page open in
+an ordinary browser lives on the same computer, and until now nothing stood in
+its way: three dozen state-changing actions never asked who was asking. One form
+on somebody else's site was enough to redirect the summaries to a stranger's
+Telegram, replace the path to the model program, or wipe all the data at once.
 
-А проверка Host закрывает подмену DNS: имя, которое минуту назад вело на чужой
-сервер, а теперь на 127.0.0.1, делает чужой сценарий «своим» для браузера — и
-тогда он может уже не только слать, но и читать.
+The Host check closes DNS rebinding: a name that led to somebody else's server a
+minute ago and now leads to 127.0.0.1 makes a foreign script "ours" as far as the
+browser is concerned — and then it can not only send but read.
 """
 import pytest
 
-pytest.importorskip("httpx", reason="TestClient требует httpx")
+pytest.importorskip("httpx", reason="TestClient needs httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -27,7 +27,7 @@ def client(profile):
         yield c
 
 
-# --- Чужое имя ------------------------------------------------------------------
+# --- A foreign name -----------------------------------------------------------
 
 @pytest.mark.parametrize("host", [
     "evil.example",
@@ -35,77 +35,77 @@ def client(profile):
     "rebind.example:8766",
     "ai-job-search.attacker.test",
 ])
-def test_на_чужое_имя_не_отзываемся(client, host):
-    """Ровно то, чем пользуется подмена DNS."""
+def test_we_do_not_answer_to_a_foreign_name(client, host):
+    """Exactly what DNS rebinding makes use of."""
     r = client.get("/simple", headers={"Host": host})
-    assert r.status_code == 403, f"ответили на Host: {host}"
+    assert r.status_code == 403, f"we answered a Host of {host}"
 
 
 @pytest.mark.parametrize("host", [
     "127.0.0.1:8765", "127.0.0.1", "localhost:8765", "localhost", "[::1]:8765",
 ])
-def test_на_свои_имена_отзываемся(client, host):
-    """Обратная сторона: собственное окно программы стучится по всем этим адресам."""
+def test_we_answer_to_our_own_names(client, host):
+    """The other side of it: the program's own window knocks on all of these."""
     r = client.get("/simple", headers={"Host": host}, follow_redirects=True)
-    assert r.status_code == 200, f"не ответили на своё же имя: {host}"
+    assert r.status_code == 200, f"we did not answer our own name: {host}"
 
 
-def test_чужое_имя_закрывает_и_статику(client):
-    """Проверка стоит раньше всего остального, а не только перед страницами."""
+def test_a_foreign_name_closes_the_static_files_too(client):
+    """The check comes before everything else, not only before the pages."""
     assert client.get("/static/style.css", headers={"Host": "evil.example"}).status_code == 403
 
 
-# --- Чужое происхождение --------------------------------------------------------
+# --- A foreign origin ---------------------------------------------------------
 
-ДЕЙСТВИЯ = [
-    ("/save", {"telegram_token": "чужой", "telegram_chat": "1"}),
+ACTIONS = [
+    ("/save", {"telegram_token": "stranger", "telegram_chat": "1"}),
     ("/app/reset", {}),
     ("/run", {}),
     ("/models/select", {"model": "haiku"}),
-    ("/notify/telegram", {"bot_token": "чужой", "chat_id": "1"}),
+    ("/notify/telegram", {"bot_token": "stranger", "chat_id": "1"}),
     ("/set_theme", {"theme": "dark"}),
     ("/profile/delete", {"slug": "me"}),
     ("/app/update/install", {}),
 ]
 
 
-@pytest.mark.parametrize("path,data", ДЕЙСТВИЯ)
-def test_форма_с_чужого_сайта_не_срабатывает(client, path, data):
+@pytest.mark.parametrize("path,data", ACTIONS)
+def test_a_form_from_another_site_does_not_go_through(client, path, data):
     r = client.post(path, data=data,
                     headers={"Origin": "https://evil.example",
                              "Referer": "https://evil.example/page"},
                     follow_redirects=False)
-    assert r.status_code == 403, f"{path} выполнился по чужой просьбе"
+    assert r.status_code == 403, f"{path} ran at a stranger's request"
 
 
-@pytest.mark.parametrize("path,data", ДЕЙСТВИЯ)
-def test_браузер_прямо_называет_чужое_происхождение(client, path, data):
-    """Sec-Fetch-Site ставит сам браузер, со страницы его не подделать."""
+@pytest.mark.parametrize("path,data", ACTIONS)
+def test_the_browser_names_the_foreign_origin_outright(client, path, data):
+    """Sec-Fetch-Site is set by the browser; a page cannot forge it."""
     r = client.post(path, data=data, headers={"Sec-Fetch-Site": "cross-site"},
                     follow_redirects=False)
-    assert r.status_code == 403, f"{path} выполнился при cross-site"
+    assert r.status_code == 403, f"{path} ran with cross-site"
 
 
-def test_свои_действия_проходят(client):
-    """Главное, чего нельзя сломать: собственные формы программы."""
-    for заголовки in ({"Origin": "http://127.0.0.1:8765", "Sec-Fetch-Site": "same-origin"},
-                      {"Sec-Fetch-Site": "none"},          # адрес набрали руками
-                      {}):                                  # встроенный браузер молчит
+def test_our_own_actions_go_through(client):
+    """The thing that must not break: the program's own forms."""
+    for headers in ({"Origin": "http://127.0.0.1:8765", "Sec-Fetch-Site": "same-origin"},
+                      {"Sec-Fetch-Site": "none"},          # the address was typed by hand
+                      {}):                                  # the embedded browser says nothing
         r = client.post("/set_theme", data={"theme": "auto"},
-                        headers=заголовки, follow_redirects=False)
-        assert r.status_code == 303, f"своя же форма отклонена при {заголовки}"
+                        headers=headers, follow_redirects=False)
+        assert r.status_code == 303, f"our own form was refused with {headers}"
 
 
-def test_чтение_чужим_не_запрещаем_если_имя_наше(client):
-    """Ограничение только на действия: обычный переход по ссылке из самой
-    программы приходит без Origin, и мешать ему нечего."""
+def test_reading_is_not_forbidden_when_the_name_is_ours(client):
+    """The restriction is on actions only: an ordinary link followed from inside
+    the program arrives with no Origin, and there is nothing to stop."""
     assert client.get("/simple", headers={"Sec-Fetch-Site": "cross-site"},
                       follow_redirects=True).status_code == 200
 
 
-def test_подмена_dns_не_даёт_прочитать(client):
-    """Соединение двух приёмов: после переразрешения имени страница злоумышленника
-    становится «своей» для браузера — но не для нас."""
+def test_dns_rebinding_does_not_let_them_read(client):
+    """The two tricks joined: once the name is re-resolved, the attacker's page
+    becomes "ours" as far as the browser goes — but not as far as we go."""
     r = client.get("/results", headers={"Host": "evil.example",
                                         "Origin": "http://evil.example",
                                         "Sec-Fetch-Site": "same-origin"})

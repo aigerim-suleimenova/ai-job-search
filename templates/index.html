@@ -53,9 +53,10 @@
       <button>{{ t('rename_person') }}</button>
     </form>
     {% if profiles|length > 1 %}
-    {# Вопрос — в data-атрибуте: по-французски в нём есть апостроф, и внутри
-       строки в кавычках он обрывал её на середине. Кнопка не спрашивала и не
-       удаляла — она просто ничего не делала, и только на одном языке. #}
+    {# The confirmation goes in a data attribute: in French it contains an
+       apostrophe, which inside a quoted string broke it off halfway. The button
+       neither asked nor deleted — it simply did nothing, and only in one
+       language. #}
     <form method="post" action="/profile/delete"
           data-confirm="{{ t('delete_confirm') }}"
           onsubmit="return confirm(this.dataset.confirm)">
@@ -67,9 +68,9 @@
 </section>
 
 
-{# Про новые версии человек иначе не узнаёт вовсе: программа о них молчала, а
-   ходить на сайт и проверять никто не станет. Проверка идёт в фоне при запуске,
-   сюда попадает уже готовый ответ. #}
+{# Otherwise a person never learns about new versions at all: the program said
+   nothing about them, and nobody is going to visit the site to check. The check
+   runs in the background at startup, and what arrives here is a ready answer. #}
 <section class="card" id="update">
   <h2>{{ t('update_title') }}</h2>
   {% if update.version %}
@@ -250,9 +251,9 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
     <label class="check"><input type="checkbox" name="use_jobtech" {% if cfg.sources.use_jobtech %}checked{% endif %}> JobTech (SE)</label>
     <label class="check"><input type="checkbox" name="use_workable" {% if cfg.sources.use_workable %}checked{% endif %}> Workable (employers)</label>
   </div>
-  {# Восемь из десяти источников выше — доски для программистов, и по ним швея,
-     бариста или слесарь не находятся вовсе. Об этом надо сказать прямо: человек
-     иначе решит, что вакансий по его профессии нет. #}
+  {# Eight of the ten sources above are boards for programmers, and no seamstress,
+     barista or fitter is to be found through them at all. That has to be said
+     outright: otherwise a person concludes there are no jobs in their trade. #}
   <p class="hint">{{ t('sources_trades_hint') }}</p>
   <div class="grid2" style="align-items:end">
     <label>{{ t('discover_per_run') }}
@@ -267,10 +268,11 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
   </label>
   <p class="hint">{{ t('sources_hint') }}</p>
 
-  {# Поиск в интернете силами приложения. Веб-поиск умеет только Claude Code, и
-     со всеми остальными разведка новых компаний и зарплатные вилки отключались.
-     С ключом сюда они работают с любой моделью: ищет приложение, а модель
-     получает найденное текстом и в сеть не ходит вовсе. #}
+  {# Searching the web with the application's own hands. Only Claude Code can
+     search the web, and with everyone else scouting for new companies and salary
+     ranges were switched off. With a key here they work with any model: the
+     application searches, and the model gets the results as text and does not go
+     to the network at all. #}
   <details {% if cfg.sources.web_search_provider %}open{% endif %}>
     <summary>{{ t('websearch_title') }}</summary>
     <p class="hint" style="margin:8px 0 12px">{{ t('websearch_hint') }}</p>
@@ -290,10 +292,11 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
     </div>
   </details>
 
-  {# Раздел был свёрнут и молчал о том, что даёт. Человек, ищущий работу за
-     пределами ЕС и США, до него не добирался: он просто получал десяток
-     вакансий и решал, что программа не работает. Считано на 1511 собранных
-     вакансиях — по Украине их было восемь, по ОАЭ семь, по России одна. #}
+  {# This section was collapsed and said nothing about what it gives. Anyone
+     looking for work outside the EU and the US never got to it: they simply
+     received a dozen jobs and decided the program did not work. Counted across
+     1511 collected jobs — eight for Ukraine, seven for the UAE, one for
+     Russia. #}
   <details>
     <summary>{{ t('keys_title') }}</summary>
     <p class="hint" style="margin:8px 0 12px">{{ t('keys_hint') }}</p>
@@ -399,10 +402,11 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
 </section>
 {% endif %}
 
-{# Внизу страницы и последним по порядку: это единственное действие здесь, после
-   которого нечего восстанавливать. Вопрос лежит в data-атрибуте, а не в самом
-   onsubmit — в некоторых языках в нём есть апостроф, и внутри строки в кавычках
-   он оборвал бы её, а кнопка молча перестала бы работать. #}
+{# At the bottom of the page and last in order: this is the one action here after
+   which there is nothing to restore. The confirmation lives in a data attribute
+   rather than in onsubmit itself — in some languages it contains an apostrophe,
+   which inside a quoted string would break it, and the button would quietly stop
+   working. #}
 <section class="card">
   <h2>{{ t('reset_title') }}</h2>
   <p class="hint">{{ t('reset_hint') }}</p>
@@ -413,12 +417,12 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
   </form>
 </section>
 
-{# Удаление самой программы.
-   На Windows это делает установщик — там достаточно сказать, где его искать.
-   На macOS и Linux установщика нет вовсе: образ перетаскивают в корзину, и
-   данные с автозапуском остаются навсегда. Убрать их может только сама
-   программа — до того, как её удалят, о чём никто не догадывается. Поэтому
-   здесь она называет всё поимённо и предлагает убрать за собой сама. #}
+{# Removing the program itself.
+   On Windows the installer does this — there it is enough to say where to find
+   it. On macOS and Linux there is no installer at all: the image gets dragged to
+   the bin, and the data and the autostart entry stay forever. Only the program
+   itself can clear them away — before it is deleted, which nobody thinks to do.
+   So here it names everything by name and offers to clear up after itself. #}
 <section class="card" id="uninstall">
   <h2>{{ t('uninstall_title') }}</h2>
   {% if removal.has_uninstaller %}
@@ -438,8 +442,8 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
 </section>
 
 <script>
-// Скачивание установщика — это десятки мегабайт. Без счётчика человек видит
-// нажатую кнопку и ничего больше, и не знает, идёт ли что-нибудь вообще.
+// Downloading the installer is tens of megabytes. Without a counter a person sees
+// a pressed button and nothing else, with no idea whether anything is happening.
 const UPDATE_DOWNLOADING = {{ t('update_downloading')|tojson }};
 async function updateProgress() {
   const box = document.getElementById("update-progress");
@@ -451,7 +455,7 @@ async function updateProgress() {
     box.hidden = false;
     box.textContent = UPDATE_DOWNLOADING + " " + s.percent + "%";
     setTimeout(updateProgress, 700);
-  } catch (e) { /* программа уже закрывается — установщик перехватил работу */ }
+  } catch (e) { /* the program is already closing — the installer has taken over */ }
 }
 updateProgress();
 

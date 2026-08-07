@@ -1,23 +1,26 @@
-"""Запросы наружу — так, чтобы они доходили и там, где соединения проверяют.
+"""Outbound requests — made so they arrive even where connections get inspected.
 
-Антивирусы Avast, AVG, Kaspersky, ESET и рабочие шлюзы делают одно и то же: сами
-открывают защищённое соединение, читают его и подписывают своим корнем. Корень
-этот стоит в хранилище системы — иначе не работал бы и браузер. Но requests
-хранилищем системы не пользуется: у него свой набор, и чужого корня в нём нет.
-Отсюда «сертификат не проверился» — на всём подряд.
+Avast, AVG, Kaspersky, ESET and corporate gateways all do the same thing: they
+open the secure connection themselves, read it, and re-sign it with their own
+root. That root sits in the system store — otherwise the browser would not work
+either. But requests does not use the system store: it carries its own bundle,
+and the foreign root is not in it. Hence "certificate verify failed" — on
+everything at once.
 
-Виктор увидел это дважды за день. Сперва все девять источников вакансий отдали
-ноль, и прогон отчитался успешным. Потом программа перестала замечать новые
-версии: проверка молча возвращала пустоту, и человек полторы версии сидел на
-старой, не зная, что вышли новые.
+Viktor hit this twice in one day. First all nine job sources returned zero and
+the run reported success. Then the program stopped noticing new versions: the
+check silently came back empty, and he sat on an old build for a version and a
+half without knowing newer ones were out.
 
-Здесь это чинится в одном месте. Сначала пробуем как обычно, своим набором: у
-кого соединения не проверяют — для того ничего не меняется. Если не вышло из-за
-сертификата, повторяем через хранилище системы и запоминаем выбор до конца
-работы, чтобы не платить двойной попыткой за каждый запрос.
+It is fixed here, in one place. First we try the usual way, with our own bundle:
+for anyone whose connections are not inspected, nothing changes. If that fails
+over a certificate, we retry through the system store and remember the choice
+until the program exits, so we do not pay for every request with a second
+attempt.
 
-Слабее от этого не становится: хранилище системы — ровно то, чему доверяет
-браузер этого человека, и доверяет он туда сам. Проверку мы не выключаем.
+This makes nothing weaker: the system store is exactly what this person's own
+browser trusts, and they put that trust there themselves. We never turn
+verification off.
 """
 import ssl
 import threading
@@ -26,56 +29,56 @@ import requests
 from requests.adapters import HTTPAdapter
 
 _lock = threading.Lock()
-_через_систему = False       # выяснили, что свой набор тут не годится
-_сессия = None
+_via_system_store = False    # found out our own bundle will not do here
+_session = None
 
 
-class _ХранилищеСистемы(HTTPAdapter):
-    """Соединение проверяется тем, чему доверяет сама операционная система."""
+class _SystemTrustStore(HTTPAdapter):
+    """The connection is verified against what the operating system trusts."""
 
     def init_poolmanager(self, *args, **kwargs):
         kwargs["ssl_context"] = ssl.create_default_context()
         return super().init_poolmanager(*args, **kwargs)
 
 
-def _сессия_системы():
-    global _сессия
+def _system_session():
+    global _session
     with _lock:
-        if _сессия is None:
-            _сессия = requests.Session()
-            _сессия.mount("https://", _ХранилищеСистемы())
-        return _сессия
+        if _session is None:
+            _session = requests.Session()
+            _session.mount("https://", _SystemTrustStore())
+        return _session
 
 
-def _позвать(метод, url, **kw):
-    global _через_систему
-    if _через_систему:
-        return getattr(_сессия_системы(), метод)(url, **kw)
+def _call(method, url, **kw):
+    global _via_system_store
+    if _via_system_store:
+        return getattr(_system_session(), method)(url, **kw)
     try:
-        return getattr(requests, метод)(url, **kw)
+        return getattr(requests, method)(url, **kw)
     except requests.exceptions.SSLError:
-        # Может, дело в проверяющем посреднике. Пробуем его же корнем — и если
-        # вышло, дальше ходим так же: второй попытки на каждый запрос не надо.
-        ответ = getattr(_сессия_системы(), метод)(url, **kw)
-        _через_систему = True
-        return ответ
+        # Maybe there is an inspecting middleman. Try its own root — and if that
+        # worked, keep going that way: no need for a second attempt every time.
+        response = getattr(_system_session(), method)(url, **kw)
+        _via_system_store = True
+        return response
 
 
 def get(url, **kw):
-    return _позвать("get", url, **kw)
+    return _call("get", url, **kw)
 
 
 def post(url, **kw):
-    return _позвать("post", url, **kw)
+    return _call("post", url, **kw)
 
 
-def через_хранилище_системы() -> bool:
-    """Пришлось ли перейти на хранилище системы. Для журнала и проверок."""
-    return _через_систему
+def using_system_store() -> bool:
+    """Whether we had to fall back to the system store. For the log and the tests."""
+    return _via_system_store
 
 
-def забыть() -> None:
-    """Спросить заново — набор мог смениться (и это нужно тестам)."""
-    global _через_систему, _сессия
+def forget() -> None:
+    """Ask again — the bundle may have changed (and the tests need this)."""
+    global _via_system_store, _session
     with _lock:
-        _через_систему, _сессия = False, None
+        _via_system_store, _session = False, None

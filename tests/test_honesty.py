@@ -1,42 +1,44 @@
-"""Когда модели нет, программа должна говорить об этом, а не делать вид.
+"""With no model, the program has to say so rather than pretend.
 
-Собрать вакансии можно и без модели: агрегаторы — обычные адреса в сети, и всё
-до оценки проходит прекрасно. Поэтому прогон с удалённой Ollama доходил до конца,
-писал «найдено 340, подошло 0» и заканчивался зелёным — и читался как «сегодня
-ничего подходящего», хотя ни одну вакансию так и не посмотрели. Проверка CV
-теряла посчитанное здесь же, на этом компьютере, из-за необязательной части.
-А там, где причина всё-таки называлась, вместо фразы показывался служебный ключ.
+Jobs can be collected without a model: the aggregators are ordinary addresses on
+the network, and everything up to the scoring goes through perfectly. So a run
+with Ollama uninstalled reached the end, wrote "found 340, matched 0" and finished
+green — and read as "nothing suitable today", though not one job had been looked
+at. The CV check lost what had been worked out right here, on this computer,
+because of an optional part. And where a reason was named at all, a raw key was
+shown instead of a sentence.
 """
 import pytest
 
 from jobsearch import config, cvcheck, filters, i18n, llm, pipeline, providers, scoring
 
 
-def сломанная_модель(monkeypatch):
-    """Модель, которой нет: ровно то, что бывает после удаления Ollama."""
-    def взорваться(*a, **kw):
+def broken_model(monkeypatch):
+    """A model that is not there: exactly what happens after Ollama is uninstalled."""
+    def blow_up(*a, **kw):
         raise providers.ProviderError(key="prov_err_ollama_unreachable", error="нет связи")
 
-    monkeypatch.setattr(llm, "ask_json", взорваться)
+    monkeypatch.setattr(llm, "ask_json", blow_up)
 
 
-# --- Прогон, который ничего не оценил -------------------------------------------
+# --- A run that scored nothing ------------------------------------------------
 
-def test_триаж_сообщает_о_неудачах(profile, monkeypatch):
-    """Раньше triage возвращал вакансии, и узнать, отвечал ли кто-нибудь, было нельзя."""
-    сломанная_модель(monkeypatch)
+def test_triage_reports_its_failures(profile, monkeypatch):
+    """triage used to return the jobs, and there was no way to learn whether anyone
+    had answered."""
+    broken_model(monkeypatch)
     jobs = [{"key": f"k{i}", "title": "Frontend", "company": "Acme",
              "description": "React"} for i in range(3)]
 
-    неудачи = scoring.triage(jobs, config.load(), lambda _m: None, cv="CV")
+    failures = scoring.triage(jobs, config.load(), lambda _m: None, cv="CV")
 
-    assert неудачи, "триаж промолчал о том, что ни один запрос не удался"
-    assert all(j.get("score") is None for j in jobs), "оценка взялась ниоткуда"
+    assert failures, "triage said nothing about not one request succeeding"
+    assert all(j.get("score") is None for j in jobs), "a score came from nowhere"
 
 
-def test_прогон_без_единой_оценки_не_считается_удачным(profile, monkeypatch):
-    """Тот самый случай: «найдено 340, подошло 0» и зелёный статус."""
-    сломанная_модель(monkeypatch)
+def test_a_run_with_not_one_score_does_not_count_as_successful(profile, monkeypatch):
+    """That very case: "found 340, matched 0" and a green status."""
+    broken_model(monkeypatch)
     monkeypatch.setattr(pipeline.aggregators, "collect", lambda cfg, log, cov: [
         {"key": "k1", "title": "Senior Frontend Engineer", "company": "Northwind",
          "location": "Berlin", "url": "https://example.com/1", "source": "remotive",
@@ -49,35 +51,35 @@ def test_прогон_без_единой_оценки_не_считается_�
     pipeline.run(trigger="test", profile=profile)
 
     from jobsearch import db
-    прогон = db.recent_runs(1)[0]
-    assert прогон["status"] == "error", "прогон, не посмотревший ни одной вакансии, назвался удачным"
-    assert прогон["found"] >= 1, "вакансии всё-таки собирались — это не должно потеряться"
+    run_row = db.recent_runs(1)[0]
+    assert run_row["status"] == "error", "a run that looked at not one job called itself successful"
+    assert run_row["found"] >= 1, "the jobs were collected after all — that must not be lost"
 
 
-def test_причина_в_журнале_словами_а_не_ключом(profile, monkeypatch):
-    """В журнал попадало «prov_err_ollama_unreachable» — слово, которое человеку
-    ничего не говорит."""
-    сломанная_модель(monkeypatch)
+def test_the_reason_in_the_log_is_words_and_not_a_key(profile, monkeypatch):
+    """What ended up in the log was "prov_err_ollama_unreachable" — a word that tells
+    a person nothing."""
+    broken_model(monkeypatch)
     cfg = config.load()
     cfg["ui"]["lang"] = "ru"
     config.save(cfg)
-    журнал = []
+    log_lines = []
 
     scoring.triage([{"key": "k", "title": "T", "company": "C", "description": ""}],
-                   cfg, журнал.append, cv="CV")
+                   cfg, log_lines.append, cv="CV")
 
-    строки = " ".join(журнал)
-    assert "prov_err_ollama_unreachable" not in строки, "показали служебный ключ"
-    assert "Ollama" in строки, "не сказали, в чём дело"
+    joined = " ".join(log_lines)
+    assert "prov_err_ollama_unreachable" not in joined, "a raw key was shown"
+    assert "Ollama" in joined, "we did not say what was wrong"
 
 
-# --- Проверка CV ----------------------------------------------------------------
+# --- The CV check -------------------------------------------------------------
 
-def test_проверка_cv_не_теряет_посчитанное_без_модели(profile, monkeypatch):
-    """Технические проверки считаются здесь же и всегда получаются. Раньше они
-    пропадали вместе с необязательной частью, которой нужна модель."""
+def test_the_cv_check_does_not_lose_what_it_worked_out_without_a_model(profile, monkeypatch):
+    """The technical checks are worked out right here and always succeed. They used
+    to vanish along with the optional part that needs a model."""
     from jobsearch import db
-    сломанная_модель(monkeypatch)
+    broken_model(monkeypatch)
     config.save_cv("cv.txt", ("Виктор Лавров\nfrontend@example.com\n+49 30 1234567\n"
                               "Опыт работы\nSenior Frontend Engineer, Acme, 2020-2026.\n"
                               "Образование\nМГУ\nНавыки\nReact, TypeScript\n" * 6).encode("utf-8"))
@@ -88,14 +90,14 @@ def test_проверка_cv_не_теряет_посчитанное_без_м�
 
     result = cvcheck.analyze(config.load())
 
-    assert result["tech"]["score"] > 0, "технические проверки пропали"
-    assert result["unfinished"], "о невыполненной части промолчали"
-    assert "prov_err" not in result["unfinished"][0], "и там служебный ключ"
-    assert cvcheck.last_result(), "результат не сохранён — при следующем заходе покажется пусто"
+    assert result["tech"]["score"] > 0, "the technical checks vanished"
+    assert result["unfinished"], "the unfinished part was passed over in silence"
+    assert "prov_err" not in result["unfinished"][0], "a raw key there too"
+    assert cvcheck.last_result(), "the result was not saved — the next visit will show nothing"
 
 
-def test_ошибка_проверки_cv_показывается_словами(client_check, monkeypatch):
-    """Страница показывала str(e) — то есть ключ перевода."""
+def test_a_cv_check_error_is_shown_in_words(client_check, monkeypatch):
+    """The page showed str(e) — that is, the translation key."""
     client, profile = client_check
     monkeypatch.setattr(cvcheck, "analyze",
                         lambda cfg: (_ for _ in ()).throw(
@@ -110,14 +112,14 @@ def test_ошибка_проверки_cv_показывается_словам�
         if not client.get("/cv/check/status").json()["running"]:
             break
 
-    ошибка = client.get("/cv/check/status").json()["error"]
-    assert "prov_err_ollama_down" not in ошибка, "показали служебный ключ"
-    assert "Ollama" in ошибка
+    error_text = client.get("/cv/check/status").json()["error"]
+    assert "prov_err_ollama_down" not in error_text, "a raw key was shown"
+    assert "Ollama" in error_text
 
 
 @pytest.fixture
 def client_check(profile):
-    pytest.importorskip("httpx", reason="TestClient требует httpx")
+    pytest.importorskip("httpx", reason="TestClient needs httpx")
     from fastapi.testclient import TestClient
     import app as app_module
     with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as c:
@@ -125,37 +127,37 @@ def client_check(profile):
         yield c, profile
 
 
-# --- Срок размещения ------------------------------------------------------------
+# --- The posting period -------------------------------------------------------
 
-@pytest.mark.parametrize("posted,since,until,ожидание", [
+@pytest.mark.parametrize("posted,since,until,expected", [
     ("2026-07-20", "2026-07-01", "2026-07-31", True),
     ("2026-06-20", "2026-07-01", "", False),
     ("2026-08-20", "", "2026-07-31", False),
     ("2026-07-20", "", "", True),
-    ("", "2026-07-01", "2026-07-31", True),          # даты нет — не нам судить
-    ("вчера", "2026-07-01", "", True),               # источник написал словами
+    ("", "2026-07-01", "2026-07-31", True),          # no date — not ours to judge
+    ("вчера", "2026-07-01", "", True),               # the source wrote it in words
 ])
-def test_отбор_по_сроку(posted, since, until, ожидание):
-    assert filters.posted_ok({"posted_at": posted}, since, until) is ожидание
+def test_filtering_by_period(posted, since, until, expected):
+    assert filters.posted_ok({"posted_at": posted}, since, until) is expected
 
 
-def test_вакансии_без_даты_не_пропадают_молча():
-    """Многие агрегаторы даты не дают вовсе. Если отбрасывать всё без даты, человек,
-    поставивший срок, потеряет большую часть поиска и не узнает об этом."""
-    без_даты = [{"posted_at": ""}, {"posted_at": None}, {}]
-    assert all(filters.posted_ok(j, "2026-07-01", "2026-07-31") for j in без_даты)
+def test_jobs_with_no_date_do_not_vanish_silently():
+    """Many aggregators give no date at all. Throwing out everything undated would
+    lose a person who set a period most of their search, without telling them."""
+    undated = [{"posted_at": ""}, {"posted_at": None}, {}]
+    assert all(filters.posted_ok(j, "2026-07-01", "2026-07-31") for j in undated)
 
 
-def test_кривая_дата_из_браузера_не_попадает_в_настройки(client_check):
-    """В поле можно вписать что угодно — в настройки должна попасть дата или ничего."""
+def test_a_bent_date_from_the_browser_does_not_reach_the_settings(client_check):
+    """Anything can be typed into the field — a date or nothing must reach the settings."""
     import app as app_module
     assert app_module._date_or_empty("2026-07-01") == "2026-07-01"
-    assert app_module._date_or_empty("не дата") == ""
+    assert app_module._date_or_empty("not a date") == ""
     assert app_module._date_or_empty("2026-13-45") == ""
     assert app_module._date_or_empty(None) == ""
 
 
-def test_даты_из_быстрого_поиска_доходят_до_настроек(client_check):
+def test_dates_from_the_quick_search_reach_the_settings(client_check):
     client, _ = client_check
     client.post("/simple/start",
                 data={"person": "", "locations": "EU", "linkedin": "",
@@ -166,9 +168,9 @@ def test_даты_из_быстрого_поиска_доходят_до_нас�
     assert cfg["search"]["posted_to"] == "2026-07-31"
 
 
-def test_пустые_даты_снимают_ограничение(client_check):
-    """Пустое поле — это ответ «без ограничения», а не отсутствие ответа: иначе
-    очистить срок было бы нечем."""
+def test_empty_dates_lift_the_limit(client_check):
+    """An empty field is an answer — "no limit" — rather than the absence of one:
+    otherwise there would be nothing to clear the period with."""
     client, _ = client_check
     cfg = config.load()
     cfg["search"].update(posted_from="2026-07-01", posted_to="2026-07-31")
@@ -184,24 +186,25 @@ def test_пустые_даты_снимают_ограничение(client_chec
     assert cfg["search"]["posted_to"] == ""
 
 
-# --- Без веб-поиска не просим о том, чего модель не может -------------------------
+# --- With no web search we do not ask for what the model cannot do ------------
 
-def test_без_веб_поиска_не_просим_изучать_компанию(profile, monkeypatch):
-    """Изучение компании — это поиск в интернете. Просить о нём модель, которой
-    в сеть не выйти, значит потратить вызов впустую и подтолкнуть её сочинять:
-    ответить-то она чем-то должна.
+def test_with_no_web_search_we_do_not_ask_for_company_research(profile, monkeypatch):
+    """Researching a company is a web search. Asking for one from a model that cannot
+    reach the network wastes the call and nudges it into making things up: it has
+    to answer with something.
 
-    Флаг в настройках говорит «хочу», а может ли — решает провайдер."""
+    The setting says "I want this"; whether it is possible is the provider's
+    business."""
     from jobsearch import db, llm, pipeline
-    вызовы = []
+    calls = []
     monkeypatch.setattr(llm, "ask_json",
-                        lambda prompt, **kw: вызовы.append(kw.get("allowed_tools")) or {})
+                        lambda prompt, **kw: calls.append(kw.get("allowed_tools")) or {})
     monkeypatch.setattr(pipeline.aggregators, "collect", lambda cfg, log, cov: [
         {"key": "k1", "title": "Frontend", "company": "Acme", "location": "Berlin",
          "url": "https://example.com/1", "source": "remotive", "is_direct": 1,
          "is_agency": 0, "description": "React " * 100, "posted_at": "2026-07-20"}])
     cfg = config.load()
-    # локальная модель: в сеть не ходит
+    # a local model: it does not go to the network
     cfg["llm"].update(provider="ollama", triage_model="gemma2:9b", deep_model="gemma2:9b")
     cfg["search"].update(discover_per_run=0, discover_ats_per_run=0,
                          drop_off_target=False, research_company=True, threshold=0)
@@ -210,17 +213,17 @@ def test_без_веб_поиска_не_просим_изучать_компа�
 
     pipeline.run(trigger="test", profile=profile)
 
-    assert вызовы, "модель не звали вовсе"
-    assert all(not и for и in вызовы), \
-        "просили поискать в интернете модель, которая туда не ходит"
+    assert calls, "the model was never called at all"
+    assert all(not s for s in calls), \
+        "we asked a model that does not go online to search the web"
 
 
-def test_с_веб_поиском_изучение_компании_остаётся(profile, monkeypatch):
-    """Обратная сторона: у кого поиск есть, тот его и получает."""
+def test_with_a_web_search_the_company_research_stays(profile, monkeypatch):
+    """The other side: whoever has a search gets one."""
     from jobsearch import llm, scoring
-    инструменты = []
+    tools_seen = []
     monkeypatch.setattr(llm, "ask_json",
-                        lambda prompt, **kw: инструменты.append(kw.get("allowed_tools")) or {})
+                        lambda prompt, **kw: tools_seen.append(kw.get("allowed_tools")) or {})
     cfg = config.load()
     cfg["llm"].update(provider="claude_cli")
     config.save(cfg)
@@ -229,17 +232,18 @@ def test_с_веб_поиском_изучение_компании_остаёт
                           "description": "x" * 400},
                          cfg, "CV", lambda _m: None, research=True)
 
-    assert any(и for и in инструменты), "лишили веб-поиска того, кто его умеет"
+    assert any(s for s in tools_seen), "we took the web search away from one that can do it"
 
 
-def test_отказ_всех_источников_не_выдаётся_за_успех(monkeypatch, profile):
-    """Найдено настоящим прогоном: антивирус на машине перехватывал защищённые
-    соединения, все девять источников отвалились с ошибкой сертификата — а
-    прогон отчитался «Готово», status ok, ноль вакансий.
+def test_every_source_failing_is_not_passed_off_as_success(monkeypatch, profile):
+    """Found by a real run: the antivirus on the machine intercepted the secure
+    connections, all nine sources fell over with a certificate error — and the run
+    reported "Done", status ok, zero jobs.
 
-    Ноль от рынка и ноль от того, что до рынка не дошло, — разные вещи, и
-    человек не должен путать одно с другим. Тем более что причина у такого
-    обычно общая и снаружи: антивирус, рабочий шлюз, нет сети.
+    A zero from the market and a zero from never reaching the market are different
+    things, and a person must not mistake one for the other. All the more so since
+    the cause of this is usually one shared, external thing: an antivirus, a work
+    gateway, no network.
     """
     from jobsearch import config, db, llm, pipeline
     from jobsearch.collectors import aggregators
@@ -250,185 +254,188 @@ def test_отказ_всех_источников_не_выдаётся_за_у�
     cfg["search"].update(discover_per_run=0, discover_ats_per_run=0)
     config.save(cfg)
 
-    def всё_упало(cfg, log, coverage=None):
-        for имя in ("Remotive", "Arbeitnow", "RemoteOK"):
-            coverage.append({"name": имя, "url": "https://x.example", "kind": "aggregator",
+    def everything_failed(cfg, log, coverage=None):
+        for name in ("Remotive", "Arbeitnow", "RemoteOK"):
+            coverage.append({"name": name, "url": "https://x.example", "kind": "aggregator",
                              "count": 0, "error": "SSLError certificate verify failed"})
         return []
 
-    monkeypatch.setattr(aggregators, "collect", всё_упало)
+    monkeypatch.setattr(aggregators, "collect", everything_failed)
 
     pipeline.run(trigger="test", profile=profile)
 
     with db.conn() as c:
-        прогон = dict(c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone())
-    assert прогон["status"] != "ok", "прогон, где не ответил никто, назван успешным"
-    assert "источник" in прогон["log"] or "sources" in прогон["log"], \
-        "в журнале не сказано, что молчали все"
+        run_row = dict(c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone())
+    assert run_row["status"] != "ok", "a run where nobody answered was called successful"
+    assert "источник" in run_row["log"] or "sources" in run_row["log"], \
+        "the log does not say that everyone stayed silent"
 
 
-# --- Галочка «проверено» --------------------------------------------------------
+# --- The "verified" tick ------------------------------------------------------
 
-def глубокий_ответ(monkeypatch, ответ):
+def deep_answer(monkeypatch, answer):
     from jobsearch import scoring
-    monkeypatch.setattr(scoring.llm, "ask_json", lambda prompt, **kw: ответ)
+    monkeypatch.setattr(scoring.llm, "ask_json", lambda prompt, **kw: answer)
 
 
-def вакансия_на_разбор() -> dict:
+def job_for_analysis() -> dict:
     return {"title": "Senior Ruby on Rails Developer", "company": "Proxify AB",
             "location": "Remote", "url": "https://example.com/1",
             "description": "Ruby on Rails, RSpec, PostgreSQL. " * 40,
             "score": 90, "verified": False}
 
 
-def test_без_оценки_разбора_галочки_не_ставим(monkeypatch, profile):
-    """Пометка ставилась по факту ответа, а оценка бралась, только если в ответе
-    было поле match. Слабые модели сплошь и рядом отвечают связным текстом без
-    него — и на карточке оставался балл быстрого триажа с галочкой «проверено».
+def test_with_no_score_from_the_analysis_we_set_no_tick(monkeypatch, profile):
+    """The mark was set on the mere fact of an answer, while the score was taken only
+    when the answer carried a match field. Weak models answer with fluent prose
+    and no such field over and over — and the card kept the fast triage score with
+    a "verified" tick on it.
 
-    Триаж видит семьсот знаков описания и восемь вакансий за раз, он для того и
-    быстрый. Галочка говорила, что балл подтверждён вторым, внимательным
-    проходом, — а он его не подтверждал. Так вакансия на Ruby on Rails и стояла
-    у SAP-интегратора с «90 % ✓ проверено».
+    Triage sees seven hundred characters of description and eight jobs at a time;
+    that is what makes it fast. The tick said the score had been confirmed by a
+    second, careful pass — and it had not. That is how a Ruby on Rails job stood in
+    a SAP integrator's list at "90% ✓ verified".
     """
     from jobsearch import config, scoring
-    глубокий_ответ(monkeypatch, {"reason": "Ключевые навыки все на месте.",
+    deep_answer(monkeypatch, {"reason": "Ключевые навыки все на месте.",
                                  "cv_changes": ["Подчеркнуть SAP PO/PI"]})
-    j = вакансия_на_разбор()
+    j = job_for_analysis()
 
     scoring.deep_analyze(j, config.load(), cv="SAP Integration Consultant",
                          log=lambda *a, **k: None, research=False)
 
-    assert j["verified"] is False, "проверенным назван балл, которого разбор не давал"
-    assert j["score"] == 90, "балл триажа при этом терять незачем"
+    assert j["verified"] is False, "a score the analysis never gave was called verified"
+    assert j["score"] == 90, "there is no reason to lose the triage score over it"
 
 
-def test_с_оценкой_разбора_галочка_ставится(monkeypatch, profile):
-    """Обратная сторона: разбор ответил оценкой — значит подтвердил."""
+def test_with_a_score_from_the_analysis_the_tick_is_set(monkeypatch, profile):
+    """The other side: the deep analysis answered with a score, so it confirmed."""
     from jobsearch import config, scoring
-    глубокий_ответ(monkeypatch, {"match": 20, "reason": "Другое направление."})
-    j = вакансия_на_разбор()
+    deep_answer(monkeypatch, {"match": 20, "reason": "Другое направление."})
+    j = job_for_analysis()
 
     scoring.deep_analyze(j, config.load(), cv="SAP Integration Consultant",
                          log=lambda *a, **k: None, research=False)
 
     assert j["verified"] is True
-    assert j["score"] == 20, "оценку разбора не взяли"
+    assert j["score"] == 20, "the analysis score was not taken"
 
 
-def test_совет_не_подсказывает_соврать():
-    """Модель предлагала «упомянуть опыт с PostgreSQL» тому, у кого его нет.
-    Это совет соврать, и на собеседовании он обернётся против человека. В запросе
-    на адаптацию CV такой запрет был, а в запросе на разбор — нет."""
+def test_the_advice_does_not_suggest_lying():
+    """The model suggested "mention your PostgreSQL experience" to somebody who has
+    none. That is advice to lie, and at an interview it turns against the person.
+    The CV-tailoring prompt carried such a ban; the analysis prompt did not."""
     from jobsearch import scoring
-    запрос = scoring.DEEP_PROMPT.lower()
-    assert "не предлагай упоминать навыки" in запрос
-    assert "которых у кандидата нет" in запрос
+    prompt_text = scoring.DEEP_PROMPT.lower()
+    assert "не предлагай упоминать навыки" in prompt_text
+    assert "которых у кандидата нет" in prompt_text
 
 
-# --- Что модель успевает посмотреть ---------------------------------------------
+# --- What the model gets round to looking at ----------------------------------
 
-def test_найденное_по_запросу_идёт_раньше_вываленного_лентой():
-    """Порядок задаёт совпадение слов с профилем. EURES ищет по смыслу и
-    приносит названия на родных языках: на «seamstress» — польскую «Szwaczka».
-    Общих букв нет, совпадение ноль — и все 283 его вакансии уходили за черту,
-    под 400 IT-вакансий, попавших туда из-за слова «Designer» в названии."""
-    from jobsearch import pipeline  # noqa: F401  (проверяем сам порядок, ниже)
+def test_what_was_found_by_query_comes_before_what_was_dumped_from_a_feed():
+    """The order comes from how the words match the profile. EURES searches by
+    meaning and brings back titles in their own languages: for "seamstress", the
+    Polish "Szwaczka". No shared letters, a match of zero — and all 283 of its jobs
+    fell below the line, under 400 IT jobs that got there because of the word
+    "Designer" in the title."""
+    from jobsearch import pipeline  # noqa: F401  (the ordering itself is checked below)
 
-    свои_слова = {"lingerie", "pattern", "maker", "garment"}
+    own_words = {"lingerie", "pattern", "maker", "garment"}
 
-    def лексика(j):
-        return len(свои_слова & set(j["title"].lower().split()))
+    def lexical(j):
+        return len(own_words & set(j["title"].lower().split()))
 
-    вакансии = [
-        {"title": "Szwaczka", "by_query": True},                    # 0 общих слов
-        {"title": "Technical Designer Pattern", "by_query": False},  # 1 общее слово
-        {"title": "Lingerie Pattern Maker", "by_query": True},       # 3 общих
+    jobs = [
+        {"title": "Szwaczka", "by_query": True},                    # 0 words in common
+        {"title": "Technical Designer Pattern", "by_query": False},  # 1 word in common
+        {"title": "Lingerie Pattern Maker", "by_query": True},       # 3 in common
     ]
-    for j in вакансии:
-        j["_lex"] = лексика(j)
+    for j in jobs:
+        j["_lex"] = lexical(j)
 
-    по_словам = lambda j: -j["_lex"]  # noqa: E731
-    нашли = sorted((j for j in вакансии if j.get("by_query")), key=по_словам)
-    прочие = sorted((j for j in вакансии if not j.get("by_query")), key=по_словам)
-    порядок = [j["title"] for j in нашли + прочие]
+    by_words = lambda j: -j["_lex"]  # noqa: E731
+    asked_for = sorted((j for j in jobs if j.get("by_query")), key=by_words)
+    others = sorted((j for j in jobs if not j.get("by_query")), key=by_words)
+    order = [j["title"] for j in asked_for + others]
 
-    assert порядок.index("Szwaczka") < порядок.index("Technical Designer Pattern"), \
-        "найденное по запросу снова уехало под случайно совпавшее"
+    assert order.index("Szwaczka") < order.index("Technical Designer Pattern"), \
+        "what was found by query slid under an accidental match again"
 
 
-def test_источники_помечают_найденное_по_запросу():
-    """Метку ставит collect(), по одному списку — иначе она разойдётся с тем,
-    кто на самом деле ищет по словам."""
+def test_the_sources_mark_what_was_found_by_query():
+    """The mark is set by collect(), from one list — otherwise it drifts from who
+    actually searches by words."""
     from jobsearch.collectors import aggregators
-    имена = {и[4] for и in aggregators.ИСТОЧНИКИ}
-    assert aggregators.ИЩУТ_ПО_СЛОВАМ <= имена, "в списке ищущих есть несуществующий сборщик"
-    assert "eures" in aggregators.ИЩУТ_ПО_СЛОВАМ
-    assert "arbeitnow" not in aggregators.ИЩУТ_ПО_СЛОВАМ, "он отдаёт всю ленту"
+    names = {s[4] for s in aggregators.SOURCES}
+    assert aggregators.SEARCH_BY_WORDS <= names, "the searchers list holds a collector that does not exist"
+    assert "eures" in aggregators.SEARCH_BY_WORDS
+    assert "arbeitnow" not in aggregators.SEARCH_BY_WORDS, "it hands over its whole feed"
 
 
-def test_метка_ставится_только_ищущим(monkeypatch):
+def test_the_mark_is_set_only_for_those_that_search(monkeypatch):
     from jobsearch import config
     from jobsearch.collectors import aggregators
-    for имя in {и[4] for и in aggregators.ИСТОЧНИКИ}:
-        monkeypatch.setattr(aggregators, имя,
-                            lambda cfg, log, _и=имя: [{"title": _и, "source": _и}])
-    вакансии = aggregators.collect(config.DEFAULTS, lambda *a: None, [])
-    помечены = {j["source"] for j in вакансии if j.get("by_query")}
-    без_метки = {j["source"] for j in вакансии if not j.get("by_query")}
-    assert "eures" in помечены and "workable" in помечены
-    assert "arbeitnow" in без_метки and "hn_hiring" in без_метки
+    for name in {s[4] for s in aggregators.SOURCES}:
+        monkeypatch.setattr(aggregators, name,
+                            lambda cfg, log, _s=name: [{"title": _s, "source": _s}])
+    jobs = aggregators.collect(config.DEFAULTS, lambda *a: None, [])
+    marked = {j["source"] for j in jobs if j.get("by_query")}
+    unmarked = {j["source"] for j in jobs if not j.get("by_query")}
+    assert "eures" in marked and "workable" in marked
+    assert "arbeitnow" in unmarked and "hn_hiring" in unmarked
 
 
-# --- Разбор не спорит сам с собой ------------------------------------------------
+# --- The analysis does not argue with itself ----------------------------------
 
-def test_вердикт_чужая_держит_балл_внизу(monkeypatch, cfg):
-    """Модель писала «отвечает за разработку решений для игр, а не одежды» — и
-    ставила 55. Рассуждение верное, число нет. Верим рассуждению: оно идёт
-    первым, то есть придумано раньше, чем она успела подогнать цифру."""
+def test_a_verdict_of_another_trade_keeps_the_score_down(monkeypatch, cfg):
+    """The model wrote "responsible for developing solutions for games, not clothing"
+    — and gave it 55. The reasoning is right, the number is not. We believe the
+    reasoning: it comes first, meaning it was thought of before the figure could be
+    fitted to anything."""
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "verdict": "чужая", "reason": "другая профессия", "match": 85,
         "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
-    вакансия = {"title": "iOS Developer", "description": "x" * 400}
+    job = {"title": "iOS Developer", "description": "x" * 400}
 
-    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+    scoring.deep_analyze(job, cfg, "CV", lambda *a: None, research=False)
 
-    assert вакансия["score"] <= 20, f"чужая профессия ушла на {вакансия['score']}%"
-    assert вакансия["verified"] is True
+    assert job["score"] <= 20, f"another trade went up to {job['score']}%"
+    assert job["verified"] is True
 
 
-def test_своя_профессия_балл_не_теряет(monkeypatch, cfg):
-    """Обратная сторона: занижать своё нельзя."""
+def test_their_own_trade_does_not_lose_its_score(monkeypatch, cfg):
+    """The other side: their own trade must not be marked down."""
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "verdict": "своя", "reason": "та же профессия", "match": 90,
         "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
-    вакансия = {"title": "Lingerie Pattern Maker", "description": "x" * 400}
+    job = {"title": "Lingerie Pattern Maker", "description": "x" * 400}
 
-    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+    scoring.deep_analyze(job, cfg, "CV", lambda *a: None, research=False)
 
-    assert вакансия["score"] == 90
+    assert job["score"] == 90
 
 
-def test_разбор_думает_прежде_чем_ставить_балл():
-    """Оценка стояла ПЕРВЫМ полем — модель отвечает слева направо и придумывала
-    число раньше, чем успевала подумать. У триажа это давно исправлено, а до
-    разбора починка не дошла."""
+def test_the_analysis_thinks_before_it_scores():
+    """The score was the FIRST field — the model answers left to right and invented
+    the number before it had time to think. In triage this was fixed long ago; the
+    fix never reached the deep analysis."""
     from jobsearch import scoring
-    поля = list(scoring.DEEP_SCHEMA["properties"])
-    assert поля.index("verdict") < поля.index("match")
-    assert поля.index("reason") < поля.index("match")
-    тело = scoring.DEEP_PROMPT
-    assert тело.index('"verdict"') < тело.index('"match"')
-    assert тело.index('"reason"') < тело.index('"match"')
+    fields = list(scoring.DEEP_SCHEMA["properties"])
+    assert fields.index("verdict") < fields.index("match")
+    assert fields.index("reason") < fields.index("match")
+    body = scoring.DEEP_PROMPT
+    assert body.index('"verdict"') < body.index('"match"')
+    assert body.index('"reason"') < body.index('"match"')
 
 
-# --- Чего модель не прочитала, за то не ручаемся ---------------------------------
+# --- We do not vouch for what the model never read ----------------------------
 
-# Куски настоящих объявлений из прогона — короткие обрывки язык не определяют,
-# и правильно: судить надо то, что модели и правда достаётся.
-ОБЪЯВЛЕНИЯ = [
+# Pieces of real postings from a run — short fragments do not settle a language,
+# and rightly so: what should be judged is what actually reaches the model.
+POSTINGS = [
     ("Engineering Manager (Data Science). What you will do: build, mentor and lead "
      "an elite data science team as a trusted player-coach, while clearly "
      "communicating complex technical ideas to executives, customers and partners. "
@@ -447,91 +454,92 @@ def test_разбор_думает_прежде_чем_ставить_балл()
      "montage. Je werkt in een klein team, bedient machines en controleert de "
      "kwaliteit van de onderdelen. Ervaring in de techniek is een pluspunt, maar "
      "wij leiden je graag zelf op. Wij bieden een vast contract.", False),
-    ("Konstruktor", True),          # слов почти нет — не придираемся
-    # Перечень технологий: по-английски, но служебных слов нет ни одного, и язык
-    # по ним не определить. Раз нельзя — не придираемся.
+    ("Konstruktor", True),          # barely any words — we do not quibble
+    # A list of technologies: English, but without a single function word, so the
+    # language cannot be told from them. Since it cannot, we do not quibble.
     ("Ruby on Rails, RSpec, PostgreSQL. " * 40, True),
 ]
 
 
-@pytest.mark.parametrize("текст,ожидание", ОБЪЯВЛЕНИЯ)
-def test_узнаём_английский(текст, ожидание):
+@pytest.mark.parametrize("text,expected", POSTINGS)
+def test_we_recognise_english(text, expected):
     from jobsearch import scoring
-    assert scoring._по_английски(текст) is ожидание
+    assert scoring._in_english(text) is expected
 
 
-def test_непрочитанное_не_помечается_проверенным(monkeypatch, cfg):
-    """Не поняв текста, модель не говорит «не поняла»: пересказывает профиль и
-    ставит балл из примера. Конструктору белья столяр, маляр, садовник и
-    кладовщик достались по 90% — все с галочкой «проверено», все на польском."""
+def test_what_was_not_read_is_not_marked_verified(monkeypatch, cfg):
+    """Having failed to understand the text, the model does not say "I did not
+    understand": it retells the profile and puts down a score from the example. The
+    lingerie designer got a joiner, a painter, a gardener and a storekeeper at 90%
+    each — all with a "verified" tick, all in Polish."""
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "verdict": "своя", "reason": "кандидат имеет опыт", "match": 90,
         "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
-    вакансия = {"title": "Osoba na stanowisku stolarz",
+    job = {"title": "Osoba na stanowisku stolarz",
                 "description": "Zakres obowiązków: wykonywanie mebli na wymiar, "
                                "obsługa maszyn stolarskich, praca w warsztacie " * 6}
 
-    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+    scoring.deep_analyze(job, cfg, "CV", lambda *a: None, research=False)
 
-    assert вакансия["verified"] is False, "поручились за то, чего не прочли"
-    assert вакансия["score"] <= scoring.ПОТОЛОК_НЕПРОЧИТАННОГО
+    assert job["verified"] is False, "we vouched for what we never read"
+    assert job["score"] <= scoring.UNREAD_CEILING
 
 
-def test_профессия_из_справочника_снимает_вопрос(monkeypatch, cfg):
-    """Название профессии приходит по-английски и одинаково для всех языков —
-    по нему судить можно, даже когда объявление непрочитано."""
+def test_the_occupation_from_the_taxonomy_settles_the_question(monkeypatch, cfg):
+    """The occupation name arrives in English and is the same for every language — it
+    can be judged by even when the posting was never read."""
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "verdict": "своя", "reason": "та же профессия", "match": 90,
         "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
-    вакансия = {"title": "Szwaczka", "occupation": "tailor",
+    job = {"title": "Szwaczka", "occupation": "tailor",
                 "description": "Zakres obowiązków: szycie odzieży na maszynie " * 8}
 
-    scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
+    scoring.deep_analyze(job, cfg, "CV", lambda *a: None, research=False)
 
-    assert вакансия["verified"] is True
-    assert вакансия["score"] == 90
+    assert job["verified"] is True
+    assert job["score"] == 90
 
 
-def test_профессия_из_справочника_доходит_до_модели(monkeypatch, cfg):
+def test_the_occupation_from_the_taxonomy_reaches_the_model(monkeypatch, cfg):
     from jobsearch import llm, scoring
-    видел = {}
+    seen = {}
     monkeypatch.setattr(llm, "ask_json",
-                        lambda prompt, **k: видел.setdefault("prompt", prompt) and None
+                        lambda prompt, **k: seen.setdefault("prompt", prompt) and None
                         or {"verdict": "чужая", "reason": "—", "match": 5,
                             "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
     scoring.deep_analyze({"title": "Magazynier M/K", "occupation": "warehouse worker",
                           "description": "x" * 400},
                          cfg, "CV", lambda *a: None, research=False)
-    assert "warehouse worker" in видел["prompt"], "справочник до модели не дошёл"
+    assert "warehouse worker" in seen["prompt"], "the taxonomy never reached the model"
 
 
-def test_профессия_называется_вместе_с_чьей_она(cfg):
-    """Первая редакция писала просто «Профессия по справочнику: CNC machine
-    operator», и слабая модель читала это как профессию КАНДИДАТА: оператор
-    станка получал «своя» и 90%, тогда как без строки вовсе — «смежная» и 55.
-    Подсказка делала модель не умнее, а увереннее в неправоте. Померено на
-    прогоне конструктора белья."""
+def test_the_occupation_is_named_together_with_whose_it_is(cfg):
+    """The first version simply wrote "occupation from the taxonomy: CNC machine
+    operator", and a weak model read that as the CANDIDATE'S occupation: the
+    machine operator came out "own trade" at 90%, whereas with no line at all it
+    was "adjacent" at 55. The hint made the model not cleverer but more confident
+    in being wrong. Measured on the lingerie designer's run."""
     from jobsearch import scoring
     cfg["profile"]["roles"] = "Lingerie Pattern Maker, Garment Technologist"
-    блок = scoring._occupation_block(cfg, {"occupation": "CNC machine operator"})
+    block = scoring._occupation_block(cfg, {"occupation": "CNC machine operator"})
 
-    assert "CNC machine operator" in блок
-    assert "Lingerie Pattern Maker" in блок, "не сказано, с чем сравнивать"
-    assert "ВАКАНСИИ" in блок, "не сказано, чья это профессия"
-    assert блок.index("ВАКАНСИИ") < блок.index("кандидата")
+    assert "CNC machine operator" in block
+    assert "Lingerie Pattern Maker" in block, "it does not say what to compare against"
+    assert "ВАКАНСИИ" in block, "it does not say whose occupation this is"
+    assert block.index("ВАКАНСИИ") < block.index("кандидата")
 
 
-def test_без_профессии_блока_нет(cfg):
+def test_with_no_occupation_there_is_no_block(cfg):
     from jobsearch import scoring
     assert scoring._occupation_block(cfg, {}) == ""
     assert scoring._occupation_block(cfg, {"occupation": "  "}) == ""
 
 
-# --- Профиль из CV: ответ модели превращается в поле, а не в его пересказ -------
+# --- The profile from a CV: the answer becomes a field, not a retelling of one -
 
-@pytest.mark.parametrize("ответ,ожидание", [
+@pytest.mark.parametrize("answer,expected", [
     (["Purchasing Manager", "Supply Chain Manager"], "Purchasing Manager, Supply Chain Manager"),
     ("Purchasing Manager, Supply Chain Manager", "Purchasing Manager, Supply Chain Manager"),
     (["  Logistics Manager  ", "", "Procurement Lead"], "Logistics Manager, Procurement Lead"),
@@ -539,35 +547,36 @@ def test_без_профессии_блока_нет(cfg):
     ("Middle", "Middle"),
     ("C++ (advanced)", "C++ (advanced)"),
 ])
-def test_список_от_модели_становится_строкой(ответ, ожидание):
-    """Просим «должности через запятую», слабая модель присылает список. Через
-    str() он записывался в профиль как «['Purchasing Manager', ...]», дальше
-    разбирался по запятой — и в источники уходил запрос «['Purchasing Manager'»,
-    а модель получала такой же пример «своей» профессии."""
+def test_a_list_from_the_model_becomes_a_string(answer, expected):
+    """We ask for "job titles separated by commas" and a weak model sends a list.
+    Through str() it was written into the profile as "['Purchasing Manager', ...]",
+    then split on commas — and the query "['Purchasing Manager'" went off to the
+    sources, while the model was handed the same thing as an example of their own
+    trade."""
     from jobsearch import scoring
-    assert scoring._строкой(ответ) == ожидание
+    assert scoring._as_text(answer) == expected
 
 
-def test_профиль_из_cv_не_приносит_скобок(monkeypatch, cfg):
+def test_the_profile_from_a_cv_brings_no_brackets(monkeypatch, cfg):
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "roles": ["Purchasing Manager", "Logistics Manager"],
         "skills": ["Procurement", "MS Excel"],
-        "seniority": "Middle", "summary": ["10 лет в снабжении"],
+        "seniority": "Middle", "summary": ["10 years in procurement"],
         "languages": ["Russian (native)", "English (B1)"]})
     cfg["profile"].update(roles="", skills="", seniority="", summary="", languages="")
 
-    получилось = scoring.profile_from_cv(cfg, "CV")["profile"]
+    came_out = scoring.profile_from_cv(cfg, "CV")["profile"]
 
-    for поле in ("roles", "skills", "summary", "languages"):
-        assert "[" not in получилось[поле] and "'" not in получилось[поле], \
-            f"{поле}: {получилось[поле]}"
-    assert получилось["roles"] == "Purchasing Manager, Logistics Manager"
+    for field in ("roles", "skills", "summary", "languages"):
+        assert "[" not in came_out[field] and "'" not in came_out[field], \
+            f"{field}: {came_out[field]}"
+    assert came_out["roles"] == "Purchasing Manager, Logistics Manager"
 
 
-# --- Право на работу читаем из объявления, а не спрашиваем модель ----------------
+# --- We read the right to work from the posting, not from the model -----------
 
-@pytest.mark.parametrize("текст,ожидание", [
+@pytest.mark.parametrize("text,expected", [
     ("We are unable to sponsor visas for this position at this time.", "no"),
     ("Candidates must be authorized to work in the United States.", "no"),
     ("No visa sponsorship is available for this role.", "no"),
@@ -575,108 +584,110 @@ def test_профиль_из_cv_не_приносит_скобок(monkeypatch, 
     ("We help with the visa and offer relocation support to Berlin.", "yes"),
     ("Join our team of engineers building payment systems.", ""),
 ])
-def test_что_объявление_говорит_про_визу(текст, ожидание):
-    """Спрашивать модель бесполезно: на прогоне Дмитрия в профиле стояло «нужно
-    спонсорство», строка попадала в запрос — и ни в одном из ста девяти доводов
-    виза не была упомянута ни разу."""
+def test_what_the_posting_says_about_a_visa(text, expected):
+    """Asking the model is useless: on Dmitry's run the profile said sponsorship was
+    needed, that line went into the prompt — and in none of the hundred and nine
+    pieces of reasoning was a visa mentioned even once."""
     from jobsearch import filters
-    assert filters.visa_stance({"title": "Engineer", "description": текст}) == ожидание
+    assert filters.visa_stance({"title": "Engineer", "description": text}) == expected
 
 
-def test_отказ_важнее_согласия():
-    """«no visa sponsorship» содержит «visa sponsorship» — отказ должен побеждать,
-    иначе объявление, которое прямо отказывает, покажется приглашающим."""
+def test_a_refusal_outweighs_an_offer():
+    """"no visa sponsorship" contains "visa sponsorship" — the refusal has to win, or
+    a posting that plainly refuses will look inviting."""
     from jobsearch import filters
     assert filters.visa_stance(
         {"description": "Visa sponsorship: no visa sponsorship for this role."}) == "no"
 
 
-def test_молчание_не_считается_ни_за_что():
+def test_silence_counts_as_neither():
     from jobsearch import filters
     assert filters.visa_stance({"description": ""}) == ""
 
 
-# --- Цитата из резюме: против выдумок --------------------------------------------
+# --- A quotation from the CV: against invention -------------------------------
 
-@pytest.mark.parametrize("цитата,есть", [
+@pytest.mark.parametrize("quote,present", [
     ("React, TypeScript, Vite", True),
-    ("react   typescript   vite", True),      # пробелы и регистр не в счёт
-    # Опечатка в одну букву. Требовать совпадения буква в букву я попробовал, и
-    # у Белоногова цитата «с 10-летним опыром работы» не нашлась — в резюме
-    # «опытом». У Лаврова так отбраковалось 102 цитаты из 125, почти все за
-    # пересказ вместо копирования.
+    ("react   typescript   vite", True),      # whitespace and case do not count
+    # A one-letter typo. I tried demanding a letter-for-letter match, and
+    # Belonogov's quotation «с 10-летним опыром работы» was not found — the CV
+    # says «опытом». For Lavrov 102 quotations out of 125 were rejected that way,
+    # almost all of them for paraphrasing instead of copying.
     ("Восемь лет во фронтенде: React, TypeScrpt, Vite", True),
     ("опыт в области электротехники", False),
     ("Salesforce Commerce Cloud integration", False),
-    ("React Vite", False),                    # два слова — не цитата
+    ("React Vite", False),                    # two words is not a quotation
     ("", False),
 ])
-def test_цитата_сверяется_с_резюме(цитата, есть):
-    """Модель написала конструктору белья «кандидат имеет опыт и образование в
-    области электротехники» — вакансия лектора по электротехнике на 90% с
-    галочкой «проверено». Никакой электротехники у человека нет."""
+def test_the_quotation_is_checked_against_the_cv(quote, present):
+    """The model told the lingerie designer that "the candidate has experience and
+    education in electrical engineering" — a lectureship in electrical engineering
+    at 90% with a "verified" tick. The person has no electrical engineering
+    whatsoever."""
     from jobsearch import scoring
     cv = "Восемь лет во фронтенде. React, TypeScript, Vite. Вёл переход на монорепозиторий."
-    assert scoring._цитата_настоящая(цитата, cv) is есть
+    assert scoring._quote_is_real(quote, cv) is present
 
 
-def test_выдуманный_довод_не_получает_галочки(monkeypatch, cfg):
+def test_invented_reasoning_gets_no_tick(monkeypatch, cfg):
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "verdict": "своя", "reason": "опыт в области электротехники",
         "quote": "опыт в области электротехники", "match": 90,
         "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
-    вакансия = {"title": "Senior lecturers in Electrical Engineering",
+    job = {"title": "Senior lecturers in Electrical Engineering",
                 "occupation": "lecturer", "description": "x" * 400}
 
-    scoring.deep_analyze(вакансия, cfg, "Конструктор белья. Valentina, лекала.",
+    scoring.deep_analyze(job, cfg, "Конструктор белья. Valentina, лекала.",
                          lambda *a: None, research=False)
 
-    assert вакансия["verified"] is False, "поручились за выдуманное"
-    assert вакансия["score"] == 90, "балл при этом терять незачем"
+    assert job["verified"] is False, "we vouched for something invented"
+    assert job["score"] == 90, "there is no reason to lose the score over it"
 
 
-def test_настоящая_цитата_галочку_не_отнимает(monkeypatch, cfg):
+def test_a_genuine_quotation_does_not_take_the_tick_away(monkeypatch, cfg):
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {
         "verdict": "своя", "reason": "работал с лекалами",
         "quote": "Конструктор белья, Valentina, лекала", "match": 90,
         "cv_changes": [], "linkedin_changes": [], "cover_hint": ""})
-    вакансия = {"title": "Modéliste", "occupation": "tailor", "description": "x" * 400}
+    job = {"title": "Modéliste", "occupation": "tailor", "description": "x" * 400}
 
-    scoring.deep_analyze(вакансия, cfg, "Конструктор белья. Valentina, лекала.",
+    scoring.deep_analyze(job, cfg, "Конструктор белья. Valentina, лекала.",
                          lambda *a: None, research=False)
 
-    assert вакансия["verified"] is True
+    assert job["verified"] is True
 
 
-# --- Второй проход: советы проверяются отдельным вопросом ------------------------
+# --- A second pass: the advice is checked with a separate question ------------
 
-def test_совет_дописать_несуществующее_отбрасывается(monkeypatch, cfg):
-    """Запрет выдумывать стоит в самом промпте разбора, и слабая модель его
-    перебивает: руководителю ОМТС она советовала «Добавить опыт работы с
-    Salesforce Commerce Cloud»."""
+def test_advice_to_add_what_does_not_exist_is_dropped(monkeypatch, cfg):
+    """The ban on inventing is in the analysis prompt itself, and a weak model talks
+    over it: it advised a supply-department head to "add experience with Salesforce
+    Commerce Cloud"."""
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {"ok": [0]})
-    советы = ["Вынести дизайн-систему в первую строку",
-              "Добавить опыт работы с Salesforce Commerce Cloud"]
+    advice = ["Move the design system to the first line",
+              "Add experience with Salesforce Commerce Cloud"]
 
-    осталось = scoring.keep_honest_advice(советы, "CV: дизайн-система, React", {}, lambda *a: None)
+    kept = scoring.keep_honest_advice(advice, "CV: design system, React", {}, lambda *a: None)
 
-    assert осталось == ["Вынести дизайн-систему в первую строку"]
+    assert kept == ["Move the design system to the first line"]
 
 
-def test_если_забраковали_всё_ничего_не_выбрасываем(monkeypatch, cfg):
-    """Скорее всего модель не поняла вопроса, а не все советы плохи."""
+def test_if_everything_was_rejected_we_throw_nothing_away(monkeypatch, cfg):
+    """More likely the model did not understand the question than that every
+    suggestion is bad."""
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json", lambda *a, **k: {"ok": []})
-    советы = ["Первый", "Второй"]
-    assert scoring.keep_honest_advice(советы, "CV", {}, lambda *a: None) == советы
+    advice = ["First", "Second"]
+    assert scoring.keep_honest_advice(advice, "CV", {}, lambda *a: None) == advice
 
 
-def test_проверить_не_вышло_советы_остаются(monkeypatch, cfg):
+def test_when_the_check_fails_the_advice_stays(monkeypatch, cfg):
     from jobsearch import llm, scoring
     monkeypatch.setattr(llm, "ask_json",
-                        lambda *a, **k: (_ for _ in ()).throw(llm.ClaudeError("нет модели")))
-    советы = ["Первый"]
-    assert scoring.keep_honest_advice(советы, "CV", {}, lambda *a: None) == советы
+                        lambda *a, **k: (_ for _ in ()).throw(llm.ClaudeError("no model")))
+    advice = ["First"]
+    assert scoring.keep_honest_advice(advice, "CV", {}, lambda *a: None) == advice

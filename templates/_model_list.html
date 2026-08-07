@@ -1,14 +1,14 @@
 {# The list of models, with search, sorting by strength and a "will it run on this
    device" mark. Shared by the "Model" page and the introduction. #}
 {% set back = back|default('/models') %}
-{# У своего адреса списка моделей нет и быть не может: что там доступно, знает
-   только та служба. Поэтому имя модели вписывается руками — так же, как оно
-   написано у неё в документации. #}
+{# Your own endpoint has no list of models and cannot have one: only that service
+   knows what is available there. So the model's name is typed in by hand, exactly
+   as it is written in its documentation. #}
 {% if current_provider == 'openai_api' %}
-{# Все три поля здесь, а не в карточке провайдера: там ширины на них нет, и
-   «Адрес» с «Ключом» вставали в строку, обрезаясь на середине подсказки.
-   В столбик и во всю ширину — потому что в адрес и имя модели человек
-   вставляет длинные строки и должен их видеть целиком. #}
+{# All three fields here rather than in the provider's card: there is no width for
+   them there, and "Address" and "Key" lined up side by side, cutting the hint off
+   halfway. In a column and full width — because people paste long strings into
+   the address and the model name, and must see them whole. #}
 <form method="post" action="/models/api" class="api-form">
   <input type="hidden" name="back" value="{{ back }}">
   <input type="hidden" name="anchor" value="{{ 'welcome-continue' if back.startswith('/welcome') else 'models-choose' }}">
@@ -41,11 +41,11 @@
   <span class="hint" id="count" data-hidden-note="{{ t('models_hidden_note') }}"></span>
 </div>
 
-{# Эта строчка была написана про Ollama, а показывалась при любом неустановленном
-   провайдере: человек с выбранным Claude Code читал «сначала установите и
-   запустите Ollama» и не понимал, при чём тут она вообще. Скачивать модели
-   отсюда можно только у локального провайдера — остальным нужна сама программа,
-   и сказать об этом надо про неё, а не про чужую. #}
+{# This line was written about Ollama, yet it showed for any provider that was not
+   installed: someone with Claude Code chosen read "first install and start
+   Ollama" and could not see what it had to do with anything. Models can only be
+   downloaded from here with a local provider — everyone else needs the program
+   itself, and that is what has to be said, not somebody else's name. #}
 {% if not provider_ready %}
 <p class="hint" style="margin:-4px 0 14px; color:var(--warn)">
   {% if current_provider == 'ollama' %}{{ t('models_needs_provider') }}
@@ -88,11 +88,12 @@
           <button {% if m.fits == 'no' or not provider_ready %}disabled{% endif %}>{{ t('models_download') }}</button>
         </form>
         {% endif %}
-        {# Скачанную модель можно и убрать: она занимает гигабайты, а до сих пор
-           единственным способом освободить их было идти в саму Ollama.
-           Текст вопроса живёт в data-атрибуте, а не прямо в onsubmit: в нём есть
-           апостроф на некоторых языках, и внутри строки в кавычках он обрывал бы
-           её на середине — кнопка молча переставала бы работать. #}
+        {# A downloaded model can be removed too: it takes up gigabytes, and until
+           now the only way to free them was to go into Ollama itself.
+           The confirmation text lives in a data attribute rather than straight in
+           onsubmit: in some languages it contains an apostrophe, which inside a
+           quoted string would break it off halfway — and the button would quietly
+           stop working. #}
         {% if m.kind == 'local' and m.installed %}
         <form method="post" action="/models/delete" style="margin:0"
               data-confirm="{{ t('models_delete_confirm').format(name=m.name) }}"
@@ -102,10 +103,10 @@
           <button class="danger">{{ t('models_delete') }}</button>
         </form>
         {% endif %}
-        {# Кнопка называет состояние, а не только действие: у выбранной модели она
-           говорит «используется», как и у выбранного провайдера в сетке выше.
-           Раньше все строки предлагали «Использовать» — включая ту, что уже
-           используется, и понять по действию, где ты сейчас, было нельзя. #}
+        {# The button names the state, not just the action: on the chosen model it
+           says "in use", as the chosen provider does in the grid above. Every row
+           used to offer "Use" — including the one already in use, so there was no
+           telling from the action where you currently were. #}
         <form method="post" action="/models/select" style="margin:0">
           <input type="hidden" name="model" value="{{ m.id }}">
           <input type="hidden" name="back" value="{{ back }}">

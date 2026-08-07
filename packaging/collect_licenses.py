@@ -25,14 +25,14 @@ except ImportError:                       # Python < 3.8, which will never reach
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "THIRD-PARTY-LICENSES.txt"
 
-HEADER = """AI Job Search — сторонние компоненты
+HEADER = """AI Job Search — third-party components
 =====================================
 
-Приложение распространяется по лицензии MIT (файл LICENSE). Внутрь собранной
-программы попадают перечисленные ниже библиотеки; каждая остаётся под своей
-лицензией, и её условия действуют независимо от лицензии самого приложения.
+The application is distributed under the MIT licence (see the LICENSE file). The
+libraries listed below are built into the packaged program; each one remains
+under its own licence, and its terms apply independently of the application's.
 
-Полные тексты лицензий приведены после списка — там, где пакет их публикует.
+Full licence texts follow the list — wherever the package publishes them.
 
 """
 
@@ -49,7 +49,7 @@ def _license_name(dist) -> str:
     if value and "\n" not in value and len(value) < 60:
         return value
     expr = (meta.get("License-Expression") or "").strip()
-    return expr or "не указана"
+    return expr or "not stated"
 
 
 def _license_text(dist) -> str:
@@ -89,7 +89,7 @@ def collect() -> str:
     for name, version, lic, _ in rows:
         out.append(f"  {name:<{width}}  {version:<12}  {lic}")
 
-    out.append("\n\n" + "=" * 70 + "\nПОЛНЫЕ ТЕКСТЫ ЛИЦЕНЗИЙ\n" + "=" * 70 + "\n")
+    out.append("\n\n" + "=" * 70 + "\nFULL LICENCE TEXTS\n" + "=" * 70 + "\n")
     for name, version, lic, text in rows:
         if not text:
             continue
@@ -101,7 +101,7 @@ def main() -> int:
     text = collect()
     OUT.write_text(text, encoding="utf-8")
     packages = text.count("\n  ")
-    print(f"{OUT.name}: {len(text) // 1024} КБ")
+    print(f"{OUT.name}: {len(text) // 1024} KB")
     return 0
 
 

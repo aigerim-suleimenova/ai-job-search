@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from . import config, i18n, llm, providers, websearch
 from .collectors import ats
 
-# Выдача, найденная приложением, — модели остаётся её разобрать.
+# Results found by the application — the model only has to read them.
 FOUND_BLOCK = """
 
 Вот что нашлось в интернете по этому запросу. Бери работодателей ТОЛЬКО отсюда,
@@ -19,13 +19,13 @@ FOUND_BLOCK = """
 
 
 def _query(cfg: dict, round_no: int) -> str:
-    """Запрос к поисковой службе — тем же языком, каким его задал бы человек."""
+    """A query for the search service, worded the way a person would word it."""
     p, s = cfg["profile"], cfg["search"]
-    роли = p.get("roles") or p.get("skills") or "software engineer"
-    места = s.get("locations") or ""
-    доски = ("site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com"
-             if round_no % 2 else "careers hiring")
-    return f"{роли} {места} {доски}".strip()
+    roles = p.get("roles") or p.get("skills") or "software engineer"
+    places = s.get("locations") or ""
+    boards = ("site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com"
+              if round_no % 2 else "careers hiring")
+    return f"{roles} {places} {boards}".strip()
 
 
 
@@ -137,9 +137,10 @@ def discover(cfg: dict, log, n: int = 5) -> list:
             angle=_ANGLES[r % len(_ANGLES)],
             known=", ".join(seen_names[:120]) or "—",
         )
-        # Ищет либо сама модель (это умеет только Claude Code), либо приложение
-        # своим ключом — тогда модель получает выдачу текстом и лишь разбирает
-        # её. Работа у неё та же: она и раньше не искала, а читала найденное.
+        # Either the model searches (only Claude Code can), or the application
+        # does with its own key — then the model gets the results as text and
+        # only reads them. Its work is the same either way: it never searched
+        # before either, it read what was found.
         tools, found = ["WebSearch", "WebFetch"], ""
         if not providers.supports_web_search(cfg["llm"].get("provider", "claude_cli")):
             tools = None

@@ -12,13 +12,13 @@ from jobsearch.collectors import web
 
 
 @pytest.fixture(autouse=True)
-def чистый_кэш(monkeypatch):
+def clean_cache(monkeypatch):
     web._robots.clear()
     web._last_hit.clear()
-    # Проверка адреса спрашивает у системы, куда ведёт имя. Тесты в сеть не
-    # ходят — ни за страницами, ни за именами, — поэтому отвечаем сами, обычным
-    # адресом из интернета. Сама проверка при этом остаётся в работе: подменять
-    # её целиком значило бы проверять код, из которого её вынули.
+    # The address check asks the system where a name leads. The tests do not go
+    # to the network — neither for pages nor for names — so we answer ourselves,
+    # with an ordinary internet address. The check itself stays in play: stubbing
+    # it out entirely would mean testing code with the check taken out of it.
     monkeypatch.setattr(web.socket, "getaddrinfo",
                         lambda host, port, **kw: [(2, 1, 6, "", ("93.184.216.34", port))])
     yield
@@ -26,7 +26,7 @@ def чистый_кэш(monkeypatch):
     web._last_hit.clear()
 
 
-class Ответ:
+class Answer:
     def __init__(self, text="", status=200, headers=None):
         self.text = text
         self.status_code = status
@@ -40,154 +40,155 @@ class Ответ:
         pass
 
 
-def подменить(monkeypatch, robots="", **kw):
+def stub_out(monkeypatch, robots="", **kw):
     """Hands back the given robots.txt, and an empty page for every other address."""
-    вызовы = []
+    calls = []
 
     def fake_get(url, **rest):
-        вызовы.append(url)
+        calls.append(url)
         if url.endswith("/robots.txt"):
-            return Ответ(robots, kw.get("robots_status", 200))
-        return Ответ("<html>ok</html>")
+            return Answer(robots, kw.get("robots_status", 200))
+        return Answer("<html>ok</html>")
 
     monkeypatch.setattr(web.requests, "get", fake_get)
-    return вызовы
+    return calls
 
 
-def test_представляется_честно():
+def test_it_introduces_itself_honestly():
     ua = web.UA["User-Agent"]
-    assert "Mozilla" not in ua, "маскировка под браузер вернулась"
+    assert "Mozilla" not in ua, "the browser disguise is back"
     assert "ai-job-search" in ua
-    assert "github.com" in ua, "по имени должно быть понятно, куда писать"
+    assert "github.com" in ua, "the name should make it clear where to write"
 
 
-def test_запрет_в_robots_соблюдается(monkeypatch):
-    подменить(monkeypatch, robots="User-agent: *\nDisallow: /careers\n")
+def test_a_ban_in_robots_is_honoured(monkeypatch):
+    stub_out(monkeypatch, robots="User-agent: *\nDisallow: /careers\n")
     assert web.allowed("https://example.com/about") is True
     assert web.allowed("https://example.com/careers/all") is False
 
 
-def test_запрещённая_страница_не_запрашивается(monkeypatch):
-    вызовы = подменить(monkeypatch, robots="User-agent: *\nDisallow: /\n")
+def test_a_forbidden_page_is_not_requested(monkeypatch):
+    calls = stub_out(monkeypatch, robots="User-agent: *\nDisallow: /\n")
     assert web.get("https://example.com/careers", respect_robots=True) is None
-    assert not [u for u in вызовы if not u.endswith("robots.txt")], "запрос всё-таки ушёл"
+    assert not [u for u in calls if not u.endswith("robots.txt")], "the request went out after all"
 
 
-def test_без_robots_ходим_как_обычно(monkeypatch):
-    подменить(monkeypatch, robots="", robots_status=404)
+def test_with_no_robots_we_go_as_usual(monkeypatch):
+    stub_out(monkeypatch, robots="", robots_status=404)
     assert web.allowed("https://example.com/careers") is True
     assert web.get("https://example.com/careers", respect_robots=True) is not None
 
 
-def test_битый_robots_не_роняет(monkeypatch):
-    подменить(monkeypatch, robots="\x00\x01 мусор ][")
+def test_a_broken_robots_does_not_bring_us_down(monkeypatch):
+    stub_out(monkeypatch, robots="\x00\x01 rubbish ][")
     assert web.allowed("https://example.com/careers") is True
 
 
-def test_пауза_между_запросами_к_одному_хосту(monkeypatch):
-    подменить(monkeypatch)
+def test_the_pause_between_requests_to_one_host(monkeypatch):
+    stub_out(monkeypatch)
     monkeypatch.setattr(web, "DELAY", 0.2)
-    начало = time.monotonic()
+    started_at = time.monotonic()
     for _ in range(3):
         web.get("https://example.com/page")
-    прошло = time.monotonic() - начало
-    assert прошло >= 0.4, f"три запроса уложились в {прошло:.2f} c — паузы нет"
+    elapsed = time.monotonic() - started_at
+    assert elapsed >= 0.4, f"three requests fitted into {elapsed:.2f}s — there is no pause"
 
 
-def test_разные_хосты_друг_друга_не_ждут(monkeypatch):
-    подменить(monkeypatch)
+def test_different_hosts_do_not_wait_for_each_other(monkeypatch):
+    stub_out(monkeypatch)
     monkeypatch.setattr(web, "DELAY", 0.3)
-    начало = time.monotonic()
+    started_at = time.monotonic()
     web.get("https://a.example/page")
     web.get("https://b.example/page")
-    assert time.monotonic() - начало < 0.3, "хосты не должны стоять в общей очереди"
+    assert time.monotonic() - started_at < 0.3, "hosts must not queue up behind one another"
 
 
-def test_robots_запрашивается_один_раз_на_хост(monkeypatch):
-    вызовы = подменить(monkeypatch, robots="User-agent: *\nDisallow: /nope\n")
+def test_robots_is_requested_once_per_host(monkeypatch):
+    calls = stub_out(monkeypatch, robots="User-agent: *\nDisallow: /nope\n")
     monkeypatch.setattr(web, "DELAY", 0)
     for i in range(3):
         web.get(f"https://example.com/page{i}", respect_robots=True)
-    assert len([u for u in вызовы if u.endswith("robots.txt")]) == 1
+    assert len([u for u in calls if u.endswith("robots.txt")]) == 1
 
 
-def test_crawl_delay_из_robots_уважается(monkeypatch):
+def test_the_crawl_delay_from_robots_is_respected(monkeypatch):
     """The standard parser understands whole-number delays only — it ignores
     fractional ones silently, which is why we check a whole one."""
-    подменить(monkeypatch, robots="User-agent: *\nCrawl-delay: 1\n")
+    stub_out(monkeypatch, robots="User-agent: *\nCrawl-delay: 1\n")
     monkeypatch.setattr(web, "DELAY", 0.01)
     web.get("https://example.com/a", respect_robots=True)
-    начало = time.monotonic()
+    started_at = time.monotonic()
     web.get("https://example.com/b", respect_robots=True)
-    assert time.monotonic() - начало >= 0.9, "сайт просил ждать дольше — надо ждать"
+    assert time.monotonic() - started_at >= 0.9, "the site asked us to wait longer — so we wait"
 
 
-# --- Куда мы не пойдём ---------------------------------------------------------
+# --- Where we will not go -----------------------------------------------------
 #
-# Работодатели попадают в список по ссылкам внутри уже собранных вакансий, а
-# вакансии пишет кто угодно. Ссылка на 127.0.0.1 — это просьба сходить внутрь
-# машины и принести оттуда то, до чего снаружи не дотянуться.
+# Employers land in the list through links inside jobs already collected, and
+# those jobs are written by anyone at all. A link to 127.0.0.1 is a request to
+# step inside the machine and fetch what cannot be reached from outside.
 
-ВНУТРЕННИЕ = [
-    ("http://127.0.0.1:11434/api/tags", "127.0.0.1", "петля: там наша же Ollama"),
-    ("http://localhost:8765/settings", "127.0.0.1", "петля по имени"),
-    ("http://169.254.169.254/latest/meta-data/", "169.254.169.254", "ключи облачной учётки"),
-    ("http://192.168.1.1/", "192.168.1.1", "чужой роутер в домашней сети"),
-    ("http://10.0.0.5/admin", "10.0.0.5", "частная сеть"),
-    ("http://[::1]/", "::1", "петля по IPv6"),
+INTERNAL = [
+    ("http://127.0.0.1:11434/api/tags", "127.0.0.1", "loopback: our own Ollama is there"),
+    ("http://localhost:8765/settings", "127.0.0.1", "loopback by name"),
+    ("http://169.254.169.254/latest/meta-data/", "169.254.169.254", "the keys of a cloud account"),
+    ("http://192.168.1.1/", "192.168.1.1", "somebody's router on the home network"),
+    ("http://10.0.0.5/admin", "10.0.0.5", "a private network"),
+    ("http://[::1]/", "::1", "loopback over IPv6"),
 ]
 
 
-def адреса(monkeypatch, ip: str):
-    семейство = 30 if ":" in ip else 2
+def resolves_to(monkeypatch, ip: str):
+    family = 30 if ":" in ip else 2
     monkeypatch.setattr(web.socket, "getaddrinfo",
-                        lambda host, port, **kw: [(семейство, 1, 6, "", (ip, port))])
+                        lambda host, port, **kw: [(family, 1, 6, "", (ip, port))])
 
 
-@pytest.mark.parametrize("url,ip,почему", ВНУТРЕННИЕ)
-def test_внутрь_машины_и_сети_не_ходим(monkeypatch, url, ip, почему):
-    адреса(monkeypatch, ip)
+@pytest.mark.parametrize("url,ip,why", INTERNAL)
+def test_we_do_not_go_inside_the_machine_or_the_network(monkeypatch, url, ip, why):
+    resolves_to(monkeypatch, ip)
     with pytest.raises(web.Refused):
         web.check(url)
 
 
-@pytest.mark.parametrize("схема", ["file", "ftp", "gopher", "data", ""])
-def test_чужие_схемы_отсекаются(схема):
-    адрес = f"{схема}://example.com/x" if схема else "example.com/x"
+@pytest.mark.parametrize("scheme", ["file", "ftp", "gopher", "data", ""])
+def test_foreign_schemes_are_cut_off(scheme):
+    address = f"{scheme}://example.com/x" if scheme else "example.com/x"
     with pytest.raises(web.Refused):
-        web.check(адрес)
+        web.check(address)
 
 
-def test_обычный_сайт_пропускается(monkeypatch):
-    """Обратная сторона: закрыть внутреннее нельзя ценой того, что перестанет
-    работать сбор вакансий."""
-    адреса(monkeypatch, "93.184.216.34")
+def test_an_ordinary_site_is_let_through(monkeypatch):
+    """The other side: shutting out the internal must not cost us the job
+    collection."""
+    resolves_to(monkeypatch, "93.184.216.34")
     web.check("https://boards-api.greenhouse.io/v1/boards/acme/jobs")
 
 
-def test_имя_ведущее_внутрь_не_обманет(monkeypatch):
-    """Имя может быть каким угодно, а вести на петлю: смотрим не на имя, а на то,
-    куда оно разрешается."""
-    адреса(monkeypatch, "127.0.0.1")
+def test_a_name_leading_inward_does_not_fool_us(monkeypatch):
+    """A name can be anything at all and still lead to the loopback: we look not at
+    the name but at where it resolves."""
+    resolves_to(monkeypatch, "127.0.0.1")
     with pytest.raises(web.Refused):
         web.check("https://careers.example.com/jobs")
 
 
-def test_проверяется_каждый_переход(monkeypatch):
-    """Иначе проверка стоила бы ничего: сайт отвечает «идите на 127.0.0.1»,
-    requests послушно идёт, и проверенный первый адрес оказывается ни при чём."""
-    куда = {"https://jobs.example.com/": ("93.184.216.34", 302, "http://127.0.0.1:11434/api/tags"),
+def test_every_redirect_is_checked(monkeypatch):
+    """Otherwise the check would be worth nothing: the site answers "go to
+    127.0.0.1", requests obediently goes, and the checked first address turns out
+    to be beside the point."""
+    route = {"https://jobs.example.com/": ("93.184.216.34", 302, "http://127.0.0.1:11434/api/tags"),
             "http://127.0.0.1:11434/api/tags": ("127.0.0.1", 200, "")}
-    сходили = []
+    visited = []
 
     def getaddrinfo(host, port, **kw):
         ip = "127.0.0.1" if host in ("127.0.0.1", "localhost") else "93.184.216.34"
         return [(2, 1, 6, "", (ip, port))]
 
     def fake_get(url, **kw):
-        сходили.append(url)
-        _, статус, location = куда[url]
-        return Ответ(status=статус, headers={"location": location} if location else {})
+        visited.append(url)
+        _, status, location = route[url]
+        return Answer(status=status, headers={"location": location} if location else {})
 
     monkeypatch.setattr(web.socket, "getaddrinfo", getaddrinfo)
     monkeypatch.setattr(web.requests, "get", fake_get)
@@ -195,210 +196,212 @@ def test_проверяется_каждый_переход(monkeypatch):
     with pytest.raises(web.Refused):
         web.get("https://jobs.example.com/")
 
-    assert сходили == ["https://jobs.example.com/"], "по переходу всё-таки сходили"
+    assert visited == ["https://jobs.example.com/"], "we followed the redirect after all"
 
 
-def test_переход_на_обычный_сайт_проходится(monkeypatch):
-    """И снова обратная сторона: переезды сайтов — обычное дело."""
+def test_a_redirect_to_an_ordinary_site_goes_through(monkeypatch):
+    """The other side again: sites move, and that is an ordinary thing."""
     def fake_get(url, **kw):
         if url == "https://jobs.example.com/":
-            return Ответ(status=301, headers={"location": "/careers/"})
-        return Ответ("<html>вакансии</html>")
+            return Answer(status=301, headers={"location": "/careers/"})
+        return Answer("<html>jobs</html>")
 
     monkeypatch.setattr(web.requests, "get", fake_get)
     r = web.get("https://jobs.example.com/")
-    assert "вакансии" in r.text
+    assert "jobs" in r.text
 
 
-def test_кольцо_переходов_обрывается(monkeypatch):
+def test_a_redirect_loop_is_broken_off(monkeypatch):
     monkeypatch.setattr(web.requests, "get",
-                        lambda url, **kw: Ответ(status=302, headers={"location": "/снова"}))
+                        lambda url, **kw: Answer(status=302, headers={"location": "/again"}))
     monkeypatch.setattr(web, "DELAY", 0)
     with pytest.raises(web.Refused):
         web.get("https://example.com/")
 
 
-def test_robots_у_внутреннего_адреса_тоже_не_спрашиваем(monkeypatch):
-    """Спросить «а можно к вам?» у 127.0.0.1 — это уже сходить к 127.0.0.1."""
-    адреса(monkeypatch, "127.0.0.1")
-    сходили = []
+def test_we_do_not_ask_an_internal_address_for_robots_either(monkeypatch):
+    """Asking 127.0.0.1 "may we come in?" is already a trip to 127.0.0.1."""
+    resolves_to(monkeypatch, "127.0.0.1")
+    visited = []
     monkeypatch.setattr(web.requests, "get",
-                        lambda url, **kw: (сходили.append(url), Ответ(""))[1])
+                        lambda url, **kw: (visited.append(url), Answer(""))[1])
 
     web.allowed("http://127.0.0.1:11434/robots-ok")
 
-    assert сходили == [], "за robots.txt всё-таки сходили внутрь машины"
+    assert visited == [], "we went inside the machine for robots.txt after all"
 
 
-# --- Сколько источников называем человеку ----------------------------------------
+# --- How many sources we name to a person -------------------------------------
 
-def test_считаем_источники_а_не_пишем_словом():
-    """На странице «Модель» годами висело «собираются с девяти агрегаторов», а их
-    было двенадцать: число стояло в переводе, источники — в коде, и сверить их
-    было нечем."""
+def test_we_count_the_sources_rather_than_writing_the_number_out():
+    """The "Model" page said "collected from nine aggregators" for years, and there
+    were twelve: the number lived in the translations, the sources in the code,
+    and there was nothing to check one against the other."""
     from jobsearch import config
     from jobsearch.collectors import aggregators
-    сейчас = aggregators.enabled(config.DEFAULTS)
-    # Одиннадцать: немецкая биржа выключена — её открытый API отвечает отказом
-    # на любой путь, и включённой она давала только строку с ошибкой в
-    # «Покрытии» каждый прогон.
-    assert len(сейчас) == 11, f"источников {len(сейчас)}, а плашка обещает другое"
-    assert "arbeitsagentur" not in {и[4] for и in сейчас}
+    now_on = aggregators.enabled(config.DEFAULTS)
+    # Eleven: the German exchange is off — its open API refuses every path, and
+    # switched on it produced only a line of error text in "Coverage" every run.
+    assert len(now_on) == 11, f"there are {len(now_on)} sources, and the notice promises otherwise"
+    assert "arbeitsagentur" not in {s[4] for s in now_on}
 
 
-def test_список_источников_и_опрос_не_расходятся(monkeypatch):
-    """enabled() и collect() должны ходить по одному списку, иначе счётчик снова
-    начнёт обещать не то, что делается."""
+def test_the_source_list_and_the_polling_do_not_drift_apart(monkeypatch):
+    """enabled() and collect() must walk the same list, or the counter will start
+    promising something other than what is done again."""
     from jobsearch import config
     from jobsearch.collectors import aggregators
-    # Сборщики подменяем: проверяем, кого позвали, а не что ответит сеть.
-    for *_, сборщик in aggregators.ИСТОЧНИКИ:
-        monkeypatch.setattr(aggregators, сборщик, lambda cfg, log: [])
-    опрошены = []
+    # The collectors are stubbed: we check who was called, not what the network says.
+    for *_, collector in aggregators.SOURCES:
+        monkeypatch.setattr(aggregators, collector, lambda cfg, log: [])
+    polled = []
     cfg = config.DEFAULTS
-    aggregators.collect(cfg, lambda *a: None, опрошены)
-    имена_опроса = {c["name"] for c in опрошены}
-    имена_списка = {и[2] for и in aggregators.enabled(cfg)}
-    assert имена_опроса == имена_списка
+    aggregators.collect(cfg, lambda *a: None, polled)
+    polled_names = {c["name"] for c in polled}
+    listed_names = {s[2] for s in aggregators.enabled(cfg)}
+    assert polled_names == listed_names
 
 
-# --- Место, пришедшее кодом страны ----------------------------------------------
+# --- A location that arrived as a country code --------------------------------
 
-def test_код_страны_превращается_в_имя():
-    """EURES отдаёт место одним кодом — «BE», «SE», «FR», — и мы клали его в
-    поле места как есть. Фильтр сравнивал код со словом «нидерланды» и
-    выбрасывал всё: 227 вакансий за прогон, до единой, каждый раз. А EURES —
-    единственный источник, знающий все профессии и все страны ЕС."""
+def test_a_country_code_turns_into_a_name():
+    """EURES hands back a location as a bare code — "BE", "SE", "FR" — and we put it
+    into the location field as it was. The filter compared the code against the
+    word «нидерланды» and threw everything out: 227 jobs per run, every single
+    one, every time. And EURES is the one source that knows every profession and
+    every country in the EU."""
     from jobsearch import filters
     assert filters.country_name("NL") == "Netherlands"
     assert filters.country_name("fr") == "France"
     assert filters.country_name("") == ""
-    assert filters.country_name("ZZ") == "ZZ", "незнакомый код не выдумываем"
+    assert filters.country_name("ZZ") == "ZZ", "we do not invent an unfamiliar code"
 
 
-def test_страна_из_кода_проходит_фильтр():
+def test_a_country_from_a_code_passes_the_filter():
     from jobsearch import filters
-    хочу = filters.parse_locations("Италия, Германия, Франция, Нидерланды")
-    for код in ("IT", "DE", "FR", "NL"):
-        место = filters.country_name(код)
-        assert filters.location_ok(место, хочу, True), f"{код} → {место} не прошло"
-    assert not filters.location_ok(filters.country_name("NO"), хочу, True)
+    wanted = filters.parse_locations("Италия, Германия, Франция, Нидерланды")
+    for code in ("IT", "DE", "FR", "NL"):
+        place = filters.country_name(code)
+        assert filters.location_ok(place, wanted, True), f"{code} → {place} did not pass"
+    assert not filters.location_ok(filters.country_name("NO"), wanted, True)
 
 
-def test_по_русски_ищутся_не_только_италия_с_германией():
-    """Страны, кроме этих двух, здесь не значились вовсе, и «Франция» сверялась
-    простым вхождением: «Paris, France» человеку, написавшему «Франция», не
-    годилось. По-русски искать можно было в двух странах из тридцати одной."""
+def test_searching_in_russian_works_beyond_italy_and_germany():
+    """Countries other than these two were not listed here at all, and «Франция» was
+    checked by plain substring: "Paris, France" did not suit a person who had
+    written «Франция». Searching in Russian worked for two countries out of
+    thirty-one."""
     from jobsearch import filters
-    случаи = [("Paris, France", "Франция"), ("Madrid", "Испания"),
+    cases = [("Paris, France", "Франция"), ("Madrid", "Испания"),
               ("Amsterdam", "Нидерланды"), ("Warszawa", "Польша"),
               ("Lisboa", "Португалия"), ("Stockholm", "Швеция"),
               ("Praha", "Чехия"), ("Wien", "Австрия")]
-    for место, страна in случаи:
-        assert filters.location_ok(место, filters.parse_locations(страна), True), \
-            f"«{место}» не нашлось по слову «{страна}»"
+    for place, country in cases:
+        assert filters.location_ok(place, filters.parse_locations(country), True), \
+            f"«{place}» was not found by the word «{country}»"
 
 
-def test_коды_стран_для_источника():
-    """Запрос к EURES не был ограничен странами, и на Италию с Германией
-    приезжали Норвегия с Бельгией."""
+def test_the_country_codes_for_a_source():
+    """The EURES query was not limited by country, and a search for Italy and
+    Germany brought back Norway and Belgium."""
     from jobsearch import filters
-    коды = filters.country_codes(filters.parse_locations("Италия, Germany, нидерланды"))
-    assert set(коды) == {"IT", "DE", "NL"}
+    codes = filters.country_codes(filters.parse_locations("Италия, Germany, нидерланды"))
+    assert set(codes) == {"IT", "DE", "NL"}
     assert filters.country_codes(filters.parse_locations("ЕС")) == [], \
-        "назвал весь союз — не сужаем"
+        "the whole union was named — we do not narrow"
 
 
-# --- Ничейные запросы ------------------------------------------------------------
+# --- Queries that belong to no trade ------------------------------------------
 
-def test_ничейные_запросы_не_уходят_в_источники():
-    """Регина, конструктор белья, посмотрев выдачу: «возможно, алгоритм сбивает
-    название вакансии Product Developer». Так и было — мы сами его и просили, а
-    источники честно приносили химиков."""
+def test_generic_queries_do_not_go_to_the_sources():
+    """Regina, a lingerie designer, having looked at her results: "perhaps the
+    algorithm is thrown off by the job title Product Developer". So it was — we
+    had asked for it ourselves, and the sources honestly brought back chemists."""
     from jobsearch.collectors.aggregators import _search_terms
     cfg = {"profile": {"roles": "Lingerie Pattern Maker, Technical Designer, "
                                 "Product Developer, Garment Technologist", "skills": ""},
            "search": {}}
-    вышло = _search_terms(cfg)
-    assert "Product Developer" not in вышло
-    assert "Technical Designer" not in вышло
-    assert "Lingerie Pattern Maker" in вышло and "Garment Technologist" in вышло
+    came_out = _search_terms(cfg)
+    assert "Product Developer" not in came_out
+    assert "Technical Designer" not in came_out
+    assert "Lingerie Pattern Maker" in came_out and "Garment Technologist" in came_out
 
 
-def test_у_кого_все_роли_ничейные_запросы_остаются():
-    """У программиста «Developer» — единственное слово, каким он себя зовёт."""
+def test_when_every_role_is_generic_the_queries_stay():
+    """For a programmer "Developer" is the only word they call themselves by."""
     from jobsearch.collectors.aggregators import _search_terms
     cfg = {"profile": {"roles": "Developer, Senior Engineer", "skills": ""}, "search": {}}
     assert _search_terms(cfg) == ["Developer", "Senior Engineer"]
 
 
-# --- Места: то, что подводило на настоящих прогонах --------------------------------
+# --- Locations: what let us down on real runs ---------------------------------
 
-МЕСТА = [
-    # (что человек написал, что стоит в вакансии, годится ли)
+PLACES = [
+    # (what the person wrote, what the job says, whether it fits)
     #
-    # Канада приезжала в поиск по США двадцать шесть раз за прогон: «ca» —
-    # сокращение Калифорнии — искалось простой подстрокой и находилось в
-    # «Calgary, Canada».
+    # Canada arrived in a search for the US twenty-six times per run: "ca", the
+    # abbreviation for California, was searched for as a plain substring and found
+    # inside "Calgary, Canada".
     ("США, Германия, ЕС", "Calgary, Canada", False),
     ("США, Германия, ЕС", "Ottawa, Canada", False),
     ("США, Германия, ЕС", "Berkeley, CA", True),
-    # А Греция и Швеция приходили правильно: человек просил ЕС, они в ЕС.
+    # Greece and Sweden arrived correctly: the person asked for the EU, and they are in it.
     ("США, Германия, ЕС", "Gaios, Greece", True),
     ("США, Германия, ЕС", "Umeå, Sweden", True),
     ("США, Германия, ЕС", "Missoula, United States", True),
-    # России в справочнике не было вовсе, и «Москва» отсеивалась у того, кто
-    # написал «Россия»: слова «россия» в строке нет, а связать их было нечем.
+    # Russia was not in the table at all, and «Москва» was filtered out for anyone
+    # who wrote «Россия»: the word «россия» is not in the string, and there was
+    # nothing to link the two.
     ("Россия, Омск, удалённо", "Москва", True),
     ("Россия, Омск, удалённо", "Омск", True),
     ("Россия, Омск, удалённо", "Novosibirsk", True),
-    # И наоборот: страна, которой нет в списках, читалась как «место не названо»,
-    # то есть «работа откуда угодно», и шла в любой поиск.
+    # And the other way round: a country not on the lists read as "no location
+    # named", meaning "work from anywhere", and went into any search.
     ("Россия, Омск, удалённо", "Kenya, Remote", False),
     ("Россия, Омск, удалённо", "Panama, Remote", False),
     ("Германия, ЕС", "Amman, Jordan", False),
     ("Германия, ЕС", "Morocco, Remote", False),
-    # Настоящая удалёнка без страны — годится всем.
+    # Genuinely remote with no country — suits everyone.
     ("Россия, Омск, удалённо", "Remote", True),
     ("Германия, Нидерланды, ЕС", "Walldorf, Germany", True),
 ]
 
 
-@pytest.mark.parametrize("написал,вакансия,годится", МЕСТА)
-def test_места_из_настоящих_прогонов(написал, вакансия, годится):
+@pytest.mark.parametrize("typed,job_location,fits", PLACES)
+def test_locations_from_real_runs(typed, job_location, fits):
     from jobsearch import filters
-    assert filters.location_ok(вакансия, filters.parse_locations(написал), True) is годится
+    assert filters.location_ok(job_location, filters.parse_locations(typed), True) is fits
 
 
-def test_признак_ищется_целым_словом():
-    """Короткий признак садился внутрь длинного слова. Это и есть корень всех
-    промахов выше: «ca» в «Canada», «us» нашлось бы в «Belarus»."""
+def test_a_marker_is_matched_as_a_whole_word():
+    """A short marker settled inside a longer word. That is the root of every miss
+    above: "ca" inside "Canada", and "us" would be found in "Belarus"."""
     from jobsearch import filters
-    assert filters._есть(" berkeley, ca ", ["ca"]) is True
-    assert filters._есть(" calgary, canada ", ["ca"]) is False
-    assert filters._есть(" minsk, belarus ", ["us"]) is False
-    assert filters._есть(" austin, us ", ["us"]) is True
+    assert filters._has(" berkeley, ca ", ["ca"]) is True
+    assert filters._has(" calgary, canada ", ["ca"]) is False
+    assert filters._has(" minsk, belarus ", ["us"]) is False
+    assert filters._has(" austin, us ", ["us"]) is True
 
 
-def test_eures_спрашиваем_только_про_свои_страны():
-    """EURES знает тридцать одну страну. Спрашивать у него про Бразилию —
-    впустую потратить запрос, а их всего по одному на слово."""
+def test_we_ask_eures_only_about_its_own_countries():
+    """EURES knows thirty-one countries. Asking it about Brazil wastes a query, and
+    there is only one query per word."""
     from jobsearch import filters
-    места = filters.parse_locations("США, Германия, Бразилия, Нидерланды")
-    assert set(filters.country_codes(места, только=filters.EURES_КОДЫ)) == {"DE", "NL"}
-    assert set(filters.country_codes(места)) == {"US", "DE", "BR", "NL"}
+    places = filters.parse_locations("США, Германия, Бразилия, Нидерланды")
+    assert set(filters.country_codes(places, only=filters.EURES_CODES)) == {"DE", "NL"}
+    assert set(filters.country_codes(places)) == {"US", "DE", "BR", "NL"}
 
 
-# --- EURES спрашиваем кодами профессий, а не угаданными словами ------------------
+# --- We ask EURES with occupation codes, not guessed words --------------------
 
-def test_роль_отображается_в_коды_справочника(monkeypatch):
-    """Поиск по словам у EURES зависит от угаданного слова, а не от смысла.
-    Померено вживую, из пятидесяти вакансий по профессии оказывалось:
-    «dressmaker» 28, «lingerie» 3, «Lingerie Pattern Maker» 1, «seamstress» 0.
-    Швея по-английски — seamstress, и по нему не находится ничего."""
+def test_a_role_maps_onto_taxonomy_codes(monkeypatch):
+    """Searching EURES by words depends on the word you guessed rather than on the
+    meaning. Measured live, out of fifty jobs in the profession there were:
+    "dressmaker" 28, "lingerie" 3, "Lingerie Pattern Maker" 1, "seamstress" 0.
+    «Швея» in English is seamstress, and that finds nothing at all."""
     from jobsearch.collectors import esco
-    esco.забыть()
-    monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("О", (), {
+    esco.forget()
+    monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("Resp", (), {
         "status_code": 200,
         "json": lambda s: {"_embedded": {"results": [
             {"uri": "http://data.europa.eu/esco/occupation/aaa", "title": "dressmaker"},
@@ -409,24 +412,24 @@ def test_роль_отображается_в_коды_справочника(mo
         "http://data.europa.eu/esco/occupation/bbb"]
 
 
-def test_справочник_молчит_роль_не_выдумываем(monkeypatch):
+def test_when_the_taxonomy_is_silent_we_invent_no_role(monkeypatch):
     from jobsearch.collectors import esco
-    esco.забыть()
+    esco.forget()
     monkeypatch.setattr(esco.web, "get", lambda url, **kw: (_ for _ in ()).throw(
-        esco.requests.RequestException("нет связи")))
+        esco.requests.RequestException("no connection")))
     assert esco.occupations("seamstress") == []
     assert esco.occupations("") == []
 
 
-def test_eures_спрашивает_и_кодами_и_словами(monkeypatch):
-    """Коды дают плотность, слова — широту, и одно другое не заменяет: роли,
-    выписанные из резюме, отображаются в справочнике не всегда точно."""
+def test_eures_is_asked_with_both_codes_and_words(monkeypatch):
+    """Codes give density, words give breadth, and neither replaces the other: roles
+    written out of a CV do not always map onto the taxonomy accurately."""
     from jobsearch import config
     from jobsearch.collectors import aggregators, esco
-    esco.забыть()
-    отправленное = []
+    esco.forget()
+    sent = []
 
-    class Ответ:
+    class Answer:
         status_code = 200
 
         def raise_for_status(self):
@@ -435,30 +438,30 @@ def test_eures_спрашивает_и_кодами_и_словами(monkeypatc
         def json(self):
             return {"jvs": []}
 
-    monkeypatch.setattr(esco, "occupations", lambda роль, **kw: ["esco:" + роль])
+    monkeypatch.setattr(esco, "occupations", lambda role, **kw: ["esco:" + role])
     monkeypatch.setattr(aggregators.web, "post",
-                        lambda url, **kw: отправленное.append(kw["json"]) or Ответ())
+                        lambda url, **kw: sent.append(kw["json"]) or Answer())
     cfg = dict(config.DEFAULTS)
     cfg["profile"] = {**cfg["profile"], "roles": "Швея, Портная", "skills": ""}
     cfg["search"] = {**cfg["search"], "locations": "Германия"}
 
     aggregators.eures(cfg, lambda *a: None)
 
-    с_кодами = [з for з in отправленное if з["occupationUris"]]
-    со_словами = [з for з in отправленное if з["keywords"]]
-    assert с_кодами, "кодами не спросили"
-    assert со_словами, "словами не спросили"
-    assert с_кодами[0]["keywords"] == [], "коды и слова смешались в одном запросе"
+    with_codes = [q for q in sent if q["occupationUris"]]
+    with_words = [q for q in sent if q["keywords"]]
+    assert with_codes, "we did not ask with codes"
+    assert with_words, "we did not ask with words"
+    assert with_codes[0]["keywords"] == [], "codes and words got mixed into one query"
 
 
-# --- Одна и та же должность в разных городах ------------------------------------
+# --- One and the same position in different cities ----------------------------
 
-def test_сеть_заведений_схлопывается_в_одну_строку():
-    """Сеть вешает одну вакансию по всем точкам, меняя город в названии. У
-    Виктора Белоногова десять строк подряд принадлежали одной сети «Pollo
-    Regio», и он читал их как десять разных работ."""
+def test_a_restaurant_chain_collapses_into_one_row():
+    """A chain posts one job at every location, changing the city in the title. For
+    Viktor Belonogov ten rows in a row belonged to a single chain, "Pollo Regio",
+    and he read them as ten different jobs."""
     from jobsearch import filters
-    вакансии = [
+    jobs = [
         {"title": "Restaurant Assistant Manager (Austin) TX", "company": "Pollo Regio",
          "location": "Austin, United States", "score": 95},
         {"title": "Restaurant Assistant Manager Fort Worth", "company": "Pollo Regio",
@@ -468,39 +471,40 @@ def test_сеть_заведений_схлопывается_в_одну_стр
         {"title": "Restaurant Manager", "company": "Pollo Regio",
          "location": "Dallas, United States", "score": 90},
     ]
-    вышло = filters.group_same_role(вакансии)
+    came_out = filters.group_same_role(jobs)
 
-    assert len(вышло) == 2, [j["title"] for j in вышло]
-    помощник = вышло[0]
-    assert помощник["title"].startswith("Restaurant Assistant Manager")
-    assert len(помощник["siblings"]) == 2, "остальные города потерялись"
-    assert вышло[1]["title"] == "Restaurant Manager", "другая должность не должна слипаться"
+    assert len(came_out) == 2, [j["title"] for j in came_out]
+    assistant = came_out[0]
+    assert assistant["title"].startswith("Restaurant Assistant Manager")
+    assert len(assistant["siblings"]) == 2, "the other cities were lost"
+    assert came_out[1]["title"] == "Restaurant Manager", "a different position must not stick to it"
 
 
-def test_разные_работодатели_не_слипаются():
+def test_different_employers_do_not_stick_together():
     from jobsearch import filters
-    вакансии = [
+    jobs = [
         {"title": "Restaurant Manager", "company": "Carbon", "location": "Göteborg"},
         {"title": "Restaurant Manager", "company": "The June", "location": "Jacksonville"},
     ]
-    assert len(filters.group_same_role(вакансии)) == 2
+    assert len(filters.group_same_role(jobs)) == 2
 
 
-def test_порядок_не_ломается():
-    """Первой в группе остаётся та, что была выше в списке: он уже отсортирован."""
+def test_the_order_does_not_break():
+    """The first in a group stays the one that was higher in the list: it is already
+    sorted."""
     from jobsearch import filters
-    вакансии = [
+    jobs = [
         {"title": "Cook", "company": "A", "location": "X", "score": 90},
         {"title": "Restaurant Manager Austin", "company": "B", "location": "Austin", "score": 80},
         {"title": "Restaurant Manager Dallas", "company": "B", "location": "Dallas", "score": 70},
     ]
-    вышло = filters.group_same_role(вакансии)
-    assert [j["title"] for j in вышло] == ["Cook", "Restaurant Manager Austin"]
+    came_out = filters.group_same_role(jobs)
+    assert [j["title"] for j in came_out] == ["Cook", "Restaurant Manager Austin"]
 
 
-# --- Регулируемые профессии ------------------------------------------------------
+# --- Regulated professions ----------------------------------------------------
 
-@pytest.mark.parametrize("роли,ожидание", [
+@pytest.mark.parametrize("roles,expected", [
     ("Lawyer, Legal Counsel", "law"),
     ("Avvocato civilista", "law"),
     ("Registered Nurse", "medicine"),
@@ -509,101 +513,101 @@ def test_порядок_не_ломается():
     ("Frontend Engineer", ""),
     ("Lingerie Pattern Maker", ""),
 ])
-def test_узнаём_регулируемую_профессию(роли, ожидание):
-    """Elisabetta Matassi — адвокат, сдавшая экзамен в Италии. Программа нашла
-    ей двадцать четыре вакансии юриста: Швеция 9, Греция 7, Италия 2. В Швеции
-    она не адвокат, пока не подтвердит квалификацию, и знать это надо до
-    отклика."""
+def test_we_recognise_a_regulated_profession(roles, expected):
+    """Elisabetta Matassi is an advocate who passed the bar in Italy. The program
+    found her twenty-four lawyer jobs: Sweden 9, Greece 7, Italy 2. In Sweden she
+    is not an advocate until her qualification is recognised, and that has to be
+    known before applying."""
     from jobsearch import filters
-    assert filters.regulated_profession(роли) == ожидание
+    assert filters.regulated_profession(roles) == expected
 
 
-def test_роли_важнее_резюме():
-    """В резюме слово «lawyer» может встретиться и у того, кто юристом не
-    работает: роли — то, кем человек себя называет."""
+def test_the_roles_outweigh_the_cv():
+    """The word "lawyer" can turn up in the CV of someone who does not work as one:
+    the roles are what a person calls themselves."""
     from jobsearch import filters
     assert filters.regulated_profession(
         "Frontend Engineer", "Работал с юристами над договорами, lawyer review") == ""
 
 
-# --- Навыки → профессии: кем человек мог бы работать -----------------------------
+# --- Skills to occupations: what a person could work as -----------------------
 
-@pytest.mark.parametrize("запрос,ответ,берём", [
-    ("CSS", "CSS", True),                                    # дословно
+@pytest.mark.parametrize("query,answer,take_it", [
+    ("CSS", "CSS", True),                                    # word for word
     ("pattern grading", "pattern grading", True),
-    ("restaurant management", "manage restaurant service", True),   # иначе сказано, то же
-    ("SOAP", "harden soap", False),                          # мыло вместо протокола
+    ("restaurant management", "manage restaurant service", True),   # differently put, the same thing
+    ("SOAP", "harden soap", False),                          # soap instead of the protocol
     ("REST", "promote balance between rest and activity", False),
     ("XML", "AJAX", False),
     ("vendor management", "use office systems", False),
     ("bra construction", "construction industry", False),
 ])
-def test_ответ_справочника_сверяется_с_запросом(запрос, ответ, берём):
-    """Брать первое совпадение подряд нельзя: справочник вместо «не знаю»
-    отвечает ближайшим по буквам, и дальше по графу расходится мусор. Отсев
-    поднял число тех, кому справочник называет их собственную профессию, с
-    одного из шести до трёх."""
+def test_the_taxonomys_answer_is_checked_against_the_query(query, answer, take_it):
+    """Taking the first match in order will not do: instead of "I do not know" the
+    taxonomy answers with whatever is nearest by letters, and from there the graph
+    spreads into rubbish. The filter raised the number of people whose own
+    occupation the taxonomy names from one in six to three."""
     from jobsearch.collectors import esco
-    assert esco.похоже(запрос, ответ) is берём
+    assert esco.looks_like(query, answer) is take_it
 
 
-def test_профессии_по_навыкам(monkeypatch):
-    """Охранник, выучивший вёрстку, напишет в резюме «охранник» и вакансий
-    начинающего верстальщика не увидит никогда. Справочник по трём его навыкам
-    называет web developer, ничего не спрашивая."""
+def test_occupations_from_skills(monkeypatch):
+    """A security guard who has learned front-end will write "security guard" on
+    their CV and will never see a junior front-end job. From three of their skills
+    the taxonomy names web developer, asking nothing."""
     from jobsearch.collectors import esco
-    esco.забыть()
-    ОТВЕТЫ = {
+    esco.forget()
+    ANSWERS = {
         "skill?": {"_links": {
             "isEssentialForOccupation": [{"uri": "esco:web-developer", "title": "web developer"}],
             "isOptionalForOccupation": [{"uri": "esco:webmaster", "title": "webmaster"}]}},
         "search": {"_embedded": {"results": [{"uri": "esco:css", "title": "CSS"}]}},
     }
 
-    def подделка(url, **kw):
-        какой = "skill?" if "/resource/skill" in url else "search"
-        return type("О", (), {"status_code": 200, "json": lambda s: ОТВЕТЫ[какой]})()
+    def fake(url, **kw):
+        which = "skill?" if "/resource/skill" in url else "search"
+        return type("Resp", (), {"status_code": 200, "json": lambda s: ANSWERS[which]})()
 
-    monkeypatch.setattr(esco.web, "get", подделка)
-    вышло = esco.occupations_by_skills(["CSS"])
-    assert set(вышло) == {"esco:web-developer", "esco:webmaster"}
+    monkeypatch.setattr(esco.web, "get", fake)
+    came_out = esco.occupations_by_skills(["CSS"])
+    assert set(came_out) == {"esco:web-developer", "esco:webmaster"}
 
 
-def test_обязательные_и_желательные_связи_весят_поровну(monkeypatch):
-    """Сперва обязательные весили втрое, и вышло скверно: «JavaScript» в
-    справочнике обязателен ровно для двух профессий — оператора станка с ЧПУ и
-    оператора САПР, — а для web developer он лишь желательный, один из
-    полусотни. Две причуды перевешивали полсотни осмысленных связей, и охранник,
-    выучивший вёрстку, получал станок с ЧПУ."""
+def test_essential_and_optional_links_weigh_the_same(monkeypatch):
+    """At first essential weighed triple, and it came out badly: in the taxonomy
+    "JavaScript" is essential for exactly two occupations — CNC machine operator
+    and CAD operator — while for web developer it is merely optional, one of some
+    fifty. Two quirks outweighed fifty sensible links, and the security guard who
+    had learned front-end got a CNC machine."""
     from jobsearch.collectors import esco
-    esco.забыть()
-    СВЯЗИ = {
-        "esco:js": {"isEssentialForOccupation": [{"uri": "станок", "title": "CNC"}],
-                    "isOptionalForOccupation": [{"uri": "веб", "title": "web developer"}]},
+    esco.forget()
+    LINKS = {
+        "esco:js": {"isEssentialForOccupation": [{"uri": "cnc", "title": "CNC"}],
+                    "isOptionalForOccupation": [{"uri": "web", "title": "web developer"}]},
         "esco:css": {"isEssentialForOccupation": [],
-                     "isOptionalForOccupation": [{"uri": "веб", "title": "web developer"}]},
+                     "isOptionalForOccupation": [{"uri": "web", "title": "web developer"}]},
     }
-    найдено = {"JavaScript": "esco:js", "CSS": "esco:css"}
+    found = {"JavaScript": "esco:js", "CSS": "esco:css"}
 
-    def подделка(url, **kw):
+    def fake(url, **kw):
         if "/resource/skill" in url:
             uri = "esco:js" if "esco%3Ajs" in url or "esco:js" in url else "esco:css"
-            тело = {"_links": СВЯЗИ[uri]}
+            body = {"_links": LINKS[uri]}
         else:
-            слово = "JavaScript" if "JavaScript" in url else "CSS"
-            тело = {"_embedded": {"results": [{"uri": найдено[слово], "title": слово}]}}
-        return type("О", (), {"status_code": 200, "json": lambda s: тело})()
+            word = "JavaScript" if "JavaScript" in url else "CSS"
+            body = {"_embedded": {"results": [{"uri": found[word], "title": word}]}}
+        return type("Resp", (), {"status_code": 200, "json": lambda s: body})()
 
-    monkeypatch.setattr(esco.web, "get", подделка)
-    вышло = esco.occupations_by_skills(["JavaScript", "CSS"])
+    monkeypatch.setattr(esco.web, "get", fake)
+    came_out = esco.occupations_by_skills(["JavaScript", "CSS"])
 
-    assert вышло[0] == "веб", "профессия, нужная обоим навыкам, должна быть первой"
+    assert came_out[0] == "web", "the occupation both skills need should come first"
 
 
-def test_нераспознанный_навык_ничего_не_приносит(monkeypatch):
+def test_an_unrecognised_skill_brings_back_nothing(monkeypatch):
     from jobsearch.collectors import esco
-    esco.забыть()
-    monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("О", (), {
+    esco.forget()
+    monkeypatch.setattr(esco.web, "get", lambda url, **kw: type("Resp", (), {
         "status_code": 200,
         "json": lambda s: {"_embedded": {"results": [{"uri": "esco:soap", "title": "harden soap"}]}},
     })())

@@ -8,16 +8,17 @@
 <header>
   {# The version has to be visible in the program itself: otherwise someone whose
      program misbehaves has nothing to name, and we have nothing to ask about. #}
-  {# Новая версия помечается рядом с номером на каждой странице: карточка с
-     кнопкой лежит в настройках, но человек может туда неделями не заходить. #}
+  {# A new version is marked beside the number on every page: the card with the
+     button lives in the settings, and a person may not go there for weeks. #}
   <h1>AI Job Search <span class="app-version">{{ app_version }}</span>
     {% if update.version %}<a class="badge ok update-badge" href="/#update"
        title="{{ t('update_available').format(version=update.version, current=app_version) }}">{{ t('update_badge') }}</a>{% endif %}
-    {# Спросить о новой версии — рядом с номером той, что стоит: это один и тот
-       же вопрос, и человек задаёт его там, где смотрит на версию. Кнопка была
-       только в настройках, в карточке ниже середины страницы, — то есть там,
-       куда за этим не ходят. Метка выше показывается, лишь когда о новой версии
-       уже известно; спросить самому было нечем. #}
+    {# Asking about a new version belongs beside the number of the one installed:
+       it is one and the same question, and people ask it where they look at the
+       version. The button used to be in the settings only, in a card below the
+       middle of the page — that is, somewhere nobody goes for this. The badge
+       above appears only once a new version is already known about; there was no
+       way to ask for yourself. #}
     <form method="post" action="/app/update/check" class="update-check">
       <input type="hidden" name="back" value="{{ path }}">
       <button type="submit">{{ t('update_check') }}</button>
@@ -33,11 +34,11 @@
         </select>
       </label>
     </form>
-    {# Завести человека — здесь же, рядом с переключателем.
-       Возможность была, но жила на странице настроек, в карточке «Управление
-       людьми»: чтобы добавить второго, надо было сперва догадаться уйти со
-       страницы, где ты выбираешь людей, на другую. Переименование сюда уже
-       переехало по той же причине. #}
+    {# Adding a person, right here beside the switcher.
+       The option existed, but it lived on the settings page, in a "Managing
+       people" card: to add a second one you first had to think of leaving the
+       page where you choose people for another. Renaming moved here earlier for
+       the same reason. #}
     <form method="post" action="/profile/create" class="profile-switch" id="add-person"
           onsubmit="return addPerson(this)">
       <input type="hidden" name="name" value="">
@@ -116,22 +117,24 @@ function renamePerson(form) {
   return true;
 }
 
-// Высота шапки — в --header-h, по ней считается отступ для якорей. Шапка
-// липкая, и без отступа браузер ставит цель ровно под неё. Раньше здесь стояло
-// число, посчитанное по «самой высокой шапке», и оно расходилось с настоящей:
-// высота зависит от ширины окна, от языка (подписи разной длины переносятся
-// по-разному) и от того, в сколько рядов шапка встала.
+// The header's height goes into --header-h, and the offset for anchors is
+// computed from it. The header is sticky, and without the offset the browser puts
+// the target exactly underneath it. This used to hold a number worked out from
+// "the tallest possible header", and it disagreed with the real one: the height
+// depends on the window's width, on the language (labels of different lengths
+// wrap differently) and on how many rows the header ended up in.
 (() => {
   const header = document.querySelector('header');
   if (!header) return;
-  // 12px сверху — чтобы цель не прилипала к шапке вплотную.
+  // 12px on top, so the target does not sit flush against the header.
   const put = () => document.documentElement.style.setProperty(
     '--header-h', (header.offsetHeight + 12) + 'px');
   put();
-  // Шапка меняет высоту молча: от ширины окна и от того, как легли подписи.
-  // Слушаем и то и другое. Наблюдатель держится за window нарочно: заведённый
-  // без ссылки, он живёт до первой уборки мусора, а потом молча перестаёт
-  // звать — и высота остаётся от прежней ширины окна. Так и было поймано.
+  // The header changes height silently: with the window's width and with how the
+  // labels fell. We listen for both. The observer is deliberately held on window:
+  // created without a reference it lives until the first garbage collection and
+  // then quietly stops firing — and the height stays that of the old window
+  // width. That is exactly how it was caught.
   addEventListener('resize', put);
   if (window.ResizeObserver) {
     window._headerRO = new ResizeObserver(put);

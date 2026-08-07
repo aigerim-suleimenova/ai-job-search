@@ -1,20 +1,20 @@
-"""Как избавиться от этой программы, если избавляться нечем.
+"""How to get rid of this program when there is nothing to get rid of it with.
 
-На Windows есть установщик: он закрывает программу, стирает её файлы, убирает
-автозапуск и спрашивает про данные. На macOS и Linux установщика нет вовсе —
-образ перетаскивают в корзину, архив стирают. Вместе с папкой уходит только
-сама программа, а за ней остаются:
+On Windows there is an installer: it closes the program, wipes its files,
+removes the autostart entry and asks about the data. On macOS and Linux there is
+no installer at all — the disk image gets dragged to the bin, the archive gets
+deleted. Only the program itself goes with the folder, and behind it remain:
 
-  — данные: CV, найденные вакансии, настройки, база;
-  — запись автозапуска: LaunchAgent на macOS, .desktop на Linux.
+  — the data: the CV, the jobs found, the settings, the database;
+  — the autostart entry: a LaunchAgent on macOS, a .desktop file on Linux.
 
-Остаются навсегда и молча. Найти их человек не может: он не знает ни где они,
-ни что они есть. А убрать их способна только сама программа — то есть до того,
-как её удалят, о чём никто не догадывается.
+They remain forever, and silently. A person cannot find them: they know neither
+where they are nor that they exist. And only the program itself can clear them
+away — that is, before it is deleted, which nobody thinks to do.
 
-Отсюда этот модуль: он умеет сказать, что именно останется и где, а всё, до
-чего программа дотягивается, убрать сама. Последний шаг — удалить саму
-программу — остаётся человеку: съесть себя целиком она не может.
+Hence this module: it can say what exactly will remain and where, and clear away
+everything the program can reach. The last step — deleting the program itself —
+is left to the person: it cannot eat itself whole.
 """
 import platform
 import sys
@@ -24,22 +24,22 @@ from . import autostart, profiles
 
 
 def has_uninstaller() -> bool:
-    """Есть ли у системы своё удаление, которое всё сделает за нас."""
+    """Whether the system has its own uninstall that does it all for us."""
     return platform.system() == "Windows"
 
 
 def program_path() -> str:
-    """Что человеку предстоит убрать своими руками.
+    """What the person will have to remove with their own hands.
 
-    На macOS это весь пакет .app, а не файл внутри него: перетаскивают в корзину
-    именно пакет. Пустая строка означает запуск из исходников — удалять нечего,
-    там лежит то, что разработчик открыл у себя.
+    On macOS that is the whole .app bundle, not a file inside it: the bundle is
+    what gets dragged to the bin. An empty string means running from source —
+    nothing to delete, what lies there is what the developer checked out.
     """
     if not getattr(sys, "frozen", False):
         return ""
-    # Строка как есть, а не через Path: Path переворачивает разделители под ту
-    # систему, где выполняется код, и проверка на «.app/Contents/MacOS» тогда
-    # не срабатывает нигде, кроме самой macOS.
+    # The raw string rather than Path: Path flips the separators to suit the
+    # system the code runs on, and then the ".app/Contents/MacOS" check fires
+    # nowhere except on macOS itself.
     raw = sys.executable
     if platform.system() == "Darwin" and ".app/Contents/MacOS" in raw:
         return raw.split(".app/Contents/MacOS")[0] + ".app"
@@ -47,7 +47,7 @@ def program_path() -> str:
 
 
 def autostart_path() -> str:
-    """Где лежит запись автозапуска, если она заведена."""
+    """Where the autostart entry lives, if one was made."""
     system = platform.system()
     if system == "Darwin":
         path = autostart._mac_plist_path()
@@ -59,7 +59,7 @@ def autostart_path() -> str:
 
 
 def leftovers() -> list:
-    """Всё, что переживёт удаление программы, — по путям, а не общими словами."""
+    """Everything that outlives the program — as paths, not as vague words."""
     out = [str(profiles.DATA_ROOT)]
     auto = autostart_path()
     if auto:

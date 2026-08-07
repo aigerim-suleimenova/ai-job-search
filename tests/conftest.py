@@ -25,7 +25,7 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 @pytest.fixture(autouse=True)
-def настроено(monkeypatch):
+def set_up(monkeypatch):
     """The app as it is once somebody has set it up: a provider that answers.
 
     The pages are shown only when there is a model to think with — without this
@@ -52,13 +52,14 @@ def настроено(monkeypatch):
     # somebody else's server how often the tests run.
     monkeypatch.setattr(update, "fetch_latest", lambda: {})
     monkeypatch.setattr(update, "check_in_background", lambda: None)
-    # net запоминает, что до сети пришлось идти через хранилище системы, — так и
-    # задумано: у кого антивирус перехватывает соединения, тому иначе не пройти.
-    # Но память эта на весь модуль, и в прогоне тестов она их связывала: стоило
-    # одному нарваться на настоящий отказ TLS, как все следующие переставали
-    # видеть свои подмены requests.get и уходили в интернет по-настоящему.
-    # Прогон становился зависим от того, стоит ли на машине антивирус.
-    net.забыть()
+    # net remembers that it had to reach the network through the system trust
+    # store — which is by design: for anyone whose antivirus intercepts
+    # connections there is no other way through. But that memory is module-wide,
+    # and in a test run it tied the tests together: one of them hitting a real TLS
+    # failure was enough for every later one to stop seeing its own monkeypatched
+    # requests.get and go out to the internet for real. The run became dependent
+    # on whether the machine has an antivirus.
+    net.forget()
     appstate.mark_setup_done(config.load()["llm"])
 
 
@@ -80,12 +81,13 @@ BASE_URL = "http://127.0.0.1:8765"
 
 
 def client_for(app, profile: str = ""):
-    """TestClient, стучащийся по тому адресу, по которому программа и живёт.
+    """A TestClient that knocks on the address the program actually lives at.
 
-    По умолчанию он представляется как «testserver», а сервер теперь отзывается
-    только на свои имена — иначе подмену DNS не остановить. Настоящее окно
-    программы всегда приходит на 127.0.0.1, и тесты должны приходить так же:
-    иначе они проверяли бы не то приложение, которое видит человек.
+    By default it introduces itself as "testserver", and the server now answers
+    only to its own names — otherwise DNS rebinding cannot be stopped. The real
+    program window always arrives at 127.0.0.1, and the tests must arrive the same
+    way: otherwise they would be testing an application other than the one a
+    person sees.
     """
     from fastapi.testclient import TestClient
     c = TestClient(app, base_url=BASE_URL)

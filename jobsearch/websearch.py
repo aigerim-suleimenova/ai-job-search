@@ -1,21 +1,23 @@
-"""Поиск в интернете силами самого приложения.
+"""Searching the web with the application's own hands.
 
-Веб-поиск умеет только Claude Code: у остальных программ-моделей его нет, и
-дать его им нельзя — это их собственная возможность, а не наша. Поэтому со всеми
-остальными отключались разведка новых компаний и сбор зарплатных вилок, а на
-странице висела плашка «модель не умеет искать в интернете».
+Only Claude Code can search the web: the other model programs do not have it,
+and we cannot hand it to them — it is their own capability, not ours. So with
+everyone else, scouting for new companies and collecting salary ranges were
+switched off, and the page carried a notice saying the model cannot search the
+web.
 
-Здесь другой ход: ищет приложение, а модель получает уже найденное текстом. Её
-работа от этого не меняется — она и раньше не искала сама, а разбирала выдачу, —
-зато поиск перестаёт зависеть от того, какой программой человек думает.
+This takes another route: the application searches, and the model gets what was
+found, as text. Its work does not change — it never searched by itself anyway,
+it read the results — but searching stops depending on which program the person
+thinks with.
 
-Побочно это надёжнее и с точки зрения безопасности: модели не выдаётся никаких
-сетевых инструментов вовсе, и что именно скачано, решаем мы, а не указание,
-спрятанное в чужом тексте.
+As a side effect this is also sounder for safety: the model is handed no network
+tools whatsoever, and what gets downloaded is our decision, not an instruction
+hidden in somebody else's text.
 
-Ключ нужен, но у всех трёх служб есть бесплатный уровень, которого на несколько
-поисков за прогон хватает с запасом. Без ключа ничего не меняется: разведка
-по-прежнему пропускается, и плашка честно об этом говорит.
+A key is needed, but all three services have a free tier with room to spare for
+a few searches per run. Without a key nothing changes: scouting is skipped as
+before, and the notice says so honestly.
 """
 import requests
 
@@ -23,13 +25,13 @@ from . import net
 
 TIMEOUT = 20
 
-# Службы, говорящие каждая по-своему. Ответ приводится к одному виду:
-# [{"title", "url", "snippet"}] — дальше он идёт в запрос к модели текстом.
+# Services that each speak their own way. The answer is brought to one shape:
+# [{"title", "url", "snippet"}] — from there it goes into the prompt as text.
 PROVIDERS = ("brave", "tavily", "serper")
 
 
 class SearchError(RuntimeError):
-    """Несёт ключ перевода: текст показывается человеку."""
+    """Carries a translation key: the text gets shown to a person."""
 
     def __init__(self, key: str, **fmt):
         self.key, self.fmt = key, fmt
@@ -37,7 +39,7 @@ class SearchError(RuntimeError):
 
 
 def _hide(text: str, key: str) -> str:
-    """Ключ не должен уехать в журнал прогона вместе с текстом ошибки."""
+    """The key must not ride into the run log along with the error text."""
     return str(text).replace(key, "***") if key else str(text)
 
 
@@ -86,7 +88,7 @@ _ADAPTERS = {"brave": _brave, "tavily": _tavily, "serper": _serper}
 
 
 def search(cfg: dict, query: str, n: int = 8) -> list:
-    """Ищет и возвращает [{title, url, snippet}]. Пустой список — не беда."""
+    """Searches and returns [{title, url, snippet}]. An empty list is no disaster."""
     s = cfg.get("sources", {})
     name = (s.get("web_search_provider") or "").strip()
     key = (s.get("web_search_key") or "").strip()
@@ -102,7 +104,7 @@ def search(cfg: dict, query: str, n: int = 8) -> list:
 
 
 def as_text(results: list, limit: int = 8) -> str:
-    """Выдача, пригодная для вставки в запрос к модели."""
+    """Results in a shape fit for dropping into a prompt."""
     lines = []
     for i, r in enumerate(results[:limit], 1):
         snippet = (r.get("snippet") or "").strip().replace("\n", " ")[:400]

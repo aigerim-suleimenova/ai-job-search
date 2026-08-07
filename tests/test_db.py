@@ -9,7 +9,7 @@ from jobsearch import db
 from conftest import job
 
 
-def test_новая_вакансия_сохраняется(profile):
+def test_a_new_job_is_saved(profile):
     db.save_job(job("k1"), run_id=1)
     rows = db.matched_jobs(min_score=0)
     assert len(rows) == 1
@@ -17,29 +17,29 @@ def test_новая_вакансия_сохраняется(profile):
     assert rows[0]["score"] == 60
 
 
-def test_глубокий_разбор_перезаписывает_триажную_оценку(profile):
-    db.save_job(job("k1", score=60, reason="быстрая оценка"), run_id=1)
-    db.save_job(job("k1", score=88, reason="точная оценка", advice='{"cv_changes":[]}',
+def test_the_deep_analysis_overwrites_the_triage_score(profile):
+    db.save_job(job("k1", score=60, reason="a quick score"), run_id=1)
+    db.save_job(job("k1", score=88, reason="an exact score", advice='{"cv_changes":[]}',
                     verified=True), run_id=1)
     row = db.matched_jobs(min_score=0)[0]
     assert row["score"] == 88
-    assert row["reason"] == "точная оценка"
+    assert row["reason"] == "an exact score"
     assert row["advice"] == '{"cv_changes":[]}'
     assert row["verified"] == 1
 
 
-def test_повторный_триаж_не_затирает_разобранное(profile):
+def test_a_repeat_triage_does_not_wipe_what_was_analysed(profile):
     """The next run meets the same job and scores it quickly.
     That is no reason to lose the analysis already done."""
-    db.save_job(job("k1", score=88, reason="точная", advice='{"a":1}', verified=True), run_id=1)
-    db.save_job(job("k1", score=55, reason="быстрая", advice="", verified=False), run_id=2)
+    db.save_job(job("k1", score=88, reason="exact", advice='{"a":1}', verified=True), run_id=1)
+    db.save_job(job("k1", score=55, reason="quick", advice="", verified=False), run_id=2)
     row = db.matched_jobs(min_score=0)[0]
-    assert row["score"] == 88, "триаж перезаписал подтверждённую оценку"
-    assert row["advice"] == '{"a":1}', "советы потерялись"
-    assert row["run_id"] == 2, "вакансия должна числиться за свежим прогоном"
+    assert row["score"] == 88, "triage overwrote a confirmed score"
+    assert row["advice"] == '{"a":1}', "the advice was lost"
+    assert row["run_id"] == 2, "the job should belong to the newest run"
 
 
-def test_отметка_просмотрено_переживает_повторную_встречу(profile):
+def test_the_seen_mark_outlives_meeting_the_job_again(profile):
     db.save_job(job("k1"), run_id=1)
     job_id = db.matched_jobs(min_score=0)[0]["id"]
     db.set_viewed(job_id, True)
@@ -47,49 +47,49 @@ def test_отметка_просмотрено_переживает_повтор
     assert db.get_job(job_id)["viewed"] == 1
 
 
-def test_дата_первой_встречи_не_меняется(profile):
+def test_the_first_seen_date_does_not_change(profile):
     db.save_job(job("k1"), run_id=1)
     first = db.matched_jobs(min_score=0)[0]["first_seen"]
     db.save_job(job("k1", score=90, verified=True), run_id=2)
     assert db.matched_jobs(min_score=0)[0]["first_seen"] == first
 
 
-def test_фильтр_по_порогу(profile):
+def test_filtering_by_threshold(profile):
     db.save_job(job("low", score=40), run_id=1)
     db.save_job(job("high", score=80), run_id=1)
     assert {r["key"] for r in db.matched_jobs(min_score=70)} == {"high"}
 
 
-def test_фильтр_по_датам_публикации(profile):
+def test_filtering_by_posting_date(profile):
     db.save_job(job("old", posted_at="2026-06-01"), run_id=1)
     db.save_job(job("new", posted_at="2026-07-25"), run_id=1)
-    db.save_job(job("без даты", posted_at=""), run_id=1)
+    db.save_job(job("no date", posted_at=""), run_id=1)
 
-    свежие = {r["key"] for r in db.matched_jobs(min_score=0, posted_from="2026-07-01")}
-    assert свежие == {"new"}, "вакансии без даты не должны проходить фильтр «от»"
+    recent = {r["key"] for r in db.matched_jobs(min_score=0, posted_from="2026-07-01")}
+    assert recent == {"new"}, "jobs with no date must not pass the from filter"
 
-    старые = {r["key"] for r in db.matched_jobs(min_score=0, posted_to="2026-06-30")}
-    assert старые == {"old"}
-
-
-def test_фильтр_по_источнику_и_прогону(profile):
-    db.save_job(job("прямая", is_direct=1, is_agency=0), run_id=1)
-    db.save_job(job("агентство", is_direct=0, is_agency=1), run_id=2)
-    assert {r["key"] for r in db.matched_jobs(min_score=0, source="direct")} == {"прямая"}
-    assert {r["key"] for r in db.matched_jobs(min_score=0, source="agency")} == {"агентство"}
-    assert {r["key"] for r in db.matched_jobs(min_score=0, run_id=2)} == {"агентство"}
+    older = {r["key"] for r in db.matched_jobs(min_score=0, posted_to="2026-06-30")}
+    assert older == {"old"}
 
 
-def test_фильтр_по_просмотренности(profile):
+def test_filtering_by_source_and_run(profile):
+    db.save_job(job("direct", is_direct=1, is_agency=0), run_id=1)
+    db.save_job(job("agency", is_direct=0, is_agency=1), run_id=2)
+    assert {r["key"] for r in db.matched_jobs(min_score=0, source="direct")} == {"direct"}
+    assert {r["key"] for r in db.matched_jobs(min_score=0, source="agency")} == {"agency"}
+    assert {r["key"] for r in db.matched_jobs(min_score=0, run_id=2)} == {"agency"}
+
+
+def test_filtering_by_seen(profile):
     db.save_job(job("a"), run_id=1)
     db.save_job(job("b"), run_id=1)
     db.set_viewed(db.matched_jobs(min_score=0)[0]["id"], True)
-    новые = db.matched_jobs(min_score=0, viewed="new")
-    виденные = db.matched_jobs(min_score=0, viewed="seen")
-    assert len(новые) == 1 and len(виденные) == 1
+    unseen_rows = db.matched_jobs(min_score=0, viewed="new")
+    seen_rows = db.matched_jobs(min_score=0, viewed="seen")
+    assert len(unseen_rows) == 1 and len(seen_rows) == 1
 
 
-def test_счётчики_и_отметить_все(profile):
+def test_the_counters_and_mark_all(profile):
     for i in range(3):
         db.save_job(job(f"k{i}", score=75), run_id=1)
     assert db.counts(min_score=0)["unseen"] == 3
@@ -97,8 +97,8 @@ def test_счётчики_и_отметить_все(profile):
     assert db.counts(min_score=0)["unseen"] == 0
 
 
-def test_сортировки_не_падают(profile):
+def test_the_sort_orders_do_not_fall_over(profile):
     db.save_job(job("a", score=80), run_id=1)
     db.save_job(job("b", score=90, posted_at=""), run_id=1)
     for sort in db.SORTS:
-        assert len(db.matched_jobs(min_score=0, sort=sort)) == 2, f"сортировка {sort}"
+        assert len(db.matched_jobs(min_score=0, sort=sort)) == 2, f"sort order {sort}"

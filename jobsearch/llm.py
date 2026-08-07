@@ -236,10 +236,10 @@ def ask_json(prompt: str, model: str = "", claude_bin: str = "claude", timeout: 
              llm: dict = None, schema: dict = None):
     """Like ask, but requires JSON back. If the model answered in prose, it retries.
 
-    schema — описание ответа. Малая местная модель сплошь и рядом отвечает
-    связным текстом без нужного поля, и повторять запрос бесполезно: она
-    ответит так же. Ollama умеет держать вывод в рамках схемы — тогда поле есть
-    всегда. Кто схемы не понимает, тот её и не увидит.
+    schema — the shape of the answer. A small local model answers with fluent
+    prose and no required field over and over, and asking again is pointless: it
+    will answer the same way. Ollama can hold the output to a schema — then the
+    field is always there. Whoever does not understand schemas never sees one.
     """
     last = None
     for attempt in range(retries + 1):

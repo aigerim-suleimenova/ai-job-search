@@ -1,31 +1,33 @@
-"""Поиск в интернете силами самого приложения.
+"""Searching the web with the application's own hands.
 
-Веб-поиск умеет только Claude Code: у остальных программ-моделей его нет, и дать
-его им нельзя — это их возможность, а не наша. Поэтому со всеми остальными
-отключались разведка новых компаний и зарплатные вилки, а на странице висела
-плашка «модель не умеет искать в интернете».
+Only Claude Code can search the web: the other model programs do not have it, and
+we cannot hand it to them — it is their capability, not ours. So with everyone
+else, scouting for new companies and salary ranges were switched off, and the page
+carried a notice saying the model cannot search the web.
 
-Здесь ход обратный: ищет приложение, а модель получает найденное текстом. Работа
-у неё та же — она и раньше не искала, а разбирала выдачу, — зато поиск больше не
-зависит от того, какой программой человек думает.
+Here the move is the other way round: the application searches, and the model gets
+what was found as text. Its work is the same — it never searched before either, it
+read the results — but searching no longer depends on which program the person
+thinks with.
 
-И это надёжнее ещё в одном смысле: модели не выдаётся сетевых инструментов
-вовсе, и что именно скачано, решаем мы, а не указание, спрятанное в чужом тексте.
+And it is sounder in one more sense: the model is handed no network tools at all,
+and what gets downloaded is our decision rather than an instruction hidden in
+somebody else's text.
 """
 import pytest
 import requests
 
 from jobsearch import config, providers, websearch
 
-КЛЮЧ = "sk-search-секрет"
+KEY = "sk-search-secret"
 
 
-def настроен(cfg: dict, служба: str = "brave") -> dict:
-    cfg["sources"].update(web_search_provider=служба, web_search_key=КЛЮЧ)
+def with_key(cfg: dict, service: str = "brave") -> dict:
+    cfg["sources"].update(web_search_provider=service, web_search_key=KEY)
     return cfg
 
 
-class Ответ:
+class Answer:
     def __init__(self, payload):
         self._payload = payload
 
@@ -36,95 +38,97 @@ class Ответ:
         return self._payload
 
 
-ВЫДАЧА = {
+RESULTS = {
     "brave": {"web": {"results": [
-        {"title": "Acme careers", "url": "https://acme.example/jobs", "description": "мы нанимаем"}]}},
+        {"title": "Acme careers", "url": "https://acme.example/jobs", "description": "we are hiring"}]}},
     "tavily": {"results": [
-        {"title": "Acme careers", "url": "https://acme.example/jobs", "content": "мы нанимаем"}]},
+        {"title": "Acme careers", "url": "https://acme.example/jobs", "content": "we are hiring"}]},
     "serper": {"organic": [
-        {"title": "Acme careers", "link": "https://acme.example/jobs", "snippet": "мы нанимаем"}]},
+        {"title": "Acme careers", "link": "https://acme.example/jobs", "snippet": "we are hiring"}]},
 }
 
 
-@pytest.mark.parametrize("служба", ["brave", "tavily", "serper"])
-def test_разные_службы_приводятся_к_одному_виду(monkeypatch, служба, profile):
-    """Дальше выдача идёт в запрос к модели текстом — форма должна быть одна."""
-    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Ответ(ВЫДАЧА[служба]))
-    monkeypatch.setattr(websearch.requests, "post", lambda *a, **kw: Ответ(ВЫДАЧА[служба]))
+@pytest.mark.parametrize("service", ["brave", "tavily", "serper"])
+def test_the_different_services_come_out_in_one_shape(monkeypatch, service, profile):
+    """From here the results go into the prompt as text — the shape must be one."""
+    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Answer(RESULTS[service]))
+    monkeypatch.setattr(websearch.requests, "post", lambda *a, **kw: Answer(RESULTS[service]))
 
-    найдено = websearch.search(настроен(config.load(), служба), "acme jobs")
+    found = websearch.search(with_key(config.load(), service), "acme jobs")
 
-    assert найдено == [{"title": "Acme careers", "url": "https://acme.example/jobs",
-                        "snippet": "мы нанимаем"}], служба
-
-
-def test_ключ_не_попадает_в_текст_ошибки(monkeypatch, profile):
-    """Ошибка уходит в журнал прогона, а его человек кому-то показывает."""
-    def взорваться(*a, **kw):
-        raise requests.ConnectionError(f"нет связи, token={КЛЮЧ}")
-
-    monkeypatch.setattr(websearch.requests, "get", взорваться)
-
-    with pytest.raises(websearch.SearchError) as поймано:
-        websearch.search(настроен(config.load()), "acme")
-
-    assert КЛЮЧ not in str(поймано.value) + str(поймано.value.fmt)
+    assert found == [{"title": "Acme careers", "url": "https://acme.example/jobs",
+                        "snippet": "we are hiring"}], service
 
 
-def test_без_ключа_говорим_что_не_настроено(profile):
-    with pytest.raises(websearch.SearchError) as поймано:
+def test_the_key_stays_out_of_the_error_text(monkeypatch, profile):
+    """The error goes into the run log, and people show that to others."""
+    def blow_up(*a, **kw):
+        raise requests.ConnectionError(f"no connection, token={KEY}")
+
+    monkeypatch.setattr(websearch.requests, "get", blow_up)
+
+    with pytest.raises(websearch.SearchError) as caught:
+        websearch.search(with_key(config.load()), "acme")
+
+    assert KEY not in str(caught.value) + str(caught.value.fmt)
+
+
+def test_with_no_key_we_say_it_is_not_set_up(profile):
+    with pytest.raises(websearch.SearchError) as caught:
         websearch.search(config.load(), "acme")
-    assert поймано.value.key == "search_err_not_set"
+    assert caught.value.key == "search_err_not_set"
 
 
-def test_чужие_схемы_из_выдачи_отсекаются(monkeypatch, profile):
-    """Адреса из выдачи попадают в список компаний и потом скачиваются."""
-    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Ответ({"web": {"results": [
-        {"title": "плохое", "url": "javascript:alert(1)", "description": ""},
-        {"title": "тоже плохое", "url": "file:///etc/passwd", "description": ""},
-        {"title": "годное", "url": "https://acme.example/jobs", "description": ""}]}}))
+def test_foreign_schemes_in_the_results_are_cut_off(monkeypatch, profile):
+    """Addresses from the results land in the company list and get fetched later."""
+    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Answer({"web": {"results": [
+        {"title": "bad", "url": "javascript:alert(1)", "description": ""},
+        {"title": "also bad", "url": "file:///etc/passwd", "description": ""},
+        {"title": "fine", "url": "https://acme.example/jobs", "description": ""}]}}))
 
-    найдено = websearch.search(настроен(config.load()), "acme")
+    found = websearch.search(with_key(config.load()), "acme")
 
-    assert [r["url"] for r in найдено] == ["https://acme.example/jobs"]
+    assert [r["url"] for r in found] == ["https://acme.example/jobs"]
 
 
-# --- Как это видно остальной программе ------------------------------------------
+# --- How the rest of the program sees this ------------------------------------
 
-def test_с_ключом_поиск_есть_у_любой_модели(profile):
-    """Ровно то, ради чего всё затевалось: плашка исчезает не у одного Claude Code."""
+def test_with_a_key_any_model_has_a_search(profile):
+    """Exactly what this was all for: the notice goes away for more than Claude Code."""
     cfg = config.load()
     cfg["llm"]["provider"] = "ollama"
-    assert providers.web_search_possible(cfg) is False, "предусловие: без ключа поиска нет"
+    assert providers.web_search_possible(cfg) is False, "precondition: with no key there is no search"
 
-    assert providers.web_search_possible(настроен(cfg)) is True
+    assert providers.web_search_possible(with_key(cfg)) is True
 
 
-def test_у_claude_поиск_есть_и_без_ключа(profile):
+def test_claude_has_a_search_even_without_a_key(profile):
     cfg = config.load()
     cfg["llm"]["provider"] = "claude_cli"
     assert providers.web_search_possible(cfg) is True
 
 
-def test_возможность_модели_и_возможность_вообще_это_разные_вопросы(profile):
-    """supports_web_search — про саму программу-модель, web_search_possible — про
-    то, будет ли поиск. Смешать их значит снова связать возможность с выбором
-    провайдера, от чего и уходили."""
-    cfg = настроен(config.load())
+def test_the_models_capability_and_the_capability_at_all_are_different_questions(profile):
+    """supports_web_search is about the model program itself; web_search_possible is
+    about whether there will be a search at all. Confusing the two would tie the
+    capability back to the choice of provider, which is what we were getting away
+    from."""
+    cfg = with_key(config.load())
     cfg["llm"]["provider"] = "ollama"
     assert providers.supports_web_search("ollama") is False
     assert providers.web_search_possible(cfg) is True
 
 
-def test_модель_не_получает_сетевых_инструментов(monkeypatch, profile):
-    """Ищет приложение — значит модели инструменты не нужны вовсе. Это и есть
-    выигрыш в надёжности: что скачано, решаем мы, а не чужой текст."""
+def test_the_model_is_given_no_network_tools(monkeypatch, profile):
+    """The application searches, so the model needs no tools whatsoever. That is the
+    gain in soundness: what gets downloaded is our decision, not a stranger's
+    text."""
     from jobsearch import llm, scoring
-    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Ответ(ВЫДАЧА["brave"]))
-    запросы = []
+    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Answer(RESULTS["brave"]))
+    prompts = []
     monkeypatch.setattr(llm, "ask_json",
-                        lambda prompt, **kw: запросы.append(kw.get("allowed_tools")) or {})
-    cfg = настроен(config.load())
+                        lambda prompt, **kw: prompts.append(kw.get("allowed_tools")) or {})
+    cfg = with_key(config.load())
     cfg["llm"].update(provider="ollama", deep_model="gemma2:9b")
     config.save(cfg)
 
@@ -132,16 +136,16 @@ def test_модель_не_получает_сетевых_инструмент�
                           "description": "x" * 400},
                          cfg, "CV", lambda _m: None, research=True)
 
-    assert запросы, "модель не звали"
-    assert all(not и for и in запросы), "модели всё-таки выдали сетевые инструменты"
+    assert prompts, "the model was never called"
+    assert all(not tools for tools in prompts), "the model was handed network tools after all"
 
 
-def test_найденное_доезжает_до_запроса(monkeypatch, profile):
+def test_what_was_found_reaches_the_prompt(monkeypatch, profile):
     from jobsearch import llm, scoring
-    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Ответ(ВЫДАЧА["brave"]))
-    запросы = []
-    monkeypatch.setattr(llm, "ask_json", lambda prompt, **kw: запросы.append(prompt) or {})
-    cfg = настроен(config.load())
+    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Answer(RESULTS["brave"]))
+    prompts = []
+    monkeypatch.setattr(llm, "ask_json", lambda prompt, **kw: prompts.append(prompt) or {})
+    cfg = with_key(config.load())
     cfg["llm"].update(provider="ollama", deep_model="gemma2:9b")
     config.save(cfg)
 
@@ -149,18 +153,18 @@ def test_найденное_доезжает_до_запроса(monkeypatch, pr
                           "description": "x" * 400},
                          cfg, "CV", lambda _m: None, research=True)
 
-    assert any("acme.example/jobs" in p for p in запросы), \
-        "выдача не попала в запрос — модели нечего пересказывать"
+    assert any("acme.example/jobs" in p for p in prompts), \
+        "the results never reached the prompt — the model has nothing to retell"
 
 
-def test_без_выдачи_модель_не_просят_сочинять(monkeypatch, profile):
-    """Пустой поиск — не повод спрашивать: ответить она чем-то должна, и это
-    будет выдумка."""
+def test_with_no_results_we_do_not_ask_the_model_to_invent(monkeypatch, profile):
+    """An empty search is no reason to ask: it has to answer with something, and
+    that something will be invention."""
     from jobsearch import llm, scoring
-    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Ответ({"web": {"results": []}}))
-    запросы = []
-    monkeypatch.setattr(llm, "ask_json", lambda prompt, **kw: запросы.append(prompt) or {})
-    cfg = настроен(config.load())
+    monkeypatch.setattr(websearch.requests, "get", lambda *a, **kw: Answer({"web": {"results": []}}))
+    prompts = []
+    monkeypatch.setattr(llm, "ask_json", lambda prompt, **kw: prompts.append(prompt) or {})
+    cfg = with_key(config.load())
     cfg["llm"].update(provider="ollama", deep_model="gemma2:9b")
     config.save(cfg)
 
@@ -168,5 +172,7 @@ def test_без_выдачи_модель_не_просят_сочинять(mon
                           "description": "x" * 400},
                          cfg, "CV", lambda _m: None, research=True)
 
-    assert not any("Найди в интернете" in p for p in запросы), \
-        "спросили о том, чего программа не нашла"
+    # Russian because it matches RESEARCH_PROMPT, which is addressed to the model
+    # and stays in Russian.
+    assert not any("Найди в интернете" in p for p in prompts), \
+        "we asked about something the application never found"

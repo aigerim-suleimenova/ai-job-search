@@ -150,8 +150,8 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         # 0. Finding new companies for this profile (web search through claude).
         # Only Claude Code CLI can search the web: on other providers this step is
         # skipped, or the model would start inventing companies and links.
-        # Ищет либо сама модель, либо приложение своим ключом — человеку
-        # разница не видна, поэтому и решение здесь одно на оба случая.
+        # Either the model searches, or the application does with its own key —
+        # the person cannot tell the difference, so one decision covers both.
         web_ok = providers.web_search_possible(cfg)
         n_disc = int(cfg["search"].get("discover_per_run", 0))
         if n_disc > 0 and not web_ok:
@@ -218,15 +218,16 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         found = len(jobs)
         _logk("log_collected", n=found)
 
-        # Отказали все источники до единого — это не «вакансий нет», это «до нас
-        # не дошло». Прогон при этом отчитывался как успешный, и человек читал
-        # ноль как ответ рынка. А причина у такого обычно общая и внешняя:
-        # антивирус, перехватывающий соединения, корпоративный шлюз, отсутствие
-        # сети. Одна беда, а выглядела как приговор его специальности.
-        источники = [c for c in coverage if c.get("kind") == "aggregator"]
-        if источники and all(c.get("error") for c in источники):
+        # Every single source failed — that is not "there are no jobs", that is
+        # "nothing reached us". The run reported success all the same, and the
+        # person read the zero as the market's answer. The cause of this is
+        # usually one shared, external thing: an antivirus intercepting
+        # connections, a corporate gateway, no network at all. One trouble, and
+        # it looked like a verdict on their profession.
+        sources = [c for c in coverage if c.get("kind") == "aggregator"]
+        if sources and all(c.get("error") for c in sources):
             status = "warn"
-            _logk("log_all_sources_failed", n=len(источники))
+            _logk("log_all_sources_failed", n=len(sources))
 
         # 2. Normalising and de-duplicating (direct jobs win over the rest)
         _stage("stage_dedupe")
@@ -258,9 +259,9 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         if drop_date:
             _logk("log_drop_dates", n=len(drop_date), since=since or "…", until=until or "…")
         for j in jobs:
-            # Что объявление само сказало про право на работу. Читаем словами, а
-            # не спрашиваем модель: её об этом спрашивали, и она молчала во всех
-            # ста девяти случаях подряд.
+            # What the posting itself said about the right to work. We read it
+            # from the words rather than asking the model: it was asked, and it
+            # stayed silent in all one hundred and nine cases in a row.
             j["visa"] = filters.visa_stance(j)
             if filters.looks_like_agency(j.get("company", "")):
                 j["is_agency"] = True
@@ -275,14 +276,15 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         # even when the job itself is old news: the aggregator showed one, the board
         # has twenty.
         if cfg["sources"].get("harvest_boards", True):
-            найдено = harvest.find_new(jobs, cfg["sources"].get("companies", []),
-                                       limit=int(cfg["sources"].get("harvest_per_run", 10)))
-            if найдено:
-                cfg["sources"]["companies"] = list(cfg["sources"].get("companies", [])) + найдено
+            found_boards = harvest.find_new(jobs, cfg["sources"].get("companies", []),
+                                            limit=int(cfg["sources"].get("harvest_per_run", 10)))
+            if found_boards:
+                cfg["sources"]["companies"] = (list(cfg["sources"].get("companies", []))
+                                               + found_boards)
                 config.save(cfg)
-                for c in найдено:
+                for c in found_boards:
                     _logk("log_harvest_board", name=c["name"], url=c["url"])
-                _logk("log_harvest_total", n=len(найдено))
+                _logk("log_harvest_total", n=len(found_boards))
 
         # 4. Only the new ones
         seen = db.seen_keys()
@@ -310,28 +312,30 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         for j in jobs:
             j["_lex"] = scoring.lexical_score(j, terms)
         limit = int(cfg["search"].get("triage_limit", 400))
-        # Три очереди, а не две. Средняя — то, что источник нашёл ПО НАШЕМУ
-        # запросу, а не вывалил всей лентой.
+        # Three queues, not two. The middle one is what a source found FOR OUR
+        # query, rather than dumped from its whole feed.
         #
-        # Без неё выходило вот что. Порядок задаёт совпадение слов с профилем, а
-        # EURES ищет по смыслу и приносит названия на родных языках: на
-        # «seamstress» — польскую «Szwaczka». Общих букв у них нет, совпадение
-        # ноль, и все двести восемьдесят три его вакансии уходили за черту — под
-        # четыреста IT-вакансий с досок для программистов, куда они попали
-        # потому, что в названии случилось слово «Designer».
+        # Without it, this is what happened. The order comes from how the words
+        # match the profile, while EURES searches by meaning and brings back
+        # titles in their own languages: for "seamstress", the Polish
+        # "Szwaczka". They share no letters, the match is zero, and all two
+        # hundred and eighty-three of its jobs fell below the line — under four
+        # hundred IT jobs from programmer boards, which got there because the
+        # word "Designer" happened to be in the title.
         #
-        # Найденное по запросу уже прошло чужой отбор — тот, что умеет в языки и
-        # в смысл. Ставить его после случайно совпавшего значило бы верить своему
-        # счёту букв больше, чем поисковой машине EURES.
-        по_словам = lambda j: -j["_lex"]  # noqa: E731
-        watch = sorted((j for j in jobs if j.get("from_watchlist")), key=по_словам)
-        нашли = sorted((j for j in jobs
-                        if not j.get("from_watchlist") and j.get("by_query")), key=по_словам)
+        # What was found by query has already passed somebody else's filter —
+        # one that understands languages and meaning. Putting it after an
+        # accidental match would mean trusting our own letter-counting more than
+        # the EURES search engine.
+        by_words = lambda j: -j["_lex"]  # noqa: E731
+        watch = sorted((j for j in jobs if j.get("from_watchlist")), key=by_words)
+        asked = sorted((j for j in jobs
+                        if not j.get("from_watchlist") and j.get("by_query")), key=by_words)
         others = sorted((j for j in jobs
-                         if not j.get("from_watchlist") and not j.get("by_query")), key=по_словам)
-        по_порядку = watch + нашли + others
-        candidates = по_порядку[:limit]
-        deferred = по_порядку[limit:]  # not marked seen — they get their turn next run
+                         if not j.get("from_watchlist") and not j.get("by_query")), key=by_words)
+        in_order = watch + asked + others
+        candidates = in_order[:limit]
+        deferred = in_order[limit:]  # not marked seen — they get their turn next run
         _logk("log_to_triage", n=len(candidates), own=min(len(watch), limit))
         if deferred:
             _logk("log_deferred", n=len(deferred))
@@ -342,13 +346,14 @@ def run(trigger: str = "manual", profile: str = None) -> None:
             _logk("log_empty_profile")
             _logk("log_empty_profile_fix")
         elif cv and not (cfg["profile"].get("roles") or cfg["profile"].get("summary")):
-            # CV есть, а профиль из него не вышел — и это худший случай, потому
-            # что снаружи он выглядит благополучно. Разбор резюме идёт одним
-            # вызовом модели, и у слабой он может не удаться; тогда примеров для
-            # оценки не строится, в источники уходит пустой запрос, а оценки
-            # вырождаются. На настоящем прогоне все тридцать семь вакансий
-            # получили ровно шестьдесят процентов — и все с галочкой «проверено».
-            # Прежняя проверка этого не ловила: ей хватало того, что CV есть.
+            # There is a CV, but no profile came out of it — and that is the
+            # worst case, because from the outside it looks fine. Parsing the CV
+            # is a single call to the model, and a weak one can fail it; then no
+            # examples get built for scoring, an empty query goes to the sources,
+            # and the scores degenerate. On a real run all thirty-seven jobs came
+            # out at exactly sixty percent — every one of them with a "verified"
+            # tick. The old check did not catch this: the presence of a CV was
+            # enough for it.
             status = "warn"
             _logk("log_profile_unparsed")
             _logk("log_profile_unparsed_fix")
@@ -366,13 +371,14 @@ def run(trigger: str = "manual", profile: str = None) -> None:
         threshold = int(cfg["search"].get("threshold", 70))
         scored = [j for j in candidates if j.get("score") is not None]
         if candidates and not scored:
-            # Было что оценивать, но не оценено ничего. Дальше идти незачем:
-            # ниже только рассылка письма о том, что подходящего не нашлось.
+            # There was something to score, and nothing got scored. No reason to
+            # go further: below is only the mail saying nothing suitable turned up.
             raise NothingScored(failures[0] if failures else None)
         if failures:
-            # Часть пачек не ответила — вакансии из них не потеряны навсегда
-            # (без оценки они не помечены просмотренными и вернутся в следующий
-            # прогон), но прогон уже не полный, и говорить о нём как о полном нельзя.
+            # Some batches did not answer — the jobs in them are not lost for
+            # good (unscored, they are not marked seen and come back on the next
+            # run), but the run is no longer complete, and calling it complete
+            # would be wrong.
             status = "warn"
             _logk("log_triage_partial", failed=len(failures), missed=len(candidates) - len(scored))
 
@@ -423,10 +429,10 @@ def run(trigger: str = "manual", profile: str = None) -> None:
 
         # 7. Deep analysis (in parallel): the exact %, edits for the CV and LinkedIn,
         # plus, if enabled, the salary and facts about the company from a web search
-        # Изучение компании — это web-поиск. Просить о нём модель, которой в сеть
-        # не выйти, значит потратить вызов впустую и подтолкнуть её сочинять:
-        # ответить-то она чем-то должна. Флаг в настройках говорит «хочу», а
-        # может ли — решает провайдер.
+        # Researching a company is a web search. Asking for one from a model that
+        # cannot reach the network wastes the call and nudges it into making
+        # things up: it has to answer with something. The setting says "I want
+        # this", and whether it is possible is the provider's business.
         research = bool(cfg["search"].get("research_company", True)) and web_ok
         if cfg["search"].get("research_company", True) and not web_ok:
             _logk("log_research_skipped")

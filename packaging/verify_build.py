@@ -25,7 +25,7 @@ def find_bundle() -> Path:
                       DIST / "AI Job Search"):
         if candidate.is_dir():
             return candidate
-    raise SystemExit(f"Сборка не найдена в {DIST}")
+    raise SystemExit(f"No build found in {DIST}")
 
 
 def main() -> int:
@@ -36,11 +36,11 @@ def main() -> int:
     exes = [p for name in exe_names
             for p in (DIST.rglob(name)) if p.is_file() and p.stat().st_size > 1_000_000]
     if not exes:
-        problems.append("исполняемый файл не найден или подозрительно мал")
+        problems.append("the executable is missing, or suspiciously small")
 
     for needed in ("templates/index.html", "templates/simple.html", "static/style.css"):
         if not (bundle / needed).exists():
-            problems.append(f"нет {needed} — интерфейс не отрисуется")
+            problems.append(f"{needed} is missing — the interface will not render")
 
     # On Windows the window is drawn by .NET, and this library is the bridge to it.
     # Without it the program builds as though nothing were wrong and dies later, in
@@ -48,7 +48,7 @@ def main() -> int:
     # finding out from a screenshot.
     if sys.platform == "win32":
         if not (bundle / "pythonnet" / "runtime" / "Python.Runtime.dll").exists():
-            problems.append("нет pythonnet/runtime/Python.Runtime.dll — окно не откроется")
+            problems.append("pythonnet/runtime/Python.Runtime.dll is missing — the window will not open")
 
     # On Linux the reverse: these libraries must NOT be inside. The build's copies
     # shadow the machine's own, and the window — drawn by the system's WebKit —
@@ -60,16 +60,16 @@ def main() -> int:
         strays = sorted({p.name for p in bundle.rglob("*.so*")
                          if system_libraries.is_system_library(p.name)})
         if strays:
-            problems.append("в сборку попали системные библиотеки — окно не откроется: "
+            problems.append("system libraries got into the build — the window will not open: "
                             + ", ".join(strays[:6]))
 
     if problems:
-        print("Проверка сборки не пройдена:")
+        print("The build check did not pass:")
         for p in problems:
             print(" -", p)
         return 1
-    print(f"Сборка в порядке: {bundle}")
-    print(f"  исполняемый файл: {exes[0].name}, {exes[0].stat().st_size // 1024 // 1024} МБ")
+    print(f"The build is sound: {bundle}")
+    print(f"  executable: {exes[0].name}, {exes[0].stat().st_size // 1024 // 1024} MB")
     return 0
 
 

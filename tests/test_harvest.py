@@ -10,18 +10,18 @@ from jobsearch import harvest
 from jobsearch.collectors import ats
 
 
-def вакансия(url, company="Компания"):
+def job_at(url, company="Company"):
     return {"url": url, "company": company}
 
 
-def test_доска_из_ссылки_на_вакансию():
-    новые = harvest.find_new([вакансия("https://boards.greenhouse.io/mercury/jobs/4012", "Mercury")], [])
-    assert новые == [{"name": "Mercury", "url": "https://boards.greenhouse.io/mercury"}]
+def test_a_board_from_a_link_to_a_job():
+    found = harvest.find_new([job_at("https://boards.greenhouse.io/mercury/jobs/4012", "Mercury")], [])
+    assert found == [{"name": "Mercury", "url": "https://boards.greenhouse.io/mercury"}]
 
 
-def test_собранный_адрес_опознаётся_обратно():
+def test_an_assembled_address_is_recognised_back():
     """Otherwise the board is added a second time on the next run."""
-    ссылки = [
+    links = [
         "https://boards.greenhouse.io/mercury/jobs/1",
         "https://jobs.lever.co/xsolla/abc",
         "https://jobs.ashbyhq.com/n8n/xyz",
@@ -30,55 +30,55 @@ def test_собранный_адрес_опознаётся_обратно():
         "https://payflows.recruitee.com/o/engineer",
         "https://digacon-software.jobs.personio.com/job/1",
     ]
-    for c in harvest.find_new([вакансия(u) for u in ссылки], [], limit=99):
-        assert ats.detect(c["url"]), f"{c['url']} не опознаётся обратно"
+    for c in harvest.find_new([job_at(u) for u in links], [], limit=99):
+        assert ats.detect(c["url"]), f"{c['url']} is not recognised back"
 
 
-def test_повторный_прогон_ничего_не_добавляет():
-    jobs = [вакансия("https://boards.greenhouse.io/mercury/jobs/1"),
-            вакансия("https://jobs.ashbyhq.com/n8n/xyz")]
-    первый = harvest.find_new(jobs, [], limit=99)
-    assert len(первый) == 2
-    assert harvest.find_new(jobs, первый, limit=99) == []
+def test_a_repeat_run_adds_nothing():
+    jobs = [job_at("https://boards.greenhouse.io/mercury/jobs/1"),
+            job_at("https://jobs.ashbyhq.com/n8n/xyz")]
+    first_pass = harvest.find_new(jobs, [], limit=99)
+    assert len(first_pass) == 2
+    assert harvest.find_new(jobs, first_pass, limit=99) == []
 
 
-def test_разные_ссылки_одной_доски_дают_одну_запись():
-    jobs = [вакансия("https://boards.greenhouse.io/mercury/jobs/1"),
-            вакансия("https://boards.greenhouse.io/mercury/jobs/2"),
-            вакансия("https://job-boards.greenhouse.io/mercury/jobs/3")]
+def test_different_links_to_one_board_give_one_entry():
+    jobs = [job_at("https://boards.greenhouse.io/mercury/jobs/1"),
+            job_at("https://boards.greenhouse.io/mercury/jobs/2"),
+            job_at("https://job-boards.greenhouse.io/mercury/jobs/3")]
     assert len(harvest.find_new(jobs, [], limit=99)) == 1
 
 
-def test_уже_наблюдаемую_компанию_не_дублируем():
+def test_a_company_already_watched_is_not_duplicated():
     """The person added the board by hand — even if spelled differently."""
-    свои = [{"name": "Mercury", "url": "https://boards.greenhouse.io/mercury/"}]
-    jobs = [вакансия("https://job-boards.greenhouse.io/mercury/jobs/9")]
-    assert harvest.find_new(jobs, свои) == []
+    watched = [{"name": "Mercury", "url": "https://boards.greenhouse.io/mercury/"}]
+    jobs = [job_at("https://job-boards.greenhouse.io/mercury/jobs/9")]
+    assert harvest.find_new(jobs, watched) == []
 
 
-def test_предел_за_прогон_соблюдается():
-    jobs = [вакансия(f"https://jobs.ashbyhq.com/company{i}/x") for i in range(30)]
+def test_the_per_run_limit_is_kept():
+    jobs = [job_at(f"https://jobs.ashbyhq.com/company{i}/x") for i in range(30)]
     assert len(harvest.find_new(jobs, [], limit=10)) == 10
     assert harvest.find_new(jobs, [], limit=0) == []
 
 
-def test_обычные_ссылки_пропускаются():
-    jobs = [вакансия("https://example.com/careers/frontend"),
-            вакансия("https://linkedin.com/jobs/view/123"),
-            вакансия("")]
+def test_ordinary_links_are_skipped():
+    jobs = [job_at("https://example.com/careers/frontend"),
+            job_at("https://linkedin.com/jobs/view/123"),
+            job_at("")]
     assert harvest.find_new(jobs, []) == []
 
 
-def test_без_названия_компании_берём_имя_доски():
-    новые = harvest.find_new([вакансия("https://jobs.lever.co/xsolla/a", company="")], [])
-    assert новые[0]["name"] == "xsolla"
+def test_with_no_company_name_we_take_the_boards():
+    found = harvest.find_new([job_at("https://jobs.lever.co/xsolla/a", company="")], [])
+    assert found[0]["name"] == "xsolla"
 
 
-def test_галочка_видна_и_выключается(profile):
+def test_the_checkbox_is_visible_and_can_be_turned_off(profile):
     """The company list fills up by itself — a person has to know that, and be
     able to forbid it without reading the source."""
     import pytest
-    pytest.importorskip("httpx", reason="TestClient требует httpx")
+    pytest.importorskip("httpx", reason="TestClient needs httpx")
     from fastapi.testclient import TestClient
 
     import app as app_module
@@ -87,11 +87,11 @@ def test_галочка_видна_и_выключается(profile):
     appstate.mark_setup_done(config.load()["llm"])   # or first launch sends us to the introduction
     with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as c:
         c.cookies.set("profile", profile)
-        страница = c.get("/").text
-        assert 'name="harvest_boards"' in страница
-        язык = config.load()["ui"]["lang"]
-        assert i18n.t(язык, "harvest_boards") in страница
-        assert i18n.t(язык, "harvest_boards_hint")[:40] in страница
+        page = c.get("/").text
+        assert 'name="harvest_boards"' in page
+        lang = config.load()["ui"]["lang"]
+        assert i18n.t(lang, "harvest_boards") in page
+        assert i18n.t(lang, "harvest_boards_hint")[:40] in page
 
         # the box is clear — the field simply is not in the form
         c.post("/save", data={"companies": "", "use_remotive": "on"}, follow_redirects=False)
@@ -101,117 +101,117 @@ def test_галочка_видна_и_выключается(profile):
         assert config.load()["sources"]["harvest_boards"] is True
 
 
-# --- Что источник ответил, когда не дал ничего ---------------------------------
+# --- What a source said when it gave nothing ----------------------------------
 
-def только_remotive() -> dict:
-    """Один источник включён, остальные выключены: у каждого свои требования к
-    настройкам, а проверяем мы здесь не их."""
+def only_remotive() -> dict:
+    """One source on and the rest off: each has settings requirements of its own,
+    and they are not what we are checking here."""
     from jobsearch import config
     cfg = config._merge(config.DEFAULTS, {})
-    for ключ in list(cfg["sources"]):
-        if ключ.startswith("use_"):
-            cfg["sources"][ключ] = False
+    for key in list(cfg["sources"]):
+        if key.startswith("use_"):
+            cfg["sources"][key] = False
     cfg["sources"]["use_remotive"] = True
     return cfg
 
 
-def test_отказ_источника_доезжает_до_покрытия(monkeypatch):
-    """Поле error в покрытии было всегда — и всегда пустым: сборщики ловят свои
-    ошибки сами и возвращают пустой список, так что снаружи отказ выглядел
-    точь-в-точь как «ничего не нашлось». На странице «Покрытие» источники стояли
-    с нулями и без единого слова, и человек с антивирусом, перехватывающим
-    соединения, читал это как «таких вакансий нет»."""
+def test_a_sources_failure_reaches_the_coverage(monkeypatch):
+    """The error field in coverage was always there — and always empty: the
+    collectors catch their own errors and return an empty list, so from the
+    outside a failure looked exactly like "nothing was found". On the "Coverage"
+    page the sources stood there with zeros and not a word, and a person whose
+    antivirus intercepts connections read that as "there are no such jobs"."""
     import requests
 
     from jobsearch.collectors import aggregators
 
-    def сломанный(cfg, log):
+    def broken(cfg, log):
         log("remotive: SSLError certificate verify failed")
         return []
 
-    monkeypatch.setattr(aggregators, "remotive", сломанный)
-    покрытие = []
+    monkeypatch.setattr(aggregators, "remotive", broken)
+    coverage = []
 
-    aggregators.collect(только_remotive(), lambda m: None, покрытие)
+    aggregators.collect(only_remotive(), lambda m: None, coverage)
 
-    свой = [c for c in покрытие if c["name"] == "Remotive"][0]
-    assert свой["count"] == 0
-    assert свой["error"] and "certificate" in свой["error"], "отказ потерялся по дороге"
+    ours = [c for c in coverage if c["name"] == "Remotive"][0]
+    assert ours["count"] == 0
+    assert ours["error"] and "certificate" in ours["error"], "the failure was lost on the way"
 
 
-def test_у_работающего_источника_ошибки_нет(monkeypatch):
-    """Обратная сторона: сказать «ошибка» там, где её не было, не лучше молчания."""
+def test_a_working_source_has_no_error(monkeypatch):
+    """The other side: saying "error" where there was none is no better than silence."""
     from jobsearch.collectors import aggregators
 
     monkeypatch.setattr(aggregators, "remotive",
                         lambda cfg, log: [{"title": "SAP Integration Consultant"}])
-    покрытие = []
+    coverage = []
 
-    aggregators.collect(только_remotive(), lambda m: None, покрытие)
+    aggregators.collect(only_remotive(), lambda m: None, coverage)
 
-    свой = [c for c in покрытие if c["name"] == "Remotive"][0]
-    assert свой["count"] == 1 and свой["error"] is None
+    ours = [c for c in coverage if c["name"] == "Remotive"][0]
+    assert ours["count"] == 1 and ours["error"] is None
 
 
-# --- «Удалённо» — не то же самое, что «откуда угодно» ---------------------------
+# --- "Remote" is not the same as "from anywhere" ------------------------------
 
-СЛУЧАИ = [
-    # (место в вакансии, что искали, пускать ли)
-    ("United States, Remote", ["germany"], False),   # ровно то, на чём попались
+CASES = [
+    # (the job's location, what was searched for, whether to let it through)
+    ("United States, Remote", ["germany"], False),   # exactly what we were caught by
     ("Remote (US only)", ["germany"], False),
     ("Remote — Europe", ["germany"], True),
-    ("Remote", ["germany"], True),                   # не названо ничего — и правда откуда угодно
+    ("Remote", ["germany"], True),                   # nothing named — genuinely from anywhere
     ("Anywhere", ["germany"], True),
-    ("United States, Remote", ["usa"], True),        # искали США — США и получили
+    ("United States, Remote", ["usa"], True),        # the US was asked for, the US is what came
     ("Berlin, Remote", ["germany"], True),
     ("Remote, Poland", ["eu"], True),
     ("APAC, Remote", ["germany"], False),
     ("Remote, Canada", ["eu"], False),
     ("Remote, London", ["germany"], False),
-    # Человек часто пишет «удалённо» сам, среди своих мест. Прошлая починка
-    # закрыла только галочку «удалённые тоже», а через это слово дыра
-    # открывалась снова: на прогоне для фронтендера, ищущего в России, наверху
-    # стояли «USA, Remote» и «Sunnyvale, CA».
+    # People often write "remote" themselves, among their own places. The
+    # previous fix closed only the "remote too" checkbox, and through this word
+    # the hole opened again: on a run for a front-end developer searching in
+    # Russia, the top held "USA, Remote" and "Sunnyvale, CA".
     ("USA, Remote", ["россия", "москва", "удалённо"], False),
     ("Sunnyvale, CA", ["россия", "москва", "удалённо"], False),
     ("Remote", ["россия", "москва", "удалённо"], True),
     ("Москва, удалённо", ["россия", "москва", "удалённо"], True),
-    # А если кроме «удалённо» ничего не названо — работа и правда откуда угодно
+    # And if nothing but "remote" is named, the work really is from anywhere
     ("USA, Remote", ["удалённо"], True),
     ("Berlin, Remote", ["remote"], True),
 ]
 
 
-@pytest.mark.parametrize("место,искали,пускать", СЛУЧАИ)
-def test_удалённая_работа_всё_равно_где_то_находится(место, искали, пускать):
-    """Проверка на «удалённо» стояла первой и пропускала всё, где встретилось это
-    слово. На настоящем прогоне по резюме SAP-интегратора из тридцати двух
-    вакансий восемь оказались из одной американской конторы с пометкой
-    «United States, Remote» — человеку из Европы не годилась ни одна. Модель это
-    заметила и написала «US only», а фильтр, который для того и стоит, пропустил."""
+@pytest.mark.parametrize("place,wanted,allow", CASES)
+def test_remote_work_is_still_somewhere(place, wanted, allow):
+    """The "remote" check used to come first and let through everything the word
+    appeared in. On a real run from a SAP integrator's CV, eight of thirty-two
+    jobs turned out to be from one American outfit marked "United States, Remote"
+    — not one of them suited a person in Europe. The model noticed and wrote "US
+    only", and the filter, which exists for exactly this, let it through."""
     from jobsearch import filters
-    assert filters.location_ok(место, искали, include_remote=True) is пускать, место
+    assert filters.location_ok(place, wanted, include_remote=True) is allow, place
 
 
-def test_без_галочки_удалённые_отсекаются_как_прежде():
+def test_without_the_checkbox_remote_jobs_are_cut_as_before():
     from jobsearch import filters
     assert filters.location_ok("Remote", ["germany"], include_remote=False) is False
 
 
-def test_неизвестное_место_по_прежнему_не_режется():
-    """Пустое место — не повод выбрасывать: разберётся триаж."""
+def test_an_unknown_location_is_still_not_cut():
+    """An empty location is no reason to throw a job out: triage will sort it."""
     from jobsearch import filters
     assert filters.location_ok("", ["germany"]) is True
 
 
-# --- Какими словами мы спрашиваем ------------------------------------------------
+# --- What words we ask with ---------------------------------------------------
 
-def test_слов_для_поиска_хватает_на_несколько_языков():
-    """Было три, и три оказалось мало. Швея, написавшая «Швея, Портная,
-    Seamstress, Näherin», получала ноль вакансий: Näherin — единственное слово,
-    по которому немецкая биржа что-то находит (466 мест), — оказывалось
-    четвёртым и отбрасывалось молча. Решал порядок, в котором человек написал
-    свои роли, а он о таком последствии не подозревает."""
+def test_there_are_enough_search_words_for_several_languages():
+    """It was three, and three turned out to be too few. A seamstress who wrote
+    «Швея, Портная, Seamstress, Näherin» got zero jobs: Näherin — the one word the
+    German exchange finds anything by (466 positions) — came fourth and was
+    dropped in silence. What decided was the order in which the person wrote their
+    roles, and they have no idea such a consequence exists."""
     from jobsearch import config
     from jobsearch.collectors import aggregators
 
@@ -220,35 +220,36 @@ def test_слов_для_поиска_хватает_на_несколько_я�
     cfg["profile"]["skills"] = ""
     cfg["search"]["match_priority"] = "role"
 
-    слова = aggregators._search_terms(cfg)
+    words = aggregators._search_terms(cfg)
 
-    assert "Näherin" in слова, "слово, по которому только и находится, отброшено"
+    assert "Näherin" in words, "the one word that finds anything was dropped"
 
 
-def test_предел_на_слова_остаётся():
-    """Совсем без предела каждое слово стоило бы отдельного запроса к чужому
-    серверу, а навыков человек может перечислить и тридцать."""
+def test_the_limit_on_words_stays():
+    """With no limit at all, every word would cost a separate request to somebody
+    else's server, and a person can list thirty skills."""
     from jobsearch import config
     from jobsearch.collectors import aggregators
 
     cfg = config._merge(config.DEFAULTS, {})
-    cfg["profile"]["roles"] = ", ".join(f"роль{i}" for i in range(30))
-    cfg["profile"]["skills"] = ", ".join(f"навык{i}" for i in range(30))
+    cfg["profile"]["roles"] = ", ".join(f"role{i}" for i in range(30))
+    cfg["profile"]["skills"] = ", ".join(f"skill{i}" for i in range(30))
 
     assert len(aggregators._search_terms(cfg)) == aggregators.MAX_SEARCH_TERMS
 
 
-# --- Доски работодателей ищутся и в тексте вакансии -----------------------------
+# --- Employer boards are looked for in the posting text too -------------------
 
-def test_доска_из_текста_вакансии():
-    """Одного адреса мало, и это измерено: на полутора тысячах собранных
-    вакансий ни один адрес не вёл на доску работодателя — все возвращали на
-    агрегатор. Иначе и быть не может: отправить человека мимо себя ему незачем.
+def test_a_board_from_the_posting_text():
+    """The address alone is not enough, and that is measured: across fifteen hundred
+    collected jobs not one address led to an employer's own board — every one came
+    back to an aggregator. It could hardly be otherwise: an aggregator has no
+    reason to send a person past itself.
 
-    А в тексте ссылки есть — там, где вакансию писала сама компания. В одной
-    ветке «Ask HN: Who is hiring?» их нашлось восемьдесят две, и список
-    работодателей вырос с нуля до сорока восьми."""
-    пост = {
+    In the text, though, the links are there — wherever the company wrote the
+    posting itself. In a single "Ask HN: Who is hiring?" thread there were
+    eighty-two of them, and the employer list grew from nothing to forty-eight."""
+    post = {
         "url": "https://news.ycombinator.com/item?id=123",
         "company": "Nova Credit",
         "description": ("Nova Credit | Senior Engineer | Remote\n"
@@ -256,43 +257,43 @@ def test_доска_из_текста_вакансии():
                         "https://boards.greenhouse.io/novacredit/jobs/4012 — "
                         "or write to jobs@example.com"),
     }
-    новые = harvest.find_new([пост], [])
-    assert новые == [{"name": "Nova Credit",
+    found = harvest.find_new([post], [])
+    assert found == [{"name": "Nova Credit",
                       "url": "https://boards.greenhouse.io/novacredit"}]
 
 
-def test_из_одного_поста_берётся_каждая_доска():
-    пост = {"url": "https://news.ycombinator.com/item?id=1", "company": "Две конторы",
+def test_every_board_in_one_post_is_taken():
+    post = {"url": "https://news.ycombinator.com/item?id=1", "company": "Two outfits",
             "description": ("https://jobs.ashbyhq.com/rho and "
                             "https://jobs.lever.co/xsolla/abc")}
-    адреса = {c["url"] for c in harvest.find_new([пост], [], limit=99)}
-    assert адреса == {"https://jobs.ashbyhq.com/rho", "https://jobs.lever.co/xsolla"}
+    addresses = {c["url"] for c in harvest.find_new([post], [], limit=99)}
+    assert addresses == {"https://jobs.ashbyhq.com/rho", "https://jobs.lever.co/xsolla"}
 
 
-def test_чужие_ссылки_из_текста_не_берутся():
-    """В тексте вакансии полно ссылок — на сайт компании, на статью, на LinkedIn.
-    Доской работодателя они не являются."""
-    пост = {"url": "https://news.ycombinator.com/item?id=2", "company": "Acme",
+def test_unrelated_links_in_the_text_are_not_taken():
+    """A job description is full of links — to the company site, to an article, to
+    LinkedIn. None of them is an employer's board."""
+    post = {"url": "https://news.ycombinator.com/item?id=2", "company": "Acme",
             "description": ("https://acme.com https://linkedin.com/company/acme "
                             "https://twitter.com/acme https://blog.acme.com/hiring")}
-    assert harvest.find_new([пост], []) == []
+    assert harvest.find_new([post], []) == []
 
 
-def test_уже_наблюдаемую_доску_из_текста_не_дублируем():
-    свои = [{"name": "Nova Credit", "url": "https://boards.greenhouse.io/novacredit/"}]
-    пост = {"url": "https://news.ycombinator.com/item?id=3", "company": "Nova Credit",
+def test_a_board_already_watched_is_not_duplicated_from_the_text():
+    watched = [{"name": "Nova Credit", "url": "https://boards.greenhouse.io/novacredit/"}]
+    post = {"url": "https://news.ycombinator.com/item?id=3", "company": "Nova Credit",
             "description": "https://boards.greenhouse.io/novacredit/jobs/9"}
-    assert harvest.find_new([пост], свои) == []
+    assert harvest.find_new([post], watched) == []
 
 
-# --- Вакансии от самих работодателей, без ключа ----------------------------------
+# --- Jobs from the employers themselves, with no key --------------------------
 
-def только_workable() -> dict:
+def only_workable() -> dict:
     from jobsearch import config
     cfg = config._merge(config.DEFAULTS, {})
-    for ключ in list(cfg["sources"]):
-        if ключ.startswith("use_"):
-            cfg["sources"][ключ] = False
+    for key in list(cfg["sources"]):
+        if key.startswith("use_"):
+            cfg["sources"][key] = False
     cfg["sources"]["use_workable"] = True
     cfg["profile"]["roles"] = "Electrician"
     cfg["profile"]["skills"] = ""
@@ -300,13 +301,14 @@ def только_workable() -> dict:
     return cfg
 
 
-def test_вакансии_от_работодателя_помечены_прямыми(monkeypatch):
-    """Замысел программы — брать вакансии у компаний, минуя посредников,
-    которым те и так платят за поиск людей. Здесь объявление размещает сама
-    компания в своей же системе найма, и это не «почти напрямую», а напрямую."""
+def test_jobs_from_the_employer_are_marked_direct(monkeypatch):
+    """The idea of the program is to take jobs from the companies, past the
+    middlemen they already pay to find people. Here the posting is put up by the
+    company itself in its own hiring system, and that is not "almost direct" but
+    direct."""
     from jobsearch.collectors import aggregators
 
-    class Ответ:
+    class Answer:
         status_code = 200
 
         @staticmethod
@@ -325,27 +327,27 @@ def test_вакансии_от_работодателя_помечены_пря�
                 "created": "2026-07-29T17:24:17.324Z", "workplace": "onsite",
             }]}
 
-    monkeypatch.setattr(aggregators.web, "get", lambda *a, **kw: Ответ())
-    вак = aggregators.workable(только_workable(), lambda m: None)
+    monkeypatch.setattr(aggregators.web, "get", lambda *a, **kw: Answer())
+    jobs_found = aggregators.workable(only_workable(), lambda m: None)
 
-    assert len(вак) == 1
-    v = вак[0]
-    assert v["is_direct"] is True, "вакансия от компании помечена как от посредника"
+    assert len(jobs_found) == 1
+    v = jobs_found[0]
+    assert v["is_direct"] is True, "a job from the company is marked as coming from a middleman"
     assert v["company"] == "Skeleton Technologies"
     assert "Markranstädt" in v["location"] and "Germany" in v["location"]
     assert "Wartung" in v["description"] and "Ausbildung" in v["description"], \
-        "требования потерялись — они лежат отдельным полем"
+        "the requirements were lost — they sit in a field of their own"
 
 
-def test_страницы_берутся_подряд(monkeypatch):
-    """По двадцать за раз: на двадцати пяти служба отвечает отказом, и это
-    выяснено пробой — предел нигде не написан."""
+def test_the_pages_are_taken_one_after_another(monkeypatch):
+    """Twenty at a time: at twenty-five the service answers with a refusal, and that
+    was established by trying — the limit is written down nowhere."""
     from jobsearch.collectors import aggregators
-    запрошено = []
+    requested = []
 
-    class Ответ:
-        def __init__(self, метка, ид):
-            self._метка, self._ид = метка, ид
+    class Answer:
+        def __init__(self, token, job_id):
+            self._token, self._job_id = token, job_id
 
         status_code = 200
 
@@ -353,18 +355,18 @@ def test_страницы_берутся_подряд(monkeypatch):
             pass
 
         def json(self):
-            return {"jobs": [{"id": self._ид, "title": "x", "company": {"title": "A"},
+            return {"jobs": [{"id": self._job_id, "title": "x", "company": {"title": "A"},
                               "location": {}, "url": "u", "description": "d"}],
-                    "nextPageToken": self._метка}
+                    "nextPageToken": self._token}
 
-    страницы = [Ответ("вторая", "1"), Ответ(None, "2")]
+    pages = [Answer("second", "1"), Answer(None, "2")]
 
     def fake(url, params=None, timeout=None):
-        запрошено.append((params or {}).get("pageToken"))
-        return страницы[len(запрошено) - 1]
+        requested.append((params or {}).get("pageToken"))
+        return pages[len(requested) - 1]
 
     monkeypatch.setattr(aggregators.web, "get", fake)
-    вак = aggregators.workable(только_workable(), lambda m: None)
+    jobs_found = aggregators.workable(only_workable(), lambda m: None)
 
-    assert запрошено == [None, "вторая"], "вторая страница не запрошена"
-    assert len(вак) == 2
+    assert requested == [None, "second"], "the second page was never requested"
+    assert len(jobs_found) == 2

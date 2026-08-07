@@ -20,18 +20,20 @@
 
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
 
-{# Знакомство идёт по одному шагу за раз.
-   Раньше оба стояли на странице разом, и человек читал их как одно целое: под
-   заголовком «Какой моделью» у выбранного Claude Code он видел кнопку «Скачать»
-   и подпись про Ollama — и спрашивал, надо ли скачивать модель на компьютер и
-   почему она недоступна. Это два разных вопроса, и задавать их надо порознь:
-   сперва какой программой считать, потом какой моделью. #}
-{# Заголовки уже несут в себе «Шаг 1.» и «Шаг 2.» — отдельный счётчик рядом с
-   ними был бы повторением, да ещё и в четырнадцати переводах. #}
-{# Экран «что нужно установить» без номера, и это не оплошность: он появляется
-   не у всех, а только у тех, кто выбрал программу, которую нечем поставить.
-   Дать ему номер значило бы, что у одного человека шага три, а у другого два —
-   и «Шаг 2» у них про разное. #}
+{# The introduction goes one step at a time.
+   Both used to stand on the page at once, and people read them as one whole:
+   under the heading "Which model", with Claude Code chosen, they saw a "Download"
+   button and a caption about Ollama — and asked whether a model had to be
+   downloaded onto the computer and why it was unavailable. These are two
+   different questions and must be asked separately: first which program does the
+   thinking, then which model. #}
+{# The headings already carry "Step 1." and "Step 2." inside them — a separate
+   counter beside them would be a repetition, and in fourteen translations at
+   that. #}
+{# The "what needs installing" screen has no number, and that is not an oversight:
+   it appears not for everyone, only for those who chose a program there is
+   nothing to install it with. Numbering it would mean one person has three steps
+   and another two — and their "Step 2" would be about different things. #}
 <section class="card welcome-head">
   <h2>{% if step == 'tools' %}{{ t('welcome_tools') }}
       {% elif step == 'model' %}{{ t('welcome_step2') }}
@@ -45,7 +47,7 @@
 {% include "_pull_card.html" %}
 
 {% if step == 'tools' %}
-{# --- Между шагами: то, чем ставится сама программа ------------------------ #}
+{# --- Between the steps: what the program itself is installed with -------- #}
 <section class="card" id="welcome-tools">
   <div class="row" style="justify-content:space-between; align-items:flex-start; gap:14px">
     <div>
@@ -72,8 +74,9 @@
       </form>
     </div>
   </div>
-  {# Второй строкой — что будет дальше. Без неё экран выглядит так, будто мы
-     просим поставить Node.js просто так, а сама программа тут ни при чём. #}
+  {# A second line saying what comes next. Without it the screen looks as though
+     we are asking for Node.js for its own sake, with the program itself having
+     nothing to do with it. #}
   <p class="hint" style="margin:14px 0 0; padding-top:14px; border-top:1px solid var(--border)">
     {{ t('welcome_tools_then').format(name=t('prov_' + current_provider)) }}
   </p>
@@ -88,14 +91,14 @@
 </section>
 
 {% elif step != 'model' %}
-{# --- Шаг 1: какой программой считать ------------------------------------- #}
+{# --- Step 1: which program does the thinking ----------------------------- #}
 <section class="card">
-  {# Первый вопрос тестировщика был «а там шо, платить надо?». Отвечаем до того,
-     как его зададут: у облачных в списке моделей написано «дороже», и без этой
-     строчки цена выглядит неожиданностью.
-     Отдельной подсказки models_provider_hint здесь больше нет: она повторяла
-     вступление своими словами, да ещё и перечисляла провайдеров поимённо — с
-     появлением Codex список в ней устарел. На странице «Модель» она осталась. #}
+  {# The first question a tester asked was "so do I have to pay for this?". We
+     answer before it is asked: the cloud entries in the model list say "dearer",
+     and without this line the cost comes as a surprise.
+     The separate models_provider_hint is no longer here: it repeated the
+     introduction in its own words, and listed the providers by name as well — so
+     when Codex arrived, its list went stale. On the "Model" page it stayed. #}
   <p class="hint">{{ t('welcome_cost_hint') }}</p>
   {% set back = '/welcome' %}
   {% include "_provider_grid.html" %}
@@ -116,7 +119,7 @@
 </section>
 
 {% else %}
-{# --- Шаг 2: какой моделью ------------------------------------------------- #}
+{# --- Step 2: which model -------------------------------------------------- #}
 <section class="card" id="welcome-step2">
   {% if current_provider == 'ollama' %}
   <p class="hint">{{ t('welcome_step2_local') }}</p>
@@ -139,12 +142,13 @@
        provider=t('prov_' + current_provider), model=current_model_name) }}</p>
   {% else %}
   <button class="primary" disabled>{{ t('welcome_continue') }}</button>
-  {# Не хватать может двух разных вещей, и говорить о них одними словами нельзя.
-     У Ollama модель качается — и там к месту «нажмите „Скачать“ в списке выше».
-     У своего адреса качать нечего: модель на чужом сервере, а не хватает
-     вписанных адреса и имени модели. Прежний текст говорил и ему про кнопку
-     «Скачать» — кнопки этой на той странице нет вовсе, и человек оставался
-     перед запертым «Продолжить» с советом нажать то, чего не существует. #}
+  {# Two different things can be missing, and the same words will not do for both.
+     With Ollama the model is downloaded — and there "press Download in the list
+     above" is apt. With your own endpoint there is nothing to download: the model
+     is on somebody else's server, and what is missing is the address and the model
+     name typed in. The old text told them about a "Download" button too — a button
+     that does not exist on that page at all, leaving the person in front of a
+     locked "Continue" with advice to press something that is not there. #}
   <p class="hint" style="margin:8px 0 0; color:var(--warn)">{{
        t('welcome_blocked_endpoint') if current_provider == 'openai_api'
        else t('welcome_blocked_model') }}</p>
@@ -153,9 +157,10 @@
 </section>
 {% endif %}
 
-{# Сюда попадают и те, кто переустановил программу: их прежние данные пережили
-   удаление, и это выглядит так, будто ничего не удалялось. Предложение стереть
-   всё показывается только им — тому, кто здесь впервые, стирать нечего. #}
+{# People who reinstalled the program end up here too: their old data outlived the
+   uninstall, and it looks as though nothing was deleted. The offer to wipe
+   everything is shown only to them — someone here for the first time has nothing
+   to wipe. #}
 {% if can_reset and not step %}
 <section class="card">
   <h2>{{ t('reset_title') }}</h2>

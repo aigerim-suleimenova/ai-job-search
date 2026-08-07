@@ -38,10 +38,10 @@ BOARD_URL = {
 def _board_url(kind: str, slug: str) -> str:
     """A board address that is certain to be recognised back. An empty string means
     we cannot assemble this kind of ATS, and skipping beats collecting rubbish."""
-    шаблон = BOARD_URL.get(kind)
-    if not шаблон or not slug:
+    template = BOARD_URL.get(kind)
+    if not template or not slug:
         return ""
-    url = шаблон.format(slug=slug)
+    url = template.format(slug=slug)
     return url if ats.detect(url) == (kind, slug) else ""
 
 
@@ -49,56 +49,58 @@ def _known(companies: list) -> set:
     """What is already watched — compared by the kind of ATS and the board's name
     rather than by the address string: the same employer turns up under different
     links (with www, with a trailing slash, pointing at one particular job)."""
-    известно = set()
+    known = set()
     for c in companies:
         got = ats.detect(c.get("url", ""))
         if got:
-            известно.add(got)
+            known.add(got)
         else:
-            известно.add(("url", (c.get("url") or "").rstrip("/").lower()))
-    return известно
+            known.add(("url", (c.get("url") or "").rstrip("/").lower()))
+    return known
 
 
-_ССЫЛКА = re.compile(r'https?://[^\s"\'<>)\]]+', re.I)
+_LINK = re.compile(r'https?://[^\s"\'<>)\]]+', re.I)
 
 
 def _boards_in(job: dict):
-    """Доски работодателей, упомянутые в этой вакансии.
+    """Employer boards mentioned in this posting.
 
-    Смотрим и на адрес, и в текст. Одного адреса оказалось мало — и это не
-    предположение: на полутора тысячах собранных вакансий ни один адрес не вёл
-    на доску работодателя, все возвращали на агрегатор. Иначе и быть не может,
-    отправить человека мимо себя агрегатору незачем.
+    We look at the address and at the text. The address alone turned out not to
+    be enough — and that is measured, not assumed: across fifteen hundred
+    collected postings not one address led to an employer's own board, every one
+    of them came back to an aggregator. It could hardly be otherwise; an
+    aggregator has no reason to send a person past itself.
 
-    А вот в тексте ссылки есть — там, где вакансию писала сама компания. В одной
-    ветке «Ask HN: Who is hiring?» их нашлось восемьдесят две: Ashby, Greenhouse,
-    Lever, Workable, Personio. С них доска читается целиком, то есть все открытые
-    места этой компании — прямо у неё, без посредника.
+    In the text, though, the links are there — wherever the company wrote the
+    posting itself. In a single "Ask HN: Who is hiring?" thread there were
+    eighty-two of them: Ashby, Greenhouse, Lever, Workable, Personio. From those
+    the board reads whole, meaning every open position at that company — straight
+    from them, with no middleman.
     """
     yield ats.detect(job.get("url", ""))
-    for u in _ССЫЛКА.findall(job.get("description") or ""):
+    for u in _LINK.findall(job.get("description") or ""):
         yield ats.detect(u)
 
 
 def find_new(jobs: list, companies: list, limit: int = 10) -> list:
     """Boards not yet watched. Returns entries of the form {"name": …, "url": …} —
     the same ones a person adds by hand."""
-    известно = _known(companies)
-    новые, взято = [], set()
+    known = _known(companies)
+    found, taken = [], set()
     for job in jobs:
-        if len(новые) >= max(0, limit):
+        if len(found) >= max(0, limit):
             break
         for got in _boards_in(job):
-            if len(новые) >= max(0, limit):
+            if len(found) >= max(0, limit):
                 break
-            if not got or got in известно or got in взято:
+            if not got or got in known or got in taken:
                 continue
             url = _board_url(*got)
             if not url:
                 continue
-            взято.add(got)
-            новые.append({"name": job.get("company") or got[1], "url": url})
-    return новые
+            taken.add(got)
+            found.append({"name": job.get("company") or got[1], "url": url})
+    return found
 
 
 def board_host(url: str) -> str:

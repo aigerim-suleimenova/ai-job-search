@@ -1,22 +1,23 @@
-"""Название профессии по коду ESCO.
+"""The name of an occupation from its ESCO code.
 
-ESCO — общеевропейский справочник профессий. EURES помечает им каждое
-объявление, и код этот один и тот же, на каком бы языке объявление ни было
-написано: и польская «Szwaczka», и французская «Couturière» несут один код.
+ESCO is the Europe-wide taxonomy of occupations. EURES stamps every posting with
+it, and the code is the same whatever language the posting is written in: the
+Polish «Szwaczka» and the French «Couturière» both carry one code.
 
-Понадобилось это вот зачем. Открыв EURES, мы получили вакансии по всему ЕС — и
-почти все на своих языках. Местная модель их не читает. Не поняв текста, она не
-говорит «не поняла»: она пересказывает профиль кандидата и ставит балл из
-примера. На прогоне конструктора белья столяр, маляр, садовник, кладовщик и
-монтажник водопровода получили по девяносто процентов, каждый с доводом
-«кандидат имеет опыт работы как Lingerie Technical Designer, а также знания по
-технологиям, необходимым для консервации систем водокана».
+Here is why this was needed. Opening EURES gave us jobs from across the EU — and
+almost all of them in their own languages. The local model does not read them.
+Having failed to understand the text, it does not say "I did not understand": it
+retells the candidate's profile and puts down a score from the example. On a run
+for a lingerie designer, a joiner, a painter, a gardener, a storekeeper and a
+plumber all scored ninety percent, each with the reasoning that "the candidate
+has experience as a Lingerie Technical Designer, as well as knowledge of the
+technologies required for the conservation of water utility systems".
 
-Переводить объявление незачем: у него уже есть машинно-читаемая профессия.
-Разворачиваем код в английское название и кладём рядом с исходным — модели
-больше не нужно читать по-польски, чтобы понять, чья это работа.
+Translating the posting is unnecessary: it already carries a machine-readable
+occupation. We unfold the code into an English name and put it beside the
+original — the model no longer has to read Polish to work out whose job this is.
 
-Ответы держим в памяти: кодов на прогон приходится десятки, а вакансий сотни.
+Answers are kept in memory: a run brings dozens of codes and hundreds of jobs.
 """
 import re
 import urllib.parse
@@ -27,195 +28,197 @@ from . import web
 
 API = "https://ec.europa.eu/esco/api/resource/occupation"
 
-_имена: dict = {}
+_names: dict = {}
 
 
 def label(uri: str, lang: str = "en") -> str:
-    """Название профессии на нужном языке. Пустая строка, если не вышло.
+    """The occupation's name in the requested language. An empty string if it did not work out.
 
-    Не вышло — не беда: вакансия просто останется с одним своим названием, как
-    было до сих пор. Ради названия профессии прогон ронять нечего.
+    That is no disaster: the job simply keeps its own single title, as it did
+    before. There is nothing worth failing a run over in the name of an
+    occupation.
     """
     uri = (uri or "").strip()
     if not uri.startswith("http://data.europa.eu/esco/"):
         return ""
-    ключ = (uri, lang)
-    if ключ in _имена:
-        return _имена[ключ]
-    имя = ""
+    key = (uri, lang)
+    if key in _names:
+        return _names[key]
+    name = ""
     try:
         r = web.get(f"{API}?uri={urllib.parse.quote(uri, safe='')}&language={lang}",
                     timeout=20)
         if r is not None and r.status_code == 200:
-            данные = r.json()
-            имя = str((данные.get("preferredLabel") or {}).get(lang)
-                      or данные.get("title") or "").strip()
+            data = r.json()
+            name = str((data.get("preferredLabel") or {}).get(lang)
+                       or data.get("title") or "").strip()
     except (requests.RequestException, ValueError, AttributeError):
-        имя = ""
-    _имена[ключ] = имя
-    return имя
+        name = ""
+    _names[key] = name
+    return name
 
 
-ПОИСК = "https://ec.europa.eu/esco/api/search"
-РЕСУРС = "https://ec.europa.eu/esco/api/resource"
+SEARCH = "https://ec.europa.eu/esco/api/search"
+RESOURCE = "https://ec.europa.eu/esco/api/resource"
 
-_профессии: dict = {}
+_cache: dict = {}
 
 
-def occupations(роль: str, сколько: int = 3, lang: str = "en") -> list:
-    """Коды профессий справочника, подходящие под название роли.
+def occupations(role: str, how_many: int = 3, lang: str = "en") -> list:
+    """Taxonomy codes for occupations matching a role's name.
 
-    Ради этого стоило заводить: EURES ищет по словам плохо и непредсказуемо.
-    Проверено на живых запросах — из пятидесяти вакансий по профессии
-    оказывалось:
+    This alone was worth the trouble: EURES searches by words badly and
+    unpredictably. Measured on live queries — out of fifty jobs for one
+    occupation, what came back was:
 
-        «dressmaker»              28
-        «lingerie»                 3
-        «Lingerie Pattern Maker»   1
-        «seamstress»               0
-        «tailor»                   0
+        "dressmaker"              28
+        "lingerie"                 3
+        "Lingerie Pattern Maker"   1
+        "seamstress"               0
+        "tailor"                   0
 
-    То есть решает не смысл, а угаданное слово, и угадать его нельзя: «швея»
-    по-английски — «seamstress», и по нему не находится ничего. А роли, которые
-    программа сама выписывает из резюме, выходят длинными: «Lingerie Product
-    Developer», «Parametric Pattern Making». По ним не находится тем более.
+    So it is not the meaning that decides but the word you guessed, and guessing
+    it is impossible: "швея" in English is "seamstress", and that finds nothing.
+    Meanwhile the roles the program writes out of a CV come out long: "Lingerie
+    Product Developer", "Parametric Pattern Making". Those find even less.
 
-    Справочник эту угадайку снимает. «seamstress» он отображает в sewing
-    machinist, dressmaker и tailor, а EURES принимает коды и ищет уже по ним: на
-    том же запросе стало 29 из 50 вместо одной.
+    The taxonomy takes the guessing away. It maps "seamstress" onto sewing
+    machinist, dressmaker and tailor, and EURES accepts codes and searches by
+    them instead: on that same query it became 29 out of 50 rather than one.
     """
-    роль = (роль or "").strip()
-    if not роль:
+    role = (role or "").strip()
+    if not role:
         return []
-    ключ = (роль.lower(), сколько, lang)
-    if ключ in _профессии:
-        return _профессии[ключ]
-    найдено = []
+    key = (role.lower(), how_many, lang)
+    if key in _cache:
+        return _cache[key]
+    found = []
     try:
-        r = web.get(f"{ПОИСК}?type=occupation&language={lang}&limit={сколько}"
-                    f"&text={urllib.parse.quote(роль)}", timeout=20)
+        r = web.get(f"{SEARCH}?type=occupation&language={lang}&limit={how_many}"
+                    f"&text={urllib.parse.quote(role)}", timeout=20)
         if r is not None and r.status_code == 200:
-            данные = r.json()
-            записи = (данные.get("_embedded", {}) or {}).get("results") or data_results(данные)
-            найдено = [str(i.get("uri", "")) for i in записи if i.get("uri")]
+            data = r.json()
+            entries = (data.get("_embedded", {}) or {}).get("results") or data_results(data)
+            found = [str(i.get("uri", "")) for i in entries if i.get("uri")]
     except (requests.RequestException, ValueError, AttributeError):
-        найдено = []
-    _профессии[ключ] = найдено
-    return найдено
+        found = []
+    _cache[key] = found
+    return found
 
 
-def data_results(данные: dict) -> list:
-    """У справочника два вида ответа — с _embedded и без."""
-    return данные.get("results") or []
+def data_results(data: dict) -> list:
+    """The taxonomy answers in two shapes — with _embedded and without."""
+    return data.get("results") or []
 
 
-def _слова(текст: str) -> list:
-    return [w for w in re.findall(r"[a-zа-яё0-9#+]+", (текст or "").lower()) if len(w) > 1]
+def _words(text: str) -> list:
+    return [w for w in re.findall(r"[a-zа-яё0-9#+]+", (text or "").lower()) if len(w) > 1]
 
 
-def похоже(запрос: str, ответ: str) -> bool:
-    """Похож ли ответ справочника на то, что спрашивали.
+def looks_like(query: str, answer: str) -> bool:
+    """Whether the taxonomy's answer looks like what was asked about.
 
-    Брать первое совпадение подряд нельзя, и это померено: «SOAP» справочник
-    понимает как «harden soap», «REST» — как «promote balance between rest and
-    activity», «XML» — как «AJAX», «vendor management» — как «use office
-    systems». Дальше по графу расходится уже мусор, и никакая мера соответствия
-    его не спасёт.
+    Taking the first match in order will not do, and that is measured: the
+    taxonomy reads "SOAP" as "harden soap", "REST" as "promote balance between
+    rest and activity", "XML" as "AJAX", "vendor management" as "use office
+    systems". Further along the graph it spreads into rubbish, and no measure of
+    similarity will save it.
 
-    Правило вышло простое: дословное совпадение — берём; все слова запроса
-    нашлись в ответе — берём; одно слово и не дословно — не берём. На шести
-    настоящих резюме отсев поднял число тех, кому справочник называет их
-    собственную профессию, с одного до трёх.
+    The rule came out simple: an exact match — take it; every word of the query
+    found in the answer — take it; a single word and not exact — leave it. Across
+    six real CVs this filter raised the number of people whose own occupation the
+    taxonomy names from one to three.
     """
-    з, о = _слова(запрос), _слова(ответ)
-    if not з or not о:
+    q, a = _words(query), _words(answer)
+    if not q or not a:
         return False
-    if з == о:
+    if q == a:
         return True
-    if len(з) == 1:
+    if len(q) == 1:
         return False
-    # с точностью до окончания: «restaurant management» и «manage restaurant
-    # service» — одно и то же, а придираться к грамматике не за что
-    return all(any(w[:5] == x[:5] for x in о) for w in з)
+    # up to the ending: "restaurant management" and "manage restaurant service"
+    # are the same thing, and there is nothing to pick at in the grammar
+    return all(any(w[:5] == x[:5] for x in a) for w in q)
 
 
-def skill(текст: str, lang: str = "en") -> str:
-    """Код навыка по его названию. Пустая строка, если справочник его не знает."""
-    текст = (текст or "").strip()
-    if not текст:
+def skill(text: str, lang: str = "en") -> str:
+    """The code for a skill from its name. An empty string if the taxonomy does not know it."""
+    text = (text or "").strip()
+    if not text:
         return ""
-    ключ = ("навык", текст.lower(), lang)
-    if ключ in _профессии:
-        return _профессии[ключ]
-    найдено = ""
+    key = ("skill", text.lower(), lang)
+    if key in _cache:
+        return _cache[key]
+    found = ""
     try:
-        r = web.get(f"{ПОИСК}?type=skill&language={lang}&limit=5"
-                    f"&text={urllib.parse.quote(текст)}", timeout=20)
+        r = web.get(f"{SEARCH}?type=skill&language={lang}&limit=5"
+                    f"&text={urllib.parse.quote(text)}", timeout=20)
         if r is not None and r.status_code == 200:
-            записи = (r.json().get("_embedded", {}) or {}).get("results") or []
-            найдено = next((str(i.get("uri", "")) for i in записи
-                            if похоже(текст, str(i.get("title", "")))), "")
+            entries = (r.json().get("_embedded", {}) or {}).get("results") or []
+            found = next((str(i.get("uri", "")) for i in entries
+                          if looks_like(text, str(i.get("title", "")))), "")
     except (requests.RequestException, ValueError, AttributeError):
-        найдено = ""
-    _профессии[ключ] = найдено
-    return найдено
+        found = ""
+    _cache[key] = found
+    return found
 
 
-def occupations_by_skills(навыки: list, сколько: int = 3, lang: str = "en") -> list:
-    """Кем человек мог бы работать — по одним его навыкам.
+def occupations_by_skills(skills: list, how_many: int = 3, lang: str = "en") -> list:
+    """What a person could work as, going by their skills alone.
 
-    Спрашивать «кем вы хотите» бесполезно: человек не знает, на что годится, он
-    для того и пришёл. Охранник, выучивший вёрстку, напишет в резюме «охранник»,
-    и вакансий начинающего верстальщика не увидит никогда — программа ищет по
-    тому, кем он был.
+    Asking "what would you like to be" is useless: a person does not know what
+    they are fit for, that is what they came here for. A security guard who has
+    learned front-end will write "security guard" on their CV, and will never see
+    a junior front-end job — the program searches for who they used to be.
 
-    Справочник отвечает на этот вопрос сам: у него навык знает, каким профессиям
-    он нужен. Тому охраннику по трём навыкам — JavaScript, CSS, HTML — он
-    называет web developer, webmaster, digital media designer. Ни одного вопроса
-    человеку не задано.
+    The taxonomy answers this question by itself: in it, a skill knows which
+    occupations need it. For that guard, from three skills — JavaScript, CSS,
+    HTML — it names web developer, webmaster, digital media designer. Not one
+    question was put to the person.
 
-    Считаем просто: сколько навыков человека профессии вообще нужны. Обязательные
-    и желательные весят одинаково, и это померено на семи случаях.
+    The counting is plain: how many of the person's skills an occupation needs at
+    all. Essential and optional weigh the same, and that is measured across seven
+    cases.
 
-    Сперва обязательные весили втрое, и вышло скверно: «JavaScript» в справочнике
-    обязателен ровно для двух профессий — оператора станка с ЧПУ и оператора
-    САПР, — а для web developer он лишь желательный, один из полусотни. Две
-    причуды справочника перевешивали полсотни осмысленных связей, и охранник,
-    выучивший вёрстку, получал станок с ЧПУ.
+    At first essential weighed triple, and it came out badly: in the taxonomy
+    "JavaScript" is essential for exactly two occupations — CNC machine operator
+    and CAD operator — while for web developer it is merely optional, one of some
+    fifty. Two quirks of the taxonomy outweighed fifty sensible links, and the
+    security guard who had learned front-end got a CNC machine.
 
-    Уравняв веса, из трёх верхних верными стали 14 из 21 против 11. Ни один
-    случай не ухудшился, три улучшились: у охранника наверх вышли digital media
-    designer и user interface developer, у фронтендера — web developer, а у
-    адвоката появился «lawyer», которого до того не было вовсе.
+    With the weights levelled, 14 of the top three were right instead of 11. Not
+    one case got worse, three got better: for the guard, digital media designer
+    and user interface developer rose to the top; for the front-end developer, web
+    developer; and the lawyer gained a "lawyer", which had not been there at all.
 
-    Долю закрытых навыков я тоже пробовал, и она оказалась хуже всех: побеждают
-    профессии, у которых навыков в списке мало, и наверх лезут «movie
-    distributor» и «tanning consultant».
+    I tried the fraction of skills covered as well, and it turned out worst of the
+    lot: occupations with few skills in their list win, and "movie distributor"
+    and "tanning consultant" climb to the top.
 
-    Работает не у всех. У конструктора белья справочник знает один навык из
-    восьми, и тот привязан к обувным профессиям: граф у него неровный, обувь
-    расписана подробно, а одежда бедно. Поэтому это дополнение к поиску по
-    ролям, а не замена ему.
+    It does not work for everyone. For the lingerie designer the taxonomy knows
+    one skill out of eight, and that one is tied to footwear occupations: its
+    graph is uneven, footwear written out in detail and clothing sparsely. So
+    this is an addition to searching by roles, not a replacement for it.
     """
-    очки: dict = {}
-    for н in навыки:
-        uri = skill(н, lang)
+    points: dict = {}
+    for s in skills:
+        uri = skill(s, lang)
         if not uri:
             continue
         try:
-            r = web.get(f"{РЕСУРС}/skill?uri={urllib.parse.quote(uri, safe='')}"
+            r = web.get(f"{RESOURCE}/skill?uri={urllib.parse.quote(uri, safe='')}"
                         f"&language={lang}", timeout=20)
-            если = r.json().get("_links", {}) if r is not None and r.status_code == 200 else {}
+            links = r.json().get("_links", {}) if r is not None and r.status_code == 200 else {}
         except (requests.RequestException, ValueError, AttributeError):
             continue
-        for ключ in ("isEssentialForOccupation", "isOptionalForOccupation"):
-            for о in (если.get(ключ) or []):
-                очки[str(о.get("uri"))] = очки.get(str(о.get("uri")), 0) + 1
-    лучшие = sorted(очки.items(), key=lambda x: -x[1])[:сколько]
-    return [u for u, _ in лучшие if u]
+        for key in ("isEssentialForOccupation", "isOptionalForOccupation"):
+            for o in (links.get(key) or []):
+                points[str(o.get("uri"))] = points.get(str(o.get("uri")), 0) + 1
+    best = sorted(points.items(), key=lambda x: -x[1])[:how_many]
+    return [u for u, _ in best if u]
 
 
-def забыть() -> None:
-    """Для тестов: сбросить запомненное."""
-    _имена.clear()
-    _профессии.clear()
+def forget() -> None:
+    """For the tests: drop everything remembered."""
+    _names.clear()
+    _cache.clear()

@@ -16,54 +16,55 @@ from jobsearch.collectors import crawler
 
 
 @pytest.fixture
-def локальный(cfg):
+def local(cfg):
     cfg["llm"]["provider"] = "ollama"
     cfg["llm"]["triage_model"] = "qwen2.5:7b"
     return cfg
 
 
-def _перехват(monkeypatch) -> list:
+def _intercept(monkeypatch) -> list:
     """Stands in for providers.call and remembers what it was called with."""
-    вызовы = []
+    calls = []
 
-    # llm — весь блок настроек: своему адресу нужны не только имя модели,
-    # но и адрес с ключом, и они доезжают именно этим аргументом
-    # schema — описание ответа для малых моделей. Заглушка о нём знать обязана:
-    # без этого она падает на неизвестном аргументе, и падает во всех тестах разом.
+    # llm is the whole settings block: your own endpoint needs not only the model
+    # name but the address and the key, and this argument is how they arrive.
+    # schema is the answer's shape, for small models. The stub is obliged to know
+    # about it: without that it falls over on an unknown argument, and falls over
+    # in every test at once.
     def fake(prompt, provider, model, timeout=600, allowed_tools=None,
              claude_bin="claude", llm=None, schema=None):
-        вызовы.append({"provider": provider, "model": model, "prompt": prompt,
+        calls.append({"provider": provider, "model": model, "prompt": prompt,
                        "llm": llm, "schema": schema})
         return "[]"
 
     monkeypatch.setattr(providers, "call", fake)
-    return вызовы
+    return calls
 
 
-def _claude_запрещён(monkeypatch) -> None:
+def _claude_forbidden(monkeypatch) -> None:
     """Any trip to claude CLI is a failed test, not a trip to the network."""
-    def взрыв(*a, **kw):
-        raise AssertionError("вызван claude CLI, хотя выбрана локальная модель")
+    def boom(*a, **kw):
+        raise AssertionError("claude CLI was called although a local model is chosen")
 
-    monkeypatch.setattr(subprocess, "run", взрыв)
+    monkeypatch.setattr(subprocess, "run", boom)
 
 
-def test_триаж_идёт_в_выбранного_провайдера(локальный, monkeypatch):
-    вызовы = _перехват(monkeypatch)
-    _claude_запрещён(monkeypatch)
+def test_triage_goes_to_the_chosen_provider(local, monkeypatch):
+    calls = _intercept(monkeypatch)
+    _claude_forbidden(monkeypatch)
 
     scoring.triage([{"title": "Frontend Engineer", "company": "Northwind",
-                     "description": "React"}], локальный, log=lambda *_: None)
+                     "description": "React"}], local, log=lambda *_: None)
 
-    assert [в["provider"] for в in вызовы] == ["ollama"]
-    assert вызовы[0]["model"] == "qwen2.5:7b"
+    assert [c["provider"] for c in calls] == ["ollama"]
+    assert calls[0]["model"] == "qwen2.5:7b"
 
 
-def test_краулер_идёт_в_выбранного_провайдера(локальный, monkeypatch):
-    вызовы = _перехват(monkeypatch)
-    _claude_запрещён(monkeypatch)
+def test_the_crawler_goes_to_the_chosen_provider(local, monkeypatch):
+    calls = _intercept(monkeypatch)
+    _claude_forbidden(monkeypatch)
 
-    class Страница:
+    class Page:
         url = "https://example.com/careers"
         text = ("<html><body>" + "Open positions at Northwind. " * 20 +
                 "<a href='/jobs/1'>Frontend Engineer</a></body></html>")
@@ -71,15 +72,15 @@ def test_краулер_идёт_в_выбранного_провайдера(л
         def raise_for_status(self):
             pass
 
-    monkeypatch.setattr(crawler.web, "get", lambda *a, **kw: Страница())
+    monkeypatch.setattr(crawler.web, "get", lambda *a, **kw: Page())
 
-    crawler.crawl_company("Northwind", "https://example.com", локальный, log=lambda *_: None)
+    crawler.crawl_company("Northwind", "https://example.com", local, log=lambda *_: None)
 
-    assert вызовы, "краулер не позвал модель"
-    assert all(в["provider"] == "ollama" for в in вызовы)
+    assert calls, "the crawler never called the model"
+    assert all(c["provider"] == "ollama" for c in calls)
 
 
-def test_локальная_модель_не_трогает_кодировку_системы(локальный, monkeypatch):
+def test_a_local_model_never_touches_the_systems_encoding(local, monkeypatch):
     """A Russian prompt reaches Ollama whole: the HTTP path goes round cp1252.
 
     We check that the Cyrillic arrived, not which word the prompt starts with: a
@@ -87,18 +88,18 @@ def test_локальная_модель_не_трогает_кодировку_
     from the prompt's own. It was on those first Cyrillic letters that cp1252
     used to fall over.
     """
-    вызовы = _перехват(monkeypatch)
+    calls = _intercept(monkeypatch)
     scoring.triage([{"title": "Frontend Engineer", "company": "Northwind"}],
-                   локальный, log=lambda *_: None)
-    промпт = вызовы[0]["prompt"]
-    assert "Ты" in промпт, "русский текст промпта не дошёл до модели"
-    assert any("А" <= c <= "я" for c in промпт)
+                   local, log=lambda *_: None)
+    prompt_text = calls[0]["prompt"]
+    assert "Ты" in prompt_text, "the Russian text of the prompt did not reach the model"
+    assert any("А" <= c <= "я" for c in prompt_text)
 
 
 # --- Encoding when calling the CLI -----------------------------------------
 
-@pytest.mark.skipif(sys.platform != "win32", reason="cp1252 по умолчанию только на Windows")
-def test_системная_кодировка_действительно_ронялa_бы():
+@pytest.mark.skipif(sys.platform != "win32", reason="cp1252 is the default only on Windows")
+def test_the_system_encoding_really_would_have_fallen_over():
     """Checking the check: without encoding= a Russian prompt would not survive stdin."""
     with pytest.raises(UnicodeEncodeError):
         subprocess.run([sys.executable, "-c", "import sys; sys.stdin.read()"],
@@ -106,20 +107,20 @@ def test_системная_кодировка_действительно_рон
                        text=True, timeout=30)
 
 
-def test_cli_получает_русский_промпт_в_utf8(monkeypatch):
+def test_the_cli_gets_a_russian_prompt_in_utf8(monkeypatch):
     """The prompt has to reach the CLI byte for byte, whatever the system locale is."""
-    получено = {}
+    got = {}
 
-    class Готово:
+    class Done:
         returncode = 0
         stdout = '{"result": "[]"}'
         stderr = ""
 
     def fake_run(cmd, **kw):
-        получено.update(kw)
+        got.update(kw)
         # the same thing a real subprocess does: encodes the input with the given encoding
         kw["input"].encode(kw["encoding"], kw.get("errors", "strict"))
-        return Готово()
+        return Done()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(providers, "resolve_bin", lambda name: "/usr/bin/claude")
@@ -127,21 +128,21 @@ def test_cli_получает_русский_промпт_в_utf8(monkeypatch):
     llm._ask_once("Ты — ассистент по поиску работы.", model="haiku",
                   claude_bin="claude", timeout=30, allowed_tools=None)
 
-    assert получено["encoding"] == "utf-8"
+    assert got["encoding"] == "utf-8"
 
 
-def test_провайдерский_вызов_claude_тоже_в_utf8(monkeypatch):
-    получено = {}
+def test_the_provider_call_to_claude_is_in_utf8_too(monkeypatch):
+    got = {}
 
-    class Готово:
+    class Done:
         returncode = 0
         stdout = '{"result": "[]"}'
         stderr = ""
 
     def fake_run(cmd, **kw):
-        получено.update(kw)
+        got.update(kw)
         kw["input"].encode(kw["encoding"], kw.get("errors", "strict"))
-        return Готово()
+        return Done()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(providers, "resolve_bin", lambda name: "/usr/bin/claude")
@@ -149,31 +150,32 @@ def test_провайдерский_вызов_claude_тоже_в_utf8(monkeypat
 
     providers.call_claude("Ты — ассистент по поиску работы.", "haiku", 30, None, "claude")
 
-    assert получено["encoding"] == "utf-8"
+    assert got["encoding"] == "utf-8"
 
 
-# --- Как спрашивать малую модель ------------------------------------------------
+# --- How to ask a small model -------------------------------------------------
 
-def test_местной_модели_вакансии_дробятся(monkeypatch):
-    """Восемь за раз малой модели не по силам, и это измерено. На восьми
-    вакансиях с заранее известным ответом mistral:7b путал номера: балл,
-    предназначенный одной, доставался другой — так фронтенд у SAP-интегратора и
-    получал 85. На трёх — восемь верных из восьми, три прогона подряд."""
+def test_jobs_are_split_up_for_a_local_model(monkeypatch):
+    """Eight at a time is beyond a small model, and that is measured. On eight jobs
+    with a known-good answer, mistral:7b mixed up the numbers: a score meant for
+    one landed on another — which is how the front-end job got 85 from the SAP
+    integrator's profile. On three: eight right out of eight, three runs in a
+    row."""
     from jobsearch import scoring
     assert scoring.batch_for("ollama") == 3
-    for облачный in ("claude_cli", "openai_api", "codex_cli", "cursor_cli"):
-        assert scoring.batch_for(облачный) == 8, f"{облачный}: дробить незачем и дорого"
+    for cloud in ("claude_cli", "openai_api", "codex_cli", "cursor_cli"):
+        assert scoring.batch_for(cloud) == 8, f"{cloud}: splitting is pointless here and costly"
 
 
-def test_схема_уходит_в_модель(monkeypatch, profile):
-    """Без неё малая модель отвечает связным текстом без нужного поля, и
-    повторять запрос бесполезно — ответит так же."""
+def test_the_schema_reaches_the_model(monkeypatch, profile):
+    """Without it a small model answers with fluent prose and no required field,
+    and asking again is pointless — it will answer the same way."""
     from jobsearch import config, providers, scoring
-    поймано = {}
+    caught = {}
 
     def fake(prompt, provider, model, timeout=600, allowed_tools=None,
              claude_bin="claude", llm=None, schema=None):
-        поймано["schema"] = schema
+        caught["schema"] = schema
         return "[]"
 
     monkeypatch.setattr(providers, "call", fake)
@@ -182,22 +184,22 @@ def test_схема_уходит_в_модель(monkeypatch, profile):
     scoring.triage([{"title": "SAP", "description": "x", "company": "A"}],
                    cfg, log=lambda *a, **k: None, cv="CV")
 
-    схема = поймано.get("schema")
-    assert схема, "схема до провайдера не доехала"
-    поля = list(схема["items"]["properties"])
-    assert поля.index("reason") < поля.index("match"), \
-        "число называется раньше довода — довод тогда подгоняется под него"
-    assert "verdict" in схема["items"]["required"]
+    schema_seen = caught.get("schema")
+    assert schema_seen, "the schema never reached the provider"
+    fields = list(schema_seen["items"]["properties"])
+    assert fields.index("reason") < fields.index("match"), \
+        "the number is named before the reasoning — the reasoning is then fitted to it"
+    assert "verdict" in schema_seen["items"]["required"]
 
 
-def test_ollama_получает_окно_и_нулевую_температуру(monkeypatch):
-    """У Ollama своё окно по умолчанию, и оно меньше того, что держит модель.
-    А температура выше нуля означает, что один и тот же вопрос даёт разные
-    оценки — здесь не сочиняют, а судят."""
+def test_ollama_gets_the_window_and_a_zero_temperature(monkeypatch):
+    """Ollama has a default window of its own, and it is smaller than what the model
+    itself holds. And a temperature above zero means the same question gives
+    different scores — nothing is being invented here, things are being judged."""
     from jobsearch import providers
-    поймано = {}
+    caught = {}
 
-    class Ответ:
+    class Answer:
         status_code = 200
 
         @staticmethod
@@ -209,48 +211,49 @@ def test_ollama_получает_окно_и_нулевую_температур
             return {"response": "[]"}
 
     def fake_post(url, json=None, timeout=None):
-        поймано.update(json or {})
-        return Ответ()
+        caught.update(json or {})
+        return Answer()
 
     monkeypatch.setattr(providers.requests, "post", fake_post)
     providers.call_ollama("привет", "mistral:7b", timeout=30, schema={"type": "object"})
 
-    assert поймано["options"]["temperature"] == 0
-    assert поймано["options"]["num_ctx"] >= 8192
-    assert поймано["format"] == {"type": "object"}
+    assert caught["options"]["temperature"] == 0
+    assert caught["options"]["num_ctx"] >= 8192
+    assert caught["format"] == {"type": "object"}
 
 
-def test_примеры_строятся_из_профессии_кандидата(profile):
-    """Общие примеры не работают, и это измерено: на пятнадцати настоящих
-    вакансиях примеры про бухгалтера дали ровно столько же, сколько их
-    отсутствие, — шесть верных из пятнадцати. Примеры про профессию кандидата —
-    десять, и ни одна чужая вакансия не поднялась выше 50, то есть до порога в
-    70 не дошла ни одна."""
+def test_the_examples_are_built_from_the_candidates_trade(profile):
+    """Generic examples do not work, and that is measured: across fifteen real jobs,
+    examples about an accountant gave exactly as much as no examples at all — six
+    right out of fifteen. Examples about the candidate's own trade gave ten, and
+    not one job from another trade rose above 50, meaning none reached the
+    threshold of 70."""
     from jobsearch import config, scoring
     cfg = config.load()
     cfg["profile"]["roles"] = "SAP Integration Consultant, Integration Architect"
 
-    блок = scoring._examples_block(cfg)
+    block = scoring._examples_block(cfg)
 
-    assert "SAP Integration Consultant" in блок, "пример «своя» не про кандидата"
-    assert "своя" in блок and "чужая" in блок and "смежная" in блок
+    assert "SAP Integration Consultant" in block, "the own-trade example is not about the candidate"
+    assert "своя" in block and "чужая" in block and "смежная" in block
 
 
-def test_пример_чужой_профессии_не_совпадает_со_своей(profile):
-    """Иначе образец «вот это чужое» показывал бы кандидату его же профессию."""
+def test_the_other_trade_example_is_not_the_candidates_own(profile):
+    """Otherwise the "here is someone else's trade" example would show the candidate
+    their own."""
     from jobsearch import config, scoring
     cfg = config.load()
-    for роль in ("Frontend-разработчик", "Бухгалтер", "Повар", "Медицинская сестра"):
-        cfg["profile"]["roles"] = роль
-        блок = scoring._examples_block(cfg)
-        строки = [s for s in блок.splitlines() if "чужая" in s]
-        assert строки, роль
-        assert роль.split("-")[0].lower() not in строки[0].lower(), \
-            f"{роль}: своя профессия названа чужой"
+    for role in ("Frontend-разработчик", "Бухгалтер", "Повар", "Медицинская сестра"):
+        cfg["profile"]["roles"] = role
+        block = scoring._examples_block(cfg)
+        lines = [s for s in block.splitlines() if "чужая" in s]
+        assert lines, role
+        assert role.split("-")[0].lower() not in lines[0].lower(), \
+            f"{role}: the candidate's own trade is named as someone else's"
 
 
-def test_без_ролей_примеров_нет(profile):
-    """Выдуманная роль увела бы оценку сильнее, чем отсутствие примера."""
+def test_with_no_roles_there_are_no_examples(profile):
+    """An invented role would pull the score further astray than no example at all."""
     from jobsearch import config, scoring
     cfg = config.load()
     cfg["profile"]["roles"] = ""
