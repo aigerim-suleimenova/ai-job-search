@@ -24,10 +24,10 @@
 </section>
 
 {% if result and not result.error %}
-{# Часть проверки могла не выполниться: она спрашивает модель, а модели может не
-   быть. Остальное при этом посчитано здесь же, на этом компьютере, и остаётся в
-   силе — но промолчать о недостающем нельзя, иначе человек прочтёт неполный
-   разбор как полный. #}
+{# Part of the check may not have run: it asks the model, and there may be no
+   model. The rest is worked out right here, on this computer, and still holds —
+   but staying silent about what is missing will not do, or a person will read an
+   incomplete analysis as a complete one. #}
 {% if result.unfinished %}
 <p class="hint" style="color:var(--warn)">{{ t('cvcheck_partial').format(error=result.unfinished[0]) }}</p>
 {% endif %}

@@ -6,11 +6,12 @@
    button used to be disabled — a local model could not be chosen at all, leaving
    nothing but going off to read and work it out alone. #}
 {% set back = back|default('/models') %}
-{# Куда вернуть человека после нажатия. Выбрав, через что работать, он ещё не
-   закончил: следующий вопрос — какой моделью, и он ниже на этой же странице.
-   Раньше его отсюда бросало в самый верх, к началу всего, что он уже прочёл.
-   А «Проверить снова» и «Скачать» возвращают к своей же карточке: человек
-   спрашивал про конкретную программу и остаться должен возле неё. #}
+{# Where to return a person after they press. Having chosen what to work through,
+   they are not finished: the next question is which model, and it is further down
+   this same page. Before, they were thrown from here to the very top, back to the
+   beginning of everything they had already read. "Check again" and "Download",
+   though, return to their own card: the person asked about one particular program
+   and should stay beside it. #}
 {% set step2 = 'welcome-continue' if back.startswith('/welcome') else 'models-choose' %}
 <div class="provider-grid" style="margin-top:12px">
   {% for key, p in provs.items() %}
@@ -24,25 +25,27 @@
       {% else %}<span class="badge">{{ t('models_no_websearch') }}</span>{% endif %}
     </p>
     <p class="hint">{{ t('prov_' + key + '_about') }}</p>
-    {# Подсказка — только тому, у кого ещё не стоит: она про выбор, который он
-       вот-вот сделает («нужна командная строка, а не десктопное приложение»).
-       У Ollama она и вовсе зовёт скачать и запустить — показывать это тому, у
-       кого Ollama уже работает, значило бы врать в глаза. #}
+    {# The hint goes only to someone who does not have it yet: it is about the
+       choice they are about to make ("you need the command line, not the desktop
+       application"). For Ollama it goes so far as to say download and run it —
+       showing that to someone whose Ollama is already running would be lying to
+       their face. #}
     {% if not p.ready %}
     <p class="hint">{{ t('prov_' + key + '_hint') }}</p>
     {% endif %}
-    {# А команды видно всегда, и установлено оно или нет — неважно.
-       Прежде весь этот блок висел под «ещё не установлено», и у поставившего
-       карточка оказывалась пустой: человек смотрел на неё и спрашивал, почему
-       для Claude Code не написано, как его ставить. Написано — просто мы это
-       прятали ровно от того, кто уже дошёл до конца и хотел свериться.
+    {# The commands, on the other hand, are always visible, installed or not.
+       This whole block used to hang under "not installed yet", and for anyone who
+       had installed it the card came out empty: they looked at it and asked why
+       there was nothing about how to install Claude Code. There was — we were
+       hiding it from exactly the person who had got to the end and wanted to
+       check.
 
-       Заодно оно отвечает и на «а ту ли программу вы у меня нашли»: команда
-       проверки называет ровно то, что мы ищем. У Ollama и своего адреса команд
-       нет вовсе — там и прятать было нечего.
+       It also answers "is that even the program you found on my machine": the
+       verify command names precisely what we look for. Ollama and your own
+       endpoint have no commands at all — there was nothing to hide there.
 
-       Показывается та, что подходит этой системе: человек сидит за одной
-       машиной, и две лишние — только выбор, которого он не просил. #}
+       The one shown is the one that suits this system: the person is sitting at
+       one machine, and the other two are only a choice they did not ask for. #}
     {% if p.install_cmd %}
     <p class="hint" style="margin:6px 0 2px">{{ t('install_cmd_label') }}</p>
     <pre class="cmd"><code>{{ p.install_cmd }}</code></pre>
@@ -52,14 +55,15 @@
     <pre class="cmd"><code>{{ p.verify_cmd }}</code></pre>
     {% endif %}
     {% if not p.ready %}
-    {# Инструкция выше говорит «npm install -g …», а npm у человека может не
-       быть вовсе. Тогда он уходит по ней в терминал и узнаёт об этом там, где
-       мы ему уже ничем не поможем. Сказать надо здесь. Спрашивается это только
-       про выбранного провайдера — остальным семи оно стоило бы по запуску node
-       на каждую отрисовку ни за чем. #}
-    {# И тут же кнопка, а не одна только надпись: сказать, чего не хватает, и не
-       сказать, где это взять, — полдела. На знакомстве для этого есть свой
-       экран, а здесь человек уже освоился, и хватит кнопки. #}
+    {# The instruction above says "npm install -g …", and the person may have no
+       npm at all. Then they follow it into a terminal and find out there, where we
+       can no longer help them. It has to be said here. This is asked only about
+       the chosen provider — for the other seven it would cost a run of node on
+       every render for nothing. #}
+    {# And a button right there, not just a line of text: saying what is missing
+       without saying where to get it is half the job. The introduction has a
+       screen of its own for this; here the person has already found their feet,
+       and a button is enough. #}
     {% if tool and current_provider == key %}
     <p class="hint" style="color:var(--warn); margin-bottom:6px">{{
          t('welcome_tools_blocked').format(name=t('tool_' + tool.key)) }}</p>
@@ -69,26 +73,27 @@
       <button class="link-like">{{ t('models_install') }} {{ t('tool_' + tool.key) }}</button>
     </form>
     {% endif %}
-    {# «используется: …» — только когда есть что назвать. У своего адреса имя
-       модели вписывается руками на втором шаге, и до этого строка выходила
-       обрубком: «используется:» и пустота. #}
+    {# "in use: …" — only when there is something to name. For your own endpoint
+       the model's name is typed in by hand at the second step, and until then the
+       line came out a stump: "in use:" and nothing. #}
     {% elif current_provider == key and current_model_name %}
     <p class="hint">{{ t('models_current') }}: {{ current_model_name }}</p>
     {% endif %}
-    {# Установлена — ещё не значит готова. Раньше проверялось одно: лежит ли
-       программа на диске. Карточка стояла зелёная, человек её выбирал, запускал
-       поиск — и прогон обрывался через пять секунд с «Not logged in». Узнать
-       заранее было нельзя. #}
+    {# Installed does not yet mean ready. One thing used to be checked: whether
+       the program is on the disk. The card stood there green, the person picked
+       it, started a search — and the run broke off after five seconds with "Not
+       logged in". There was no way to know beforehand. #}
     {% if p.needs_login %}
     <p class="hint" style="color:var(--warn); margin:6px 0 2px">{{ t('models_needs_login') }}</p>
     <pre class="cmd"><code>claude auth login</code></pre>
     {% endif %}
 
     <div class="provider-actions">
-      {# Своему адресу здесь только кнопка «Выбрать», как у всех: устанавливать
-         нечего, а поля живут на втором шаге. Раньше они стояли прямо тут — и в
-         узкой карточке «Адрес» и «Ключ» вставали в строку, обрезаясь на
-         середине: от подсказки было видно «https://ope». #}
+      {# Your own endpoint gets only a "Choose" button here, like everyone else:
+         there is nothing to install, and the fields live on the second step. They
+         used to stand right here — and in the narrow card "Address" and "Key"
+         lined up side by side and were cut off halfway: of the hint you could see
+         "https://ope". #}
       {% if not p.ready %}
       <form method="post" action="/provider/install">
         <input type="hidden" name="provider" value="{{ key }}">

@@ -35,9 +35,9 @@
       {% endfor %}
     </span>
   </div>
-  {# data-autosubmit: здесь форма — это фильтры, и поправленная дата должна сразу
-     перерисовать список. В быстром поиске такая же форма запускает поиск, и там
-     этого атрибута нет. #}
+  {# data-autosubmit: here the form is the filters, and a corrected date should
+     redraw the list at once. In the quick search the same form starts a search,
+     and there this attribute is absent. #}
   <form method="get" action="/results" class="filters" data-autosubmit>
     <input type="hidden" name="min" value="{{ min_score }}">
     <label>{{ t('sort_by') }}
@@ -123,11 +123,12 @@
 </section>
 {% endif %}
 
-{# Профессия, которой в чужой стране нельзя заняться просто так. Elisabetta —
-   адвокат, сдавшая экзамен в Италии; программа нашла ей двадцать четыре
-   вакансии юриста, из них в Италии две, а в Швеции и Греции она не адвокат,
-   пока не подтвердит квалификацию. Решать за ведомства, признают её диплом или
-   нет, мы не станем — но сказать, что вопрос есть, обязаны. #}
+{# A profession you cannot simply take up in another country. Elisabetta is an
+   advocate who passed the bar in Italy; the program found her twenty-four lawyer
+   jobs, two of them in Italy, while in Sweden and Greece she is not an advocate
+   until her qualification is recognised. We will not decide for the authorities
+   whether her degree will be accepted — but we are obliged to say the question
+   exists. #}
 {% if regulated %}
 <section class="card" style="border-left:4px solid var(--warn)">
   <p style="margin:0 0 6px">{{ t('regulated_warning') }}</p>
@@ -172,24 +173,24 @@
         {% else %}<span class="badge">{{ t('badge_aggregator') }}</span>{% endif %}
         {% if j.verified %}<span class="badge ok">✓ {{ t('badge_verified') }}</span>
         {% else %}<span class="badge warn">{{ t('badge_preliminary') }}</span>{% endif %}
-        {# Что объявление само сказало про право на работу. Показываем только
-           тому, кому оно нужно: у кого виза есть, эта метка — лишний шум. #}
+        {# What the posting itself said about the right to work. Shown only to
+           those who need it: for anyone who has a visa this badge is noise. #}
         {% if cfg.profile.visa_required and j.visa == 'no' %}
         <span class="badge warn">{{ t('badge_no_visa') }}</span>
         {% elif cfg.profile.visa_required and j.visa == 'yes' %}
         <span class="badge ok">{{ t('badge_visa_ok') }}</span>{% endif %}
-        {# Профессия по общеевропейскому справочнику — она приходит на английском
-           и одна для всех языков, а объявление бывает на любом. #}
+        {# The occupation from the Europe-wide taxonomy — it arrives in English
+           and is the same for every language, while a posting can be in any. #}
         {% if j.occupation %}<span class="badge">{{ j.occupation }}</span>{% endif %}
         {% if j.posted_label %} · {{ t('posted_label') }} {{ j.posted_label }}{% endif %}
         · {{ t('run') }} #{{ j.run_id }} · {{ j.first_seen }}
       </p>
     </div>
   </div>
-  {# Та же должность в других городах у того же работодателя. Сеть заведений
-     вешает одну вакансию по всем точкам, меняя город в названии, и десять строк
-     подряд человек читает как десять разных работ. Показываем одной строкой —
-     но города перечисляем со ссылками: кому-то нужен именно Даллас. #}
+  {# The same position in other cities at the same employer. A restaurant chain
+     posts one job at every location, changing the city in the title, and ten rows
+     in a row read as ten different jobs. We show one row — but list the cities
+     with links: somebody needs Dallas in particular. #}
   {% if j.siblings %}
   <p class="hint" style="margin:6px 0">
     {{ t('same_role_elsewhere').format(n=j.siblings|length) }}

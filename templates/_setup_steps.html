@@ -1,11 +1,12 @@
-{# Что сделать, чтобы командная строка появилась. Один и тот же блок на «Настройках»
-   и на «Быстром поиске»: раньше он стоял в обоих шаблонах списком из трёх строк, и
-   правка в одном тихо расходилась со вторым.
+{# What to do so the command line appears. The same block on "Settings" and on
+   "Quick search": it used to sit in both templates as a list of three lines, and
+   an edit to one quietly drifted from the other.
 
-   Пришло от человека: «очень хочу попробовать, но оно не видит claude code на моём
-   маке». Шаг звал на claude.com/claude-code, а там рядом лежат десктопное приложение
-   и командная строка под одним именем — он унёс оттуда приложение, и claude в системе
-   не появился. Поэтому здесь стоит команда: её набирают, и выбирать в ней нечего. #}
+   This came from a person: "I really want to try it, but it does not see claude
+   code on my mac". The step sent them to claude.com/claude-code, where the desktop
+   application and the command line sit side by side under one name — they came
+   away with the application, and no claude appeared on the system. So a command
+   stands here instead: you type it, and there is nothing in it to choose. #}
 <ol class="steps">
   <li>{{ t('setup_claude_1') }}
     {% if provider_status.install_cmd %}
@@ -14,7 +15,7 @@
   </li>
   <li>{{ t('setup_claude_2') }}</li>
   <li>{{ t('setup_claude_3') }}
-    {# И чем проверить — до того, как идти жаловаться, что не находится. #}
+    {# And what to check it with — before going off to complain it is not found. #}
     {% if provider_status.verify_cmd %}
     <p class="hint" style="margin:6px 0 2px">{{ t('install_verify_label') }}</p>
     <pre class="cmd"><code>{{ provider_status.verify_cmd }}</code></pre>
