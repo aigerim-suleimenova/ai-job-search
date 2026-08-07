@@ -12,51 +12,51 @@ import pytest
 
 from jobsearch import i18n
 
-ЯЗЫКИ_МОДУЛЕЙ = sorted(set(i18n.UI_LANGS) - {"ru", "en", "it", "de"})
-ПОДСТАНОВКА = re.compile(r"\{(\w+)\}")
+MODULE_LANGS = sorted(set(i18n.UI_LANGS) - {"ru", "en", "it", "de"})
+PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 
-def test_все_языки_интерфейса_имеют_модуль_или_место_в_TR():
+def test_every_interface_language_has_a_module_or_a_place_in_TR():
     for lang in i18n.UI_LANGS:
-        assert i18n.t(lang, "nav_results") != "nav_results", f"{lang}: нет даже базовых строк"
+        assert i18n.t(lang, "nav_results") != "nav_results", f"{lang}: not even the basic strings are there"
 
 
-@pytest.mark.parametrize("lang", ЯЗЫКИ_МОДУЛЕЙ)
-def test_в_языке_есть_все_ключи(lang):
-    свои = set(i18n._locale(lang))
-    нет = sorted(set(i18n.TR) - свои)
-    assert not нет, f"{lang}: не переведено {len(нет)} ключей, например {нет[:5]}"
+@pytest.mark.parametrize("lang", MODULE_LANGS)
+def test_the_language_has_every_key(lang):
+    own_keys = set(i18n._locale(lang))
+    missing = sorted(set(i18n.TR) - own_keys)
+    assert not missing, f"{lang}: {len(missing)} keys untranslated, for instance {missing[:5]}"
 
 
 @pytest.mark.parametrize("lang", sorted(i18n.UI_LANGS))
-def test_подстановки_совпадают_с_английскими(lang):
-    расхождения = []
+def test_the_placeholders_match_the_english_ones(lang):
+    mismatches = []
     for key, entry in i18n.TR.items():
-        эталон = ПОДСТАНОВКА.findall(entry.get("en") or "")
-        перевод = i18n.t(lang, key)
-        if sorted(ПОДСТАНОВКА.findall(перевод)) != sorted(эталон):
-            расхождения.append(f"{key}: ожидались {эталон}, в переводе {ПОДСТАНОВКА.findall(перевод)}")
-    assert not расхождения, f"{lang}: " + "; ".join(расхождения[:5])
+        expected = PLACEHOLDER.findall(entry.get("en") or "")
+        translated = i18n.t(lang, key)
+        if sorted(PLACEHOLDER.findall(translated)) != sorted(expected):
+            mismatches.append(f"{key}: expected {expected}, translation has {PLACEHOLDER.findall(translated)}")
+    assert not mismatches, f"{lang}: " + "; ".join(mismatches[:5])
 
 
-def test_этапы_прогона_переведены():
+def test_the_run_stages_are_translated():
     """The stage keys are shown in the live status line — with a key missing, a
     person sees "stage_collect" instead of a human sentence."""
     from jobsearch import pipeline
     for key in pipeline.STAGE_ORDER:
-        assert i18n.t("en", key) != key, f"этап {key} без перевода"
+        assert i18n.t("en", key) != key, f"stage {key} has no translation"
 
 
-def test_язык_справа_налево_известен():
+def test_the_right_to_left_language_is_known():
     assert "ar" in i18n.RTL_LANGS
     assert i18n.RTL_LANGS <= set(i18n.UI_LANGS)
 
 
-def test_составной_язык_вывода_берёт_первый():
+def test_a_compound_output_language_takes_the_first():
     assert i18n.t("it-en", "nav_results") == i18n.t("it", "nav_results")
 
 
-def test_неизвестный_язык_откатывается_на_английский():
+def test_an_unknown_language_falls_back_to_english():
     assert i18n.t("xx", "nav_results") == i18n.TR["nav_results"]["en"]
 
 
@@ -67,19 +67,19 @@ def test_неизвестный_язык_откатывается_на_англ�
 # services, the default profile name. All of it reached the page in Russian, in
 # every language.
 
-КИРИЛЛИЦА = re.compile(r"[А-Яа-яЁё]")
+CYRILLIC = re.compile(r"[А-Яа-яЁё]")
 
 
 @pytest.mark.parametrize("provider", ["claude_cli", "cursor_cli", "ollama"])
-def test_каталог_моделей_без_русского(provider):
+def test_the_model_catalogue_has_no_russian_in_it(provider):
     from jobsearch import providers
     for m in providers.models_for(provider, installed=set(), lang="en"):
-        for поле in ("name", "note", "origin"):
-            значение = m.get(поле) or ""
-            assert not КИРИЛЛИЦА.search(значение), f"{m['id']}.{поле}: {значение}"
+        for field in ("name", "note", "origin"):
+            value = m.get(field) or ""
+            assert not CYRILLIC.search(value), f"{m['id']}.{field}: {value}"
 
 
-def test_каталог_моделей_переводится_а_не_обезличивается():
+def test_the_model_catalogue_is_translated_rather_than_stripped():
     """A Russian reader needs the notes too — they were moved into the translations,
     not thrown away."""
     from jobsearch import providers
@@ -90,25 +90,26 @@ def test_каталог_моделей_переводится_а_не_обезл
     assert en["llama3.3:70b"]["origin"] == "Meta (USA)"
 
 
-def test_почтовые_службы_без_русского():
+def test_the_mail_services_have_no_russian_in_them():
     from jobsearch import mailer
-    имена = [p["name"] for p in mailer.presets("en").values()]
-    assert not any(КИРИЛЛИЦА.search(n) for n in имена), имена
+    names = [p["name"] for p in mailer.presets("en").values()]
+    assert not any(CYRILLIC.search(n) for n in names), names
     assert mailer.presets("ru")["custom"]["name"] == "Другая (укажу вручную)"
 
 
-def test_имя_профиля_по_умолчанию_не_зависит_от_языка_системы(monkeypatch):
-    """Имя бралось по языку системы — единственному, который известен, когда
-    профиль заводится: настроек ещё нет. Но язык системы и язык программы сплошь
-    и рядом разные, и человек с русской Windows, поставивший английскую версию,
-    видел в переключателе людей «Я» посреди английского интерфейса."""
+def test_the_default_profile_name_does_not_depend_on_the_system_language(monkeypatch):
+    """The name used to be taken from the system language — the only one known when
+    the profile is created, since there are no settings yet. But the system
+    language and the program's language differ all the time, and someone on a
+    Russian Windows who installed the English build saw «Я» sitting in the middle
+    of an English interface in the person picker."""
     from jobsearch import profiles
-    for язык in ("en", "ru", "ja", "ar"):
-        monkeypatch.setattr(i18n, "system_lang", lambda default="en", я=язык: я)
-        assert profiles._default_name() == "user", f"язык системы {язык} всё ещё влияет"
+    for lang_code in ("en", "ru", "ja", "ar"):
+        monkeypatch.setattr(i18n, "system_lang", lambda default="en", code=lang_code: code)
+        assert profiles._default_name() == "user", f"the system language {lang_code} still has an effect"
 
 
-def test_язык_ответа_модели_откатывается_на_английский():
+def test_the_models_output_language_falls_back_to_english():
     """An empty or unfamiliar setting used to make the model write in Russian."""
     assert i18n.out_lang({"ui": {}}) == i18n.OUTPUT_INSTRUCTION["en"]
     assert i18n.out_lang({"ui": {"output_lang": "xx"}}) == i18n.OUTPUT_INSTRUCTION["en"]
@@ -117,7 +118,7 @@ def test_язык_ответа_модели_откатывается_на_анг
     assert i18n.out_lang({"ui": {"output_lang": "ru"}}) == i18n.OUTPUT_INSTRUCTION["ru"]
 
 
-def test_ошибка_с_ключом_переводится():
+def test_an_error_carrying_a_key_gets_translated():
     from jobsearch import llm, notify, providers
     assert i18n.err("en", providers.ProviderError(key="prov_err_ollama_down")) \
         .startswith("Ollama is not answering")
@@ -126,7 +127,7 @@ def test_ошибка_с_ключом_переводится():
     assert i18n.err("ru", notify.NotifyError("tg_err_no_token")) == "Не задан bot token"
 
 
-def test_чужой_текст_ошибки_остаётся_как_есть():
+def test_an_outside_error_text_is_left_as_it_came():
     """There is nothing to translate an outside program's output with — it goes as it came."""
     from jobsearch import providers
     assert i18n.err("en", providers.ProviderError("credit balance is too low")) \
@@ -134,62 +135,65 @@ def test_чужой_текст_ошибки_остаётся_как_есть():
     assert i18n.err("en", RuntimeError("boom")) == "boom"
 
 
-def test_повтор_вызова_не_зависит_от_языка_сообщения():
+def test_retrying_does_not_depend_on_the_messages_language():
     """"Should we retry" used to be decided by looking for Russian words in the
     error text: once translated, the retries would simply have stopped happening."""
     from jobsearch import llm
-    таймаут = llm.ClaudeError(key="prov_err_timeout", transient=True, tool="claude", seconds=5)
-    assert llm._is_transient(таймаут)
+    timed_out = llm.ClaudeError(key="prov_err_timeout", transient=True, tool="claude", seconds=5)
+    assert llm._is_transient(timed_out)
     assert not llm._is_transient(llm.ClaudeError(key="prov_err_no_claude", path="claude"))
     assert llm._is_transient(llm.ClaudeError("API Error: overloaded"))
 
 
 @pytest.mark.parametrize("lang", sorted(i18n.UI_LANGS))
-def test_подсказка_без_адреса_обходится_без_пустых_скобок(lang):
-    """В подсказку подставляется адрес, которого на первом заходе ещё нет, и
-    посреди предложения повисало «(—)». Проверяем на всех языках разом: по-японски
-    и по-китайски скобки полноширинные, и обычный поиск их не находит."""
+def test_the_hint_with_no_address_avoids_empty_brackets(lang):
+    """The hint has the address substituted into it, and on the first visit there is
+    no address yet, so an "(—)" hung in the middle of the sentence. We check every
+    language at once: in Japanese and Chinese the brackets are full-width, and an
+    ordinary search does not find them."""
     from app import _drop_empty_parens
-    готово = _drop_empty_parens(i18n.t(lang, "api_model_hint").format(base=""))
-    for скобки in ("()", "（）", "( )", "（ ）"):
-        assert скобки not in готово, f"{lang}: остались пустые скобки"
-    assert "  " not in готово, f"{lang}: остался двойной пробел"
+    cleaned = _drop_empty_parens(i18n.t(lang, "api_model_hint").format(base=""))
+    for brackets in ("()", "（）", "( )", "（ ）"):
+        assert brackets not in cleaned, f"{lang}: empty brackets are still there"
+    assert "  " not in cleaned, f"{lang}: a double space is still there"
 
 
 @pytest.mark.parametrize("lang", sorted(i18n.UI_LANGS))
-def test_с_адресом_подсказка_его_называет(lang):
-    """Обратная сторона: убрать лишнее нельзя ценой того, что нужное тоже пропадёт."""
+def test_with_an_address_the_hint_names_it(lang):
+    """The other side: removing what is surplus must not cost us what is needed."""
     from app import _drop_empty_parens
-    готово = _drop_empty_parens(
+    cleaned = _drop_empty_parens(
         i18n.t(lang, "api_model_hint").format(base="https://openrouter.ai/api/v1"))
-    assert "https://openrouter.ai/api/v1" in готово, f"{lang}: адрес пропал"
+    assert "https://openrouter.ai/api/v1" in cleaned, f"{lang}: the address vanished"
 
 
-def test_коды_языков_установщика_программа_понимает():
-    """Установщик пишет свой код языка в файл, программа его читает. Коды берутся
-    из [Languages] в installer.iss, и разойтись им нельзя: чужой код программа
-    молча отбросит и откроется на языке системы — ровно та беда, из-за которой
-    всё это и делалось."""
+def test_the_program_understands_the_installers_language_codes():
+    """The installer writes its language code into a file and the program reads it.
+    The codes come from [Languages] in installer.iss, and the two must not drift
+    apart: an unknown code the program silently discards, opening in the system
+    language — exactly the trouble all of this was done for."""
     import re
     from pathlib import Path
     iss = (Path(__file__).resolve().parent.parent / "packaging" / "installer.iss")
-    коды = re.findall(r'^Name: "([^"]+)"; MessagesFile', iss.read_text(encoding="utf-8"), re.M)
-    assert коды, "в installer.iss не нашлось ни одного языка — сменился формат?"
-    чужие = [c for c in коды if c not in i18n.UI_LANGS]
-    assert not чужие, f"установщик говорит на языках, которых нет у программы: {чужие}"
+    codes = re.findall(r'^Name: "([^"]+)"; MessagesFile', iss.read_text(encoding="utf-8"), re.M)
+    assert codes, "not one language was found in installer.iss — has the format changed?"
+    unknown = [c for c in codes if c not in i18n.UI_LANGS]
+    assert not unknown, f"the installer speaks languages the program does not have: {unknown}"
 
 
-def test_плашка_про_веб_поиск_везде_называет_число():
-    """Число источников подставляется. Язык, где {n} потеряли, покажет фразу без
-    числа — а раньше число было написано словом и разошлось с делом: обещало
-    девять, когда их двенадцать."""
-    без_числа = [код for код, _ in i18n.UI_LANGS
-                 if "{n}" not in i18n.t(код, "models_websearch_warning")]
-    assert без_числа == [], f"в этих языках число не подставится: {без_числа}"
+def test_the_web_search_notice_names_the_number_everywhere():
+    """The number of sources is substituted in. A language that lost its {n} will
+    show the sentence without a number — and before that the number was written
+    out in words and drifted from the truth: it promised nine when there were
+    twelve."""
+    without_number = [code for code in i18n.UI_LANGS
+                      if "{n}" not in i18n.t(code, "models_websearch_warning")]
+    assert without_number == [], \
+        f"the number will not be substituted in these languages: {without_number}"
 
 
-def test_плашка_про_веб_поиск_подставляется_без_ошибок():
-    """Кроме {n} в тексте не должно оказаться других фигурных скобок: .format
-    споткнётся о них и уронит страницу «Модель» на этом языке."""
-    for код, _ in i18n.UI_LANGS:
-        i18n.t(код, "models_websearch_warning").format(n=12)
+def test_the_web_search_notice_formats_without_error():
+    """Besides {n} there must be no other curly braces in the text: .format would
+    trip over them and bring the "Model" page down in that language."""
+    for code in i18n.UI_LANGS:
+        i18n.t(code, "models_websearch_warning").format(n=12)
