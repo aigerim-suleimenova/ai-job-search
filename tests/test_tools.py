@@ -1,10 +1,10 @@
-"""То, чем ставятся сами командные строки.
+"""What the command-line tools themselves get installed with.
 
-Copilot и Qwen приходят только через npm, а npm приходит с Node.js, которого на
-обычном компьютере нет. В карточке было написано «npm install -g @github/copilot»,
-человек уходил в терминал и получал «npm: команда не найдена» — уже вне нашей
-программы, где помочь ему мы ничем не можем. Здесь проверяется, что про это
-сказано вовремя и в самой программе.
+Copilot and Qwen come only through npm, and npm comes with Node.js, which an
+ordinary computer does not have. The card used to say "npm install -g
+@github/copilot"; a person went off to a terminal and got "npm: command not
+found" — by then outside our program, where we can do nothing for them. What is
+checked here is that this gets said in time, and inside the program.
 """
 import pytest
 
@@ -12,246 +12,250 @@ from conftest import client_for
 from jobsearch import config, providers
 
 
-def нода(monkeypatch, найдена=True, версия="v22.14.0"):
-    """Что программа увидит, спросив у компьютера про Node.js."""
+def node_is(monkeypatch, found=True, version="v22.14.0"):
+    """What the program sees when it asks the computer about Node.js."""
     monkeypatch.setattr(providers, "tool_state",
-                        lambda tool: (найдена and providers._major(версия) >= 22, версия)
-                        if найдена else (False, ""))
+                        lambda tool: (found and providers._major(version) >= 22, version)
+                        if found else (False, ""))
 
 
-def без_командных_строк(monkeypatch):
-    """Ни одна из них не установлена — иначе нечего и ставить."""
+def without_any_cli(monkeypatch):
+    """None of them is installed — otherwise there is nothing to install."""
     monkeypatch.setattr(providers, "_bin_exists", lambda name: False)
     monkeypatch.setattr(providers, "ollama_running", lambda: False)
 
 
-# --- Кому что нужно ------------------------------------------------------------
+# --- Who needs what -----------------------------------------------------------
 
-@pytest.mark.parametrize("провайдер", ["copilot_cli", "qwen_cli"])
-def test_ставятся_через_npm_значит_нужен_node(monkeypatch, провайдер):
-    нода(monkeypatch, найдена=False)
-    assert providers.missing_tool(провайдер) == "node"
+@pytest.mark.parametrize("provider", ["copilot_cli", "qwen_cli"])
+def test_installed_through_npm_so_node_is_needed(monkeypatch, provider):
+    node_is(monkeypatch, found=False)
+    assert providers.missing_tool(provider) == "node"
 
 
-@pytest.mark.parametrize("провайдер", ["claude_cli", "cursor_cli", "goose_cli",
+@pytest.mark.parametrize("provider", ["claude_cli", "cursor_cli", "goose_cli",
                                        "ollama", "openai_api", "codex_cli"])
-def test_у_кого_свой_установщик_ничего_не_требуют(monkeypatch, провайдер):
-    """Гнать человека ставить Node.js ради того, кто прекрасно обойдётся без него,
-    хуже, чем не сказать про Node.js вовсе. У Codex есть готовый бинарник."""
-    нода(monkeypatch, найдена=False)
-    assert providers.missing_tool(провайдер) == ""
+def test_those_with_their_own_installer_require_nothing(monkeypatch, provider):
+    """Driving a person to install Node.js for something that does perfectly well
+    without it is worse than never mentioning Node.js. Codex has a ready
+    binary."""
+    node_is(monkeypatch, found=False)
+    assert providers.missing_tool(provider) == ""
 
 
-def test_node_есть_значит_вопроса_нет(monkeypatch):
-    нода(monkeypatch)
+def test_node_is_there_so_there_is_no_question(monkeypatch):
+    node_is(monkeypatch)
     assert providers.missing_tool("copilot_cli") == ""
 
 
-def test_старый_node_это_не_то_же_самое_что_никакого(monkeypatch):
-    """Сказать «установите Node.js» тому, у кого он есть, значит послать его
-    по кругу: он поставит то же самое и вернётся с тем же."""
-    нода(monkeypatch, версия="v18.20.0")
+def test_an_old_node_is_not_the_same_as_none_at_all(monkeypatch):
+    """Telling someone who has Node.js to "install Node.js" sends them round in a
+    circle: they install the same thing and come back with the same."""
+    node_is(monkeypatch, version="v18.20.0")
     assert providers.missing_tool("copilot_cli") == "node"
     assert providers.tool_info("node")["too_old"] is True
     assert providers.tool_info("node")["version"] == "v18.20.0"
 
 
-def test_непонятная_версия_дороги_не_загораживает(monkeypatch):
-    """Чужой формат вывода — наша беда, а не человека: пусть пробует."""
+def test_an_unreadable_version_does_not_bar_the_way(monkeypatch):
+    """An unfamiliar output format is our problem, not theirs: let them try."""
     monkeypatch.setattr(providers, "resolve_bin", lambda name: "/usr/bin/node")
 
-    class Вывод:
-        stdout, stderr = "какая-то невнятица", ""
+    class Output:
+        stdout, stderr = "some kind of gibberish", ""
 
-    monkeypatch.setattr(providers.subprocess, "run", lambda *a, **kw: Вывод())
+    monkeypatch.setattr(providers.subprocess, "run", lambda *a, **kw: Output())
     providers.tool_state.cache_clear()
     assert providers.tool_state("node")[0] is True
 
 
-def test_про_неизвестный_инструмент_молчим():
-    assert providers.tool_state("несуществующий") == (True, "")
-    assert providers.missing_tool("несуществующий_провайдер") == ""
+def test_we_say_nothing_about_an_unknown_tool():
+    assert providers.tool_state("no-such-tool") == (True, "")
+    assert providers.missing_tool("no-such-provider") == ""
 
 
-# --- Экран --------------------------------------------------------------------
+# --- The screen ---------------------------------------------------------------
 
-def test_выбор_ведёт_туда_где_сказано_чем_ставить(monkeypatch, profile):
-    """Раньше человек возвращался на первый шаг к кнопке «Скачать», уходил по ней
-    в инструкцию с «npm install -g …» и узнавал про npm уже в терминале."""
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch, найдена=False)
+def test_choosing_leads_to_where_it_says_what_to_install_with(monkeypatch, profile):
+    """People used to be returned to the first step, to the "Download" button, follow
+    it into instructions saying "npm install -g …", and find out about npm in a
+    terminal."""
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch, found=False)
 
-    ответ = client_for(приложение.app, profile).post(
+    response = client_for(app_module.app, profile).post(
         "/models/provider", data={"provider": "copilot_cli", "back": "/welcome",
                                   "anchor": "welcome-continue"},
         follow_redirects=False)
 
-    assert ответ.status_code == 303
-    assert "step=tools" in ответ.headers["location"]
+    assert response.status_code == 303
+    assert "step=tools" in response.headers["location"]
 
 
-def test_выбор_того_кому_ничего_не_нужно_никуда_не_уводит(monkeypatch, profile):
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch, найдена=False)
+def test_choosing_one_that_needs_nothing_leads_nowhere(monkeypatch, profile):
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch, found=False)
 
-    ответ = client_for(приложение.app, profile).post(
+    response = client_for(app_module.app, profile).post(
         "/models/provider", data={"provider": "claude_cli", "back": "/welcome",
                                   "anchor": "welcome-continue"},
         follow_redirects=False)
 
-    assert "step=tools" not in ответ.headers["location"]
+    assert "step=tools" not in response.headers["location"]
 
 
-def test_на_экране_сказано_что_и_зачем(monkeypatch, profile):
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch, найдена=False)
+def test_the_screen_says_what_and_why(monkeypatch, profile):
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch, found=False)
     cfg = config.load()
     cfg["llm"]["provider"] = "copilot_cli"
     config.save(cfg)
 
-    страница = client_for(приложение.app, profile).get("/welcome?step=tools").text
+    page = client_for(app_module.app, profile).get("/welcome?step=tools").text
 
-    assert "Node.js" in страница
-    assert "npm" in страница, "не сказано, при чём тут Node.js"
-    assert "GitHub Copilot" in страница, "не сказано, ради чего всё это"
-    assert 'action="/tool/install"' in страница
-    assert 'action="/tool/recheck"' in страница
-    # Дальше не пускаем: ставить всё равно нечем
-    assert "disabled" in страница
+    assert "Node.js" in page
+    assert "npm" in page, "it does not say what Node.js has to do with it"
+    assert "GitHub Copilot" in page, "it does not say what all this is for"
+    assert 'action="/tool/install"' in page
+    assert 'action="/tool/recheck"' in page
+    # No going further: there is nothing to install with anyway
+    assert "disabled" in page
 
 
-def test_экран_не_становится_тупиком(monkeypatch, profile):
-    """Node.js поставили — на этом экране человека больше нечем занять, и
-    оставлять его там значит требовать поставить то, что уже стоит."""
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch)
+def test_the_screen_does_not_become_a_dead_end(monkeypatch, profile):
+    """Node.js is installed — there is nothing left to keep the person on this
+    screen, and leaving them there means demanding they install what is already
+    there."""
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch)
     cfg = config.load()
     cfg["llm"]["provider"] = "copilot_cli"
     config.save(cfg)
 
-    страница = client_for(приложение.app, profile).get("/welcome?step=tools").text
+    page = client_for(app_module.app, profile).get("/welcome?step=tools").text
 
-    assert "welcome-tools" not in страница
+    assert "welcome-tools" not in page
 
 
-def test_старому_node_говорят_про_версию_а_не_про_установку(monkeypatch, profile):
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch, версия="v18.20.0")
+def test_an_old_node_is_told_about_the_version_not_the_install(monkeypatch, profile):
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch, version="v18.20.0")
     cfg = config.load()
     cfg["llm"]["provider"] = "qwen_cli"
     config.save(cfg)
 
-    страница = client_for(приложение.app, profile).get("/welcome?step=tools").text
+    page = client_for(app_module.app, profile).get("/welcome?step=tools").text
 
-    assert "v18.20.0" in страница, "не сказано, что именно нашлось"
-    assert "22" in страница, "не сказано, что нужно"
+    assert "v18.20.0" in page, "it does not say what was actually found"
+    assert "22" in page, "it does not say what is needed"
 
 
-# --- Кнопки -------------------------------------------------------------------
+# --- The buttons --------------------------------------------------------------
 
-def test_скачать_открывает_страницу_node(monkeypatch, profile):
-    import app as приложение
-    открыто = []
-    monkeypatch.setattr(приложение.webbrowser, "open", открыто.append)
+def test_download_opens_the_node_page(monkeypatch, profile):
+    import app as app_module
+    opened = []
+    monkeypatch.setattr(app_module.webbrowser, "open", opened.append)
 
-    client_for(приложение.app, profile).post(
+    client_for(app_module.app, profile).post(
         "/tool/install", data={"tool": "node"}, follow_redirects=False)
 
-    assert открыто == ["https://nodejs.org/en/download"]
+    assert opened == ["https://nodejs.org/en/download"]
 
 
-def test_чужой_адрес_этой_кнопкой_не_открыть(monkeypatch, profile):
-    """Со страницы приходит только код инструмента. Иначе кнопку можно было бы
-    заставить открыть что угодно."""
-    import app as приложение
-    открыто = []
-    monkeypatch.setattr(приложение.webbrowser, "open", открыто.append)
+def test_a_foreign_address_cannot_be_opened_with_this_button(monkeypatch, profile):
+    """Only the tool's code arrives from the page. Otherwise the button could be
+    made to open anything at all."""
+    import app as app_module
+    opened = []
+    monkeypatch.setattr(app_module.webbrowser, "open", opened.append)
 
-    client_for(приложение.app, profile).post(
-        "/tool/install", data={"tool": "https://example.com/зловред"},
+    client_for(app_module.app, profile).post(
+        "/tool/install", data={"tool": "https://example.com/evil"},
         follow_redirects=False)
 
-    assert открыто == []
+    assert opened == []
 
 
-def test_проверить_снова_спрашивает_заново(monkeypatch, profile):
-    """Человек только что вернулся с установки — старый ответ уже неверен."""
-    import app as приложение
-    забыли = []
-    monkeypatch.setattr(providers, "forget_binaries", lambda: забыли.append(True))
-    нода(monkeypatch)
+def test_check_again_really_asks_again(monkeypatch, profile):
+    """The person has just come back from installing — the old answer is stale."""
+    import app as app_module
+    forgotten = []
+    monkeypatch.setattr(providers, "forget_binaries", lambda: forgotten.append(True))
+    node_is(monkeypatch)
 
-    client_for(приложение.app, profile).post(
+    client_for(app_module.app, profile).post(
         "/tool/recheck", data={"tool": "node"}, follow_redirects=False)
 
-    assert забыли, "ответ взяли из памяти, и установка осталась незамеченной"
+    assert forgotten, "the answer came from memory, and the install went unnoticed"
 
 
-def test_незнакомый_код_не_роняет_на_экран_ключ_перевода(profile):
-    """Непереведённый ключ на экране выглядит как поломка — это мы уже проходили."""
-    import app as приложение
-    ответ = client_for(приложение.app, profile).post(
-        "/tool/recheck", data={"tool": "чегототам"}, follow_redirects=False)
-    assert "tool_" not in ответ.headers["location"]
+def test_an_unknown_code_does_not_drop_a_translation_key_on_the_screen(profile):
+    """An untranslated key on the screen looks like a breakage — been there."""
+    import app as app_module
+    response = client_for(app_module.app, profile).post(
+        "/tool/recheck", data={"tool": "whatever"}, follow_redirects=False)
+    assert "tool_" not in response.headers["location"]
 
 
-def test_на_странице_моделей_про_это_тоже_сказано(monkeypatch, profile):
-    """Провайдера меняют и после знакомства — и упираются в ту же стену. Экрана
-    «что нужно установить» здесь нет, но молчать про npm, которого нет, нельзя."""
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch, найдена=False)
+def test_the_models_page_says_this_too(monkeypatch, profile):
+    """People change the provider after the introduction too — and run into the same
+    wall. There is no "what needs installing" screen here, but staying silent
+    about an npm that is not there will not do."""
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch, found=False)
     cfg = config.load()
     cfg["llm"]["provider"] = "copilot_cli"
     config.save(cfg)
 
-    страница = client_for(приложение.app, profile).get("/models").text
+    page = client_for(app_module.app, profile).get("/models").text
 
-    assert "Node.js" in страница
+    assert "Node.js" in page
 
 
-def test_чужие_карточки_про_node_не_говорят(monkeypatch, profile):
-    """У Claude Code своя беда, и Node.js тут ни при чём."""
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch, найдена=False)
+def test_the_other_cards_say_nothing_about_node(monkeypatch, profile):
+    """Claude Code has trouble of its own, and Node.js has nothing to do with it."""
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch, found=False)
     cfg = config.load()
     cfg["llm"]["provider"] = "claude_cli"
     config.save(cfg)
 
-    страница = client_for(приложение.app, profile).get("/models").text
+    page = client_for(app_module.app, profile).get("/models").text
 
-    assert "Node.js" not in страница
+    assert "Node.js" not in page
 
 
-def test_на_странице_моделей_есть_и_кнопка_а_не_только_надпись(monkeypatch, profile):
-    """Сказать, чего не хватает, и не сказать, где это взять, — полдела.
-    На знакомстве для этого свой экран, здесь хватает кнопки."""
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch, найдена=False)
+def test_the_models_page_has_a_button_and_not_only_a_line_of_text(monkeypatch, profile):
+    """Saying what is missing without saying where to get it is half the job. The
+    introduction has a screen of its own for that; here a button is enough."""
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch, found=False)
     cfg = config.load()
     cfg["llm"]["provider"] = "qwen_cli"
     config.save(cfg)
 
-    страница = client_for(приложение.app, profile).get("/models").text
+    page = client_for(app_module.app, profile).get("/models").text
 
-    assert 'action="/tool/install"' in страница, "негде взять то, чего не хватает"
+    assert 'action="/tool/install"' in page, "nowhere to get what is missing"
 
 
-def test_кнопки_нет_когда_всё_на_месте(monkeypatch, profile):
-    import app as приложение
-    без_командных_строк(monkeypatch)
-    нода(monkeypatch)
+def test_there_is_no_button_when_everything_is_there(monkeypatch, profile):
+    import app as app_module
+    without_any_cli(monkeypatch)
+    node_is(monkeypatch)
     cfg = config.load()
     cfg["llm"]["provider"] = "qwen_cli"
     config.save(cfg)
 
-    страница = client_for(приложение.app, profile).get("/models").text
+    page = client_for(app_module.app, profile).get("/models").text
 
-    assert 'action="/tool/install"' not in страница
+    assert 'action="/tool/install"' not in page

@@ -1,18 +1,19 @@
-"""Командные строки — настоящим запуском, а не подменой subprocess.
+"""The command-line tools, run for real rather than with subprocess stubbed out.
 
-Соседний test_clis.py подменяет subprocess.run и проверяет, чем мы собирались
-позвать программу. Здесь программа зовётся по-настоящему: на PATH кладётся
-исполняемый файл с её именем, он записывает, чем его позвали и что пришло на
-вход, и отвечает.
+test_clis.py next door stubs subprocess.run and checks what we meant to call the
+program with. Here the program is called for real: an executable bearing its name
+is put on PATH, it writes down what it was called with and what arrived on stdin,
+and it answers.
 
-Разница не отвлечённая. Подмена не покажет, находится ли имя на PATH вообще, не
-споткнётся ли запуск о Windows (где исполняемым считается .cmd, а не файл с
-решёткой в первой строке) и дойдёт ли задание через трубу целиком — с
-переносами, кавычками и кириллицей, на которых кодировки и ломаются.
+The difference is not academic. A stub will not show whether the name is on PATH
+at all, whether launching trips over Windows (where a .cmd counts as executable
+and a file with a hash on its first line does not), or whether the task comes
+through the pipe whole — with the newlines, quotes and Cyrillic that encodings
+break on.
 
-Чего и это не покажет: примут ли настоящие Codex, Copilot, Goose и Qwen те
-ключи, что мы им передаём. Это видно только с ними самими; ключи сверены с их
-документацией, и сверка — не запуск.
+What even this will not show: whether the real Codex, Copilot, Goose and Qwen
+accept the flags we pass them. That is visible only with the programs themselves;
+the flags are checked against their documentation, and checking is not running.
 """
 import json
 import os
@@ -24,226 +25,230 @@ import pytest
 
 from jobsearch import providers
 
-# Задание нарочно длинное и нарочно не на латинице: на длине ломается передача
-# аргументом, на кириллице — кодировка трубы.
-ЗАПРОС = ("Оцени вакансию «Senior Frontend Engineer».\n"
+# The task is long on purpose and not in Latin script on purpose: length breaks
+# passing it as an argument, Cyrillic breaks the pipe's encoding.
+PROMPT = ("Оцени вакансию «Senior Frontend Engineer».\n"
           "Строка с «кавычками», переносом и запятой, вот.\n" * 40)
 
-ВЫЗОВЫ = [
-    ("codex", lambda: providers.call_codex(ЗАПРОС, "gpt-5-codex", timeout=60), "gpt-5-codex"),
-    ("copilot", lambda: providers.call_copilot(ЗАПРОС, "claude-sonnet-4.5", timeout=60),
+CALLS = [
+    ("codex", lambda: providers.call_codex(PROMPT, "gpt-5-codex", timeout=60), "gpt-5-codex"),
+    ("copilot", lambda: providers.call_copilot(PROMPT, "claude-sonnet-4.5", timeout=60),
      "claude-sonnet-4.5"),
-    ("goose", lambda: providers.call_goose(ЗАПРОС, "gpt-4o", timeout=60), "gpt-4o"),
-    ("qwen", lambda: providers.call_qwen(ЗАПРОС, "qwen3-coder-plus", timeout=60),
+    ("goose", lambda: providers.call_goose(PROMPT, "gpt-4o", timeout=60), "gpt-4o"),
+    ("qwen", lambda: providers.call_qwen(PROMPT, "qwen3-coder-plus", timeout=60),
      "qwen3-coder-plus"),
 ]
 
-ЛОВУШКА = """\
+TRAP = """\
 import json, os, sys
-рядом = os.path.dirname(os.path.abspath(__file__))
-имя = os.environ.get("AIJS_TRAP_NAME", "нет")
-задание = sys.stdin.read()
-with open(os.path.join(рядом, имя + ".json"), "w", encoding="utf-8") as f:
-    json.dump({"argv": sys.argv[1:], "stdin": задание}, f, ensure_ascii=False)
-sys.stdout.buffer.write(("ответ от " + имя).encode("utf-8"))
+beside = os.path.dirname(os.path.abspath(__file__))
+name = os.environ.get("AIJS_TRAP_NAME", "none")
+task = sys.stdin.read()
+with open(os.path.join(beside, name + ".json"), "w", encoding="utf-8") as f:
+    json.dump({"argv": sys.argv[1:], "stdin": task}, f, ensure_ascii=False)
+sys.stdout.buffer.write(("answer from " + name).encode("utf-8"))
 """
 
 
 @pytest.fixture
-def двор(monkeypatch):
-    """Двор с подставными программами на PATH.
+def yard(monkeypatch):
+    """A yard with stand-in programs on PATH.
 
-    Не tmp_path: pytest складывает его по имени теста, а имена тут русские — и
-    путь получается с кириллицей. На Windows он попадает внутрь .cmd, а тот
-    читается в кодировке консоли, и запуск обрывался бы ещё до дела. Системный
-    временный каталог — латиница.
+    Not tmp_path: pytest builds it from the test's name, and the names here used
+    to be Russian — so the path came out with Cyrillic in it. On Windows that ends
+    up inside a .cmd, which is read in the console encoding, and the launch would
+    break before it began. The system temporary directory is Latin script.
     """
     import shutil
     import tempfile
-    место = Path(tempfile.mkdtemp(prefix="aijs-cli-"))
-    ловушка = место / "trap.py"
-    ловушка.write_text(ЛОВУШКА, encoding="utf-8")
-    for имя, _, _ in ВЫЗОВЫ:
+    where = Path(tempfile.mkdtemp(prefix="aijs-cli-"))
+    trap = where / "trap.py"
+    trap.write_text(TRAP, encoding="utf-8")
+    for name, _, _ in CALLS:
         if os.name == "nt":
-            (место / f"{имя}.cmd").write_text(
-                f'@echo off\r\nset AIJS_TRAP_NAME={имя}\r\n'
-                f'"{sys.executable}" "{ловушка}" %*\r\n', encoding="ascii")
+            (where / f"{name}.cmd").write_text(
+                f'@echo off\r\nset AIJS_TRAP_NAME={name}\r\n'
+                f'"{sys.executable}" "{trap}" %*\r\n', encoding="ascii")
         else:
-            файл = место / имя
-            файл.write_text(
-                f'#!/bin/sh\nAIJS_TRAP_NAME={имя} exec "{sys.executable}" "{ловушка}" "$@"\n',
+            path = where / name
+            path.write_text(
+                f'#!/bin/sh\nAIJS_TRAP_NAME={name} exec "{sys.executable}" "{trap}" "$@"\n',
                 encoding="utf-8")
-            файл.chmod(файл.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-    monkeypatch.setenv("PATH", str(место) + os.pathsep + os.environ["PATH"])
+            path.chmod(path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    monkeypatch.setenv("PATH", str(where) + os.pathsep + os.environ["PATH"])
     providers.forget_binaries()
     providers.login_env.cache_clear()
-    yield место
+    yield where
     providers.forget_binaries()
     providers.login_env.cache_clear()
-    shutil.rmtree(место, ignore_errors=True)
+    shutil.rmtree(where, ignore_errors=True)
 
 
-@pytest.mark.parametrize("имя,вызов,модель", ВЫЗОВЫ)
-def test_программа_зовётся_и_задание_доходит(двор, имя, вызов, модель):
-    ответ = вызов()
+@pytest.mark.parametrize("name,call,model", CALLS)
+def test_the_program_is_called_and_the_task_arrives(yard, name, call, model):
+    answer = call()
 
-    assert ответ == f"ответ от {имя}", "ответ программы не разобран"
-    поймано = json.loads((двор / f"{имя}.json").read_text(encoding="utf-8"))
-    assert поймано["stdin"] == ЗАПРОС, "задание дошло через трубу искажённым"
-    assert any(модель in a for a in поймано["argv"]), "имя модели не передано"
-    # Задание аргументом не уходит и уйти не должно: длина командной строки
-    # ограничена, и как раз на таких запросах она и кончается.
-    assert not any(ЗАПРОС[:40] in a for a in поймано["argv"])
-
-
-def test_провайдер_считается_установленным_если_программа_на_месте(двор):
-    """resolve_bin ищет по PATH, и на Windows это .cmd — то, чем npm и ставит
-    свои командные строки."""
-    доступны = providers.available("claude", {})
-    for имя in ("codex_cli", "copilot_cli", "goose_cli", "qwen_cli"):
-        assert доступны[имя]["ready"] is True, f"{имя} не найден на PATH"
+    assert answer == f"answer from {name}", "the program's answer was not parsed"
+    caught = json.loads((yard / f"{name}.json").read_text(encoding="utf-8"))
+    assert caught["stdin"] == PROMPT, "the task came through the pipe mangled"
+    assert any(model in a for a in caught["argv"]), "the model name was not passed"
+    # The task does not go as an argument and must not: the length of a command
+    # line is limited, and prompts like this are exactly where it runs out.
+    assert not any(PROMPT[:40] in a for a in caught["argv"])
 
 
-def test_жалоба_программы_доходит_до_человека(двор):
-    """Программа падает и говорит, почему. Проглотить это значило бы оставить
-    человека с «что-то пошло не так»."""
+def test_a_provider_counts_as_installed_when_the_program_is_there(yard):
+    """resolve_bin searches PATH, and on Windows that means .cmd — which is what npm
+    installs its command-line tools as."""
+    available = providers.available("claude", {})
+    for name in ("codex_cli", "copilot_cli", "goose_cli", "qwen_cli"):
+        assert available[name]["ready"] is True, f"{name} was not found on PATH"
+
+
+def test_the_programs_complaint_reaches_the_person(yard):
+    """The program fails and says why. Swallowing that would leave the person with
+    "something went wrong"."""
     if os.name == "nt":
-        (двор / "qwen.cmd").write_text(
+        (yard / "qwen.cmd").write_text(
             "@echo off\r\necho qwen needs an API key 1>&2\r\nexit /b 1\r\n", encoding="ascii")
     else:
-        файл = двор / "qwen"
-        файл.write_text('#!/bin/sh\necho "qwen needs an API key" >&2\nexit 1\n', encoding="utf-8")
-        файл.chmod(файл.stat().st_mode | stat.S_IEXEC)
+        path = yard / "qwen"
+        path.write_text('#!/bin/sh\necho "qwen needs an API key" >&2\nexit 1\n', encoding="utf-8")
+        path.chmod(path.stat().st_mode | stat.S_IEXEC)
     providers.forget_binaries()
 
-    with pytest.raises(providers.ProviderError) as поймано:
-        providers.call_qwen("привет", "", timeout=60)
+    with pytest.raises(providers.ProviderError) as caught:
+        providers.call_qwen("hello", "", timeout=60)
 
-    assert "needs an API key" in str(поймано.value)
+    assert "needs an API key" in str(caught.value)
 
 
-def test_молчаливое_падение_тоже_объясняется(двор):
-    """А если программа не сказала ничего — сказать надо нам, иначе человек
-    видит пустоту."""
+def test_a_silent_failure_is_explained_too(yard):
+    """And if the program said nothing, we have to say it — otherwise the person
+    sees emptiness."""
     from jobsearch import i18n
     if os.name == "nt":
-        (двор / "goose.cmd").write_text("@echo off\r\nexit /b 3\r\n", encoding="ascii")
+        (yard / "goose.cmd").write_text("@echo off\r\nexit /b 3\r\n", encoding="ascii")
     else:
-        файл = двор / "goose"
-        файл.write_text("#!/bin/sh\nexit 3\n", encoding="utf-8")
-        файл.chmod(файл.stat().st_mode | stat.S_IEXEC)
+        path = yard / "goose"
+        path.write_text("#!/bin/sh\nexit 3\n", encoding="utf-8")
+        path.chmod(path.stat().st_mode | stat.S_IEXEC)
     providers.forget_binaries()
 
-    with pytest.raises(providers.ProviderError) as поймано:
-        providers.call_goose("привет", "", timeout=60)
+    with pytest.raises(providers.ProviderError) as caught:
+        providers.call_goose("hello", "", timeout=60)
 
-    текст = i18n.err("ru", поймано.value)
-    assert "goose" in текст and "3" in текст, f"нечего прочесть: {текст}"
+    text = i18n.err("ru", caught.value)
+    assert "goose" in text and "3" in text, f"nothing to read: {text}"
 
 
-def test_кириллица_в_среде_не_ломает_запуск(monkeypatch, двор):
-    """Найдено живой проверкой, и это была настоящая поломка.
+def test_cyrillic_in_the_environment_does_not_break_the_launch(monkeypatch, yard):
+    """Found by checking live, and it was a real breakage.
 
-    login_env() спрашивает переменные у входной оболочки и разбирал ответ
-    кодировкой системы — cp1252 на Windows, ascii при локали C. Одна нелатинская
-    буква в чужой переменной, и разбор рушился. А она есть у всякого, чьё имя не
-    латиницей: оно лежит в HOME и в PATH.
+    login_env() asks the login shell for the variables, and used to parse the
+    answer with the system encoding — cp1252 on Windows, ascii under the C locale.
+    One non-Latin letter in somebody's variable and the parsing collapsed. And
+    everyone whose name is not in Latin script has one: it sits in HOME and in
+    PATH.
 
-    Падало при этом скверно: ошибка случалась в потоке чтения, stdout молча
-    оказывался None, и наружу выходил AttributeError вместо внятного отказа.
-    Переставали работать разом все командные строки.
+    It failed badly, too: the error happened in the reading thread, stdout
+    silently came back None, and what came out was an AttributeError instead of a
+    comprehensible refusal. Every command-line tool stopped working at once.
 
-    Оболочку подставляем свою. Настоящая на разных машинах разная, а где-то её
-    нет вовсе — и тест, положившийся на неё, прошёл бы вхолостую, ничего не
-    проверив. Здесь она отвечает ровно тем, на чём мы и споткнулись.
+    The shell is one we substitute. The real one differs from machine to machine,
+    and on some there is none at all — a test relying on it would run empty,
+    checking nothing. This one answers with exactly what we tripped over.
     """
-    свалка = двор / "envdump.py"
-    свалка.write_text(
+    dump = yard / "envdump.py"
+    dump.write_text(
         "import sys" + chr(10) +
         'sys.stdout.buffer.write("HOME=/Users/Виктор' + chr(92) + '0ИМЯ=Лаврентьев'
         + chr(92) + '0".encode("utf-8"))' + chr(10),
         encoding="utf-8")
     if os.name == "nt":
-        оболочка = двор / "shell.cmd"
-        оболочка.write_text("@echo off" + chr(13) + chr(10)
-                            + f'"{sys.executable}" "{свалка}"' + chr(13) + chr(10),
+        shell = yard / "shell.cmd"
+        shell.write_text("@echo off" + chr(13) + chr(10)
+                            + f'"{sys.executable}" "{dump}"' + chr(13) + chr(10),
                             encoding="ascii")
     else:
-        оболочка = двор / "shell.sh"
-        оболочка.write_text("#!/bin/sh" + chr(10)
-                            + f'exec "{sys.executable}" "{свалка}"' + chr(10),
+        shell = yard / "shell.sh"
+        shell.write_text("#!/bin/sh" + chr(10)
+                            + f'exec "{sys.executable}" "{dump}"' + chr(10),
                             encoding="utf-8")
-        оболочка.chmod(оболочка.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("SHELL", str(оболочка))
+        shell.chmod(shell.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("SHELL", str(shell))
     providers.login_env.cache_clear()
 
     env = providers.login_env()
 
-    assert env.get("HOME") == "/Users/Виктор", f"переменные не разобрались: {env.get('HOME')!r}"
+    assert env.get("HOME") == "/Users/Виктор", f"the variables did not parse: {env.get('HOME')!r}"
     assert env.get("ИМЯ") == "Лаврентьев"
-    # И сам вызов доходит до конца, а не падает по дороге
-    assert providers.call_codex("привет", "", timeout=60) == "ответ от codex"
+    # And the call itself runs to the end rather than falling over on the way
+    assert providers.call_codex("hello", "", timeout=60) == "answer from codex"
 
 
-@pytest.mark.skipif(not os.path.exists("/bin/zsh"), reason="нужен настоящий zsh")
-def test_командная_строка_из_nvm_находится(monkeypatch, tmp_path):
-    """Пришло от человека: «не видит claude code на моём маке».
+@pytest.mark.skipif(not os.path.exists("/bin/zsh"), reason="needs a real zsh")
+def test_a_cli_from_the_nvm_tree_is_found(monkeypatch, tmp_path):
+    """This came from a person: "it does not see claude code on my mac".
 
-    Так выглядит машина того, кто поставил CLI через npm под nvm: программа
-    лежит в дереве nvm, а в PATH это дерево добавляет .zshrc. Приложение,
-    запущенное из Finder, получает голый системный PATH — и спрашивало оболочку
-    через zsh -lc. Вот в чём была беда: -l это вход, но не разговор, а .zshrc
-    читается только разговорной оболочкой. Программы не видел никто: ни PATH, ни
-    список каталогов, ни оболочка.
+    That is what the machine of somebody who installed the CLI through npm under
+    nvm looks like: the program lives in the nvm tree, and .zshrc is what adds
+    that tree to PATH. An application launched from Finder gets the bare system
+    PATH — and used to ask the shell with zsh -lc. That was the trouble: -l is a
+    login shell but not an interactive one, and .zshrc is read only by an
+    interactive shell. Nobody saw the program: not PATH, not the directory list,
+    not the shell.
 
-    Имя нарочно небывалое: настоящий claude есть на машине разработчика в
-    ~/.local/bin, и тест с ним прошёл бы вхолостую, ничего не проверив.
+    The name is deliberately one that does not exist: a real claude is on the
+    developer's own machine in ~/.local/bin, and a test using it would run empty,
+    checking nothing.
     """
-    имя = "aijs-fake-cli"
-    дерево = tmp_path / ".nvm" / "versions" / "node" / "v22.17.0" / "bin"
-    дерево.mkdir(parents=True)
-    файл = дерево / имя
-    файл.write_text("#!/bin/sh\necho 1.0\n", encoding="utf-8")
-    файл.chmod(файл.stat().st_mode | stat.S_IEXEC)
+    name = "aijs-fake-cli"
+    tree = tmp_path / ".nvm" / "versions" / "node" / "v22.17.0" / "bin"
+    tree.mkdir(parents=True)
+    path = tree / name
+    path.write_text("#!/bin/sh\necho 1.0\n", encoding="utf-8")
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
     (tmp_path / ".zshrc").write_text(
-        f'export PATH="{дерево}:$PATH"\n', encoding="utf-8")
+        f'export PATH="{tree}:$PATH"\n', encoding="utf-8")
 
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("ZDOTDIR", raising=False)   # иначе .zshrc возьмётся не наш
+    monkeypatch.delenv("ZDOTDIR", raising=False)   # otherwise a .zshrc other than ours is read
     monkeypatch.setenv("SHELL", "/bin/zsh")
-    monkeypatch.setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")  # как из Finder
+    monkeypatch.setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")  # as it is from Finder
     providers.forget_binaries()
 
-    assert providers.resolve_bin(имя) == str(файл), "программа из дерева nvm не нашлась"
-    # И среде, с которой её позовут, дерево тоже видно — иначе она найдётся, но
-    # не запустится: рядом с ней в том же каталоге лежит и node, которым она жива.
+    assert providers.resolve_bin(name) == str(path), "the program in the nvm tree was not found"
+    # And the environment it will be called with sees the tree too — otherwise it
+    # is found but will not run: node, which it lives by, sits in that same
+    # directory beside it.
     providers.login_env.cache_clear()
-    assert str(дерево) in providers.login_env().get("PATH", "")
+    assert str(tree) in providers.login_env().get("PATH", "")
     providers.forget_binaries()
     providers.login_env.cache_clear()
 
 
-@pytest.mark.skipif(os.name == "nt", reason="подставная оболочка здесь — sh-скрипт")
-def test_болтливый_zshrc_не_портит_переменные(monkeypatch, двор):
-    """Плата за разговорную оболочку: .zshrc печатает своё, и печатает раньше,
-    чем дойдёт до env. Его слова липнут к первой же переменной — а первой может
-    оказаться любая, в том числе PATH."""
-    свалка = двор / "болтун.py"
-    свалка.write_text(
+@pytest.mark.skipif(os.name == "nt", reason="the stand-in shell here is an sh script")
+def test_a_chatty_zshrc_does_not_spoil_the_variables(monkeypatch, yard):
+    """The price of an interactive shell: .zshrc prints things of its own, and prints
+    them before env is reached. Its words stick to the very first variable — and
+    that first one can be any of them, PATH included."""
+    dump = yard / "chatty.py"
+    dump.write_text(
         "import sys" + chr(10) +
         'sys.stdout.buffer.write("Добро пожаловать!' + chr(92) + 'n'
         'PATH=/из/оболочки' + chr(92) + '0ИМЯ=Лаврентьев' + chr(92) + '0".encode("utf-8"))'
         + chr(10),
         encoding="utf-8")
-    оболочка = двор / "shell.sh"
-    оболочка.write_text("#!/bin/sh" + chr(10) + f'exec "{sys.executable}" "{свалка}"' + chr(10),
+    shell = yard / "shell.sh"
+    shell.write_text("#!/bin/sh" + chr(10) + f'exec "{sys.executable}" "{dump}"' + chr(10),
                         encoding="utf-8")
-    оболочка.chmod(оболочка.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("SHELL", str(оболочка))
+    shell.chmod(shell.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("SHELL", str(shell))
     providers.login_env.cache_clear()
 
     env = providers.login_env()
 
-    assert env.get("PATH") == "/из/оболочки", f"приветствие прилипло: {env.get('PATH')!r}"
+    assert env.get("PATH") == "/из/оболочки", f"the greeting stuck to it: {env.get('PATH')!r}"
     assert env.get("ИМЯ") == "Лаврентьев"
     providers.login_env.cache_clear()
