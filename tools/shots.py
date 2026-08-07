@@ -1,28 +1,29 @@
-"""Снимки для сайта и README.
+"""Screenshots for the site and the README.
 
-Скриншоты устаревают молча: интерфейс меняется, а на странице продукта остаётся
-прошлогодний. Отсюда скрипт — снять всё заново одной командой, а не собирать по
-одному руками и не забывать половину.
+Screenshots go stale silently: the interface changes while last year's picture
+stays on the product page. Hence this script — shoot them all afresh with one
+command, rather than collecting them one by one by hand and forgetting half.
 
-Наборов два, и забывался как раз второй. В docs/img лежат снимки по-русски — их
-показывают README и страница в этом репозитории. Страница продукта на
-mrwd.github.io английская, снимки у неё зовутся иначе, живут в другом
-репозитории и потому отставали сильнее всего: пока здесь обновляли, там
-оставалась версия годичной давности с четырьмя провайдерами из восьми.
+There are two sets, and it was the second that kept being forgotten. docs/img
+holds the Russian screenshots — the ones the README and the page in this
+repository show. The product page at mrwd.github.io is in English, its
+screenshots are named differently, live in another repository, and so fell
+furthest behind: while these were being updated, that page kept a year-old
+version with four providers out of eight.
 
-    python tools/shots.py                     # docs/img, по-русски
-    python tools/shots.py --site ПАПКА        # страница продукта, по-английски
+    python tools/shots.py                     # docs/img, in Russian
+    python tools/shots.py --site FOLDER       # the product page, in English
 
-Второй набор печатает размеры: в его разметке ширина и высота проставлены
-руками, и если их не поправить, страница дёрнется при загрузке.
+The second set prints the sizes: its markup has the width and height written in
+by hand, and if they are not corrected the page jumps as it loads.
 
-Данные подставные и лежат во временной папке: настоящий профиль трогать нельзя,
-да и показывать чужие вакансии с чужим CV на странице продукта незачем. Каждая
-страница снимается дважды, в светлой теме и в тёмной.
+The data is made up and lives in a temporary folder: a real profile must not be
+touched, and there is no reason to show somebody's jobs with somebody's CV on a
+product page. Every page is shot twice, in the light theme and in the dark.
 
-Нужен Chrome или Edge — они и так есть на любой Windows. Пользуется их же
-безголовым режимом: ставить ради восьми картинок playwright с его полугигабайтом
-браузеров не стоит.
+Chrome or Edge is needed — they are on any Windows anyway. It uses their own
+headless mode: installing playwright with its half a gigabyte of browsers for the
+sake of eight pictures is not worth it.
 """
 import argparse
 import json
@@ -41,27 +42,29 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "img"
 sys.path.insert(0, str(ROOT))
 
-# Ширина как у прежних снимков: они уже вставлены в README и на страницу, и
-# менять её значило бы переверстать обе.
+# The same width as the previous screenshots: they are already embedded in the
+# README and on the page, and changing it would mean re-laying-out both.
 WIDTH = 1180
-СТРАНИЦЫ = [
-    # (файл, адрес, высота, есть ли разбор у верхней вакансии)
+PAGES = [
+    # (file, address, height, whether the top job has its deep advice)
     #
-    # Разбор раскрыт всегда — <details open>, и правильно: ради него всё и
-    # затевалось. Но на снимке списка он занимает весь экран, и вместо списка
-    # выходит одна карточка. Поэтому список снимается в том состоянии, в каком
-    # программа бывает сразу после быстрого поиска: оценки есть, глубокий разбор
-    # ещё не прошёл. А разбор — своим снимком и повыше.
+    # The advice is always expanded — <details open> — and rightly so: it is what
+    # the whole thing was built for. But in a shot of the list it fills the entire
+    # screen, and instead of a list you get one card. So the list is shot in the
+    # state the program is in right after a quick search: the scores are there,
+    # the deep analysis has not run yet. And the advice gets a shot of its own,
+    # taller.
     ("results", "/results", 1120, False),
     ("advice", "/results", 1240, True),
     ("quick-search", "/simple", 820, False),
-    # Провайдеров восемь, в 860 влезало шесть — третий ряд обрезался посередине.
+    # There are eight providers; 860 fitted six — the third row was cut in half.
     ("models", "/models", 1330, False),
 ]
 
-# Как звать файлы: (в светлой теме, в тёмной). У страницы продукта имена свои и
-# сложились раньше — переименовывать их значило бы править ещё и разметку.
-ИМЕНА = {
+# What to call the files: (in the light theme, in the dark). The product page has
+# names of its own that were settled earlier — renaming them would mean editing
+# its markup as well.
+FILENAMES = {
     "repo": {"results": ("results", "results-dark"),
              "advice": ("advice", "advice-dark"),
              "quick-search": ("quick-search", "quick-search-dark"),
@@ -72,26 +75,26 @@ WIDTH = 1180
              "models": ("model-light", "model-dark")},
 }
 
-БРАУЗЕРЫ = [
+BROWSERS = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
 ]
 
 
-def браузер() -> str:
-    for path in БРАУЗЕРЫ:
+def browser() -> str:
+    for path in BROWSERS:
         if Path(path).exists():
             return path
     for name in ("google-chrome", "chromium", "msedge"):
         found = shutil.which(name)
         if found:
             return found
-        raise SystemExit("не нашёлся ни Chrome, ни Edge — снимать нечем")
+        raise SystemExit("neither Chrome nor Edge was found — nothing to shoot with")
 
 
-def номер_версии() -> str:
-    """Последний выпущенный тег — то, что человек и увидит, скачав программу."""
+def version_number() -> str:
+    """The latest released tag — what a person will see once they download it."""
     try:
         out = subprocess.run(["git", "tag", "--sort=-v:refname"], cwd=str(ROOT),
                              capture_output=True, text=True, timeout=10)
@@ -103,13 +106,13 @@ def номер_версии() -> str:
     return "0.0.0"
 
 
-def свободный_порт() -> int:
+def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
 
 
-РАЗБОР_EN = json.dumps({
+ADVICE_EN = json.dumps({
     "salary_estimate": "€72,000 – 88,000 a year",
     "company_insights": [
         "Their own product company, not an agency: 140 people, office in Berlin.",
@@ -128,7 +131,7 @@ def свободный_порт() -> int:
     "cover_hint": "Mention moving the team to a monorepo: their ad lists it as a separate point.",
 }, ensure_ascii=False)
 
-ВАКАНСИИ_EN = [
+JOBS_EN = [
     dict(key="a1", title="Senior Frontend Engineer", company="Northwind Labs",
          location="Berlin · remote", url="https://northwind.example/careers/fe-senior",
          source="greenhouse", is_direct=1, is_agency=0, score=91, verified=1,
@@ -178,18 +181,18 @@ Experience
 Languages: Russian (native), English (C1), German (A2).
 """
 
-ПРОФИЛЬ_EN = dict(
-    имя="Viktor Lavrov",
+PROFILE_EN = dict(
+    name="Viktor Lavrov",
     summary="Senior Frontend Engineer, design systems and builds",
     roles="Frontend Engineer, Frontend Lead",
     skills="React, TypeScript, Vite, Storybook, monorepos",
     salary="from €75,000 a year",
     languages="English C1, German A2",
     locations="Germany, the Netherlands, remote in the EU",
-    файл_cv="Lavrov CV.pdf",
+    cv_file="Lavrov CV.pdf",
 )
 
-РАЗБОР = json.dumps({
+ADVICE_RU = json.dumps({
     "salary_estimate": "72 000 – 88 000 € в год",
     "company_insights": [
         "Своя продуктовая компания, не аутсорс: 140 человек, офис в Берлине.",
@@ -199,16 +202,16 @@ Languages: Russian (native), English (C1), German (A2).
     "sources": ["https://www.kununu.com/de/northwind",
                 "https://www.glassdoor.de/northwind"],
     "cv_changes": [
-        "Вынести дизайн-систему в первую строку опыта — в вакансии это главное требование.",
+        "Вынести дизайн-систему в первую строку опыта — в jobs это главное требование.",
         "Добавить цифру к оптимизации сборки: «время сборки с 4 до 1.5 минут» весомее слова «ускорил».",
     ],
     "linkedin_changes": [
         "В заголовок профиля добавить «Design Systems» — по нему ищут рекрутеры этой компании.",
     ],
-    "cover_hint": "Упомяните переход команды на монорепозиторий: у них в вакансии это отдельным пунктом.",
+    "cover_hint": "Упомяните переход команды на монорепозиторий: у них в jobs это отдельным пунктом.",
 }, ensure_ascii=False)
 
-ВАКАНСИИ = [
+JOBS_RU = [
     dict(key="a1", title="Senior Frontend Engineer", company="Northwind Labs",
          location="Berlin · удалённо", url="https://northwind.example/careers/fe-senior",
          source="greenhouse", is_direct=1, is_agency=0, score=91, verified=1,
@@ -224,7 +227,7 @@ Languages: Russian (native), English (C1), German (A2).
          posted_at="2026-07-26",
          description="Kubernetes, Go, внутренние платформы для сорока команд.",
          reason="Совпадает опыт с инфраструктурой и наставничеством. Go в требованиях, "
-                "а у вас он второй язык — это единственное слабое место.", advice=""),
+                "а у вас он второй lang — это единственное слабое where.", advice=""),
     dict(key="a3", title="Full-stack Developer (SAP Integration)", company="Vandelay AG",
          location="Мюнхен · офис", url="https://vandelay.example/karriere/fullstack",
          source="personio", is_direct=1, is_agency=0, score=76, verified=0,
@@ -237,7 +240,7 @@ Languages: Russian (native), English (C1), German (A2).
          source="workable", is_direct=1, is_agency=0, score=72, verified=0,
          posted_at="2026-07-21",
          description="Vue 3, Nuxt, небольшие продуктовые команды.",
-         reason="Стек соседний: Vue вместо React. Переучиваться недолго, но в вакансии "
+         reason="Стек соседний: Vue вместо React. Переучиваться недолго, но в jobs "
                 "просят именно опыт с Nuxt, а его у вас нет.", advice=""),
 ]
 
@@ -257,66 +260,66 @@ React, TypeScript, Vite, Storybook. Вёл переход команды из д
 Языки: русский (родной), английский (C1), немецкий (A2).
 """
 
-ПРОФИЛЬ_RU = dict(
-    имя="Виктор",
+PROFILE_RU = dict(
+    name="Виктор",
     summary="Senior Frontend Engineer, дизайн-системы и сборка",
     roles="Frontend Engineer, Frontend Lead",
     skills="React, TypeScript, Vite, Storybook, монорепозитории",
     salary="от 75 000 € в год",
     languages="английский C1, немецкий A2",
     locations="Германия, Нидерланды, удалённо в ЕС",
-    файл_cv="Лаврентьев CV.pdf",
+    cv_file="Лаврентьев CV.pdf",
 )
 
-ПОКАЗАННОЕ = {
-    "ru": (ПРОФИЛЬ_RU, CV, ВАКАНСИИ, РАЗБОР),
-    "en": (ПРОФИЛЬ_EN, CV_EN, ВАКАНСИИ_EN, РАЗБОР_EN),
+SHOWN = {
+    "ru": (PROFILE_RU, CV, JOBS_RU, ADVICE_RU),
+    "en": (PROFILE_EN, CV_EN, JOBS_EN, ADVICE_EN),
 }
 
 
-def заполнить(data: Path, язык: str) -> None:
+def fill_in(data: Path, lang: str) -> None:
     """Кладёт во временную папку то, что должно быть видно на снимках."""
     os.environ["AIJS_DATA_DIR"] = str(data)
     from jobsearch import appstate, config, db, profiles
 
-    профиль, cv, вакансии, _ = ПОКАЗАННОЕ[язык]
+    profile, cv, jobs, _ = SHOWN[lang]
 
-    # Заполняем профиль по умолчанию, а не заводим новый: сервер приходит без
-    # cookie и показывает именно его. Свежесозданный профиль на снимке был пуст,
+    # Заполняем profile по умолчанию, а не заводим новый: сервер приходит без
+    # cookie и показывает именно его. Свежесозданный profile на снимке был пуст,
     # а рядом в переключателе стоял чужой — «Ничего с такой оценкой нет».
     profiles.ensure_migrated()
     slug = profiles.default_slug()
-    profiles.rename(slug, профиль["имя"])
+    profiles.rename(slug, profile["name"])
     profiles.set_active(slug)
     db.init()
 
     cfg = config.load()
-    cfg["profile"].update(summary=профиль["summary"], roles=профиль["roles"],
-                          skills=профиль["skills"], seniority="senior",
-                          salary=профиль["salary"], work_format="remote",
-                          languages=профиль["languages"])
-    cfg["search"].update(locations=профиль["locations"], threshold=70)
-    cfg["ui"]["lang"] = язык
+    cfg["profile"].update(summary=profile["summary"], roles=profile["roles"],
+                          skills=profile["skills"], seniority="senior",
+                          salary=profile["salary"], work_format="remote",
+                          languages=profile["languages"])
+    cfg["search"].update(locations=profile["locations"], threshold=70)
+    cfg["ui"]["lang"] = lang
     config.save(cfg)
     config.cv_text_path().write_text(cv, encoding="utf-8")
     config.cv_meta_path().write_text(
-        json.dumps({"filename": профиль["файл_cv"], "chars": len(cv)}, ensure_ascii=False),
+        json.dumps({"filename": profile["cv_file"], "chars": len(cv)}, ensure_ascii=False),
         encoding="utf-8")
 
     run = db.start_run()
-    for job in вакансии:
+    for job in jobs:
         db.save_job(job, run)
-    db.finish_run(run, found=214, fresh=37, matched=len(вакансии), status="ok", log="")
+    db.finish_run(run, found=214, fresh=37, matched=len(jobs), status="ok", log="")
     appstate.mark_setup_done(cfg["llm"])
     return slug
 
 
-def поднять(data: Path, port: int):
-    среда = dict(os.environ, AIJS_DATA_DIR=str(data), PYTHONIOENCODING="utf-8")
+def serve(data: Path, port: int):
+    env = dict(os.environ, AIJS_DATA_DIR=str(data), PYTHONIOENCODING="utf-8")
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app:app", "--host", "127.0.0.1",
          "--port", str(port), "--log-level", "warning"],
-        cwd=str(ROOT), env=среда)
+        cwd=str(ROOT), env=env)
     for _ in range(60):
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/ping", timeout=1).read()
@@ -324,89 +327,91 @@ def поднять(data: Path, port: int):
         except Exception:
             time.sleep(0.5)
     proc.terminate()
-    raise SystemExit("приложение не поднялось")
+    raise SystemExit("the application did not come up")
 
 
-def снять(chrome: str, url: str, out: Path, height: int, профиль: Path,
-          язык: str = "ru") -> None:
+def shoot(chrome: str, url: str, out: Path, height: int, profile: Path,
+          lang: str = "ru") -> None:
     subprocess.run([
         chrome, "--headless=new", "--disable-gpu", "--hide-scrollbars",
-        f"--user-data-dir={профиль}",
-        # Кнопку выбора файла рисует сам браузер, и язык он берёт свой, а не
-        # страницы. Оттого на английской странице продукта висело русское
-        # «Выберите файл» — снимали-то на русской Windows.
-        f"--lang={ {'ru': 'ru', 'en': 'en-US'}[язык] }",
+        f"--user-data-dir={profile}",
+        # The file-picker button is drawn by the browser itself, and it takes its
+        # own language rather than the page's. That is why a Russian «Выберите
+        # файл» hung on the English product page — the shots were taken on a
+        # Russian Windows.
+        f"--lang={ {'ru': 'ru', 'en': 'en-US'}[lang] }",
         f"--window-size={WIDTH},{height}",
-        # Страница дорисовывает себя скриптами; без паузы снимок ловит её
-        # наполовину собранной — с непроявленными карточками и пустой шапкой.
+        # The page finishes drawing itself with scripts; without a pause the shot
+        # catches it half-assembled — cards not yet shown and an empty header.
         "--virtual-time-budget=4000",
         f"--screenshot={out}", url,
     ], check=True, capture_output=True)
 
 
-def разбор(есть: bool, язык: str) -> None:
-    """Включает и убирает глубокий разбор у верхней вакансии.
+def advice(present: bool, lang: str) -> None:
+    """Turns the deep advice on the top job on and off.
 
-    Сервер открывает базу заново на каждый запрос, так что менять её отсюда
-    можно и на ходу.
+    The server opens the database afresh on every request, so it can be changed
+    from here while everything is running.
     """
     from jobsearch import db
     with db.conn() as c:
         c.execute("UPDATE jobs SET advice=? WHERE key='a1'",
-                  (ПОКАЗАННОЕ[язык][3] if есть else "",))
+                  (SHOWN[lang][3] if present else "",))
 
 
-def тема(какая: str) -> None:
-    """Тему держит сервер, а не браузер: безголовый Chrome каждый раз приходит с
-    чистым профилем, и переключатель в окне ему не помог бы. Пишется в файл
-    состояния, который сервер перечитывает на каждой отрисовке."""
+def theme(which: str) -> None:
+    """The theme is held by the server, not the browser: headless Chrome arrives
+    with a clean profile every time, and the switch in the window would not help
+    it. It is written to the state file, which the server re-reads on every
+    render."""
     from jobsearch import appstate
-    appstate.set_theme(какая)
+    appstate.set_theme(which)
 
 
-def размер(png: Path) -> str:
-    ширина, высота = struct.unpack(">II", png.read_bytes()[16:24])
-    return f"{ширина}x{высота}"
+def size(png: Path) -> str:
+    width, height = struct.unpack(">II", png.read_bytes()[16:24])
+    return f"{width}x{height}"
 
 
 def main() -> None:
-    разбор_доводов = argparse.ArgumentParser(description=__doc__)
-    разбор_доводов.add_argument("--site", metavar="ПАПКА",
-                                help="снять набор для страницы продукта, по-английски")
-    доводы = разбор_доводов.parse_args()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--site", metavar="FOLDER",
+                        help="shoot the product-page set, in English")
+    args = parser.parse_args()
 
-    набор = "site" if доводы.site else "repo"
-    язык = "en" if доводы.site else "ru"
-    куда = Path(доводы.site).resolve() if доводы.site else OUT
-    if not куда.is_dir():
-        raise SystemExit(f"папки {куда} нет — снимать некуда")
+    flavour = "site" if args.site else "repo"
+    lang = "en" if args.site else "ru"
+    target = Path(args.site).resolve() if args.site else OUT
+    if not target.is_dir():
+        raise SystemExit(f"there is no folder {target} — nowhere to shoot into")
 
-    chrome = браузер()
+    chrome = browser()
     data = Path(tempfile.mkdtemp(prefix="aijs-shots-"))
-    профиль_браузера = Path(tempfile.mkdtemp(prefix="aijs-chrome-"))
-    print(f"набор: {набор} ({язык}) → {куда}")
-    заполнить(data, язык)
-    # Без этого файла программа зовёт себя «dev», и это видно в шапке на каждом
-    # снимке. На странице продукта такая подпись выглядит недоделкой.
-    версия = ROOT / "VERSION.txt"
-    было = версия.read_text(encoding="utf-8") if версия.exists() else None
-    версия.write_text(номер_версии(), encoding="utf-8")
-    port = свободный_порт()
-    proc = поднять(data, port)
+    browser_profile = Path(tempfile.mkdtemp(prefix="aijs-chrome-"))
+    print(f"flavour: {flavour} ({lang}) → {target}")
+    fill_in(data, lang)
+    # Without this file the program calls itself "dev", and that shows in the
+    # header on every shot. On a product page such a label looks unfinished.
+    version = ROOT / "VERSION.txt"
+    before = version.read_text(encoding="utf-8") if version.exists() else None
+    version.write_text(version_number(), encoding="utf-8")
+    port = free_port()
+    proc = serve(data, port)
     try:
-        for какая, место in (("light", 0), ("dark", 1)):
-            тема(какая)
-            for имя, путь, height, с_разбором in СТРАНИЦЫ:
-                разбор(с_разбором, язык)
-                out = куда / f"{ИМЕНА[набор][имя][место]}.png"
-                снять(chrome, f"http://127.0.0.1:{port}{путь}", out, height,
-                      профиль_браузера, язык)
-                print(f"  {out.name}: {out.stat().st_size // 1024} КБ, {размер(out)}")
+        for which, where in (("light", 0), ("dark", 1)):
+            theme(which)
+            for name, path, height, with_advice in PAGES:
+                advice(with_advice, lang)
+                out = target / f"{FILENAMES[flavour][name][where]}.png"
+                shoot(chrome, f"http://127.0.0.1:{port}{path}", out, height,
+                      browser_profile, lang)
+                print(f"  {out.name}: {out.stat().st_size // 1024} KB, {size(out)}")
     finally:
         proc.terminate()
-        версия.write_text(было, encoding="utf-8") if было else версия.unlink(missing_ok=True)
+        version.write_text(before, encoding="utf-8") if before else version.unlink(missing_ok=True)
         shutil.rmtree(data, ignore_errors=True)
-        shutil.rmtree(профиль_браузера, ignore_errors=True)
+        shutil.rmtree(browser_profile, ignore_errors=True)
 
 
 if __name__ == "__main__":
