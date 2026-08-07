@@ -519,8 +519,8 @@ async def save(request: Request, then: str = ""):
             use_workable=flag("use_workable"),
             adzuna_app_id=val("adzuna_app_id"), adzuna_app_key=val("adzuna_app_key"),
             adzuna_countries=val("adzuna_countries"), jooble_key=val("jooble_key"),
-            # Поиск в интернете силами приложения: служба выбирается из списка,
-            # чужое значение сюда попасть не должно.
+            # Searching the web with the application's own hands: the service is
+            # picked from a list, and no foreign value must get in here.
             web_search_provider=(val("web_search_provider")
                                  if val("web_search_provider") in websearch.PROVIDERS else ""),
             web_search_key=val("web_search_key"),
@@ -773,10 +773,10 @@ def results(request: Request, min: int = 50, sort: str = "default",
     lang = cfg.get("ui", {}).get("lang", "ru")
     jobs = db.matched_jobs(min_score=min, sort=sort, viewed=viewed, source=source, run_id=run,
                            posted_from=posted_from, posted_to=posted_to)
-    # Сеть заведений вешает одну вакансию по всем своим точкам, меняя город в
-    # названии. У Виктора Белоногова первые двадцать строк принадлежали четырём
-    # работодателям, а десять подряд — одной сети. Схлопываем в одну строку, но
-    # ничего не выбрасываем: остальные города видны в ней же.
+    # A restaurant chain posts one job at every one of its locations, changing
+    # the city in the title. For Viktor Belonogov the first twenty lines belonged
+    # to four employers, and ten in a row to a single chain. We collapse them into
+    # one line but throw nothing away: the other cities are visible inside it.
     jobs = filters.group_same_role(jobs)
     for j in jobs:
         try:
@@ -789,10 +789,11 @@ def results(request: Request, min: int = 50, sort: str = "default",
     runs = db.recent_runs(10)
     return render(
         request, "results.html",
-        # cfg нужен и самой странице: метку про право на работу показываем
-        # только тому, кому нужна виза, — остальным она лишний шум.
-        # Профессия из тех, что за границей требуют подтверждения. Смотрим по
-        # ролям, а не по вакансиям: вопрос про человека, а не про работу.
+        # cfg is needed by the page itself: the right-to-work badge is shown only
+        # to someone who needs a visa — for everyone else it is noise.
+        # A profession of the kind that needs recognition abroad. We go by the
+        # roles rather than the jobs: the question is about the person, not the
+        # work.
         {"cfg": cfg, "jobs": jobs, "runs": runs, "min_score": min,
          "regulated": filters.regulated_profession(cfg["profile"].get("roles", ""),
                                                    config.cv_text()),
@@ -973,9 +974,10 @@ def models_page(request: Request, msg: str = ""):
         "current_model_name": next((m["name"] for m in catalog if m["id"] == current_model), current_model),
         "specs": hardware.specs(),
         "provider_ready": bool(provs.get(provider, {}).get("ready")),
-        # Провайдера меняют и отсюда, уже после знакомства, — и упираются в ту же
-        # стену. Экрана «что нужно установить» здесь нет, но сказать про это
-        # надо и здесь: без этого карточка молча предлагает npm, которого нет.
+        # People change the provider from here too, after the welcome flow — and
+        # run into the same wall. There is no "what needs installing" screen here,
+        # but it still has to be said: without it the card silently offers npm,
+        # which is not there.
         "tool": (providers.tool_info(providers.missing_tool(provider))
                  if not provs.get(provider, {}).get("ready")
                  and providers.missing_tool(provider) else None),
@@ -1006,14 +1008,15 @@ async def models_set_provider(request: Request):
     # to the very top instead, above everything they had already read.
     back = str(form.get("back") or "/models")
     where = _reachable(back)
-    # Выбрали то, что и установить-то нечем, — ведём прямо туда, где сказано чем.
-    # Иначе человек уходит по кнопке «Скачать» в инструкцию с «npm install -g …»,
-    # а npm у него нет, и узнаёт он об этом уже в терминале.
+    # They picked something there is nothing to install it with — so we take them
+    # straight to where it says what with. Otherwise the person follows the
+    # "Download" button into instructions saying "npm install -g …", and they have
+    # no npm, and they find that out in a terminal.
     if where.startswith("/welcome") and providers.missing_tool(key):
         return _redirect_to("/welcome?step=tools", msg)
-    # Куда возвращать, решает страница, с которой пришли: у знакомства это кнопка
-    # «Далее», у страницы моделей — список. А если гейт увёл нас в другое место,
-    # то и якорь оттуда там ничего не значит.
+    # Where to return them is decided by the page they came from: in the welcome
+    # flow that is the "Next" button, on the models page the list. And if the gate
+    # took us somewhere else, an anchor from there means nothing here.
     anchor = str(form.get("anchor", "")) if where == back else ""
     return _redirect_to(where, msg, anchor=anchor)
 
@@ -1045,11 +1048,11 @@ async def models_pull(request: Request):
 
 @app.post("/models/api")
 async def models_set_api(request: Request):
-    """Свой адрес, говорящий на языке OpenAI: адрес, ключ и имя модели.
+    """Your own endpoint speaking OpenAI's language: address, key and model name.
 
-    У этого провайдера нечего искать на диске и нечего перечислять списком —
-    вместо кнопки «Выбрать» у него поля. Пустой ключ оставлен возможным: у
-    LM Studio и llama.cpp на своём компьютере его попросту нет.
+    This provider has nothing to look for on the disk and nothing to list — it has
+    fields instead of a "Choose" button. An empty key is left possible: LM Studio
+    and llama.cpp on your own computer simply do not have one.
     """
     form = await request.form()
     cfg = config.load()
@@ -1188,41 +1191,44 @@ async def app_settings(request: Request):
     return _redirect(_msg(err) if err else _msg("msg_app_settings_saved"))
 
 
-# Скачивание установщика идёт в фоне: это десятки мегабайт, и страница не должна
-# на них стоять. Здесь же видно, чем всё кончилось.
+# Downloading the installer happens in the background: it is tens of megabytes,
+# and the page must not stand waiting on them. Here is where the outcome shows.
 _update_state: dict = {"running": False, "percent": 0, "error": ""}
 
 
 @app.post("/app/update/check")
 async def app_update_check(request: Request):
-    """Спросить о новой версии прямо сейчас, не дожидаясь суточной проверки.
+    """Ask about a new version right now, without waiting for the daily check.
 
-    Возвращаем туда, откуда нажали. Прежде возвращали на главную всегда — это
-    годилось, пока кнопка была одна и стояла в настройках. Теперь она есть и в
-    шапке, то есть на всякой странице, и человека, спросившего про версию с
-    «Результатов», уносило в настройки, к чужому для него разговору.
+    We return to where it was pressed. It used to be the front page always — which
+    was fine while there was one button and it lived in the settings. Now it is in
+    the header too, that is, on every page, and a person who asked about the
+    version from "Results" was carried off to the settings, into a conversation
+    that was none of theirs.
     """
     form = await request.form()
     back = str(form.get("back", "/"))
     found = update_mod.check(force=True)
     if found.get("version"):
-        # Нашлось — ведём к кнопке установки. Она одна на всю программу и живёт
-        # в настройках, а сообщение говорит «поставить её можно ниже»: на всякой
-        # другой странице ниже нет ничего, и человек ищет то, чего там нет.
-        # Ровно это мы правили у своего адреса — и завели заново тем, что стали
-        # возвращать на страницу, откуда спросили.
+        # Found — so we lead to the install button. There is one of it in the
+        # whole program and it lives in the settings, while the message says "you
+        # can install it below": on any other page there is nothing below, and the
+        # person looks for what is not there. This is exactly what we fixed for
+        # the own-endpoint case — and brought back by starting to return to the
+        # page the question came from.
         return _redirect_to("/", _msg("update_found", version=found["version"]),
                             anchor="update")
-    # А когда ставить нечего, делать человеку негде — и уводить его незачем.
+    # And when there is nothing to install, there is nothing for the person to do
+    # anywhere — so there is no reason to take them away.
     return _redirect_to(back, _msg("update_none", version=version.current()))
 
 
 @app.post("/app/update/install")
 def app_update_install():
-    """Скачивает установщик и передаёт ему работу.
+    """Downloads the installer and hands the work over to it.
 
-    Программа при этом закрывается: установщик не может заменить файлы, которые
-    открыты. Он дождётся, пока старая копия уйдёт, и откроет новую.
+    The program closes as it does so: the installer cannot replace files that are
+    open. It will wait for the old copy to go, and open the new one.
     """
     if _update_state["running"]:
         return _redirect(_msg("update_busy"))
@@ -1239,11 +1245,11 @@ def app_update_install():
             path = update_mod.download(asset, progress=lambda p: _update_state.update(percent=p))
             update_mod.install(path)
             _update_state.update(running=False, percent=100)
-            update_mod.quit_soon()      # установщик ждёт, пока мы закроемся
+            update_mod.quit_soon()      # the installer waits for us to close
         except update_mod.UpdateError as e:
             _update_state.update(running=False, error=i18n.t(lang, e.key).format(**{
                 k: str(v) for k, v in e.fmt.items()}))
-        except Exception as e:  # noqa: BLE001 — причину надо показать, а не спрятать
+        except Exception as e:  # noqa: BLE001 — the reason must be shown, not hidden
             _update_state.update(running=False, error=str(e)[:300])
 
     threading.Thread(target=worker, daemon=True).start()
@@ -1257,16 +1263,16 @@ def app_update_status():
 
 @app.post("/app/uninstall")
 def app_uninstall():
-    """Готовит программу к удалению там, где удалять её нечем.
+    """Prepares the program for removal where there is nothing to remove it with.
 
-    На Windows этим занимается установщик. На macOS и Linux образ просто
-    перетаскивают в корзину — и данные с автозапуском остаются навсегда, потому
-    что убрать их может только сама программа, до того как её удалят. О чём
-    никто не догадывается.
+    On Windows the installer takes care of this. On macOS and Linux the image is
+    simply dragged to the bin — and the data and the autostart entry stay forever,
+    because only the program itself can clear them away, before it is deleted.
+    Which nobody thinks to do.
 
-    Поэтому здесь: выключаем автозапуск, стираем данные и показываем, что
-    осталось убрать руками. Закрываться сама программа не спешит — иначе
-    человек не успеет прочитать, что ему делать дальше.
+    Hence this: we switch off autostart, wipe the data and show what is left to
+    remove by hand. The program is in no hurry to close itself — otherwise the
+    person would not have time to read what to do next.
     """
     if pipeline.state["running"]:
         return _redirect(_msg("msg_reset_busy"))
@@ -1280,9 +1286,10 @@ def app_uninstall():
     try:
         scheduler.reschedule_all()
     except Exception:  # noqa: BLE001
-        _log_startup_problem("восстановление расписаний", traceback.format_exc())
-    # Путь — прямо в сообщении: отдельная страница «а теперь удалите вот это»
-    # потерялась бы, а закрыть программу за человека нельзя, пока он не прочёл.
+        _log_startup_problem("restoring the schedules", traceback.format_exc())
+    # The path goes right into the message: a separate "now delete this" page
+    # would get lost, and we cannot close the program for the person before they
+    # have read it.
     where = removal.program_path() or i18n.t(lang, "uninstall_from_source")
     msg = i18n.t(lang, "msg_reset_failed").format(files=", ".join(survived)) if survived \
         else i18n.t(lang, "uninstall_ready").format(path=where)
@@ -1318,7 +1325,7 @@ def app_reset():
     try:
         scheduler.reschedule_all()    # the schedules pointed at profiles that are gone
     except Exception:  # noqa: BLE001 — the data is already gone; this must not undo that
-        _log_startup_problem("восстановление расписаний", traceback.format_exc())
+        _log_startup_problem("restoring the schedules", traceback.format_exc())
     msg = i18n.t(lang, "msg_reset_failed").format(files=", ".join(survived)) if survived \
         else i18n.t(lang, "msg_reset_done")
     response = _redirect_to("/welcome", msg)
@@ -1396,7 +1403,7 @@ def export_csv(min: int = 0, sort: str = "default", viewed: str = "all",
 def export_markdown(min: int = 0, sort: str = "default", viewed: str = "all",
                     source: str = "all", run: int = 0,
                     posted_from: str = "", posted_to: str = ""):
-    """Разметкой — её вставляют в заметки, письмо или переписку."""
+    """As markup — it gets pasted into notes, a letter or a chat."""
     cfg = config.load()
     lang = cfg.get("ui", {}).get("lang", "ru")
     jobs, name, safe = _export_jobs(min, sort, viewed, source, run, posted_from, posted_to)
@@ -1413,7 +1420,7 @@ def export_markdown(min: int = 0, sort: str = "default", viewed: str = "all",
 def export_json(min: int = 0, sort: str = "default", viewed: str = "all",
                 source: str = "all", run: int = 0,
                 posted_from: str = "", posted_to: str = ""):
-    """Для тех, кто хочет обработать выгрузку своей программой."""
+    """For anyone who wants to process the export with their own program."""
     cfg = config.load()
     lang = cfg.get("ui", {}).get("lang", "ru")
     jobs, name, safe = _export_jobs(min, sort, viewed, source, run, posted_from, posted_to)
@@ -1439,11 +1446,12 @@ def export_report(min: int = 0, sort: str = "default", viewed: str = "all",
                                   note=_filter_note(lang, min, sort, viewed, source, run,
                                                     posted_from, posted_to),
                                   print_label=i18n.t(lang, "export_print"))
-    # Отчёт открывается, а не скачивается, и это не мелочь: подсказка рядом с
-    # кнопкой обещает «открыть и распечатать в PDF», а отдавался он файлом на
-    # скачивание. В окне программы от этого не происходило вообще ничего —
-    # pywebview скачивать не даёт, — и человек жал кнопку впустую. Печать в PDF
-    # делается из открытой страницы, так что открыть её и надо.
+    # The report opens rather than downloads, and that is no small thing: the hint
+    # beside the button promises "open and print to PDF", while it was handed over
+    # as a file to download. In the program's own window nothing happened at all —
+    # pywebview does not allow downloads — and the person pressed the button for
+    # nothing. Printing to PDF is done from an open page, so opening it is what is
+    # needed.
     return Response(content=html_doc, media_type="text/html; charset=utf-8")
 
 
@@ -1648,8 +1656,8 @@ async def first_run_gate(request: Request, call_next):
     return await call_next(request)
 
 
-# Зарегистрирована последней и потому срабатывает первой — см. пояснение к
-# _from_this_program наверху файла.
+# Registered last and therefore runs first — see the explanation beside
+# _from_this_program at the top of the file.
 @app.middleware("http")
 async def only_from_here(request: Request, call_next):
     if _hostname(request.headers.get("host", "")) not in _LOCAL_HOSTS:
@@ -1757,12 +1765,12 @@ async def provider_recheck(request: Request):
 
 @app.post("/tool/install")
 async def tool_install(request: Request):
-    """Открывает страницу загрузки того, без чего провайдера не установить.
+    """Opens the download page for what a provider cannot be installed without.
 
-    Отдельно от /provider/install, потому что это разные вещи: там ставят саму
-    программу, здесь — то, чем её ставят. Адрес берётся из таблицы по коду, как
-    и у пожертвований: со страницы приходит только код, и открыть по этой кнопке
-    произвольный адрес нельзя.
+    Separate from /provider/install, because these are different things: there the
+    program itself is installed, here what installs it. The address is taken from
+    a table by its code, as with the donation links: only a code arrives from the
+    page, and an arbitrary address cannot be opened by this button.
     """
     form = await request.form()
     key = str(form.get("tool", ""))
@@ -1776,13 +1784,14 @@ async def tool_install(request: Request):
 
 @app.post("/tool/recheck")
 async def tool_recheck(request: Request):
-    """Посмотреть заново — человек только что вернулся с установки."""
+    """Look again — the person has just come back from installing."""
     form = await request.form()
     back = str(form.get("back") or "/welcome?step=tools")
     key = str(form.get("tool", ""))
-    # Про незнакомый код сказать нечего, а сказать что-нибудь всё равно придётся —
-    # и в сообщение уехал бы сам ключ перевода, «tool_чтототам». Это мы уже
-    # проходили: непереведённый ключ на экране выглядит как поломка.
+    # There is nothing to say about an unknown code, and something would have to
+    # be said anyway — and the translation key itself, "tool_whatever", would ride
+    # into the message. We have been through this: an untranslated key on the
+    # screen looks like a breakage.
     if key not in providers.TOOLS:
         return _redirect_to(_reachable(back), _msg("msg_install_unknown"))
     providers.forget_binaries()
@@ -1791,8 +1800,8 @@ async def tool_recheck(request: Request):
     if ready:
         msg = _msg("msg_recheck_found", name=name)
     elif version:
-        # Нашёлся, но старый. Сказать «не найден» тому, у кого он есть, — значит
-        # отправить его ставить второй раз то же самое.
+        # Found but old. Telling someone who has it that it is "not found" means
+        # sending them off to install the same thing a second time.
         msg = _msg("tool_too_old", name=name, found=version,
                    need=providers.TOOLS.get(key, {}).get("min_major", ""))
     else:
@@ -1822,12 +1831,13 @@ async def donate(request: Request):
 
 @app.get("/welcome")
 def welcome(request: Request, msg: str = "", step: str = ""):
-    """Знакомство идёт по шагам: сперва чем считать, потом какой моделью.
+    """The welcome goes step by step: first what to think with, then which model.
 
-    Оба вопроса стояли на одной странице, и человек читал их как один. Под
-    заголовком «Какой моделью» у выбранного Claude Code он видел кнопку
-    «Скачать» и подпись про Ollama — и спрашивал, надо ли скачивать модель на
-    компьютер. Это разные вопросы, и задавать их надо порознь.
+    Both questions used to stand on one page, and people read them as one. Under
+    the heading "Which model", with Claude Code chosen, they saw a "Download"
+    button and a caption about Ollama — and asked whether a model had to be
+    downloaded onto the computer. These are different questions, and they must be
+    asked separately.
     """
     cfg = config.load()
     provider = cfg["llm"].get("provider", "claude_cli")
@@ -1841,21 +1851,24 @@ def welcome(request: Request, msg: str = "", step: str = ""):
     # the model inside it. The same answer decides whether the app opens at all,
     # so it is worked out in one place for both.
     blocked_by = providers.missing_piece(cfg["llm"])
-    # Чего не хватает, чтобы установить саму программу. Спрашиваем только про
-    # выбранного провайдера и только когда он ещё не установлен: остальным семи
-    # это стоило бы по запуску node на каждую отрисовку страницы ни за чем.
+    # What is missing before the program itself can be installed. We ask only
+    # about the chosen provider, and only while it is not installed yet: for the
+    # other seven this would cost a run of node on every page draw for nothing.
     tool = providers.missing_tool(provider) if blocked_by == "provider" else ""
-    # На второй шаг нечего идти, пока не решён первый: без установленной
-    # программы список моделей — это список того, чем всё равно не воспользуешься.
+    # There is no point going to the second step while the first is unresolved:
+    # without the program installed, a list of models is a list of what cannot be
+    # used anyway.
     if step == "model" and blocked_by == "provider":
         step = "tools" if tool else ""
-    # И обратно: экран «что нужно установить» не должен становиться тупиком.
-    # Нужное поставили — человека там больше нечем занять.
+    # And the other way round: the "what needs installing" screen must not become
+    # a dead end. Once the missing piece is installed, there is nothing left to
+    # keep the person there.
     if step == "tools" and not tool:
         step = "model" if blocked_by == "model" else ""
     return render(request, "welcome.html", {
-        # cfg нужен самой странице: у своего адреса на втором шаге вместо списка
-        # моделей стоят поля, и значения в них берутся из настроек
+        # cfg is needed by the page itself: for your own endpoint the second step
+        # has fields instead of a list of models, and their values come from the
+        # settings
         "cfg": cfg,
         "msg": msg, "provs": provs, "current_provider": provider, "step": step,
         "current_model": current_model, "models": catalog,
