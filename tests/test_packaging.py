@@ -10,51 +10,51 @@ import re
 import sys
 from pathlib import Path
 
-КОРЕНЬ = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(КОРЕНЬ / "packaging"))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "packaging"))
 
 import system_libraries  # noqa: E402
 
 
-def test_библиотека_из_той_самой_поломки_признаётся_системной():
+def test_the_library_from_that_very_breakage_counts_as_system():
     """GLib and what it stands on: this is the pair that came apart — the system's
     libsecret asked the build's older GLib for a symbol it did not have."""
-    for имя in ("libglib-2.0.so.0", "libgobject-2.0.so.0", "libgio-2.0.so.0",
+    for name in ("libglib-2.0.so.0", "libgobject-2.0.so.0", "libgio-2.0.so.0",
                 "libpcre2-8.so.0", "libsecret-1.so.0"):
-        assert system_libraries.is_system_library(имя), f"{имя} останется в сборке"
+        assert system_libraries.is_system_library(name), f"{name} would stay in the build"
 
 
-def test_гтк_и_то_чем_он_рисует_тоже_системные():
-    for имя in ("libgtk-3.so.0", "libgdk_pixbuf-2.0.so.0", "libcairo.so.2",
+def test_gtk_and_what_it_draws_with_are_system_too():
+    for name in ("libgtk-3.so.0", "libgdk_pixbuf-2.0.so.0", "libcairo.so.2",
                 "libpango-1.0.so.0", "libfontconfig.so.1", "libX11.so.6"):
-        assert system_libraries.is_system_library(имя), f"{имя} останется в сборке"
+        assert system_libraries.is_system_library(name), f"{name} would stay in the build"
 
 
-def test_свои_библиотеки_остаются_в_сборке():
+def test_our_own_libraries_stay_in_the_build():
     """Not everything with lib in the name belongs to the desktop. These are ours:
     the system's GTK never reaches for them, so a copy inside shadows nothing —
     and saves the program on a machine that happens to lack one."""
-    for имя in ("libpython3.12.so.1.0", "libssl.so.3", "libcrypto.so.3",
+    for name in ("libpython3.12.so.1.0", "libssl.so.3", "libcrypto.so.3",
                 "libsqlite3.so.0", "libz.so.1", "libffi.so.8",
                 "libgirepository-1.0.so.1"):
-        assert not system_libraries.is_system_library(имя), f"{имя} выбросят из сборки"
+        assert not system_libraries.is_system_library(name), f"{name} would be thrown out of the build"
 
 
-def test_путь_с_папкой_разбирается():
+def test_a_path_with_a_folder_is_parsed():
     """PyInstaller lists some libraries inside folders of their own."""
     assert system_libraries.is_system_library("gi/libglib-2.0.so.0")
 
 
-def test_не_библиотеки_не_трогаем():
+def test_non_libraries_are_left_alone():
     """The check is about shared libraries. A data file whose name begins the same
     way must survive: throwing one out would break the build in a new way."""
     assert not system_libraries.is_system_library("girepository-1.0/Gtk-3.0.typelib")
     assert not system_libraries.is_system_library("libglib-2.0.txt")
 
 
-def test_сборка_действительно_применяет_отбор():
+def test_the_spec_really_applies_the_filter():
     """The rule is worth nothing if the spec forgets to use it — and forgetting is
     silent: the build succeeds, and the window stops opening in somebody's hands."""
-    spec = (КОРЕНЬ / "packaging" / "aijobsearch.spec").read_text(encoding="utf-8")
-    assert "system_libraries.is_system_library" in spec, "спек не отбрасывает системные библиотеки"
-    assert re.search(r"a\.binaries\s*=", spec), "спек не переписывает список библиотек"
+    spec = (ROOT / "packaging" / "aijobsearch.spec").read_text(encoding="utf-8")
+    assert "system_libraries.is_system_library" in spec, "the spec does not drop system libraries"
+    assert re.search(r"a\.binaries\s*=", spec), "the spec does not rewrite the library list"
