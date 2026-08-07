@@ -1,38 +1,39 @@
-"""Командные строки, которыми можно думать.
+"""The command-line tools you can think with.
 
-Главное требование к ним у нас одно и оно неочевидное: задание должно уходить
-через stdin, а не аргументом командной строки. Наши запросы бывают в тысячи
-знаков, с переносами, кавычками и кириллицей, а длина командной строки
-ограничена — на Linux около двух мегабайт. Именно на таких запросах она и
-кончается, и программа падает с «argument list too long». Поэтому те, кто умеет
-читать только аргумент, сюда не годятся, и проверка на это здесь же.
+We have one requirement of them, and it is not the obvious one: the task must go
+through stdin, not as a command-line argument. Our prompts run to thousands of
+characters, with newlines, quotes and Cyrillic in them, and the length of a
+command line is limited — about two megabytes on Linux. Prompts like these are
+exactly where it runs out, and the program dies with "argument list too long".
+So tools that can only read an argument will not do here, and the check for that
+lives here as well.
 """
 import pytest
 
 from jobsearch import i18n, providers
 
-ЗАПРОС = "Оцени вакансию.\nВторая строка с «кавычками» и переносом.\n" * 200
+PROMPT = "Оцени вакансию.\nВторая строка с «кавычками» и переносом.\n" * 200
 
 
-class Прогон:
-    def __init__(self, stdout="ответ модели", code=0, stderr=""):
+class Run:
+    def __init__(self, stdout="the model's answer", code=0, stderr=""):
         self.stdout, self.returncode, self.stderr = stdout, code, stderr
 
 
-def перехват(monkeypatch, **ответ):
-    """Подменяет запуск программы и запоминает, чем её звали."""
-    поймано = {}
+def intercept(monkeypatch, **answer):
+    """Stands in for running the program and remembers what it was called with."""
+    caught = {}
 
     def run(cmd, **kw):
-        поймано.update(cmd=cmd, stdin=kw.get("input"), cwd=kw.get("cwd"))
-        return Прогон(**ответ)
+        caught.update(cmd=cmd, stdin=kw.get("input"), cwd=kw.get("cwd"))
+        return Run(**answer)
 
     monkeypatch.setattr(providers.subprocess, "run", run)
     monkeypatch.setattr(providers, "resolve_bin", lambda name: f"/usr/bin/{name}")
-    return поймано
+    return caught
 
 
-ВЫЗОВЫ = [
+CALLS = [
     ("copilot_cli", providers.call_copilot, "copilot"),
     ("goose_cli", providers.call_goose, "goose"),
     ("qwen_cli", providers.call_qwen, "qwen"),
@@ -40,116 +41,117 @@ def перехват(monkeypatch, **ответ):
 ]
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_задание_уходит_через_stdin_а_не_аргументом(monkeypatch, код, вызов, программа):
-    """Тот самый предел длины командной строки. Запрос длинный нарочно."""
-    поймано = перехват(monkeypatch)
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_the_task_goes_through_stdin_not_as_an_argument(monkeypatch, code, call, program):
+    """That very command-line length limit. The prompt is long on purpose."""
+    caught = intercept(monkeypatch)
 
-    вызов(ЗАПРОС, "auto", timeout=60)
+    call(PROMPT, "auto", timeout=60)
 
-    assert поймано["stdin"] == ЗАПРОС, f"{программа}: задание не подано на вход"
-    склеено = " ".join(поймано["cmd"])
-    assert "Оцени вакансию" not in склеено, \
-        f"{программа}: задание попало в аргументы — на длинном запросе это оборвётся"
-
-
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_зовём_ту_программу_что_обещали(monkeypatch, код, вызов, программа):
-    поймано = перехват(monkeypatch)
-    вызов("привет", "auto", timeout=60)
-    assert поймано["cmd"][0].endswith(программа)
+    assert caught["stdin"] == PROMPT, f"{program}: the task was not fed to stdin"
+    joined = " ".join(caught["cmd"])
+    assert "Оцени вакансию" not in joined, \
+        f"{program}: the task went into the arguments — a long prompt would be cut off"
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_ответ_очищается_от_пробелов(monkeypatch, код, вызов, программа):
-    перехват(monkeypatch, stdout="  готово  \n")
-    assert вызов("привет", "auto", timeout=60) == "готово"
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_we_call_the_program_we_promised(monkeypatch, code, call, program):
+    caught = intercept(monkeypatch)
+    call("hello", "auto", timeout=60)
+    assert caught["cmd"][0].endswith(program)
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_авто_не_называет_модель(monkeypatch, код, вызов, программа):
-    """«Авто» значит «не называть модель»: тогда берётся настроенная у самой
-    программы. Имена моделей у них меняются чаще наших версий, и устаревшее имя
-    в списке сломало бы поиск, а «Авто» — нет."""
-    поймано = перехват(monkeypatch)
-    вызов("привет", "auto", timeout=60)
-    assert not [a for a in поймано["cmd"] if a.startswith("--model")], \
-        f"{программа}: при «Авто» всё-таки назвали модель"
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_the_answer_is_stripped_of_whitespace(monkeypatch, code, call, program):
+    intercept(monkeypatch, stdout="  done  \n")
+    assert call("hello", "auto", timeout=60) == "done"
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_названная_модель_доезжает(monkeypatch, код, вызов, программа):
-    поймано = перехват(monkeypatch)
-    вызов("привет", "какая-то-модель", timeout=60)
-    assert "какая-то-модель" in " ".join(поймано["cmd"])
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_auto_does_not_name_a_model(monkeypatch, code, call, program):
+    """"Auto" means "do not name a model": then whatever the program itself is set
+    up with gets used. Their model names change more often than our versions do,
+    and a stale name in the list would break a search, while "Auto" will not."""
+    caught = intercept(monkeypatch)
+    call("hello", "auto", timeout=60)
+    assert not [a for a in caught["cmd"] if a.startswith("--model")], \
+        f"{program}: a model was named after all, with Auto chosen"
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_ошибка_программы_объясняется(monkeypatch, код, вызов, программа):
-    перехват(monkeypatch, code=1, stderr="кончились деньги")
-    with pytest.raises(providers.ProviderError) as поймано:
-        вызов("привет", "auto", timeout=60)
-    assert "кончились деньги" in str(поймано.value)
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_a_named_model_arrives(monkeypatch, code, call, program):
+    caught = intercept(monkeypatch)
+    call("hello", "some-model", timeout=60)
+    assert "some-model" in " ".join(caught["cmd"])
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_молчаливое_падение_тоже_объясняется(monkeypatch, код, вызов, программа):
-    """Пустой вывод и ненулевой код: сказать «не получилось» всё равно надо."""
-    перехват(monkeypatch, code=137, stdout="", stderr="")
-    with pytest.raises(providers.ProviderError) as поймано:
-        вызов("привет", "auto", timeout=60)
-    assert поймано.value.key == "prov_err_exit_code"
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_the_programs_error_is_explained(monkeypatch, code, call, program):
+    intercept(monkeypatch, code=1, stderr="out of credit")
+    with pytest.raises(providers.ProviderError) as caught:
+        call("hello", "auto", timeout=60)
+    assert "out of credit" in str(caught.value)
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_ненайденная_программа_названа(monkeypatch, код, вызов, программа):
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_a_silent_failure_is_explained_too(monkeypatch, code, call, program):
+    """Empty output and a non-zero code: we still have to say it did not work."""
+    intercept(monkeypatch, code=137, stdout="", stderr="")
+    with pytest.raises(providers.ProviderError) as caught:
+        call("hello", "auto", timeout=60)
+    assert caught.value.key == "prov_err_exit_code"
+
+
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_a_program_that_was_not_found_is_named(monkeypatch, code, call, program):
     monkeypatch.setattr(providers, "resolve_bin", lambda name: "")
     monkeypatch.setattr(providers.subprocess, "run",
-                        lambda *a, **kw: pytest.fail("полезли запускать то, чего нет"))
-    with pytest.raises(providers.ProviderError) as поймано:
-        вызов("привет", "auto", timeout=60)
-    assert программа in i18n.t("en", поймано.value.key).lower() \
-        or "not found" in i18n.t("en", поймано.value.key).lower()
+                        lambda *a, **kw: pytest.fail("we went off to run something that is not there"))
+    with pytest.raises(providers.ProviderError) as caught:
+        call("hello", "auto", timeout=60)
+    assert program in i18n.t("en", caught.value.key).lower() \
+        or "not found" in i18n.t("en", caught.value.key).lower()
 
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_работаем_в_пустой_служебной_папке(monkeypatch, код, вызов, программа):
-    """Иначе программа осматривается вокруг себя, и на macOS система начинает
-    спрашивать разрешения на Документы и Фото — от нашего имени."""
-    поймано = перехват(monkeypatch)
-    вызов("привет", "auto", timeout=60)
-    assert поймано["cwd"] and "cli-work" in str(поймано["cwd"])
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_we_work_in_an_empty_scratch_folder(monkeypatch, code, call, program):
+    """Otherwise the program looks around itself, and on macOS the system starts
+    asking for permission to Documents and Photos — in our name."""
+    caught = intercept(monkeypatch)
+    call("hello", "auto", timeout=60)
+    assert caught["cwd"] and "cli-work" in str(caught["cwd"])
 
 
-# --- Как они выглядят для остальной программы -----------------------------------
+# --- How they look to the rest of the program ---------------------------------
 
-@pytest.mark.parametrize("код,вызов,программа", ВЫЗОВЫ)
-def test_общий_вызов_ведёт_куда_надо(monkeypatch, код, вызов, программа):
-    поймано = перехват(monkeypatch)
-    providers.call("привет", код, model="auto", timeout=60)
-    assert поймано["cmd"][0].endswith(программа)
-
-
-@pytest.mark.parametrize("код", [к for к, _, _ in ВЫЗОВЫ])
-def test_у_каждого_есть_список_моделей_и_название(код):
-    """Пустой список оставил бы человека на втором шаге знакомства ни с чем."""
-    модели = providers.models_for(код, lang="en")
-    assert модели, f"{код}: нечего выбрать"
-    assert модели[0]["id"], f"{код}: у модели нет опознавателя"
-    assert i18n.t("en", "prov_" + код) != "prov_" + код, f"{код}: без названия"
+@pytest.mark.parametrize("code,call,program", CALLS)
+def test_the_shared_call_leads_where_it_should(monkeypatch, code, call, program):
+    caught = intercept(monkeypatch)
+    providers.call("hello", code, model="auto", timeout=60)
+    assert caught["cmd"][0].endswith(program)
 
 
-@pytest.mark.parametrize("код", [к for к, _, _ in ВЫЗОВЫ])
-def test_веб_поиск_обещает_только_тот_кто_умеет(код):
-    """Обещать веб-поиск, которого нет, хуже, чем не обещать: без него
-    отключается поиск новых компаний, и человек должен знать об этом заранее."""
-    assert providers.supports_web_search(код) is False
+@pytest.mark.parametrize("code", [c for c, _, _ in CALLS])
+def test_each_one_has_a_model_list_and_a_name(code):
+    """An empty list would leave a person at the second step with nothing at all."""
+    models = providers.models_for(code, lang="en")
+    assert models, f"{code}: nothing to choose from"
+    assert models[0]["id"], f"{code}: the model has no id"
+    assert i18n.t("en", "prov_" + code) != "prov_" + code, f"{code}: no name"
 
 
-def test_все_провайдеры_названы_и_описаны():
-    """Каждая карточка на первом шаге берёт три строки из переводов. Пропуск
-    любой оставил бы на экране служебное имя ключа."""
-    for код in providers.available("claude", {}):
-        for хвост in ("", "_hint", "_about"):
-            ключ = f"prov_{код}{хвост}"
-            assert i18n.t("en", ключ) != ключ, f"нет строки {ключ}"
+@pytest.mark.parametrize("code", [c for c, _, _ in CALLS])
+def test_only_those_that_can_search_promise_a_web_search(code):
+    """Promising a web search that is not there is worse than not promising one:
+    without it, scouting for new companies is switched off, and a person should
+    know that in advance."""
+    assert providers.supports_web_search(code) is False
+
+
+def test_every_provider_is_named_and_described():
+    """Every card on the first step takes three strings from the translations.
+    Missing any one of them would leave the raw key name on the screen."""
+    for code in providers.available("claude", {}):
+        for suffix in ("", "_hint", "_about"):
+            key = f"prov_{code}{suffix}"
+            assert i18n.t("en", key) != key, f"no string for {key}"
