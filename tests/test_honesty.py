@@ -361,16 +361,16 @@ def test_источники_помечают_найденное_по_запро�
     """Метку ставит collect(), по одному списку — иначе она разойдётся с тем,
     кто на самом деле ищет по словам."""
     from jobsearch.collectors import aggregators
-    имена = {и[4] for и in aggregators.ИСТОЧНИКИ}
-    assert aggregators.ИЩУТ_ПО_СЛОВАМ <= имена, "в списке ищущих есть несуществующий сборщик"
-    assert "eures" in aggregators.ИЩУТ_ПО_СЛОВАМ
-    assert "arbeitnow" not in aggregators.ИЩУТ_ПО_СЛОВАМ, "он отдаёт всю ленту"
+    имена = {и[4] for и in aggregators.SOURCES}
+    assert aggregators.SEARCH_BY_WORDS <= имена, "в списке ищущих есть несуществующий сборщик"
+    assert "eures" in aggregators.SEARCH_BY_WORDS
+    assert "arbeitnow" not in aggregators.SEARCH_BY_WORDS, "он отдаёт всю ленту"
 
 
 def test_метка_ставится_только_ищущим(monkeypatch):
     from jobsearch import config
     from jobsearch.collectors import aggregators
-    for имя in {и[4] for и in aggregators.ИСТОЧНИКИ}:
+    for имя in {и[4] for и in aggregators.SOURCES}:
         monkeypatch.setattr(aggregators, имя,
                             lambda cfg, log, _и=имя: [{"title": _и, "source": _и}])
     вакансии = aggregators.collect(config.DEFAULTS, lambda *a: None, [])

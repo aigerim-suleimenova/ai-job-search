@@ -252,7 +252,7 @@ def test_список_источников_и_опрос_не_расходятс
     from jobsearch import config
     from jobsearch.collectors import aggregators
     # Сборщики подменяем: проверяем, кого позвали, а не что ответит сеть.
-    for *_, сборщик in aggregators.ИСТОЧНИКИ:
+    for *_, сборщик in aggregators.SOURCES:
         monkeypatch.setattr(aggregators, сборщик, lambda cfg, log: [])
     опрошены = []
     cfg = config.DEFAULTS
