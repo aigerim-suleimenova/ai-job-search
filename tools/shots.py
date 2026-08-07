@@ -90,7 +90,7 @@ def browser() -> str:
         found = shutil.which(name)
         if found:
             return found
-        raise SystemExit("neither Chrome nor Edge was found — nothing to shoot with")
+    raise SystemExit("neither Chrome nor Edge was found — nothing to shoot with")
 
 
 def version_number() -> str:
