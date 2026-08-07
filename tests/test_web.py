@@ -374,10 +374,10 @@ def test_признак_ищется_целым_словом():
     """Короткий признак садился внутрь длинного слова. Это и есть корень всех
     промахов выше: «ca» в «Canada», «us» нашлось бы в «Belarus»."""
     from jobsearch import filters
-    assert filters._есть(" berkeley, ca ", ["ca"]) is True
-    assert filters._есть(" calgary, canada ", ["ca"]) is False
-    assert filters._есть(" minsk, belarus ", ["us"]) is False
-    assert filters._есть(" austin, us ", ["us"]) is True
+    assert filters._has(" berkeley, ca ", ["ca"]) is True
+    assert filters._has(" calgary, canada ", ["ca"]) is False
+    assert filters._has(" minsk, belarus ", ["us"]) is False
+    assert filters._has(" austin, us ", ["us"]) is True
 
 
 def test_eures_спрашиваем_только_про_свои_страны():
@@ -385,7 +385,7 @@ def test_eures_спрашиваем_только_про_свои_страны():
     впустую потратить запрос, а их всего по одному на слово."""
     from jobsearch import filters
     места = filters.parse_locations("США, Германия, Бразилия, Нидерланды")
-    assert set(filters.country_codes(места, только=filters.EURES_КОДЫ)) == {"DE", "NL"}
+    assert set(filters.country_codes(места, только=filters.EURES_CODES)) == {"DE", "NL"}
     assert set(filters.country_codes(места)) == {"US", "DE", "BR", "NL"}
 
 

@@ -40,10 +40,11 @@ US_MARKERS = [
     "united states", "usa", "u.s.", "us", "america",
     "new york", "san francisco", "bay area", "seattle", "austin", "boston",
     "los angeles", "chicago", "denver", "miami", "atlanta", "washington",
-    # Сокращения штатов. Раньше писались с запятой — «, ca» — и искались простой
-    # подстрокой, отчего «Calgary, Canada» совпадало с Калифорнией и канадские
-    # вакансии шли в поиск по США. Двадцать шесть штук за один прогон. Теперь
-    # ищется целым словом, и «, canada» больше ни с чем не путается.
+    # State abbreviations. They used to be written with a comma — ", ca" — and
+    # searched for as a plain substring, so that "Calgary, Canada" matched
+    # California and Canadian jobs went into a search for the US. Twenty-six of
+    # them in a single run. Now the match is on a whole word, and ", canada" is
+    # no longer confused with anything.
     "ny", "ca", "tx", "wa", "ma", "co", "fl", "il",
 ]
 
@@ -59,17 +60,17 @@ AGENCY_MARKERS = [
 ]
 
 
-def _есть(loc: str, маркеры) -> bool:
-    """Встречается ли в строке хоть один признак — целым словом, а не куском.
+def _has(loc: str, markers) -> bool:
+    """Whether the string carries any of the markers — as a whole word, not a piece.
 
-    Простое вхождение подводило одинаково всюду: короткий признак садился внутрь
-    длинного слова. «ca» — сокращение Калифорнии — находилось в «Calgary,
-    Canada», и канадские вакансии шли в поиск по США: двадцать шесть штук за
-    один прогон у человека, который Канады не просил. Чем короче признак, тем
-    чаще так выходит, а короткие признаки как раз самые нужные — коды штатов и
-    названия стран.
+    A plain substring test let us down everywhere alike: a short marker settled
+    inside a longer word. "ca", the abbreviation for California, was found in
+    "Calgary, Canada", and Canadian jobs went into a search for the US:
+    twenty-six of them in a single run, for a person who had not asked for
+    Canada. The shorter the marker, the more often this happens — and short
+    markers are exactly the ones we need most: state codes and country names.
     """
-    return any(re.search(rf"(?<!\w){re.escape(m)}(?!\w)", loc) for m in маркеры)
+    return any(re.search(rf"(?<!\w){re.escape(m)}(?!\w)", loc) for m in markers)
 
 
 def job_key(company: str, title: str) -> str:
@@ -81,26 +82,27 @@ def parse_locations(raw: str) -> list:
     return [t.strip().lower() for t in re.split(r"[,;]", raw or "") if t.strip()]
 
 
-# Страны, каждая одной строкой: код — каким её называет источник, имя — каким
-# её пишем мы, дальше как её пишут люди и её города.
+# Countries, one line each: the code is what a source calls it, the name is what
+# we write, then how people write it, then its cities.
 #
-# Код понадобился из-за EURES: он отдаёт место двухбуквенным кодом и ничем
-# больше — «BE», «SE», «FR». Мы клали этот код в поле места как есть, а фильтр
-# сравнивал его со словом «нидерланды» — и выбрасывал всё. Двести двадцать семь
-# вакансий за прогон, до единой, каждый раз. И это при том, что EURES —
-# единственный наш источник, который знает все профессии и все страны ЕС: ради
-# него всё и затевалось, а он не отдал ни одной вакансии ни разу.
+# The code was needed because of EURES: it hands back a location as a two-letter
+# code and nothing else — "BE", "SE", "FR". We put that code into the location
+# field as it was, and the filter compared it against the word «нидерланды» — and
+# threw everything out. Two hundred and twenty-seven jobs per run, every single
+# one, every time. And this from EURES, our one source that knows every
+# occupation and every country in the EU: the whole thing was started for its
+# sake, and it never yielded a single job.
 #
-# Имена нужны были и сами по себе. Страны, кроме Италии и Германии, здесь не
-# значились вовсе, и «Франция» сверялась простым вхождением: место «Paris,
-# France» человеку, написавшему «Франция», не годилось. По-русски искать можно
-# было в двух странах из тридцати одной.
+# The names were needed in their own right. Countries other than Italy and
+# Germany were not listed here at all, and «Франция» was checked by plain
+# substring: the location "Paris, France" did not suit a person who had written
+# «Франция». Searching in Russian worked for two countries out of thirty-one.
 #
-# Города — потому что в объявлении часто стоит только город: «Milano»,
-# «München», и страну надо узнать по нему.
+# The cities, because a posting often carries only the city: "Milano",
+# "München", and the country has to be worked out from it.
 #
-#     код: (имя, как ещё пишут, города)
-СТРАНЫ = {
+#     code: (name, other spellings, cities)
+COUNTRIES = {
     "AT": ("Austria", ["österreich", "oesterreich", "австрия"],
            ["vienna", "wien", "graz", "linz", "salzburg", "innsbruck"]),
     "BE": ("Belgium", ["belgië", "belgie", "belgique", "belgien", "бельгия"],
@@ -171,7 +173,7 @@ def parse_locations(raw: str) -> list:
 
 # Коды, которые понимает EURES, — ровно те тридцать одна страна, что выше. Ниже
 # идёт остальной мир: он нужен фильтру, но спрашивать про него EURES бесполезно.
-EURES_КОДЫ = frozenset(СТРАНЫ)
+EURES_CODES = frozenset(COUNTRIES)
 
 # Остальной мир. Без него выходило вот что: человек пишет «Россия, Омск», а
 # «Москва» отсеивается — слова «россия» в строке нет, а справочника, который
@@ -181,7 +183,7 @@ EURES_КОДЫ = frozenset(СТРАНЫ)
 #
 # Города здесь скупее, чем у европейских: список нужен, чтобы узнать страну и не
 # перепутать её с чужой, а не чтобы знать все её города.
-СТРАНЫ.update({
+COUNTRIES.update({
     "US": ("United States", ["сша", "америка", "usa", "u.s."],
            ["new york", "san francisco", "bay area", "seattle", "austin", "boston",
             "los angeles", "chicago", "denver", "miami", "atlanta", "washington",
@@ -261,7 +263,7 @@ EURES_КОДЫ = frozenset(СТРАНЫ)
 
 def country_name(code: str) -> str:
     """Имя страны по коду — тем источникам, что отдают только код."""
-    сведения = СТРАНЫ.get((code or "").strip().upper())
+    сведения = COUNTRIES.get((code or "").strip().upper())
     return сведения[0] if сведения else (code or "")
 
 
@@ -274,7 +276,7 @@ def country_codes(wanted: list, только=None) -> list:
     потратить запрос.
     """
     коды = []
-    for код, (имя, псевдонимы, города) in СТРАНЫ.items():
+    for код, (имя, псевдонимы, города) in COUNTRIES.items():
         if только is not None and код not in только:
             continue
         свои = {имя.lower(), *псевдонимы}
@@ -286,25 +288,25 @@ def country_codes(wanted: list, только=None) -> list:
 # individual countries: postings often name only the city ("Milano", "München")
 # without the country — so a country token has to match its cities too
 COUNTRY_MARKERS = {}
-for _код, (_имя, _псевдонимы, _города) in СТРАНЫ.items():
-    _маркеры = sorted({_имя.lower(), *_псевдонимы, *_города})
-    for _как_пишут in {_имя.lower(), *_псевдонимы}:
-        COUNTRY_MARKERS[_как_пишут] = _маркеры
+for _code, (_name, _aliases, _cities) in COUNTRIES.items():
+    _markers = sorted({_name.lower(), *_aliases, *_cities})
+    for _spelling in {_name.lower(), *_aliases}:
+        COUNTRY_MARKERS[_spelling] = _markers
 
-# Все места, какие мы вообще знаем, одним списком — чтобы отвечать на вопрос
-# «названо ли тут хоть что-то, кроме слова „удалённо“». Без Кении в этом списке
-# «Kenya, Remote» считалось работой откуда угодно и шло в поиск по России.
-ВСЕ_МЕСТА = sorted({м for _маркеры in COUNTRY_MARKERS.values() for м in _маркеры})
+# Every place we know at all, as one list — so we can answer the question "is
+# anything named here besides the word 'remote'". Without Kenya on this list,
+# "Kenya, Remote" counted as work-from-anywhere and went into a search for Russia.
+ALL_PLACES = sorted({m for _markers in COUNTRY_MARKERS.values() for m in _markers})
 
 
-# Область целиком, а не отдельная страна: вакансия, названная так, подходит
-# любому, кто ищет внутри этой области.
+# A whole region rather than a single country: a job named this way suits anyone
+# searching inside that region.
 WIDE_EU_MARKERS = ["europe", "european union", "eu", "emea",
                    "dach", "benelux", "nordics", "baltics", "европ"]
 
 
-# Области и страны за пределами двух наших списков. Без них «APAC, Remote»
-# считалось бы работой откуда угодно и приходило бы в поиск по Европе.
+# Regions and countries outside our two lists. Without them "APAC, Remote" would
+# count as work-from-anywhere and turn up in a search for Europe.
 OTHER_PLACE_MARKERS = [
     "apac", "latam", "emea excl", "anz", "australia", "new zealand",
     "canada", "brazil", "brasil", "argentina", "mexico", "india", "singapore",
@@ -317,80 +319,82 @@ _REMOTE_TOKENS = ("remote", "удаленно", "удалённо", "anywhere", 
 
 
 def _only_remote(wanted: list) -> bool:
-    """Человек назвал «удалённо» и больше ничего — значит и правда откуда угодно."""
+    """The person named "remote" and nothing else — then it really is from anywhere."""
     return all(t in _REMOTE_TOKENS for t in wanted)
 
 
 def _names_a_place(loc: str) -> bool:
-    """Названо ли в строке хоть какое-то место, кроме слова «удалённо»."""
-    return (_есть(loc, US_MARKERS) or _есть(loc, EU_MARKERS)
-            or _есть(loc, OTHER_PLACE_MARKERS) or _есть(loc, ВСЕ_МЕСТА))
+    """Whether the string names any place at all besides the word "remote"."""
+    return (_has(loc, US_MARKERS) or _has(loc, EU_MARKERS)
+            or _has(loc, OTHER_PLACE_MARKERS) or _has(loc, ALL_PLACES))
 
 
 def location_ok(location: str, wanted: list, include_remote: bool = True) -> bool:
     if not wanted:
         return True
     loc = f" {(location or '').lower()} "
-    # «Удалённо» — не то же самое, что «откуда угодно». Проверка стояла первой и
-    # пропускала всё, где встретилось это слово: «United States, Remote» проходило
-    # в поиск по Германии как ни в чём не бывало. На настоящем прогоне по резюме
-    # SAP-интегратора из тридцати двух вакансий восемь оказались из одной
-    # американской конторы, и человеку из Европы не годилась ни одна. Модель это
-    # даже заметила и написала «US only» — а фильтр, который для того и стоит,
-    # пропустил.
+    # "Remote" is not the same as "from anywhere". This check used to come first
+    # and let through everything the word appeared in: "United States, Remote"
+    # sailed into a search for Germany as if nothing were wrong. On a real run
+    # from a SAP integrator's CV, eight of thirty-two jobs turned out to be from
+    # one American outfit, and not one of them suited a person in Europe. The
+    # model even noticed and wrote "US only" — and the filter, which exists for
+    # exactly this, let it through.
     #
-    # Если рядом с «удалённо» названа страна, она и решает. Если не названо
-    # ничего — работа и правда откуда угодно, и её пропускаем.
-    if include_remote and _есть(loc, REMOTE_MARKERS) and not _names_a_place(loc):
+    # If a country is named next to "remote", the country decides. If nothing is
+    # named, the work really is from anywhere, and we let it through.
+    if include_remote and _has(loc, REMOTE_MARKERS) and not _names_a_place(loc):
         return True
     if not location:
         return True  # an unknown location is not cut off — triage will decide
     for token in wanted:
         if token in ("eu", "ес", "europe", "европа", "евросоюз"):
-            if _есть(loc, EU_MARKERS):
+            if _has(loc, EU_MARKERS):
                 return True
         elif token in ("us", "usa", "сша", "united states", "америка"):
-            if _есть(loc, US_MARKERS):
+            if _has(loc, US_MARKERS):
                 return True
         elif token in ("remote", "удаленно", "удалённо"):
-            # То же правило, что и для галочки «удалённые тоже»: «удалённо» —
-            # не «откуда угодно». Прошлая починка закрыла только галочку, а это
-            # слово человек часто пишет ещё и сам, среди своих мест, — и дыра
-            # открывалась снова. На прогоне для фронтендера, ищущего в России,
-            # наверху списка стояли «USA, Remote» и «Sunnyvale, CA»: он написал
-            # «Россия, Москва, Санкт-Петербург, удалённо», и последнее слово
-            # пропускало всё подряд.
+            # The same rule as for the "remote too" checkbox: "remote" is not
+            # "from anywhere". The previous fix closed only the checkbox, while
+            # people often write this word themselves as well, among their own
+            # places — and the hole opened again. On a run for a front-end
+            # developer searching in Russia, the top of the list held "USA,
+            # Remote" and "Sunnyvale, CA": they had written «Россия, Москва,
+            # Санкт-Петербург, удалённо», and that last word let everything past.
             #
-            # Если человек не назвал никаких мест, кроме «удалённо», он и правда
-            # готов работать откуда угодно — тогда пропускаем любую удалённую.
-            # А если места названы, они и решают, куда эта удалённая годится.
-            if _есть(loc, REMOTE_MARKERS) and (
+            # If the person named no places besides "remote", they really are
+            # willing to work from anywhere — then we let any remote job through.
+            # And if places are named, they decide where this remote job fits.
+            if _has(loc, REMOTE_MARKERS) and (
                     not _names_a_place(loc) or _only_remote(wanted)):
                 return True
         elif token in COUNTRY_MARKERS:
-            if _есть(loc, COUNTRY_MARKERS[token]):
+            if _has(loc, COUNTRY_MARKERS[token]):
                 return True
-            # «Удалённо по Европе» человеку, который ищет в Германии, годится:
-            # страна входит в названную область. Без этой оговорки отказ от
-            # огульного «удалённо» выбросил бы вместе с американскими и такие.
-            if _есть(loc, WIDE_EU_MARKERS):
+            # "Remote within Europe" suits a person searching in Germany: their
+            # country is inside the named region. Without this proviso, refusing
+            # a blanket "remote" would have thrown these out along with the
+            # American ones.
+            if _has(loc, WIDE_EU_MARKERS):
                 return True
         elif token in loc:
             return True
     return False
 
 
-# Про право на работу объявления пишут словами, и почти всегда одними и теми же.
+# Postings state the right to work in words, and almost always the same ones.
 #
-# Спрашивать об этом модель бесполезно: на прогоне Дмитрия Кириляка в профиле
-# стояло «нужно спонсорство для США и ЕС», строка попадала в запрос — и ни в
-# одном из ста девяти доводов виза не была упомянута ни разу. А для человека это
-# главное: у Виктора Белоногова двадцать шесть канадских вакансий, куда без
-# спонсорства не попасть, и узнать об этом надо до отклика, а не после.
+# Asking the model about it is useless: on Dmitry Kirilyak's run the profile said
+# sponsorship was needed for the US and the EU, that line went into the prompt —
+# and in none of the hundred and nine pieces of reasoning was a visa mentioned
+# even once. Yet for the person it is the main thing: Viktor Belonogov had
+# twenty-six Canadian jobs that cannot be entered without sponsorship, and that
+# has to be known before applying, not after.
 #
-# Порядок важен: «no visa sponsorship» содержит «visa sponsorship», поэтому
-# отказы ищем первыми.
-_НЕТ_СПОНСОРСТВА = [
+# The order matters: "no visa sponsorship" contains "visa sponsorship", so we
+# look for the refusals first.
+_NO_SPONSORSHIP = [
     "no sponsorship", "no visa sponsorship", "not able to sponsor", "unable to sponsor",
     "will not sponsor", "do not sponsor", "does not sponsor", "cannot sponsor",
     "without sponsorship", "sponsorship is not", "sponsorship not available",
@@ -400,7 +404,7 @@ _НЕТ_СПОНСОРСТВА = [
     "eu work permit required", "valid work permit required", "no work permit",
     "keine visa", "kein sponsoring", "arbeitserlaubnis erforderlich",
 ]
-_ЕСТЬ_СПОНСОРСТВО = [
+_SPONSORSHIP = [
     "visa sponsorship", "we sponsor", "sponsorship available", "sponsorship provided",
     "relocation package", "relocation support", "relocation assistance",
     "visa support", "work permit support", "blue card", "we help with the visa",
@@ -409,100 +413,103 @@ _ЕСТЬ_СПОНСОРСТВО = [
 
 
 def visa_stance(job: dict) -> str:
-    """Что объявление говорит про право на работу: «нет», «есть» или ничего.
+    """What the posting says about the right to work: "no", "yes" or nothing.
 
-    Ничего — самый частый ответ, и он честный: молчание не значит ни отказа, ни
-    согласия. Догадываться за работодателя мы не станем, но если он сказал —
-    человек должен это увидеть, не открывая объявления.
+    Nothing is the commonest answer, and an honest one: silence means neither
+    refusal nor agreement. We will not guess on the employer's behalf, but if
+    they have said it, the person should see it without opening the posting.
     """
-    текст = f"{job.get('title', '')} {job.get('description', '')}".lower()
-    if any(ф in текст for ф in _НЕТ_СПОНСОРСТВА):
+    text = f"{job.get('title', '')} {job.get('description', '')}".lower()
+    if any(p in text for p in _NO_SPONSORSHIP):
         return "no"
-    if any(ф in текст for ф in _ЕСТЬ_СПОНСОРСТВО):
+    if any(p in text for p in _SPONSORSHIP):
         return "yes"
     return ""
 
 
-# Сокращения штатов США — они попадают в названия вакансий и мешают понять, что
-# должность одна и та же: «Restaurant Assistant Manager (Austin) TX».
-_ШТАТЫ = set(
+# US state abbreviations — they end up in job titles and get in the way of seeing
+# that the position is one and the same: "Restaurant Assistant Manager (Austin) TX".
+_US_STATES = set(
     "tx ca ny fl il wa ma co pa oh ga nc mi az va nj tn in mo md wi mn sc al la "
     "ky or ok ct ut ia nv ar ms ks nm ne wv id hi nh me ri mt de sd nd ak vt wy".split())
 
 
-def _роль(title: str, location: str) -> list:
-    """Название должности без города, штата и приписок в скобках.
+def _role(title: str, location: str) -> list:
+    """The job title without the city, the state and the notes in brackets.
 
-    Сеть заведений вешает одну и ту же вакансию по всем своим точкам, меняя в
-    названии город: «Restaurant Assistant Manager (Austin) TX», «… Fort Worth»,
-    «… - Kyle TX». Для человека это одна работа, и десять строк подряд он читает
-    как десять разных.
+    A restaurant chain posts one and the same job at every one of its locations,
+    changing the city in the title: "Restaurant Assistant Manager (Austin) TX",
+    "… Fort Worth", "… - Kyle TX". For a person this is one job, and ten lines in
+    a row read as ten different ones.
     """
     s = re.sub(r"\([^)]*\)", " ", (title or "").lower())
     s = re.split(r"\s[-–—|]\s", s)[0]
-    места = set(re.findall(r"\w+", (location or "").lower()))
+    places = set(re.findall(r"\w+", (location or "").lower()))
     return [w for w in re.findall(r"[a-zа-яё]+", s)
-            if w not in места and w not in _ШТАТЫ and len(w) > 1]
+            if w not in places and w not in _US_STATES and len(w) > 1]
 
 
 def group_same_role(jobs: list) -> list:
-    """Схлопывает вакансии одной компании на одну и ту же должность.
+    """Collapses one company's jobs for one and the same position.
 
-    Возвращает те же вакансии, но у первой из каждой группы появляется поле
-    «siblings» — остальные. Ничего не выбрасывается: человек может искать работу
-    именно в Далласе, и решать за него, какой город ему нужен, мы не станем.
+    Returns the same jobs, but the first of each group gains a "siblings" field
+    holding the rest. Nothing is thrown away: a person may be looking for work in
+    Dallas specifically, and we are not going to decide for them which city they
+    need.
 
-    Померено на прогоне Виктора Белоногова: из ста восемнадцати вакансий выше
-    порога первые двадцать строк принадлежали четырём работодателям, а десять
-    подряд — одной сети «Pollo Regio». После схлопывания строк девяносто восемь,
-    и сеть занимает одну.
+    Measured on Viktor Belonogov's run: of a hundred and eighteen jobs above the
+    threshold, the first twenty lines belonged to four employers, and ten in a
+    row to a single chain, "Pollo Regio". After collapsing there are ninety-eight
+    lines, and the chain takes up one.
 
-    Город из названия убирается, но короткая роль поглощает длинную, если она её
-    начало: в «Restaurant Assistant Manager Frisco» города нет в поле локации
-    (там «Little Elm»), и убрать его иначе нечем.
+    The city is stripped from the title, but a short role also swallows a long
+    one when it is its beginning: in "Restaurant Assistant Manager Frisco" the
+    city is not in the location field (that says "Little Elm"), and there is no
+    other way to remove it.
     """
-    роли = [(j, _роль(j.get("title", ""), j.get("location", ""))) for j in jobs]
-    основы: dict = {}          # компания → список найденных основ
-    первые: dict = {}          # (компания, основа) → первая вакансия группы
-    порядок = []
-    for j, слова in sorted(роли, key=lambda p: len(p[1])):
-        к = (j.get("company") or "").strip().lower()
-        if not к or not слова:
+    roles = [(j, _role(j.get("title", ""), j.get("location", ""))) for j in jobs]
+    stems: dict = {}           # company → the stems found for it
+    firsts: dict = {}          # (company, stem) → the group's first job
+    order = []
+    for j, words in sorted(roles, key=lambda p: len(p[1])):
+        c = (j.get("company") or "").strip().lower()
+        if not c or not words:
             continue
-        свои = основы.setdefault(к, [])
-        основа = next((о for о in свои if слова[:len(о)] == о), None)
-        if основа is None:
-            основа = слова
-            свои.append(слова)
-        j["_группа"] = (к, " ".join(основа))
+        ours = stems.setdefault(c, [])
+        stem = next((s for s in ours if words[:len(s)] == s), None)
+        if stem is None:
+            stem = words
+            ours.append(words)
+        j["_group"] = (c, " ".join(stem))
     for j in jobs:
-        ключ = j.get("_группа")
-        j.pop("_группа", None)
-        if ключ is None:
-            порядок.append(j)
+        key = j.get("_group")
+        j.pop("_group", None)
+        if key is None:
+            order.append(j)
             continue
-        if ключ in первые:
-            первые[ключ].setdefault("siblings", []).append(j)
+        if key in firsts:
+            firsts[key].setdefault("siblings", []).append(j)
         else:
-            первые[ключ] = j
-            порядок.append(j)
-    return порядок
+            firsts[key] = j
+            order.append(j)
+    return order
 
 
-# Профессии, которыми в чужой стране нельзя заняться просто так: нужен местный
-# диплом, экзамен или запись в реестре.
+# Professions you cannot simply take up in another country: a local degree, an
+# examination or an entry in a register is required.
 #
-# Elisabetta Matassi — адвокат, сдавшая экзамен в Италии. Программа нашла ей
-# двадцать четыре вакансии юриста, и все по профессии: Legal Counsel, Associate
-# Lawyer, Corporate Legal Counsel. Только Швеция 9, Греция 7, Италия 2 — а
-# итальянский адвокат в Швеции не адвокат, пока не подтвердит квалификацию. Ни
-# модель, ни фильтры об этом не знают, и человек читает список как список
-# доступной работы.
+# Elisabetta Matassi is an advocate who passed the bar in Italy. The program
+# found her twenty-four lawyer jobs, every one of them in her profession: Legal
+# Counsel, Associate Lawyer, Corporate Legal Counsel. Only — Sweden 9, Greece 7,
+# Italy 2 — and an Italian advocate is not an advocate in Sweden until the
+# qualification is recognised. Neither the model nor the filters know this, and
+# the person reads the list as a list of work available to them.
 #
-# Мы не беремся решать, признают её диплом или нет: это ведомственный вопрос, и
-# ответ на него зависит от страны, стажа и договоров между ними. Но сказать, что
-# вопрос вообще есть, обязаны — иначе двадцать четыре надежды окажутся пустыми.
-РЕГУЛИРУЕМЫЕ = {
+# We do not undertake to decide whether her degree will be recognised: that is a
+# matter for the authorities, and the answer depends on the country, the years of
+# practice and the agreements between them. But we are obliged to say that the
+# question exists at all — otherwise twenty-four hopes turn out to be empty.
+REGULATED = {
     "law": ["lawyer", "attorney", "avvocat", "solicitor", "barrister", "notaio",
             "notary", "rechtsanwalt", "advokat", "юрист", "адвокат", "нотариус",
             "abogado", "avocat", "prawnik", "radca prawny"],
@@ -520,20 +527,22 @@ def group_same_role(jobs: list) -> list:
 
 
 def regulated_profession(roles: str, cv: str = "") -> str:
-    """Названа ли профессия из тех, что за границей требуют подтверждения.
+    """Whether a profession is named that needs recognition abroad.
 
-    Смотрим прежде всего на роли: в резюме слово «lawyer» может встретиться и у
-    того, кто юристом не работает. Роли — то, кем человек себя называет.
+    We look at the roles first of all: the word "lawyer" can turn up in the CV of
+    someone who does not work as one. The roles are what a person calls
+    themselves.
     """
-    где = (roles or "").strip().lower()
-    if not где:
-        # Ролей нет вовсе — тогда по резюме, и только по первым строкам: там
-        # должность. Дальше в тексте «lawyer» встретится и у того, кто с
-        # юристами лишь работал рядом, и предупреждение досталось бы не тому.
-        где = (cv or "")[:400].lower()
-    for область, слова in РЕГУЛИРУЕМЫЕ.items():
-        if any(с in где for с in слова):
-            return область
+    where = (roles or "").strip().lower()
+    if not where:
+        # No roles at all — then the CV, and only its opening lines: that is
+        # where the job title is. Further down, "lawyer" turns up for someone who
+        # merely worked alongside lawyers, and the warning would go to the wrong
+        # person.
+        where = (cv or "")[:400].lower()
+    for field, words in REGULATED.items():
+        if any(w in where for w in words):
+            return field
     return ""
 
 
@@ -550,7 +559,7 @@ def has_excluded(job: dict, exclude_terms: list) -> bool:
 
 
 def posted_ok(job: dict, since: str = "", until: str = "") -> bool:
-    """Was the job posted within the period asked for? Dates are ГГГГ-ММ-ДД.
+    """Was the job posted within the period asked for? Dates are YYYY-MM-DD.
 
     A job with no date is kept. Sources are uneven about this — many aggregators
     give no date at all — and dropping everything undated would quietly throw
@@ -561,7 +570,7 @@ def posted_ok(job: dict, since: str = "", until: str = "") -> bool:
         return True
     posted = str(job.get("posted_at") or "").strip()[:10]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", posted):
-        return True                      # даты нет или она непонятная — не нам судить
+        return True                      # no date, or an unreadable one — not ours to judge
     if since and posted < since:
         return False
     if until and posted > until:
