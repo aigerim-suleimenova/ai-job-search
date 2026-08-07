@@ -457,7 +457,7 @@ def test_разбор_думает_прежде_чем_ставить_балл()
 @pytest.mark.parametrize("текст,ожидание", ОБЪЯВЛЕНИЯ)
 def test_узнаём_английский(текст, ожидание):
     from jobsearch import scoring
-    assert scoring._по_английски(текст) is ожидание
+    assert scoring._in_english(текст) is ожидание
 
 
 def test_непрочитанное_не_помечается_проверенным(monkeypatch, cfg):
@@ -475,7 +475,7 @@ def test_непрочитанное_не_помечается_проверенн
     scoring.deep_analyze(вакансия, cfg, "CV", lambda *a: None, research=False)
 
     assert вакансия["verified"] is False, "поручились за то, чего не прочли"
-    assert вакансия["score"] <= scoring.ПОТОЛОК_НЕПРОЧИТАННОГО
+    assert вакансия["score"] <= scoring.UNREAD_CEILING
 
 
 def test_профессия_из_справочника_снимает_вопрос(monkeypatch, cfg):
@@ -545,7 +545,7 @@ def test_список_от_модели_становится_строкой(от
     разбирался по запятой — и в источники уходил запрос «['Purchasing Manager'»,
     а модель получала такой же пример «своей» профессии."""
     from jobsearch import scoring
-    assert scoring._строкой(ответ) == ожидание
+    assert scoring._as_text(ответ) == ожидание
 
 
 def test_профиль_из_cv_не_приносит_скобок(monkeypatch, cfg):
@@ -617,7 +617,7 @@ def test_цитата_сверяется_с_резюме(цитата, есть)
     галочкой «проверено». Никакой электротехники у человека нет."""
     from jobsearch import scoring
     cv = "Восемь лет во фронтенде. React, TypeScript, Vite. Вёл переход на монорепозиторий."
-    assert scoring._цитата_настоящая(цитата, cv) is есть
+    assert scoring._quote_is_real(цитата, cv) is есть
 
 
 def test_выдуманный_довод_не_получает_галочки(monkeypatch, cfg):

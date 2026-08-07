@@ -128,9 +128,10 @@ verdict — про профессию, а не про отдельные сло�
 ВАКАНСИИ:
 {jobs}"""
 
-# Профессии для примера «чужая». Берётся та, что не пересекается по словам с
-# ролями кандидата, — чтобы образец не оказался про него самого.
-_ЧУЖИЕ_ПРОФЕССИИ = [
+# Trades for the "someone else's" example. The one chosen shares no words with
+# the candidate's roles, so the example does not end up being about them.
+# The strings stay Russian: they go into the prompt, and the prompt is Russian.
+_OTHER_TRADES = [
     ("Frontend-разработчик (React)", "вёрстка и браузер"),
     ("Бухгалтер", "отчётность и проводки"),
     ("Медицинская сестра", "уход за больными"),
@@ -139,37 +140,39 @@ _ЧУЖИЕ_ПРОФЕССИИ = [
 
 
 def _examples_block(cfg: dict) -> str:
-    """Три примера рассуждения — про профессию самого кандидата.
+    """Three worked examples of reasoning — about the candidate's own trade.
 
-    Общие примеры не работают, и это измерено: на пятнадцати настоящих вакансиях
-    примеры про бухгалтера дали ровно столько же, сколько их отсутствие — шесть
-    верных из пятнадцати. Примеры про профессию кандидата — десять из пятнадцати,
-    и, что важнее, ни одна чужая вакансия не поднялась выше 50, то есть до порога
-    в 70 не дошла ни одна. Образец должен быть про то, чем человек занимается,
-    иначе модель его не переносит.
+    Generic examples do not work, and that is measured: across fifteen real jobs,
+    examples about an accountant gave exactly as much as no examples at all — six
+    right out of fifteen. Examples about the candidate's own trade gave ten out of
+    fifteen, and, more importantly, not one job from another trade rose above 50,
+    meaning none reached the threshold of 70. The example has to be about what the
+    person actually does, or the model will not carry it across.
 
-    Роли берутся из профиля. Если их нет, примеров не будет: выдуманная роль
-    увела бы оценку в сторону сильнее, чем отсутствие примера.
+    The roles come from the profile. With no roles there are no examples: an
+    invented role would pull the score further astray than no example at all.
     """
-    роли = [р.strip() for р in (cfg["profile"].get("roles") or "").split(",") if р.strip()]
-    if not роли:
+    roles = [r.strip() for r in (cfg["profile"].get("roles") or "").split(",") if r.strip()]
+    if not roles:
         return ""
-    своя = роли[0]
-    низ = " ".join(роли).lower()
-    чужая, чем = next(((п, ч) for п, ч in _ЧУЖИЕ_ПРОФЕССИИ
-                       if not set(re.findall(r"\w{4,}", п.lower())) & set(re.findall(r"\w{4,}", низ))),
-                      _ЧУЖИЕ_ПРОФЕССИИ[-1])
-    # Все роли, а не первая. Пример строился из одной, и «своя» оказывалась
-    # привязана к точному её написанию: конструктору белья вакансия «H&M Kids
-    # Fashion Designer» досталась с оценкой 10 и доводом «профессия не совпадает:
-    # Fashion Designer vs Lingerie Technical Designer». Одна и та же работа в
-    # разных компаниях и странах зовётся по-разному, и сказать об этом надо
-    # прямо — иначе модель сверяет слова, а не ремёсла.
-    как_зовут = "», «".join(роли[:4])
+    own = roles[0]
+    lowered = " ".join(roles).lower()
+    other, other_about = next(((t, a) for t, a in _OTHER_TRADES
+                               if not set(re.findall(r"\w{4,}", t.lower()))
+                               & set(re.findall(r"\w{4,}", lowered))),
+                              _OTHER_TRADES[-1])
+    # Every role, not the first. The example used to be built from one, and "own
+    # trade" ended up tied to its exact wording: the lingerie designer got the job
+    # "H&M Kids Fashion Designer" scored 10, with the reasoning "the profession
+    # does not match: Fashion Designer vs Lingerie Technical Designer". One and
+    # the same job is called different things at different companies and in
+    # different countries, and that has to be said outright — otherwise the model
+    # compares words rather than trades.
+    called = "», «".join(roles[:4])
     return (
         f"ПРИМЕРЫ рассуждения для этого кандидата:\n"
-        f"- «{как_зовут}» → своя: та же профессия. match 90.\n"
-        f"- «{чужая}» → чужая: другая профессия ({чем}). Даже если в описании "
+        f"- «{called}» → своя: та же профессия. match 90.\n"
+        f"- «{other}» → чужая: другая профессия ({other_about}). Даже если в описании "
         f"попались знакомые кандидату слова, своей она от этого не становится. match 10.\n"
         f"- роль из соседней области, где часть опыта кандидата переносится, "
         f"→ смежная. match 55.\n"
@@ -179,13 +182,14 @@ def _examples_block(cfg: dict) -> str:
     )
 
 
-# Порядок полей здесь — не оформление, а порядок рассуждения.
+# The order of the fields here is not formatting but the order of the reasoning.
 #
-# Модель пишет ответ слева направо, и при выводе по схеме иначе не может. Когда
-# match стоял первым, число называлось до того, как модель успевала подумать, —
-# а reason потом подгонялся под уже названное. Отсюда и объяснения вида
-# «ключевые навыки все присутствуют» у вакансии на Ruby on Rails: число уже
-# стояло, оставалось его оправдать. Теперь сперва вердикт и довод, число — после.
+# The model writes its answer left to right, and with schema-constrained output it
+# cannot do otherwise. When match came first, the number was named before the
+# model had time to think — and reason was then fitted to what had already been
+# said. Hence explanations like "all the key skills are present" for a Ruby on
+# Rails job: the number was already there, and all that was left was to justify
+# it. Now the verdict and the reasoning come first, and the number after.
 TRIAGE_SCHEMA = {
     "type": "array",
     "items": {
@@ -203,19 +207,21 @@ TRIAGE_SCHEMA = {
 
 
 def batch_for(provider: str) -> int:
-    """Сколько вакансий отдавать модели за раз.
+    """How many jobs to hand the model at once.
 
-    Восемь — сколько отдавалось всем — малой местной модели не по силам, и это
-    измерено, а не предположено. На восьми вакансиях с заранее известным ответом
-    mistral:7b путал номера: балл, предназначенный одной, доставался другой — так
-    фронтенд у SAP-интегратора и получал 85. На трёх — восемь верных из восьми.
+    Eight — which is what everyone used to get — is beyond a small local model,
+    and that is measured rather than assumed. On eight jobs with a known-good
+    answer, mistral:7b mixed up the numbers: a score meant for one landed on
+    another — which is how the front-end job got 85 from the SAP integrator's
+    profile. On three: eight right out of eight.
 
-    Три, а не одна: по одной вышло медленнее вдвое и не точнее. Модель, которой
-    показывают соседние вакансии, видит, что они разные, — а оставшись с одной,
-    сравнивать ей не с чем.
+    Three rather than one: one at a time came out twice as slow and no more
+    accurate. A model shown neighbouring jobs sees that they differ — left with
+    one, it has nothing to compare against.
 
-    Облачным моделям пачка не мешает, и дробить её для них — значит платить за
-    те же вакансии втрое больше запросов. Поэтому дробим только там, где нужно.
+    A batch does not trouble cloud models, and splitting it for them means paying
+    three times as many requests for the same jobs. So we split only where it is
+    needed.
     """
     return 3 if provider == "ollama" else 8
 
@@ -246,9 +252,9 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
     def process(batch):
         listing = "\n\n".join(
             f"[{i}] {j.get('title', '')} — {j.get('company', '')} ({j.get('location') or 'локация не указана'})\n"
-            # Профессия по общеевропейскому справочнику, если источник её назвал.
-            # Объявление бывает на любом языке ЕС, и местная модель его не читает;
-            # это название — на английском и одно и то же для всех языков.
+            # The occupation from the Europe-wide taxonomy, if the source named
+            # it. A posting can be in any EU language, and the local model does
+            # not read it; this name is in English and the same for every language.
             + (f"профессия по справочнику: {j['occupation']}\n" if j.get("occupation") else "")
             + f"{(j.get('description') or '')[:700]}"
             for i, j in enumerate(batch)
@@ -296,24 +302,26 @@ CV:
 {cv}"""
 
 
-def _строкой(значение) -> str:
-    """Ответ модели — в поле профиля, которое везде считается строкой.
+def _as_text(value) -> str:
+    """The model's answer, into a profile field that is treated as a string everywhere.
 
-    Просят у модели «должности через запятую», а слабая присылает список. Через
-    str() он превращался в «['Purchasing Manager', 'Supply Chain Manager']» — и
-    так и записывался в профиль. Дальше это разбиралось по запятой, и в
-    источники уходили запросы «['Purchasing Manager'» и «'Logistics Manager'», а
-    модель получала пример «['Purchasing Manager'» → своя. Померено на резюме
-    руководителя ОМТС: испорчены были все шесть поисковых слов и все примеры.
+    We ask the model for "job titles separated by commas", and a weak one sends a
+    list. Through str() that turned into "['Purchasing Manager', 'Supply Chain
+    Manager']" — and was written into the profile exactly so. It was then split on
+    commas, and the queries "['Purchasing Manager'" and "'Logistics Manager'" went
+    off to the sources, while the model was handed the example "['Purchasing
+    Manager'" → own trade. Measured on a supply-department head's CV: all six
+    search words and every example were spoiled.
     """
-    if isinstance(значение, (list, tuple)):
-        части = [str(x).strip() for x in значение if str(x).strip()]
+    if isinstance(value, (list, tuple)):
+        parts = [str(x).strip() for x in value if str(x).strip()]
     else:
-        части = [str(значение).strip()]
-    # Скобки и кавычки могли прийти и внутри строки — модель иногда пишет список
-    # текстом. Убираем их с краёв, а не отовсюду: в «C++ (advanced)» скобки свои.
-    очищенные = [ч.strip(" \t\"'[]") for ч in части]
-    return ", ".join(ч for ч in очищенные if ч)
+        parts = [str(value).strip()]
+    # Brackets and quotes could arrive inside the string too — the model sometimes
+    # writes a list as text. We strip them from the edges, not from everywhere: in
+    # "C++ (advanced)" the brackets belong there.
+    cleaned = [p.strip(" \t\"'[]") for p in parts]
+    return ", ".join(p for p in cleaned if p)
 
 
 def profile_from_cv(cfg: dict, cv: str) -> dict:
@@ -329,27 +337,28 @@ def profile_from_cv(cfg: dict, cv: str) -> dict:
     if isinstance(data, dict):
         for key in ("roles", "skills", "seniority", "summary", "languages"):
             if data.get(key) and not cfg["profile"].get(key):
-                cfg["profile"][key] = _строкой(data[key])
+                cfg["profile"][key] = _as_text(data[key])
     return cfg
 
 
-# Порядок полей здесь — не оформление, а сама суть.
+# The order of the fields here is not formatting but the whole point.
 #
-# Разбор ставил оценку ПЕРВЫМ полем, до всякого рассуждения. Модель отвечает
-# слева направо и придумывает число раньше, чем успевает подумать; дальше reason
-# подгоняется под уже названную цифру. У триажа это давно исправлено — там
-# сначала verdict, потом reason и только потом match, — а до разбора починка не
-# дошла, и он тихо портил то, что триаж уже сделал правильно.
+# The deep analysis used to put the score FIRST, before any reasoning at all. The
+# model answers left to right and invents the number before it has time to think;
+# reason is then fitted to the figure already named. In triage this was fixed long
+# ago — verdict first, then reason, and only then match — but the fix never
+# reached the deep analysis, and it quietly spoiled what triage had already got
+# right.
 #
-# Померено на настоящем прогоне: конструктор белья Регина Мохова. Триаж ставил
-# fashion-вакансиям 90, а чужому софту 55. После разбора fashion опускалось до
-# 80, а «Staff Software Engineer» поднимался до 85 — и получал галочку
-# «проверено». Из тридцати пяти вакансий выше порога по её профессии было
-# четыре; она посмотрела все двадцать шесть страниц и написала: «остальные все
-# прям мимо, там всё с IT связанное».
+# Measured on a real run: Regina Mokhova, a lingerie designer. Triage gave fashion
+# jobs 90 and other people's software 55. After the deep analysis fashion came
+# down to 80, while "Staff Software Engineer" rose to 85 — and got a "verified"
+# tick. Of the thirty-five jobs above the threshold, four were in her profession;
+# she looked through all twenty-six pages and wrote: "the rest are completely off,
+# it is all IT-related there".
 #
-# Опорные числа и примеры — те же, что в триаже: без них слабая модель ставит
-# «на глаз», а на глаз у неё выходит щедро.
+# The anchor numbers and the examples are the same as in triage: without them a
+# weak model scores by eye, and by eye it comes out generous.
 DEEP_PROMPT = """Ты — карьерный консультант. Профиль кандидата:
 
 {profile}
@@ -387,19 +396,21 @@ CV кандидата:
   "cover_hint": "<1-2 предложения: на что сделать упор в отклике>"
 }}"""
 
-# Схемы у разбора не было вовсе — в отличие от триажа. Без неё слабая модель
-# отвечает связным текстом без нужных полей, а порядок, который мы задали
-# словами, ничем не удержан. Со схемой поля есть всегда и идут как написано.
+# The deep analysis had no schema at all — unlike triage. Without one a weak model
+# answers with fluent prose and none of the required fields, and the order we set
+# out in words is held by nothing. With a schema the fields are always there and
+# come in the order written.
 DEEP_SCHEMA = {
     "type": "object",
     "properties": {
         "verdict": {"type": "string", "enum": ["своя", "смежная", "чужая"]},
         "reason": {"type": "string"},
-        # Цитата из резюме — против выдумок. Модель написала конструктору белья
-        # «кандидат имеет опыт и образование в области электротехники», и это
-        # была вакансия лектора по электротехнике на 90% с галочкой «проверено».
-        # Никакой электротехники у человека нет. Заставить назвать место в
-        # резюме, откуда взято утверждение, — и проверить, что оно там есть.
+        # A quotation from the CV — against invention. The model told the lingerie
+        # designer that "the candidate has experience and education in electrical
+        # engineering", and that was a lectureship in electrical engineering at
+        # 90% with a "verified" tick. The person has no electrical engineering
+        # whatsoever. So: make it name the place in the CV the claim came from —
+        # and check that the place is really there.
         "quote": {"type": "string"},
         "match": {"type": "integer", "minimum": 0, "maximum": 100},
         "cv_changes": {"type": "array", "items": {"type": "string"}},
@@ -411,32 +422,33 @@ DEEP_SCHEMA = {
 }
 
 
-def _цитата_настоящая(цитата: str, cv: str) -> bool:
-    """Есть ли этот кусок в резюме на самом деле.
+def _quote_is_real(quote: str, cv: str) -> bool:
+    """Whether this fragment is really in the CV.
 
-    Сверяем долю слов, а не строку целиком. Требовать точного совпадения я
-    попробовал, и вышло плохо: у Виктора Белоногова цитата «специалист с
-    10-летним опыром работы» не нашлась из-за опечатки в одну букву — в резюме
-    «опытом». У Виктора Лаврова так отбраковались сто две цитаты из ста
-    двадцати пяти, почти все за пересказ вместо копирования. Малая модель
-    копировать буква в букву не умеет, и наказывать её за это значит отнимать
-    галочку у честных доводов.
+    We compare the fraction of words rather than the whole string. I tried
+    demanding an exact match, and it came out badly: for Viktor Belonogov the
+    quotation «специалист с 10-летним опыром работы» was not found because of a
+    one-letter typo — the CV says «опытом». For Viktor Lavrov a hundred and two
+    quotations out of a hundred and twenty-five were rejected this way, almost all
+    of them for paraphrasing instead of copying. A small model cannot copy letter
+    for letter, and punishing it for that means taking the tick away from honest
+    reasoning.
 
-    Восемь десятых слов — та граница, где опечатка и перестановка ещё проходят,
-    а выдуманное уже нет: «опыт в области электротехники» в резюме, где её нет,
-    не наберёт и половины.
+    Eight tenths of the words is the line where a typo or a reordering still gets
+    through and an invention does not: "experience in electrical engineering", in
+    a CV that has none, will not reach even half.
     """
-    слова = [w for w in re.findall(r"\w+", (цитата or "").lower()) if len(w) > 2]
-    if len(слова) < 3:
+    words = [w for w in re.findall(r"\w+", (quote or "").lower()) if len(w) > 2]
+    if len(words) < 3:
         return False
-    в_резюме = set(re.findall(r"\w+", (cv or "").lower()))
-    нашлось = sum(1 for w in слова if w in в_резюме)
-    return нашлось / len(слова) >= 0.8
+    in_cv = set(re.findall(r"\w+", (cv or "").lower()))
+    found = sum(1 for w in words if w in in_cv)
+    return found / len(words) >= 0.8
 
-# Служебные слова английского — и только те, что не встречаются в соседних
-# языках. Коротких вроде «of», «in», «is», «a» здесь нет намеренно: все они
-# заодно и нидерландские, и объявление из Роттердама сходило за английское.
-_АНГЛИЙСКИЕ_СЛОВА = {
+# English function words — and only those that do not occur in the neighbouring
+# languages. Short ones like "of", "in", "is", "a" are deliberately absent: every
+# one of them is Dutch as well, and a posting from Rotterdam passed for English.
+_ENGLISH_WORDS = {
     "the", "and", "with", "you", "your", "our", "we", "will", "are", "have",
     "this", "that", "from", "they", "their", "what", "which", "who", "been",
     "were", "would", "should", "about", "into", "more", "than", "also",
@@ -445,24 +457,25 @@ _АНГЛИЙСКИЕ_СЛОВА = {
 }
 
 
-# Второй проход: проверить советы по резюме отдельным вопросом.
+# A second pass: check the suggestions against the CV with a separate question.
 #
-# Запрет выдумывать стоит в самом промпте разбора — «правки только перестановка
-# того, что в CV уже есть» — и слабая модель его перебивает. Руководителю ОМТС
-# она советовала «Добавить опыт работы с Salesforce Commerce Cloud в раздел
-# Professional Experience», а конструктору белья — «Emphasize the candidate's
-# knowledge of materials such as leather», хотя ни того ни другого в резюме нет.
+# The ban on inventing is in the deep-analysis prompt itself — "edits are only a
+# reordering of what is already in the CV" — and a weak model talks over it. It
+# advised the supply-department head to "add experience with Salesforce Commerce
+# Cloud to the Professional Experience section", and the lingerie designer to
+# "emphasize the candidate's knowledge of materials such as leather", though
+# neither is anywhere in the CV.
 #
-# Спрашиваем отдельно и без вакансии: только резюме и список советов. Так у
-# модели нет соблазна подогнать ответ под требования вакансии — вопрос стоит
-# ровно один, есть ли это в резюме.
-ПРОВЕРКА_СОВЕТОВ = """Ниже резюме кандидата и советы по его правке.
+# We ask separately and without the job: only the CV and the list of suggestions.
+# That way the model has no temptation to fit its answer to the job's
+# requirements — there is exactly one question, is this in the CV.
+ADVICE_CHECK_PROMPT = """Ниже резюме кандидата и советы по его правке.
 
 Резюме:
 {cv}
 
 Советы:
-{советы}
+{advice}
 
 Для каждого совета ответь, опирается ли он ТОЛЬКО на то, что в резюме уже есть.
 Совет переставить, выделить или переформулировать имеющееся — опирается.
@@ -471,83 +484,86 @@ _АНГЛИЙСКИЕ_СЛОВА = {
 
 Верни ТОЛЬКО JSON: {{"ok": [<номера советов, которые опираются на резюме>]}}"""
 
-ПРОВЕРКА_СХЕМА = {
+ADVICE_CHECK_SCHEMA = {
     "type": "object",
     "properties": {"ok": {"type": "array", "items": {"type": "integer"}}},
     "required": ["ok"],
 }
 
 
-def keep_honest_advice(советы: list, cv: str, ask: dict, log) -> list:
-    """Оставляет только те советы, что опираются на резюме."""
-    советы = [str(с).strip() for с in (советы or []) if str(с).strip()]
-    if not советы or not (cv or "").strip():
-        return советы
-    список = "\n".join(f"{i}. {с}" for i, с in enumerate(советы))
+def keep_honest_advice(advice: list, cv: str, ask: dict, log) -> list:
+    """Keeps only the suggestions that rest on the CV."""
+    advice = [str(a).strip() for a in (advice or []) if str(a).strip()]
+    if not advice or not (cv or "").strip():
+        return advice
+    listing = "\n".join(f"{i}. {a}" for i, a in enumerate(advice))
     try:
-        ответ = llm.ask_json(ПРОВЕРКА_СОВЕТОВ.format(cv=cv[:6000], советы=список),
-                             timeout=300, schema=ПРОВЕРКА_СХЕМА, **ask)
+        answer = llm.ask_json(ADVICE_CHECK_PROMPT.format(cv=cv[:6000], advice=listing),
+                              timeout=300, schema=ADVICE_CHECK_SCHEMA, **ask)
     except (llm.ClaudeError, llm.AuthError):
-        return советы     # не смогли проверить — не выбрасываем чужой труд
-    if not isinstance(ответ, dict) or not isinstance(ответ.get("ok"), list):
-        return советы
-    годные = {i for i in ответ["ok"] if isinstance(i, int)}
-    оставили = [с for i, с in enumerate(советы) if i in годные]
-    if len(оставили) < len(советы):
-        for i, с in enumerate(советы):
-            if i not in годные:
-                _lk(log, "log_advice_dropped", advice=с[:90])
-    # Всё забраковала — скорее всего не поняла вопроса, а не все советы плохи.
-    return оставили or советы
+        return advice     # could not check — we do not throw away someone's work
+    if not isinstance(answer, dict) or not isinstance(answer.get("ok"), list):
+        return advice
+    good = {i for i in answer["ok"] if isinstance(i, int)}
+    kept = [a for i, a in enumerate(advice) if i in good]
+    if len(kept) < len(advice):
+        for i, a in enumerate(advice):
+            if i not in good:
+                _lk(log, "log_advice_dropped", advice=a[:90])
+    # It rejected everything — more likely it did not understand the question than
+    # that every suggestion is bad.
+    return kept or advice
 
 
 def _occupation_block(cfg: dict, job: dict) -> str:
-    """Профессия вакансии по справочнику — и рядом профессия кандидата.
+    """The job's occupation from the taxonomy — and the candidate's beside it.
 
-    Порознь они не работают. Одно название, поданное без пары, слабая модель
-    принимает за профессию кандидата и объявляет вакансию своей. Названные
-    рядом, они превращаются в вопрос, на который у неё есть ответ: одно это
-    ремесло или разные.
+    Apart they do not work. A single name given without its pair is taken by a
+    weak model for the candidate's own occupation, and it declares the job theirs.
+    Named side by side, the two turn into a question it can answer: is this one
+    trade or two.
     """
-    занятие = (job.get("occupation") or "").strip()
-    if not занятие:
+    occupation = (job.get("occupation") or "").strip()
+    if not occupation:
         return ""
-    своя = (cfg["profile"].get("roles") or "").split(",")[0].strip()
-    строки = [f"Профессия ЭТОЙ ВАКАНСИИ по общеевропейскому справочнику: «{занятие}»."]
-    if своя:
-        строки.append(f"Профессия кандидата: «{своя}».")
-        строки.append("Если это разные ремёсла — вердикт «чужая», "
-                      "как бы ни было написано само объявление.")
-    return "\n".join(строки) + "\n"
+    own = (cfg["profile"].get("roles") or "").split(",")[0].strip()
+    lines = [f"Профессия ЭТОЙ ВАКАНСИИ по общеевропейскому справочнику: «{occupation}»."]
+    if own:
+        lines.append(f"Профессия кандидата: «{own}».")
+        lines.append("Если это разные ремёсла — вердикт «чужая», "
+                     "как бы ни было написано само объявление.")
+    return "\n".join(lines) + "\n"
 
 
-def _по_английски(текст: str) -> bool:
-    """Написано ли объявление по-английски — то есть на языке, который местная
-    модель и правда читает."""
-    слова = re.findall(r"[a-zA-Zа-яА-ЯёЁ]+", (текст or "").lower())
-    # Считаем разные слова, а не все. Объявление бывает и не связным текстом, а
-    # перечнем: «Ruby on Rails, RSpec, PostgreSQL» — по-английски, но служебных
-    # слов в нём нет ни одного, и по ним язык не определить. Раз определить
-    # нельзя — не придираемся: молча снижать балл за то, чего мы не выяснили,
-    # хуже, чем не снижать.
-    разные = set(слова)
-    if len(разные) < 12:
+def _in_english(text: str) -> bool:
+    """Whether the posting is written in English — that is, in a language the
+    local model really does read."""
+    words = re.findall(r"[a-zA-Zа-яА-ЯёЁ]+", (text or "").lower())
+    # We count distinct words, not all of them. A posting is sometimes not prose
+    # at all but a list: "Ruby on Rails, RSpec, PostgreSQL" — English, yet without
+    # a single function word in it, so the language cannot be told from them. And
+    # if it cannot be told, we do not quibble: silently lowering a score for
+    # something we never established is worse than not lowering it.
+    distinct = set(words)
+    if len(distinct) < 12:
         return True
-    свои = sum(1 for w in слова if w in _АНГЛИЙСКИЕ_СЛОВА)
-    return свои / len(слова) >= 0.08
+    ours = sum(1 for w in words if w in _ENGLISH_WORDS)
+    return ours / len(words) >= 0.08
 
 
-# Потолок балла по вердикту. Модель называет и вердикт, и число, и они у неё
-# расходятся: на прогоне Регины она писала «отвечает за разработку технических
-# решений для игр, а не одежды» — и ставила 55. Рассуждение верное, число нет.
-# Верим рассуждению: оно идёт первым и стоит модели дороже.
-ПОТОЛОК_ПО_ВЕРДИКТУ = {"чужая": 20, "смежная": 60}
+# A ceiling on the score by verdict. The model names both the verdict and the
+# number, and the two disagree with each other: on Regina's run it wrote
+# "responsible for developing technical solutions for games, not clothing" — and
+# gave it 55. The reasoning is right, the number is not. We believe the reasoning:
+# it comes first and costs the model more.
+CEILING_BY_VERDICT = {"чужая": 20, "смежная": 60}
 
-# Потолок для объявления, которого модель не прочитала и по которому справочник
-# профессию не назвал. Не «ноль»: мы не знаем, что там, — может быть, и её
-# работа. Но и выше того, что модель поняла своими глазами, такому стоять не за
-# что. Пятьдесят пять — ниже порога по умолчанию, но видно, если порог опустить.
-ПОТОЛОК_НЕПРОЧИТАННОГО = 55
+# A ceiling for a posting the model did not read and for which the taxonomy named
+# no occupation. Not zero: we do not know what is in there — it may well be their
+# work. But neither has it earned the right to stand above what the model
+# understood with its own eyes. Fifty-five is below the default threshold, but
+# visible if the threshold is lowered.
+UNREAD_CEILING = 55
 
 # Изучение компании идёт отдельным запросом, и в нём НЕТ ни CV, ни профиля.
 #
@@ -657,7 +673,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
             found = {}
 
     # 2. С CV и профилем — но без инструментов, так что уводить их некуда.
-    английское = _по_английски(f"{job.get('title', '')} {description[:1500]}")
+    английское = _in_english(f"{job.get('title', '')} {description[:1500]}")
     prompt = _lang_banner(cfg) + DEEP_PROMPT.format(
         profile=_profile_block(cfg),
         cv=cv[:6000] or "(CV не загружено)",
@@ -705,7 +721,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         # Вердикт и число у модели расходятся, и тогда верим вердикту: он идёт
         # первым, то есть придуман раньше, чем она успела подогнать цифру. Без
         # этого «чужая» уживалась с 85% и галочкой «проверено».
-        потолок = ПОТОЛОК_ПО_ВЕРДИКТУ.get(str(result.get("verdict", "")).strip().lower())
+        потолок = CEILING_BY_VERDICT.get(str(result.get("verdict", "")).strip().lower())
         if потолок is not None and балл > потолок:
             _lk(log, "log_deep_verdict_caps", title=job.get("title"),
                 verdict=result.get("verdict"), was=балл, now=потолок)
@@ -725,10 +741,10 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         понятно = bool(job.get("occupation")) or английское
         if not понятно:
             job["verified"] = False
-            if балл > ПОТОЛОК_НЕПРОЧИТАННОГО:
+            if балл > UNREAD_CEILING:
                 _lk(log, "log_deep_unreadable", title=job.get("title"),
-                    was=балл, now=ПОТОЛОК_НЕПРОЧИТАННОГО)
-                job["score"] = ПОТОЛОК_НЕПРОЧИТАННОГО
+                    was=балл, now=UNREAD_CEILING)
+                job["score"] = UNREAD_CEILING
         else:
             # И ещё одно условие: довод должен опираться на резюме, а не на
             # выдумку. Модель написала конструктору белья «кандидат имеет опыт и
@@ -737,7 +753,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
             # у человека нет. Теперь она обязана привести кусок резюме, а мы
             # проверяем, что он там и правда есть.
             цитата = str(result.get("quote", "")).strip()
-            if цитата and not _цитата_настоящая(цитата, cv):
+            if цитата and not _quote_is_real(цитата, cv):
                 _lk(log, "log_quote_not_found", title=job.get("title"), quote=цитата[:70])
                 job["verified"] = False
             else:
