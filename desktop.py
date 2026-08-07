@@ -68,27 +68,29 @@ def _read_lock() -> dict:
 
 
 def _alive(port: int) -> bool:
-    """Отвечает ли на этом порту НАША программа, а не кто-нибудь вообще.
+    """Whether OUR program answers on this port, rather than just anybody.
 
-    Раньше здесь просто стучались в порт. Этого мало сразу по двум причинам, и
-    вторая стоила работоспособности:
+    This used to simply knock on the port. That is not enough, for two reasons at
+    once, and the second cost us a working application:
 
-    — на порту может сидеть что угодно чужое, и мы открыли бы окно в него;
-    — во время обновления установщик закрывает старую копию и тут же запускает
-      новую. Новая заставала старую ещё живой, решала «программа уже запущена»,
-      открывала окно на её порт и своего сервера не поднимала. Через мгновение
-      старая дописывала и умирала — окно упиралось в «отказано в подключении».
+    — anything foreign at all may be sitting on the port, and we would have opened
+      a window into it;
+    — during an update the installer closes the old copy and starts the new one
+      right away. The new one found the old still alive, decided "the program is
+      already running", opened a window onto its port and never brought up its own
+      server. A moment later the old one finished up and died — and the window ran
+      into "connection refused".
 
-    Поэтому спрашиваем, кто там, и сверяем версию: прицепляться имеет смысл
-    только к своей ровеснице. Старая копия, которую сейчас закрывают, ответит
-    чужим номером — и мы поднимем свой сервер, как и следовало.
+    So we ask who is there and check the version: attaching only makes sense to a
+    copy of our own age. The old copy, the one being closed right now, will answer
+    with a different number — and we bring up our own server, as we should have.
     """
     if not port:
         return False
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/ping", timeout=1.5) as r:
             answer = json.loads(r.read(400).decode("utf-8", "replace"))
-    except Exception:  # noqa: BLE001 — не ответил, ответил не тем, ответил не JSON
+    except Exception:  # noqa: BLE001 — no answer, the wrong answer, or not JSON
         return False
     if answer.get("app") != "ai-job-search":
         return False
@@ -160,7 +162,7 @@ def _serve(port: int) -> None:
         _server.run()
     except BaseException:                     # noqa: BLE001 — every reason matters
         _server_error = traceback.format_exc()
-        _log_crash("Внутренний сервер не запустился", _server_error)
+        _log_crash("The internal server did not start", _server_error)
 
 
 def _ui_lang() -> str:
@@ -246,9 +248,9 @@ def _force_exit_later(seconds: float = 3.0) -> None:
     here after that we leave without asking. Nothing is lost by it: by the time we
     get here every save has been written and the settings are on disk.
     """
-    сторож = threading.Timer(seconds, lambda: os._exit(0))
-    сторож.daemon = True               # a non-daemon watchdog would hold the exit itself
-    сторож.start()
+    watchdog = threading.Timer(seconds, lambda: os._exit(0))
+    watchdog.daemon = True             # a non-daemon watchdog would hold the exit itself
+    watchdog.start()
 
 
 def _shutdown() -> None:
@@ -288,12 +290,12 @@ def _install_stop_signals() -> None:
     has every signal. Where it will not go, the program starts all the same: this
     is about closing nicely, not about starting at all.
     """
-    for имя in ("SIGINT", "SIGTERM", "SIGHUP"):
-        сигнал = getattr(signal, имя, None)
-        if сигнал is None:
+    for name in ("SIGINT", "SIGTERM", "SIGHUP"):
+        sig = getattr(signal, name, None)
+        if sig is None:
             continue                   # Windows has no SIGHUP — nothing to subscribe to
         try:
-            signal.signal(сигнал, _leave)
+            signal.signal(sig, _leave)
         except (OSError, ValueError):
             pass
 
@@ -320,16 +322,16 @@ def _unblock_bundled_libraries() -> int:
     bundle = getattr(sys, "_MEIPASS", "")
     if not bundle:
         return 0                       # running from source: there was nothing to download
-    осталось = 0
+    left = 0
     for dll in Path(bundle).rglob("*.dll"):
-        метка = f"{dll}:Zone.Identifier"
-        if not os.path.exists(метка):
+        mark = f"{dll}:Zone.Identifier"
+        if not os.path.exists(mark):
             continue
         try:
-            os.remove(метка)
+            os.remove(mark)
         except OSError:
-            осталось += 1              # a read-only folder — the mark stays
-    return осталось
+            left += 1                  # a read-only folder — the mark stays
+    return left
 
 
 def _trust_marked_libraries() -> Path:
@@ -400,10 +402,10 @@ def _open_window(port: int, own_server: bool) -> None:
     """Our own window, or a browser tab if the system will not give us one."""
     global _window
     try:
-        # Скачивание файлов pywebview по умолчанию запрещает, и запрещает молча:
-        # человек жал «CSV» и не получал ничего — ни файла, ни слова о том,
-        # почему. Выгружаются только собственные страницы программы, с её же
-        # адреса, так что разрешать тут нечего, кроме уже своего.
+        # pywebview forbids downloads by default, and forbids them silently: a
+        # person pressed "CSV" and got nothing — no file and no word about why.
+        # What gets exported is only the program's own pages, from its own
+        # address, so there is nothing to allow here beyond what is already ours.
         webview.settings["ALLOW_DOWNLOADS"] = True
         _window = webview.create_window(APP_NAME, f"http://127.0.0.1:{port}/simple",
                                         width=1180, height=860, min_size=(900, 600))
@@ -414,7 +416,7 @@ def _open_window(port: int, own_server: bool) -> None:
         return
     except Exception:                  # noqa: BLE001 — every reason matters
         reason = traceback.format_exc()
-    _log_crash("Своё окно не открылось — показываем в браузере", reason)
+    _log_crash("Our own window did not open — showing it in a browser", reason)
     if _window_shown:
         return                         # the window was already in use: trouble on the way out
     _open_in_browser(port, own_server)
@@ -433,8 +435,8 @@ def main() -> int:
     port = _free_port()
     threading.Thread(target=_serve, args=(port,), daemon=True).start()
     if not _wait_until_up(port):
-        reason = _server_error or "Внутренний сервер не ответил за 30 секунд."
-        _log_crash("Приложение не смогло запуститься", reason)
+        reason = _server_error or "The internal server did not answer within 30 seconds."
+        _log_crash("The application could not start", reason)
         _show_failure(reason)
         return 1
     _lock_path().write_text(json.dumps({"port": port, "pid": os.getpid()}), encoding="utf-8")
