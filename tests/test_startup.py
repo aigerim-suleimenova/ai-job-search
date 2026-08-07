@@ -27,7 +27,7 @@ def test_упавшее_расписание_не_мешает_открытьс�
         assert client.get("/").status_code == 200, "приложение не открылось из-за расписания"
 
     журнал = (tmp_path / "errors.log").read_text(encoding="utf-8")
-    assert "запуск расписания" in журнал, "причина не записана"
+    assert "starting the scheduler" in журнал, "причина не записана"
     assert "планировщик не завёлся" in журнал
 
 
@@ -38,7 +38,7 @@ def test_упавший_перенос_профилей_не_мешает(profil
     with TestClient(app_module.app, base_url="http://127.0.0.1:8765") as client:
         client.cookies.set("profile", profile)
         assert client.get("/simple").status_code == 200
-    assert "перенос профилей" in (tmp_path / "errors.log").read_text(encoding="utf-8")
+    assert "migrating profiles" in (tmp_path / "errors.log").read_text(encoding="utf-8")
 
 
 def test_все_шаги_падают_а_программа_живёт(profile, monkeypatch, tmp_path):
@@ -55,7 +55,7 @@ def test_все_шаги_падают_а_программа_живёт(profile, 
         assert client.get("/").status_code == 200
 
     журнал = (tmp_path / "errors.log").read_text(encoding="utf-8")
-    for шаг in ("перенос профилей", "запуск расписания", "восстановление расписаний"):
+    for шаг in ("migrating profiles", "starting the scheduler", "restoring the schedules"):
         assert шаг in журнал, f"шаг «{шаг}» не отчитался о падении"
 
 
