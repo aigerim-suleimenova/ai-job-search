@@ -1,14 +1,15 @@
-"""Избавиться от программы там, где избавляться нечем.
+"""Getting rid of the program where there is nothing to get rid of it with.
 
-На Windows есть установщик: он закрывает программу, стирает её файлы, убирает
-автозапуск и спрашивает про данные. На macOS и Linux установщика нет вовсе —
-образ перетаскивают в корзину, архив стирают. Уходит только сама программа, а
-за ней навсегда и молча остаются данные и запись автозапуска: найти их человек
-не может, а убрать способна только сама программа — до того, как её удалят.
+On Windows there is an installer: it closes the program, wipes its files, removes
+the autostart entry and asks about the data. On macOS and Linux there is no
+installer at all — the disk image gets dragged to the bin, the archive gets
+deleted. Only the program itself goes, and behind it the data and the autostart
+entry remain forever and silently: a person cannot find them, and only the
+program itself can clear them away — before it is deleted.
 """
 import pytest
 
-pytest.importorskip("httpx", reason="TestClient требует httpx")
+pytest.importorskip("httpx", reason="TestClient needs httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -23,20 +24,21 @@ def client(profile):
         yield c
 
 
-# --- Что программа знает о себе -------------------------------------------------
+# --- What the program knows about itself --------------------------------------
 
-def test_на_windows_удаление_есть_а_на_остальных_нет(monkeypatch):
-    """Разница не косметическая: там, где установщик есть, вмешиваться незачем."""
+def test_windows_has_an_uninstaller_and_the_others_do_not(monkeypatch):
+    """The difference is not cosmetic: where an installer exists, there is no reason
+    to interfere."""
     monkeypatch.setattr(removal.platform, "system", lambda: "Windows")
     assert removal.has_uninstaller() is True
-    for система in ("Darwin", "Linux"):
-        monkeypatch.setattr(removal.platform, "system", lambda: система)
-        assert removal.has_uninstaller() is False, система
+    for system in ("Darwin", "Linux"):
+        monkeypatch.setattr(removal.platform, "system", lambda: system)
+        assert removal.has_uninstaller() is False, system
 
 
-def test_на_macos_называется_пакет_а_не_файл_внутри(monkeypatch):
-    """В корзину перетаскивают .app целиком. Путь к исполняемому файлу внутри
-    него человеку ничего не даёт — он его даже не увидит."""
+def test_on_macos_we_name_the_bundle_not_the_file_inside(monkeypatch):
+    """The whole .app is what gets dragged to the bin. The path to the executable
+    inside it gives a person nothing — they will never even see it."""
     monkeypatch.setattr(removal.platform, "system", lambda: "Darwin")
     monkeypatch.setattr(removal.sys, "frozen", True, raising=False)
     monkeypatch.setattr(removal.sys, "executable",
@@ -45,36 +47,37 @@ def test_на_macos_называется_пакет_а_не_файл_внутр�
     assert removal.program_path() == "/Applications/AI Job Search.app"
 
 
-def test_из_исходников_удалять_нечего(monkeypatch):
-    """Там лежит то, что разработчик открыл у себя, а не установленная программа."""
+def test_running_from_source_there_is_nothing_to_delete(monkeypatch):
+    """What lies there is what the developer checked out, not an installed program."""
     monkeypatch.delattr(removal.sys, "frozen", raising=False)
     assert removal.program_path() == ""
 
 
-def test_в_остатках_названы_пути_а_не_общие_слова(monkeypatch):
-    """«Кое-какие файлы» человеку не помогут: он не знает ни где они, ни что они есть."""
+def test_the_leftovers_name_paths_not_vague_words(monkeypatch):
+    """"Some files" will not help anyone: they know neither where they are nor that
+    they exist."""
     monkeypatch.setattr(removal.platform, "system", lambda: "Linux")
-    остатки = removal.leftovers()
-    assert str(profiles.DATA_ROOT) in остатки, "не назвали, где лежат данные"
-    assert all(str(p).strip() for p in остатки), "в списке есть пустая строка"
+    leftovers = removal.leftovers()
+    assert str(profiles.DATA_ROOT) in leftovers, "we did not say where the data lives"
+    assert all(str(p).strip() for p in leftovers), "the list has an empty string in it"
 
 
-def test_автозапуск_попадает_в_остатки_только_когда_он_есть(monkeypatch, tmp_path):
+def test_autostart_is_listed_only_when_it_exists(monkeypatch, tmp_path):
     monkeypatch.setattr(removal.platform, "system", lambda: "Linux")
-    файл = tmp_path / "ai-job-search.desktop"
-    monkeypatch.setattr(autostart, "_linux_desktop_path", lambda: файл)
+    path = tmp_path / "ai-job-search.desktop"
+    monkeypatch.setattr(autostart, "_linux_desktop_path", lambda: path)
 
-    assert removal.autostart_path() == "", "назвали запись, которой нет"
-    файл.write_text("[Desktop Entry]", encoding="utf-8")
-    assert removal.autostart_path() == str(файл)
-    assert str(файл) in removal.leftovers()
+    assert removal.autostart_path() == "", "we named an entry that does not exist"
+    path.write_text("[Desktop Entry]", encoding="utf-8")
+    assert removal.autostart_path() == str(path)
+    assert str(path) in removal.leftovers()
 
 
-# --- Что она делает по кнопке ---------------------------------------------------
+# --- What it does when the button is pressed ----------------------------------
 
-def test_убирает_за_собой_всё_кроме_себя(client, profile, monkeypatch):
-    выключен = []
-    monkeypatch.setattr(autostart, "set_enabled", lambda on: выключен.append(on) or "")
+def test_it_clears_up_everything_but_itself(client, profile, monkeypatch):
+    switched_off = []
+    monkeypatch.setattr(autostart, "set_enabled", lambda on: switched_off.append(on) or "")
     import app as app_module
     monkeypatch.setattr(app_module.autostart, "set_enabled", autostart.set_enabled)
     config.save(config.load())
@@ -83,13 +86,13 @@ def test_убирает_за_собой_всё_кроме_себя(client, profi
     r = client.post("/app/uninstall", follow_redirects=False)
 
     assert r.status_code == 303
-    assert выключен == [False], "автозапуск не выключили"
-    assert not (profiles.PROFILES_DIR / profile).exists(), "данные человека остались"
-    assert not appstate.setup_done(), "отметка о знакомстве осталась"
+    assert switched_off == [False], "autostart was not switched off"
+    assert not (profiles.PROFILES_DIR / profile).exists(), "the person's data is still there"
+    assert not appstate.setup_done(), "the setup-done mark is still there"
 
 
-def test_говорит_что_осталось_убрать_руками(client, monkeypatch):
-    """Съесть себя программа не может — но сказать, что именно осталось, обязана."""
+def test_it_says_what_is_left_to_remove_by_hand(client, monkeypatch):
+    """The program cannot eat itself — but it is obliged to say what is left."""
     from urllib.parse import unquote
     monkeypatch.setattr(removal, "program_path", lambda: "/Applications/AI Job Search.app")
     import app as app_module
@@ -100,13 +103,13 @@ def test_говорит_что_осталось_убрать_руками(client
 
     r = client.post("/app/uninstall", follow_redirects=False)
 
-    сообщение = unquote(r.headers["location"])
-    assert "/Applications/AI Job Search.app" in сообщение, \
-        f"не сказали, что удалять: {сообщение}"
+    message = unquote(r.headers["location"])
+    assert "/Applications/AI Job Search.app" in message, \
+        f"we did not say what to delete: {message}"
 
 
-def test_во_время_поиска_не_убираем(client):
-    """Прогон пишет в те самые файлы: часть из них молча вернулась бы обратно."""
+def test_we_do_not_clear_up_during_a_search(client):
+    """A run writes into those very files: some of them would quietly come back."""
     from jobsearch import pipeline
     config.save(config.load())
     pipeline.state["running"] = True
@@ -115,24 +118,25 @@ def test_во_время_поиска_не_убираем(client):
     finally:
         pipeline.state["running"] = False
 
-    assert r.headers["location"].startswith("/?"), "не объяснили, почему не убрали"
-    assert profiles.list_profiles(), "всё-таки убрали посреди поиска"
+    assert r.headers["location"].startswith("/?"), "we did not explain why nothing was cleared"
+    assert profiles.list_profiles(), "we cleared up in the middle of a search after all"
 
 
-# --- Что видно на странице ------------------------------------------------------
+# --- What is visible on the page ----------------------------------------------
 
-def test_где_есть_установщик_кнопку_не_показываем(client, monkeypatch):
-    """Дублировать работу установщика незачем — там достаточно сказать, где он."""
+def test_where_an_uninstaller_exists_we_show_no_button(client, monkeypatch):
+    """No reason to duplicate the installer's work — there it is enough to say where
+    it is."""
     import app as app_module
     monkeypatch.setattr(app_module.removal, "has_uninstaller", lambda: True)
 
     html = client.get("/").text
 
-    assert 'action="/app/uninstall"' not in html, "предложили лишнее там, где есть своё удаление"
-    assert 'id="uninstall"' in html, "про удаление не сказали вовсе"
+    assert 'action="/app/uninstall"' not in html, "we offered more than needed where an uninstaller exists"
+    assert 'id="uninstall"' in html, "we said nothing about removal at all"
 
 
-def test_где_установщика_нет_называем_пути(client, monkeypatch):
+def test_where_there_is_no_installer_we_name_the_paths(client, monkeypatch):
     import app as app_module
     monkeypatch.setattr(app_module.removal, "has_uninstaller", lambda: False)
     monkeypatch.setattr(app_module.removal, "program_path", lambda: "/opt/AI Job Search")
@@ -140,5 +144,5 @@ def test_где_установщика_нет_называем_пути(client, 
     html = client.get("/").text
 
     assert 'action="/app/uninstall"' in html
-    assert "/opt/AI Job Search" in html, "не сказали, где сама программа"
-    assert str(profiles.DATA_ROOT) in html, "не сказали, где данные"
+    assert "/opt/AI Job Search" in html, "we did not say where the program itself is"
+    assert str(profiles.DATA_ROOT) in html, "we did not say where the data is"
