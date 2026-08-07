@@ -456,7 +456,7 @@ def eures(cfg: dict, log) -> list:
     # уходили на страны, о которых не спрашивали. Не назвал стран или назвал «ЕС»
     # — не ограничиваем, тогда и правда нужен весь союз.
     страны = filters.country_codes(filters.parse_locations(cfg["search"].get("locations", "")),
-                                   только=filters.EURES_CODES)
+                                   only=filters.EURES_CODES)
     слова = _search_terms(cfg)
     # Сперва переводим роли в коды профессий справочника и спрашиваем ими.
     # Поиск по словам у EURES зависит от угаданного слова, а не от смысла: на
@@ -638,7 +638,7 @@ def adzuna(cfg: dict, log) -> list:
     # Отдельный список остаётся запасным: он же и подскажет, если наш справочник
     # чего-то не знает.
     названные = filters.country_codes(
-        filters.parse_locations(cfg["search"].get("locations", "")), только=ADZUNA_КОДЫ)
+        filters.parse_locations(cfg["search"].get("locations", "")), only=ADZUNA_КОДЫ)
     countries = названные or [c.strip() for c in src.get("adzuna_countries", "").split(",")
                               if c.strip()]
     what = " ".join(_search_terms(cfg))[:100]

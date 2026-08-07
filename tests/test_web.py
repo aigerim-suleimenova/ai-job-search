@@ -385,7 +385,7 @@ def test_eures_спрашиваем_только_про_свои_страны():
     впустую потратить запрос, а их всего по одному на слово."""
     from jobsearch import filters
     места = filters.parse_locations("США, Германия, Бразилия, Нидерланды")
-    assert set(filters.country_codes(места, только=filters.EURES_CODES)) == {"DE", "NL"}
+    assert set(filters.country_codes(места, only=filters.EURES_CODES)) == {"DE", "NL"}
     assert set(filters.country_codes(места)) == {"US", "DE", "BR", "NL"}
 
 

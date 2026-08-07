@@ -171,18 +171,19 @@ COUNTRIES = {
     "SK": ("Slovakia", ["slovensko", "словакия"], ["bratislava", "košice", "kosice"]),
 }
 
-# Коды, которые понимает EURES, — ровно те тридцать одна страна, что выше. Ниже
-# идёт остальной мир: он нужен фильтру, но спрашивать про него EURES бесполезно.
+# The codes EURES understands — exactly the thirty-one countries above. Below
+# comes the rest of the world: the filter needs it, but asking EURES about it is
+# pointless.
 EURES_CODES = frozenset(COUNTRIES)
 
-# Остальной мир. Без него выходило вот что: человек пишет «Россия, Омск», а
-# «Москва» отсеивается — слова «россия» в строке нет, а справочника, который
-# связал бы одно с другим, не было. И наоборот, «Kenya, Remote» проходило в
-# поиск по России как «работа откуда угодно»: Кении в списках не значилось,
-# значит место как бы и не названо.
+# The rest of the world. Without it, this is what happened: a person writes
+# «Россия, Омск», and «Москва» gets filtered out — the word «россия» is not in
+# the string, and there was no table to link the one to the other. And the other
+# way round, "Kenya, Remote" passed into a search for Russia as
+# "work-from-anywhere": Kenya was not on any list, so no place was named at all.
 #
-# Города здесь скупее, чем у европейских: список нужен, чтобы узнать страну и не
-# перепутать её с чужой, а не чтобы знать все её города.
+# The cities here are sparser than the European ones: the list exists to work out
+# the country and not confuse it with another, not to know all of its cities.
 COUNTRIES.update({
     "US": ("United States", ["сша", "америка", "usa", "u.s."],
            ["new york", "san francisco", "bay area", "seattle", "austin", "boston",
@@ -262,27 +263,26 @@ COUNTRIES.update({
 
 
 def country_name(code: str) -> str:
-    """Имя страны по коду — тем источникам, что отдают только код."""
-    сведения = COUNTRIES.get((code or "").strip().upper())
-    return сведения[0] if сведения else (code or "")
+    """A country's name from its code — for sources that hand back only the code."""
+    entry = COUNTRIES.get((code or "").strip().upper())
+    return entry[0] if entry else (code or "")
 
 
-def country_codes(wanted: list, только=None) -> list:
-    """Коды стран, которые человек назвал, — тем источникам, что умеют по ним
-    ограничивать выдачу. Названо «ЕС» или ничего — не ограничиваем.
+def country_codes(wanted: list, only=None) -> list:
+    """The codes of the countries a person named — for sources that can narrow
+    their results by them. If "EU" or nothing was named, we do not narrow.
 
-    «только» сужает ответ до тех кодов, которые источник вообще понимает: EURES
-    знает свои тридцать одну страну, и спрашивать у него про Бразилию — впустую
-    потратить запрос.
+    "only" trims the answer to the codes a source understands at all: EURES knows
+    its own thirty-one countries, and asking it about Brazil wastes a query.
     """
-    коды = []
-    for код, (имя, псевдонимы, города) in COUNTRIES.items():
-        if только is not None and код not in только:
+    codes = []
+    for code, (name, aliases, _cities) in COUNTRIES.items():
+        if only is not None and code not in only:
             continue
-        свои = {имя.lower(), *псевдонимы}
-        if any(t in свои for t in wanted):
-            коды.append(код)
-    return коды
+        spellings = {name.lower(), *aliases}
+        if any(t in spellings for t in wanted):
+            codes.append(code)
+    return codes
 
 
 # individual countries: postings often name only the city ("Milano", "München")
