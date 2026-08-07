@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-pytest.importorskip("httpx", reason="TestClient требует httpx")
+pytest.importorskip("httpx", reason="TestClient needs httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -17,7 +17,7 @@ from jobsearch import db  # noqa: E402
 
 from conftest import job  # noqa: E402
 
-СТРАНИЦЫ = ["/", "/simple", "/results", "/coverage", "/models", "/notify", "/cv/check", "/welcome"]
+PAGES = ["/", "/simple", "/results", "/coverage", "/models", "/notify", "/cv/check", "/welcome"]
 
 
 @pytest.fixture
@@ -28,36 +28,36 @@ def client(profile):
         yield c
 
 
-@pytest.mark.parametrize("path", СТРАНИЦЫ)
-def test_страница_открывается_на_пустой_базе(client, path):
+@pytest.mark.parametrize("path", PAGES)
+def test_the_page_opens_on_an_empty_database(client, path):
     assert client.get(path).status_code == 200
 
 
-@pytest.mark.parametrize("path", СТРАНИЦЫ)
-def test_страница_открывается_с_данными(client, path, profile):
+@pytest.mark.parametrize("path", PAGES)
+def test_the_page_opens_with_data(client, path, profile):
     db.save_job(job("k1", score=88, verified=True,
-                    advice='{"cv_changes":["раз"],"linkedin_changes":[],"cover_hint":"",'
+                    advice='{"cv_changes":["one"],"linkedin_changes":[],"cover_hint":"",'
                            '"salary_estimate":"60k","company_insights":[],"sources":[]}'), run_id=1)
     db.save_job(job("k2", score=40, posted_at=""), run_id=1)
     assert client.get(path).status_code == 200
 
 
-def test_фильтры_результатов_не_роняют_страницу(client, profile):
+def test_the_results_filters_do_not_bring_the_page_down(client, profile):
     db.save_job(job("k1", score=88), run_id=1)
-    запросы = [
+    queries = [
         "/results?min=70",
         "/results?sort=posted&viewed=new&source=direct",
         "/results?posted_from=2026-07-01&posted_to=2026-07-31",
-        "/results?posted_from=мусор",          # someone typed nonsense by hand
+        "/results?posted_from=rubbish",          # someone typed nonsense by hand
         "/results?run=999",                    # there is no run with that number
-        "/results?min=не-число",
+        "/results?min=not-a-number",
     ]
-    for q in запросы:
+    for q in queries:
         r = client.get(q)
         assert r.status_code in (200, 422), f"{q} → {r.status_code}"
 
 
-def test_все_языки_рисуют_страницы(client, profile):
+def test_every_language_draws_the_pages(client, profile):
     from jobsearch import config, i18n
     db.save_job(job("k1", score=88), run_id=1)
     for lang in i18n.UI_LANGS:
@@ -65,14 +65,14 @@ def test_все_языки_рисуют_страницы(client, profile):
         cfg["ui"]["lang"] = lang
         config.save(cfg)
         r = client.get("/results")
-        assert r.status_code == 200, f"страница результатов упала на языке {lang}"
+        assert r.status_code == 200, f"the results page fell over in {lang}"
 
 
-def test_несуществующая_вакансия_не_роняет(client, profile):
+def test_a_job_that_does_not_exist_breaks_nothing(client, profile):
     assert client.get("/cv/999999").status_code in (404, 502)
 
 
-def test_выбор_модели_возвращает_к_месту_нажатия(client, profile):
+def test_choosing_a_model_returns_to_where_it_was_clicked(client, profile):
     """After "Use" the page reloads — and a person used to end up at the top of a
     long list rather than where they had clicked."""
     r = client.post("/models/select",
@@ -82,7 +82,7 @@ def test_выбор_модели_возвращает_к_месту_нажати
     assert r.headers["location"].endswith("#model-claude-haiku-4-5"), r.headers["location"]
 
 
-def test_на_знакомстве_ведёт_к_кнопке_продолжить(client, profile):
+def test_in_the_introduction_it_leads_to_the_continue_button(client, profile):
     r = client.post("/models/select",
                     data={"model": "claude-haiku-4-5", "back": "/welcome", "anchor": "welcome-continue"},
                     follow_redirects=False)
@@ -90,11 +90,11 @@ def test_на_знакомстве_ведёт_к_кнопке_продолжит
     assert r.headers["location"].endswith("#welcome-continue")
 
 
-def test_выбор_провайдера_ведёт_к_следующему_вопросу(client, profile, monkeypatch):
-    """Выбрав, через что работать, человек ещё не закончил: дальше — какой моделью,
-    и это ниже на той же странице. Его бросало в самый верх, к началу всего, что
-    он уже прочитал."""
-    доступны(monkeypatch, claude_cli=True)
+def test_choosing_a_provider_leads_to_the_next_question(client, profile, monkeypatch):
+    """Having chosen what to work through, a person is not finished: next comes which
+    model, and that is further down the same page. They were thrown to the very
+    top, back to the beginning of everything they had already read."""
+    available_are(monkeypatch, claude_cli=True)
     r = client.post("/models/provider",
                     data={"provider": "claude_cli", "back": "/welcome", "anchor": "welcome-continue"},
                     follow_redirects=False)
@@ -106,10 +106,10 @@ def test_выбор_провайдера_ведёт_к_следующему_во
     assert r.headers["location"].endswith("#models-choose"), r.headers["location"]
 
 
-def test_проверка_программы_возвращает_к_её_же_карточке(client, profile, monkeypatch):
-    """«Проверить снова» спрашивают про конкретную программу — и остаться надо
-    возле неё, а не уехать наверх страницы."""
-    доступны(monkeypatch, claude_cli=True)
+def test_checking_a_program_returns_to_its_own_card(client, profile, monkeypatch):
+    """"Check again" is asked about one particular program — and that is where a
+    person should stay, not be carried to the top of the page."""
+    available_are(monkeypatch, claude_cli=True)
     r = client.post("/provider/recheck",
                     data={"provider": "ollama", "back": "/welcome", "anchor": "provider-ollama"},
                     follow_redirects=False)
@@ -119,89 +119,89 @@ def test_проверка_программы_возвращает_к_её_же_�
 @pytest.mark.parametrize("path,anchor", [("/welcome", "welcome-continue"),
                                          ("/welcome?step=model", "welcome-step2"),
                                          ("/models", "models-choose")])
-def test_якорь_есть_на_самой_странице(client, profile, monkeypatch, path, anchor):
-    """Якорь в адресе без якоря на странице — это просто прокрутка наверх."""
-    доступны(monkeypatch, claude_cli=True)
-    assert f'id="{anchor}"' in client.get(path).text, f"{path}: некуда возвращать"
+def test_the_anchor_is_on_the_page_itself(client, profile, monkeypatch, path, anchor):
+    """An anchor in the address with none on the page is just a scroll to the top."""
+    available_are(monkeypatch, claude_cli=True)
+    assert f'id="{anchor}"' in client.get(path).text, f"{path}: nowhere to return to"
 
 
-def test_без_якоря_перенаправление_прежнее(client, profile):
+def test_with_no_anchor_the_redirect_is_as_before(client, profile):
     r = client.post("/models/select", data={"model": "x", "back": "/models"}, follow_redirects=False)
     assert r.status_code == 303 and "#" not in r.headers["location"]
 
 
-def test_проверка_cv_уходит_в_фон_и_не_держит_страницу(client, profile, monkeypatch):
+def test_the_cv_check_goes_to_the_background_and_does_not_hold_the_page(client, profile, monkeypatch):
     """This used to be a link that thought silently for minutes. Now the page comes
     back at once and the work goes on in the background."""
     import time as _t
     from jobsearch import config, cvcheck
 
-    config.save_cv("резюме.txt", ("Виктор Лавров, фронтенд-инженер. " * 8).encode("utf-8"))
+    config.save_cv("cv.txt", ("Viktor Lavrov, front-end engineer. " * 8).encode("utf-8"))
     monkeypatch.setattr(cvcheck, "analyze", lambda cfg: _t.sleep(1) or {})
 
-    начало = _t.monotonic()
+    started_at = _t.monotonic()
     r = client.post("/cv/check/run", follow_redirects=False)
     assert r.status_code == 303
-    assert _t.monotonic() - начало < 0.5, "страница ждала окончания проверки"
+    assert _t.monotonic() - started_at < 0.5, "the page waited for the check to finish"
 
     assert client.get("/cv/check/status").json()["running"] is True
     assert "cvcheck_running" not in client.get("/cv/check").text  # the key is translated, not shown raw
 
 
-def test_неудачная_проверка_cv_показывает_причину(client, profile, monkeypatch):
+def test_a_failed_cv_check_shows_the_reason(client, profile, monkeypatch):
     from jobsearch import config, cvcheck
-    config.save_cv("резюме.txt", ("Виктор Лавров, фронтенд-инженер. " * 8).encode("utf-8"))
+    config.save_cv("cv.txt", ("Viktor Lavrov, front-end engineer. " * 8).encode("utf-8"))
 
-    def взорваться(cfg):
-        raise RuntimeError("модель не ответила")
+    def blow_up(cfg):
+        raise RuntimeError("the model did not answer")
 
-    monkeypatch.setattr(cvcheck, "analyze", взорваться)
+    monkeypatch.setattr(cvcheck, "analyze", blow_up)
     client.post("/cv/check/run", follow_redirects=False)
     for _ in range(50):
         if not client.get("/cv/check/status").json()["running"]:
             break
-    статус = client.get("/cv/check/status").json()
-    assert "модель не ответила" in статус["error"]
-    assert "модель не ответила" in client.get("/cv/check").text, "причина не показана человеку"
+    status = client.get("/cv/check/status").json()
+    assert "the model did not answer" in status["error"]
+    assert "the model did not answer" in client.get("/cv/check").text, "the reason is not shown to the person"
 
 
-def test_несобравшееся_cv_объясняет_а_не_отдаёт_502(client, profile, monkeypatch):
+def test_a_cv_that_would_not_build_explains_rather_than_returning_502(client, profile, monkeypatch):
     """A blank tab with "502" tells a person nothing."""
     from jobsearch import config, db, scoring
-    from conftest import job as образец
+    from conftest import job as sample_job
 
-    config.save_cv("резюме.txt", ("Виктор Лавров, фронтенд-инженер. " * 8).encode("utf-8"))
-    db.save_job(образец("k1"), run_id=1)
+    config.save_cv("cv.txt", ("Viktor Lavrov, front-end engineer. " * 8).encode("utf-8"))
+    db.save_job(sample_job("k1"), run_id=1)
     job_id = db.matched_jobs(min_score=0)[0]["id"]
 
-    def взорваться(*_a, **_kw):
-        raise RuntimeError("модель вернула прозу вместо JSON")
+    def blow_up(*_a, **_kw):
+        raise RuntimeError("the model returned prose instead of JSON")
 
-    monkeypatch.setattr(scoring, "generate_cv", взорваться)
+    monkeypatch.setattr(scoring, "generate_cv", blow_up)
     r = client.get(f"/cv/{job_id}")
-    assert r.status_code == 200, "человек получил голую ошибку вместо объяснения"
-    assert "JSON" in r.text or "модель" in r.text.lower()
+    assert r.status_code == 200, "the person got a bare error instead of an explanation"
+    assert "JSON" in r.text or "model" in r.text.lower()
 
 
 # --- Russian words on English pages --------------------------------------------
 
-КИРИЛЛИЦА = re.compile(r"[А-Яа-яЁё]")
+CYRILLIC = re.compile(r"[А-Яа-яЁё]")
 # Not every piece of Cyrillic on an English page is trouble. "Русский" in the list
 # of languages, and a profile name the person wrote themselves, belong there.
-СВОИ_ИМЕНА = re.compile(r'<select name="(ui_lang|output_lang|slug)".*?</select>', re.S)
-ПОДСКАЗКА_ЯЗЫКА = 'title="Язык / Language"'
+OWN_NAMES = re.compile(r'<select name="(ui_lang|output_lang|slug)".*?</select>', re.S)
+LANGUAGE_TITLE = 'title="Язык / Language"'
 
 
-def человеческий_текст(html: str) -> str:
+def human_text(html: str) -> str:
     """The page without what a person does not read: comments in scripts and lists
     of languages. The double slash in "https://" is not taken for a comment."""
-    html = СВОИ_ИМЕНА.sub("", html).replace(ПОДСКАЗКА_ЯЗЫКА, "")
+    html = OWN_NAMES.sub("", html).replace(LANGUAGE_TITLE, "")
     html = re.sub(r"/\*.*?\*/", "", html, flags=re.S)
     return re.sub(r"""(?<![:"'])//.*$""", "", html, flags=re.M)
 
 
 @pytest.fixture
-def английский(client, profile):
+def in_english(client, profile):
     """An English-speaking person. The profile is renamed in Latin script: a name
     the person wrote themselves is not the program's text, and the check must not
     confuse the two."""
@@ -216,28 +216,28 @@ def английский(client, profile):
     return client
 
 
-@pytest.mark.parametrize("path", СТРАНИЦЫ)
-def test_на_английском_нет_русских_слов(английский, path):
+@pytest.mark.parametrize("path", PAGES)
+def test_in_english_there_are_no_russian_words(in_english, path):
     """Every key is translated, but text arrived round them too: the provider's
     name, the model notes, the mail services, the default profile name."""
-    текст = человеческий_текст(английский.get(path).text)
-    найдено = [ln.strip() for ln in текст.splitlines() if КИРИЛЛИЦА.search(ln)]
-    assert not найдено, f"{path}: " + " | ".join(найдено[:4])
+    text = human_text(in_english.get(path).text)
+    found = [ln.strip() for ln in text.splitlines() if CYRILLIC.search(ln)]
+    assert not found, f"{path}: " + " | ".join(found[:4])
 
 
-def test_на_английском_нет_русских_слов_с_данными(английский):
+def test_in_english_there_are_no_russian_words_with_data_too(in_english):
     from jobsearch import db
     db.save_job(job("k1", score=88, verified=True, reason="strong match",
                     advice='{"cv_changes":["one"],"linkedin_changes":[],"cover_hint":"",'
                            '"salary_estimate":"60k","company_insights":[],"sources":[]}'),
                 run_id=1)
     for path in ("/results", "/coverage"):
-        текст = человеческий_текст(английский.get(path).text)
-        найдено = [ln.strip() for ln in текст.splitlines() if КИРИЛЛИЦА.search(ln)]
-        assert not найдено, f"{path}: " + " | ".join(найдено[:4])
+        text = human_text(in_english.get(path).text)
+        found = [ln.strip() for ln in text.splitlines() if CYRILLIC.search(ln)]
+        assert not found, f"{path}: " + " | ".join(found[:4])
 
 
-def test_старое_покрытие_с_русским_типом_источника_переводится(английский):
+def test_old_coverage_with_a_russian_source_kind_is_translated(in_english):
     """The source kind is kept in the database: runs written before the translation
     still hold "агрегатор" there — and it still has to be shown in English."""
     import json as _json
@@ -246,14 +246,14 @@ def test_старое_покрытие_с_русским_типом_источн
     db.finish_run(run_id, found=1, fresh=1, matched=1, status="ok", log="",
                   coverage=_json.dumps([{"name": "Remotive", "url": "https://remotive.com",
                                          "kind": "агрегатор", "count": 3, "error": None}]))
-    текст = английский.get("/coverage").text
-    assert "aggregator" in текст, "старое значение не перевелось"
-    assert "агрегатор" not in человеческий_текст(текст)
+    text = in_english.get("/coverage").text
+    assert "aggregator" in text, "the old value was not translated"
+    assert "агрегатор" not in human_text(text)
 
 
 # --- The first screen: what the buttons say about the state --------------------
 
-ПРОВАЙДЕРЫ = {
+PROVIDERS = {
     "claude_cli": {"ready": False, "web_search": True, "kind": "cloud", "install_url": ""},
     "cursor_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
     "codex_cli": {"ready": False, "web_search": False, "kind": "cloud", "install_url": ""},
@@ -265,38 +265,40 @@ def test_старое_покрытие_с_русским_типом_источн
 }
 
 
-def доступны(monkeypatch, **готовы):
-    """Подменяет список провайдеров: что установлено, решает тест, а не машина."""
+def available_are(monkeypatch, **ready_flags):
+    """Stands in for the provider list: the test decides what is installed, not the
+    machine."""
     import app as app_module
     from jobsearch import providers
-    avail = {k: dict(v) for k, v in ПРОВАЙДЕРЫ.items()}
-    for key, ready in готовы.items():
+    avail = {k: dict(v) for k, v in PROVIDERS.items()}
+    for key, ready in ready_flags.items():
         avail[key]["ready"] = ready
-    # Команды берём у настоящего источника, а не переписываем в дубль: переписанные
-    # разошлись бы с ним молча, и тест продолжил бы уверять, что команда на месте.
+    # The commands come from the real source rather than being copied into the
+    # double: copies would drift from it silently, and the test would go on
+    # insisting the command is there.
     for key, p in avail.items():
         p["install_cmd"] = providers.install_cmd(key)
         p["verify_cmd"] = providers.verify_cmd(key)
-    # второй аргумент — блок настроек: он нужен своему адресу, у которого
-    # готовность определяется не файлом на диске, а вписанным адресом
+    # the second argument is the settings block: your own endpoint needs it, since
+    # its readiness is decided by the address filled in rather than a file on disk
     monkeypatch.setattr(providers, "available",
                         lambda claude_bin="claude", llm=None: avail)
     monkeypatch.setattr(app_module.providers, "available", providers.available)
 
 
-def кнопка_строки(html: str, model_id: str) -> str:
-    """Последняя кнопка в строке модели — та, что выбирает её."""
+def row_button(html: str, model_id: str) -> str:
+    """The last button in a model's row — the one that chooses it."""
     anchor = "model-" + re.sub(r"[:/.]", "-", model_id)
     row = html[html.index(f'id="{anchor}"'):]
     row = row[:row.index("</form>", row.index("/models/select"))]
     return re.findall(r"<button[^>]*>\s*([^<\n]+)", row)[-1].strip()
 
 
-def test_выбранная_модель_названа_на_кнопке(client, profile, monkeypatch):
-    """Раньше все строки предлагали «Использовать» — включая ту, что уже
-    используется, и по действию нельзя было понять, где ты сейчас."""
+def test_the_chosen_model_is_named_on_the_button(client, profile, monkeypatch):
+    """Every row used to offer "Use" — including the one already in use, so there was
+    no telling from the action where you currently were."""
     from jobsearch import config, i18n
-    доступны(monkeypatch, claude_cli=True)
+    available_are(monkeypatch, claude_cli=True)
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     cfg["llm"].update(provider="claude_cli", triage_model="sonnet")
@@ -304,333 +306,345 @@ def test_выбранная_модель_названа_на_кнопке(client
 
     html = client.get("/models").text
 
-    assert кнопка_строки(html, "sonnet") == i18n.t("en", "models_in_use")
-    assert кнопка_строки(html, "opus") == i18n.t("en", "models_use")
+    assert row_button(html, "sonnet") == i18n.t("en", "models_in_use")
+    assert row_button(html, "opus") == i18n.t("en", "models_use")
 
 
-def test_знакомство_не_пускает_без_установленной_программы(client, profile, monkeypatch):
+def test_the_introduction_does_not_let_you_past_without_the_program(client, profile, monkeypatch):
     from jobsearch import config, i18n
-    доступны(monkeypatch)                      # ничего не установлено
+    available_are(monkeypatch)                      # nothing installed
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     config.save(cfg)
 
     html = client.get("/welcome").text
-    хвост = html[html.index('id="welcome-continue"'):]
+    tail = html[html.index('id="welcome-continue"'):]
 
-    assert "disabled" in хвост.split("</button>")[0], "кнопка «Продолжить» осталась нажимаемой"
-    assert i18n.t("en", "welcome_blocked") in хвост
+    assert "disabled" in tail.split("</button>")[0], "the Continue button was left clickable"
+    assert i18n.t("en", "welcome_blocked") in tail
 
 
-def test_знакомство_различает_нет_программы_и_нет_модели(client, profile, monkeypatch):
-    """Ollama запущена, а модель к ней не скачана. Раньше человека отправляли
-    устанавливать то, что и так работает."""
+def test_the_introduction_tells_no_program_from_no_model(client, profile, monkeypatch):
+    """Ollama is running and no model has been downloaded for it. People used to be
+    sent off to install what was working perfectly well."""
     from jobsearch import config, i18n, providers
-    доступны(monkeypatch, ollama=True)
+    available_are(monkeypatch, ollama=True)
     monkeypatch.setattr(providers, "ollama_installed_models", lambda: set())
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     cfg["llm"].update(provider="ollama", triage_model="llama3.3:70b")
     config.save(cfg)
 
-    хвост = client.get("/welcome?step=model").text
-    хвост = хвост[хвост.index('id="welcome-continue"'):]
+    tail = client.get("/welcome?step=model").text
+    tail = tail[tail.index('id="welcome-continue"'):]
 
-    assert "disabled" in хвост.split("</button>")[0]
-    assert i18n.t("en", "welcome_blocked_model") in хвост
-    assert i18n.t("en", "welcome_blocked") not in хвост, "причина названа неверно"
+    assert "disabled" in tail.split("</button>")[0]
+    assert i18n.t("en", "welcome_blocked_model") in tail
+    assert i18n.t("en", "welcome_blocked") not in tail, "the reason is named wrongly"
 
 
-def test_своему_адресу_не_советуют_нажать_скачать(client, profile, monkeypatch):
-    """Жалоба (issue #5): «просит скачать модель, а кнопки скачать нет».
+def test_your_own_endpoint_is_not_told_to_press_download(client, profile, monkeypatch):
+    """A complaint (issue #5): "it asks me to download a model, and there is no
+    download button".
 
-    У своего адреса качать нечего — модель на чужом сервере, — но не хватать
-    может адреса и имени модели, и тогда «Продолжить» заперто. Заперто верно, а
-    вот говорилось при этом чужими словами: текст Ollama велел нажать «Скачать»
-    в списке выше. Ни списка, ни кнопки на той странице нет: вместо них поля.
-    Человек оставался перед запертой кнопкой с советом нажать несуществующее.
+    With your own endpoint there is nothing to download — the model is on somebody
+    else's server — but the address and the model name can be missing, and then
+    "Continue" is locked. Locked correctly; it was the words that were somebody
+    else's: the Ollama text told them to press "Download" in the list above. There
+    is neither list nor button on that page: there are fields instead. The person
+    was left in front of a locked button, advised to press something that does not
+    exist.
     """
     from jobsearch import config, i18n
-    # Свой адрес готов всегда: устанавливать нечего, это не программа, а адрес.
-    доступны(monkeypatch, openai_api=True)
+    # Your own endpoint is always ready: nothing to install, it is an address.
+    available_are(monkeypatch, openai_api=True)
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     cfg["llm"].update(provider="openai_api", api_base="", api_model="")
     config.save(cfg)
 
-    страница = client.get("/welcome?step=model").text
-    хвост = страница[страница.index('id="welcome-continue"'):]
+    page = client.get("/welcome?step=model").text
+    tail = page[page.index('id="welcome-continue"'):]
 
-    assert "disabled" in хвост.split("</button>")[0]
-    assert i18n.t("en", "welcome_blocked_endpoint") in хвост
-    assert i18n.t("en", "welcome_blocked_model") not in хвост, "совет от Ollama"
-    assert "Download" not in хвост, "кнопки с таким именем на странице нет"
+    assert "disabled" in tail.split("</button>")[0]
+    assert i18n.t("en", "welcome_blocked_endpoint") in tail
+    assert i18n.t("en", "welcome_blocked_model") not in tail, "advice meant for Ollama"
+    assert "Download" not in tail, "there is no button by that name on the page"
 
 
-def test_карточка_называет_команду_установки(client, profile, monkeypatch):
-    """Жалоба человека: «не видит claude code на моём маке».
+def test_the_card_names_the_install_command(client, profile, monkeypatch):
+    """A person's complaint: "it does not see claude code on my mac".
 
-    Мы отправляли его на claude.com/claude-code, а там первым делом предлагают
-    десктопное приложение — его и ставили. Оно к делу не идёт: нужна программа
-    claude в терминале. Теперь карточка говорит это прямо и показывает команду.
+    We were sending them to claude.com/claude-code, where the first thing offered
+    is the desktop application — and that is what got installed. It is beside the
+    point: what is needed is the claude program in a terminal. The card now says so
+    outright and shows the command.
     """
     from jobsearch import config, i18n, providers
-    доступны(monkeypatch)                      # ничего не установлено
+    available_are(monkeypatch)                      # nothing installed
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     config.save(cfg)
 
-    страница = client.get("/welcome").text
+    page = client.get("/welcome").text
 
-    assert providers.install_cmd("claude_cli") in страница, "команды установки нет"
-    assert "claude --version" in страница, "нечем проверить, что встало"
-    assert i18n.t("en", "install_cmd_label") in страница
-    # И главное — сказано, что это не десктопное приложение
+    assert providers.install_cmd("claude_cli") in page, "the install command is missing"
+    assert "claude --version" in page, "nothing to check the install with"
+    assert i18n.t("en", "install_cmd_label") in page
+    # And the main thing — it says this is not the desktop application
     assert "desktop app" in i18n.t("en", "prov_claude_cli_hint")
 
 
-@pytest.mark.parametrize("адрес", ["/", "/simple"])
-def test_экран_осталось_одно_действие_даёт_команду(client, profile, monkeypatch, адрес):
-    """Тот самый экран, с которого всё и началось: человек видит «осталось одно
-    действие» и три шага. Первый шаг звал на claude.com/claude-code, где рядом
-    лежат десктопное приложение и командная строка под одним именем, — оттуда и
-    приносили не то. Теперь шаг говорит про терминал и показывает команду.
+@pytest.mark.parametrize("address", ["/", "/simple"])
+def test_the_one_thing_left_screen_gives_the_command(client, profile, monkeypatch, address):
+    """The very screen it all started from: a person sees "one thing left to do" and
+    three steps. The first step sent them to claude.com/claude-code, where the
+    desktop application and the command line sit side by side under one name — and
+    that is where the wrong thing came from. The step now speaks of a terminal and
+    shows the command.
 
-    Обе страницы разом: блок у них общий, а раньше стоял в каждой своим списком,
-    и правка в одной тихо расходилась со второй.
+    Both pages at once: the block is shared, and it used to stand in each of them
+    as its own list, so an edit to one quietly drifted from the other.
     """
     from jobsearch import appstate, config, i18n, providers
-    доступны(monkeypatch)                      # claude не установлен
-    # Знакомство пройдено: иначе middleware уводит с этих страниц на /welcome, и
-    # экран «осталось одно действие» показывается как раз тому, кто своё уже
-    # прошёл, а программа у него потом пропала.
+    available_are(monkeypatch)                      # claude is not installed
+    # The introduction is done: otherwise the middleware takes us from these pages
+    # to /welcome, and the "one thing left to do" screen is shown to exactly the
+    # person who finished theirs and whose program later disappeared.
     monkeypatch.setattr(appstate, "needs_setup", lambda: False)
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     cfg["llm"]["provider"] = "claude_cli"
     config.save(cfg)
 
-    страница = client.get(адрес).text
+    page = client.get(address).text
 
-    assert i18n.t("en", "setup_needed") in страница, "экрана нет — тест ни о чём"
-    assert providers.install_cmd("claude_cli") in страница, "команды установки нет"
-    assert "claude --version" in страница, "нечем проверить, что встало"
-    assert "desktop app" in страница, "про десктопное приложение не сказано"
+    assert i18n.t("en", "setup_needed") in page, "the screen is not there — the test is about nothing"
+    assert providers.install_cmd("claude_cli") in page, "the install command is missing"
+    assert "claude --version" in page, "nothing to check the install with"
+    assert "desktop app" in page, "nothing is said about the desktop application"
 
 
-def test_спросить_про_обновление_можно_с_любой_страницы(client, profile, monkeypatch):
-    """Кнопка была одна и лежала в настройках, ниже середины страницы, — то есть
-    там, куда за этим не ходят. Номер версии при этом стоит в шапке на каждой
-    странице, и вопрос «а не устарел ли я» задают, глядя на него.
+def test_an_update_can_be_asked_about_from_any_page(client, profile, monkeypatch):
+    """There was one button and it lay in the settings, below the middle of the page
+    — that is, somewhere nobody goes for this. Meanwhile the version number stands
+    in the header on every page, and "am I out of date" is asked while looking at
+    it.
 
-    Возврат — на ту же страницу. Прежде обработчик всегда уводил на главную: это
-    годилось, пока кнопка стояла на главной и была одна.
+    The return goes to the same page. The handler used to take everyone to the
+    front page: that was fine while the button was on the front page and there was
+    one of it.
     """
     from jobsearch import update as update_mod
     monkeypatch.setattr(update_mod, "check", lambda force=False: {})
 
-    for адрес in ("/results", "/coverage", "/models"):
-        assert 'action="/app/update/check"' in client.get(адрес).text, f"нет кнопки на {адрес}"
+    for address in ("/results", "/coverage", "/models"):
+        assert 'action="/app/update/check"' in client.get(address).text, f"no button on {address}"
 
-    ответ = client.post("/app/update/check", data={"back": "/results"},
+    response = client.post("/app/update/check", data={"back": "/results"},
                         follow_redirects=False)
 
-    assert ответ.status_code == 303
-    assert ответ.headers["location"].startswith("/results"), ответ.headers["location"]
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/results"), response.headers["location"]
 
 
-def test_когда_обновление_нашлось_ведём_к_кнопке(client, profile, monkeypatch):
-    """Найдено Виктором на живой программе, и это была настоящая поломка.
+def test_when_an_update_is_found_we_lead_to_the_button(client, profile, monkeypatch):
+    """Found by Viktor on the live program, and it was a real breakage.
 
-    Сообщение говорит «поставить её можно ниже». Кнопка установки одна на всю
-    программу и живёт в настройках, а спросить об обновлении можно из шапки, то
-    есть с любой страницы. С «Быстрого поиска» человек получал это «ниже» — и
-    ниже не было ничего.
+    The message says "you can install it below". There is one install button in the
+    whole program and it lives in the settings, while an update can be asked about
+    from the header — that is, from any page. From "Quick search" a person got that
+    "below" — and below there was nothing.
 
-    Ровно то же мы правили у своего адреса (issue #5): текст велел нажать то,
-    чего на странице нет. Здесь я завёл это заново, когда стал возвращать на
-    страницу, откуда спросили.
+    This is exactly what we fixed for the own-endpoint case (issue #5): the text
+    told them to press what is not on the page. I brought it back here by starting
+    to return to the page the question came from.
     """
     import app as app_module
     from jobsearch import update as update_mod
-    найдено = {"version": "9.9.9", "notes_url": "",
+    found = {"version": "9.9.9", "notes_url": "",
                "asset": {"url": "https://example.invalid/app.dmg"}}
-    monkeypatch.setattr(update_mod, "check", lambda force=False: найдено)
-    # Страница рисует кнопку из записанного прошлой проверкой, а не из ответа
-    # check(): она никогда не ждёт сети. Подменять надо и это.
-    monkeypatch.setattr(update_mod, "state", lambda: найдено)
+    monkeypatch.setattr(update_mod, "check", lambda force=False: found)
+    # The page draws the button from what the previous check wrote down, not from
+    # the answer of check(): it never waits on the network. That has to be stubbed
+    # too.
+    monkeypatch.setattr(update_mod, "state", lambda: found)
     monkeypatch.setattr(app_module.update_mod, "state", update_mod.state)
 
-    ответ = client.post("/app/update/check", data={"back": "/simple"},
+    response = client.post("/app/update/check", data={"back": "/simple"},
                         follow_redirects=False)
-    куда = ответ.headers["location"]
+    where = response.headers["location"]
 
-    assert not куда.startswith("/simple"), f"увели туда, где кнопки нет: {куда}"
-    assert куда.endswith("#update"), f"привели на страницу, но не к кнопке: {куда}"
-    # И кнопка там действительно есть — иначе тест сторожил бы пустоту
+    assert not where.startswith("/simple"), f"we led them where the button is not: {where}"
+    assert where.endswith("#update"), f"we brought them to the page but not to the button: {where}"
+    # And the button really is there — otherwise the test would guard emptiness
     assert 'action="/app/update/install"' in client.get("/").text
-    # А на «Быстром поиске» её нет — ради чего всё и затевалось
+    # And on "Quick search" it is not — which is what this was all for
     assert 'action="/app/update/install"' not in client.get("/simple").text
 
 
-def test_возврат_после_проверки_только_внутрь_программы(client, profile, monkeypatch):
-    """back приходит со страницы, и в него можно положить чужой адрес. Своё окно
-    человек считает своей программой и на чужой странице, открытой из него, ведёт
-    себя доверчиво."""
+def test_the_return_after_a_check_stays_inside_the_program(client, profile, monkeypatch):
+    """back comes from the page, and a foreign address can be put into it. A person
+    takes their own window to be their own program, and on a foreign page opened
+    from it they behave trustingly."""
     from jobsearch import update as update_mod
     monkeypatch.setattr(update_mod, "check", lambda force=False: {})
 
-    ответ = client.post("/app/update/check", data={"back": "https://example.com/"},
+    response = client.post("/app/update/check", data={"back": "https://example.com/"},
                         follow_redirects=False)
 
-    assert not ответ.headers["location"].startswith("http"), ответ.headers["location"]
+    assert not response.headers["location"].startswith("http"), response.headers["location"]
 
 
-def test_команда_видна_и_у_установленного(client, profile, monkeypatch):
-    """Вопрос Виктора: «почему для claude code не написано как установить?»
+def test_the_command_is_visible_for_an_installed_one_too(client, profile, monkeypatch):
+    """Viktor's question: "why does it not say how to install claude code?"
 
-    Написано — но весь блок висел под «ещё не установлено», и у того, у кого
-    Claude Code стоял, карточка выходила пустой: соседи её растягивали, а внутри
-    ничего. Прятали мы это ровно от того, кто дошёл до конца и хотел свериться.
+    It does — but the whole block hung under "not installed yet", and for anyone who
+    had Claude Code the card came out empty: its neighbours stretched it and there
+    was nothing inside. We were hiding it from exactly the person who had got to
+    the end and wanted to check.
 
-    Теперь команды видно всегда, и они же отвечают на «а ту ли программу вы у
-    меня нашли»: команда проверки называет ровно то, что мы ищем.
+    The commands are always visible now, and they also answer "is that even the
+    program you found on my machine": the verify command names precisely what we
+    look for.
     """
     from jobsearch import config, i18n, providers
-    доступны(monkeypatch, claude_cli=True)     # установлен
+    available_are(monkeypatch, claude_cli=True)     # installed
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     config.save(cfg)
 
-    страница = client.get("/models").text
-    карточка = страница[страница.index('id="provider-claude_cli"'):]
-    карточка = карточка[:карточка.index("provider-cursor_cli")]
+    page = client.get("/models").text
+    card = page[page.index('id="provider-claude_cli"'):]
+    card = card[:card.index("provider-cursor_cli")]
 
-    assert i18n.t("en", "models_ready") in карточка, "тест не о том: он не установлен"
-    assert providers.install_cmd("claude_cli") in карточка, "команды установки нет"
-    assert "claude --version" in карточка, "нечем свериться"
-    # А вот подсказка про десктопное приложение — только тому, у кого ещё нет:
-    # она про выбор, который он вот-вот сделает.
-    assert i18n.t("en", "prov_claude_cli_hint") not in карточка
+    assert i18n.t("en", "models_ready") in card, "the test is about the wrong thing: it is not installed"
+    assert providers.install_cmd("claude_cli") in card, "the install command is missing"
+    assert "claude --version" in card, "nothing to check against"
+    # The hint about the desktop application, though, goes only to someone who
+    # does not have it yet: it is about the choice they are about to make.
+    assert i18n.t("en", "prov_claude_cli_hint") not in card
 
 
-def test_у_ollama_подсказка_не_врёт_когда_она_работает(client, profile, monkeypatch):
-    """Её подсказка зовёт скачать с ollama.com и запустить. Показывать это тому,
-    у кого Ollama уже работает, значило бы врать в глаза — потому подсказка и
-    осталась под условием, когда команды из-под него вышли."""
+def test_the_ollama_hint_does_not_lie_when_it_is_running(client, profile, monkeypatch):
+    """Its hint says to download from ollama.com and run it. Showing that to someone
+    whose Ollama is already running would be lying to their face — which is why the
+    hint stayed under the condition when the commands came out from under it."""
     from jobsearch import config, i18n
-    доступны(monkeypatch, ollama=True)
+    available_are(monkeypatch, ollama=True)
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     config.save(cfg)
 
-    страница = client.get("/models").text
-    карточка = страница[страница.index('id="provider-ollama"'):]
+    page = client.get("/models").text
+    card = page[page.index('id="provider-ollama"'):]
 
-    assert i18n.t("en", "prov_ollama_hint") not in карточка
+    assert i18n.t("en", "prov_ollama_hint") not in card
 
 
-def test_команда_установки_подходит_этой_системе(monkeypatch):
-    """На Windows curl … | bash не выполнить, а на маке — PowerShell. Показывать
-    надо ту, что человек сможет набрать у себя."""
+def test_the_install_command_suits_this_system(monkeypatch):
+    """On Windows curl … | bash will not run, and on a Mac PowerShell will not. What
+    should be shown is the one a person can actually type."""
     from jobsearch import providers
     monkeypatch.setattr(providers.os, "name", "posix")
     assert providers.install_cmd("claude_cli").startswith("curl -fsSL https://claude.ai")
     monkeypatch.setattr(providers.os, "name", "nt")
     assert providers.install_cmd("claude_cli").startswith("irm https://claude.ai")
-    # У чего команды нет — там пусто, и карточка про неё промолчит, а не соврёт
+    # Where there is no command it is empty, and the card stays silent rather than lying
     assert providers.install_cmd("goose_cli") == ""
     assert providers.install_cmd("ollama") == ""
 
 
-def test_знакомство_пускает_когда_модель_на_месте(client, profile, monkeypatch):
+def test_the_introduction_lets_you_past_when_the_model_is_there(client, profile, monkeypatch):
     from jobsearch import config, providers
-    доступны(monkeypatch, ollama=True)
+    available_are(monkeypatch, ollama=True)
     monkeypatch.setattr(providers, "ollama_installed_models", lambda: {"llama3.3:70b"})
     cfg = config.load()
     cfg["ui"]["lang"] = "en"
     cfg["llm"].update(provider="ollama", triage_model="llama3.3:70b")
     config.save(cfg)
 
-    хвост = client.get("/welcome?step=model").text
-    хвост = хвост[хвост.index('id="welcome-continue"'):]
+    tail = client.get("/welcome?step=model").text
+    tail = tail[tail.index('id="welcome-continue"'):]
 
-    assert "disabled" not in хвост.split("</button>")[0], "пройти дальше не дают"
-
-
-# --- Выгрузки --------------------------------------------------------------------
-
-def test_отчёт_открывается_а_не_скачивается(client):
-    """Подсказка рядом с кнопкой обещает «открыть и распечатать в PDF», а отчёт
-    отдавался файлом на скачивание. В окне программы от этого не происходило
-    вообще ничего: pywebview скачивать не даёт, и человек жал кнопку впустую.
-    Печать в PDF делается из открытой страницы."""
-    ответ = client.get("/export/report")
-    assert ответ.status_code == 200
-    assert "attachment" not in ответ.headers.get("content-disposition", ""), \
-        "отчёт по-прежнему отдаётся файлом на скачивание"
-    assert ответ.headers["content-type"].startswith("text/html")
+    assert "disabled" not in tail.split("</button>")[0], "going further is not allowed"
 
 
-def test_таблица_по_прежнему_файл(client):
-    """Обратная сторона: CSV смотреть незачем, его открывают в другой программе."""
-    ответ = client.get("/export/csv")
-    assert "attachment" in ответ.headers.get("content-disposition", "")
+# --- The exports --------------------------------------------------------------
+
+def test_the_report_opens_rather_than_downloads(client):
+    """The hint beside the button promises "open and print to PDF", while the report
+    was handed over as a file to download. In the program's own window nothing
+    happened at all: pywebview does not allow downloads, and the person pressed the
+    button for nothing. Printing to PDF is done from an open page."""
+    response = client.get("/export/report")
+    assert response.status_code == 200
+    assert "attachment" not in response.headers.get("content-disposition", ""), \
+        "the report is still handed over as a download"
+    assert response.headers["content-type"].startswith("text/html")
 
 
-def test_ссылка_на_отчёт_открывает_новую_вкладку(client):
-    # Выгрузки показываются, только когда есть что выгружать
+def test_the_spreadsheet_is_still_a_file(client):
+    """The other side: there is no point looking at a CSV, it gets opened elsewhere."""
+    response = client.get("/export/csv")
+    assert "attachment" in response.headers.get("content-disposition", "")
+
+
+def test_the_report_link_opens_a_new_tab(client):
+    # The exports appear only when there is something to export
     db.save_job(job("k1", score=88), run_id=1)
-    страница = client.get("/results?min=0").text
-    i = страница.index("/export/report")
-    кусок = страница[i - 60:i + 400]
-    assert 'target="_blank"' in кусок, "отчёт откроется поверх списка вакансий"
+    page = client.get("/results?min=0").text
+    i = page.index("/export/report")
+    chunk = page[i - 60:i + 400]
+    assert 'target="_blank"' in chunk, "the report will open over the list of jobs"
 
 
-ФОРМАТЫ = [
-    ("/export/report", "text/html", False),   # открывается: печать в PDF — из открытой страницы
+FORMATS = [
+    ("/export/report", "text/html", False),   # opens: printing to PDF is done from an open page
     ("/export/csv", "text/csv", True),
     ("/export/md", "text/markdown", True),
     ("/export/json", "application/json", True),
 ]
 
 
-@pytest.mark.parametrize("адрес,тип,файлом", ФОРМАТЫ)
-def test_каждый_формат_выгружается(client, адрес, тип, файлом):
+@pytest.mark.parametrize("address,mime,as_file", FORMATS)
+def test_every_format_exports(client, address, mime, as_file):
     db.save_job(job("k1", score=88), run_id=1)
-    ответ = client.get(адрес + "?min=0")
-    assert ответ.status_code == 200
-    assert ответ.headers["content-type"].startswith(тип)
-    есть = "attachment" in ответ.headers.get("content-disposition", "")
-    assert есть is файлом
+    response = client.get(address + "?min=0")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(mime)
+    is_attachment = "attachment" in response.headers.get("content-disposition", "")
+    assert is_attachment is as_file
 
 
-def test_все_форматы_есть_на_странице(client):
+def test_every_format_is_on_the_page(client):
     db.save_job(job("k1", score=88), run_id=1)
-    страница = client.get("/results?min=0").text
-    for адрес, *_ in ФОРМАТЫ:
-        assert адрес in страница, f"кнопки для {адрес} нет"
+    page = client.get("/results?min=0").text
+    for address, *_ in FORMATS:
+        assert address in page, f"there is no button for {address}"
 
 
-def test_в_отчёте_есть_кнопка_печати(client):
-    """Совет искать печать в меню браузера — не то же самое, что кнопка.
-    PDF получается из открытой страницы, «сохранить как PDF» стоит в том же окне."""
+def test_the_report_has_a_print_button(client):
+    """Advice to go hunting for print in the browser menu is not the same as a
+    button. The PDF comes out of an open page, and "save as PDF" is in that same
+    dialog."""
     db.save_job(job("k1", score=88), run_id=1)
-    отчёт = client.get("/export/report?min=0").text
-    assert "window.print()" in отчёт
-    assert "noprint" in отчёт, "кнопка попадёт на бумагу"
+    report = client.get("/export/report?min=0").text
+    assert "window.print()" in report
+    assert "noprint" in report, "the button will end up on paper"
 
 
-def test_json_разворачивает_советы(client):
-    """В базе советы лежат строкой с JSON внутри. Отдать наружу текст, который
-    надо разбирать второй раз, значило бы переложить нашу работу на человека."""
+def test_json_unpacks_the_advice(client):
+    """In the database the advice sits as a string with JSON inside. Handing out text
+    that has to be parsed a second time would be shifting our work onto the
+    person."""
     import json as _json
     db.save_job(job("k1", score=88, advice=_json.dumps(
-        {"cv_changes": ["Вынести SAP вперёд"], "salary_estimate": "70k"},
+        {"cv_changes": ["Move SAP to the front"], "salary_estimate": "70k"},
         ensure_ascii=False)), run_id=1)
 
     d = _json.loads(client.get("/export/json?min=0").text)
 
     assert d["count"] == 1
-    assert d["jobs"][0]["cv_changes"] == ["Вынести SAP вперёд"]
+    assert d["jobs"][0]["cv_changes"] == ["Move SAP to the front"]
     assert d["jobs"][0]["salary_estimate"] == "70k"
