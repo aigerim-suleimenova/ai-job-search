@@ -565,19 +565,22 @@ CEILING_BY_VERDICT = {"чужая": 20, "смежная": 60}
 # visible if the threshold is lowered.
 UNREAD_CEILING = 55
 
-# Изучение компании идёт отдельным запросом, и в нём НЕТ ни CV, ни профиля.
+# Researching the company is a separate request, and it contains NEITHER the CV
+# nor the profile.
 #
-# Причина простая. Описание вакансии пишет посторонний человек — разместить
-# объявление на агрегаторе может кто угодно, и его текст попадает в запрос как
-# есть, до шести тысяч знаков. Раньше в том же запросе лежали резюме, зарплатные
-# ожидания и виза, а модели были разрешены WebSearch и WebFetch — и разрешены
-# без единого вопроса, потому что запуск идёт без человека. Указание, спрятанное
-# в объявлении, могло увести всё это в адрес чужого сайта, и человек увидел бы
-# обычную карточку вакансии.
+# The reason is simple. A job description is written by an outsider — anyone at
+# all can put a posting on an aggregator, and its text goes into the prompt as it
+# is, up to six thousand characters. The same prompt used to carry the CV, the
+# salary expectations and the visa situation, and the model was allowed WebSearch
+# and WebFetch — allowed without a single question, because the run happens with
+# nobody watching. An instruction hidden in the posting could have carried all of
+# that off to somebody else's address, and the person would have seen an ordinary
+# job card.
 #
-# Теперь в сеть ходит запрос, где кроме названия компании и должности красть
-# нечего, а всё личное разбирается вторым запросом, которому инструменты не даны
-# вовсе. Разделение стоит одного лишнего вызова модели.
+# Now what goes to the network is a request with nothing to steal beyond the
+# company's name and the job title, while everything personal is worked through by
+# a second request that is given no tools at all. The separation costs one extra
+# call to the model.
 RESEARCH_PROMPT = """Найди в интернете сведения о компании и вилке зарплат.
 
 Компания: {company}
@@ -604,15 +607,15 @@ RESEARCH_PROMPT = """Найди в интернете сведения о ком
   "sources": ["<URL, на которые опирался>", ...]
 }}"""
 
-# Выдача поиска, добытая приложением: модель её только пересказывает, а сама в
-# сеть не ходит — инструментов ей при этом не выдаётся вовсе.
+# Search results fetched by the application: the model only retells them and does
+# not go to the network itself — it is handed no tools whatsoever for this.
 FOUND_ONLINE_BLOCK = """
 
 Вот что нашлось в интернете. Опирайся ТОЛЬКО на это, ничего не добавляй от себя:
 {found}
 """
 
-# Что нашлось про компанию, передаётся во второй запрос уже готовым текстом.
+# What was found about the company is passed to the second request as ready text.
 FOUND_BLOCK = """
 Уже известно о компании (найдено отдельно, можешь опираться):
 {facts}
@@ -636,55 +639,59 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
                provider=cfg["llm"].get("provider", "claude_cli"),
                llm=cfg["llm"])
 
-    # 1. В сеть — без единой личной строчки. Красть отсюда нечего: название
-    #    компании и должность злоумышленник и так знает, он их сам и написал.
+    # 1. To the network — without a single personal line. There is nothing here to
+    #    steal: an attacker already knows the company name and the job title,
+    #    having written them themselves.
     found = {}
     if research:
-        # Модель ищет сама только у Claude Code. У остальных ищет приложение и
-        # отдаёт выдачу текстом — тогда модель её просто пересказывает, а
-        # сетевых инструментов не получает вовсе.
-        сама_ищет = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
+        # Only Claude Code searches by itself. For everyone else the application
+        # searches and hands over the results as text — then the model merely
+        # retells them, and gets no network tools at all.
+        searches_itself = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
         prompt = _lang_banner(cfg) + RESEARCH_PROMPT.format(
             company=job.get("company", ""), title=job.get("title", ""),
             location=job.get("location", ""), lang=lang)
-        выдача = ""
-        if not сама_ищет:
-            запрос = f"{job.get('company', '')} salary glassdoor kununu levels.fyi"
+        results = ""
+        if not searches_itself:
+            query = f"{job.get('company', '')} salary glassdoor kununu levels.fyi"
             try:
-                выдача = websearch.as_text(websearch.search(cfg, запрос, n=8))
+                results = websearch.as_text(websearch.search(cfg, query, n=8))
             except websearch.SearchError:
-                выдача = ""
-            if выдача:
-                prompt += FOUND_ONLINE_BLOCK.format(found=выдача)
-        # Ничего не нашлось — спрашивать не о чем: без выдачи модель может только
-        # сочинить, а разбор под кандидата ниже имеет смысл и без этих сведений.
-        if сама_ищет or выдача:
+                results = ""
+            if results:
+                prompt += FOUND_ONLINE_BLOCK.format(found=results)
+        # Nothing found — nothing to ask about: with no results the model can only
+        # make things up, and the candidate-specific analysis below is worth doing
+        # without these facts anyway.
+        if searches_itself or results:
             try:
                 found = llm.ask_json(
                     prompt,
                     timeout=900,
-                    allowed_tools=["WebSearch", "WebFetch"] if сама_ищет else None, **ask)
+                    allowed_tools=["WebSearch", "WebFetch"] if searches_itself else None, **ask)
             except llm.AuthError:
                 raise
             except llm.ClaudeError as e:
-                # без сведений о компании разбор всё равно имеет смысл — идём дальше
+                # without facts about the company the analysis still makes sense —
+                # so we carry on
                 _lk(log, "log_deep_job_err", title=job.get("title"), error=e)
         if not isinstance(found, dict):
             found = {}
 
-    # 2. С CV и профилем — но без инструментов, так что уводить их некуда.
-    английское = _in_english(f"{job.get('title', '')} {description[:1500]}")
+    # 2. With the CV and the profile — but with no tools, so there is nowhere to
+    #    carry them off to.
+    in_english = _in_english(f"{job.get('title', '')} {description[:1500]}")
     prompt = _lang_banner(cfg) + DEEP_PROMPT.format(
         profile=_profile_block(cfg),
         cv=cv[:6000] or "(CV не загружено)",
         title=job.get("title", ""), company=job.get("company", ""),
         location=job.get("location", ""), url=job.get("url", ""),
-        # Чья это профессия — говорим прямо. Первая редакция писала просто
-        # «Профессия по справочнику: CNC machine operator», и слабая модель
-        # читала это как профессию КАНДИДАТА: оператор станка получал «своя» и
-        # девяносто процентов, тогда как без этой строки — «смежная» и
-        # пятьдесят пять. Померено на прогоне конструктора белья: подсказка
-        # делала модель не умнее, а увереннее в неправоте.
+        # Whose occupation this is, said outright. The first version simply wrote
+        # "occupation from the taxonomy: CNC machine operator", and a weak model
+        # read that as the CANDIDATE'S occupation: the machine operator job came
+        # out "own trade" at ninety percent, whereas without that line it was
+        # "adjacent" at fifty-five. Measured on the lingerie designer's run: the
+        # hint made the model not cleverer but more confident in being wrong.
         occupation=_occupation_block(cfg, job),
         description=description[:6000] or "(описания нет)",
         lang=lang, examples=_examples_block(cfg),
@@ -704,57 +711,61 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         return
     if not isinstance(result, dict):
         return
-    # то, что нашла первая часть, кладём рядом с оценкой второй
-    for поле in ("salary_estimate", "company_insights", "sources"):
-        if found.get(поле):
-            result.setdefault(поле, found[поле])
-    # «Проверено» — только если разбор и правда назвал оценку.
+    # what the first part found goes beside the second part's score
+    for field in ("salary_estimate", "company_insights", "sources"):
+        if found.get(field):
+            result.setdefault(field, found[field])
+    # "Verified" — only if the deep analysis really did name a score.
     #
-    # Пометка ставилась просто по факту ответа, а оценка бралась, лишь когда в
-    # ответе было поле match. Слабые модели сплошь и рядом отвечают связным
-    # текстом без него — и тогда на карточке стоял балл от быстрого триажа с
-    # галочкой «проверено» рядом. Триаж видит семьсот знаков описания и восемь
-    # вакансий за раз, он для того и быстрый; галочка говорила, что этот балл
-    # подтверждён вторым, внимательным проходом, а он его не подтверждал.
+    # The mark used to be set on the mere fact of an answer, while the score was
+    # taken only when the answer carried a match field. Weak models answer with
+    # fluent prose and no such field over and over — and then the card showed the
+    # score from the fast triage with a "verified" tick beside it. Triage sees
+    # seven hundred characters of description and eight jobs at a time, that is
+    # what makes it fast; the tick said this score had been confirmed by a second,
+    # careful pass, and it had not.
     if isinstance(result.get("match"), (int, float)):
-        балл = max(0, min(100, int(result["match"])))
-        # Вердикт и число у модели расходятся, и тогда верим вердикту: он идёт
-        # первым, то есть придуман раньше, чем она успела подогнать цифру. Без
-        # этого «чужая» уживалась с 85% и галочкой «проверено».
-        потолок = CEILING_BY_VERDICT.get(str(result.get("verdict", "")).strip().lower())
-        if потолок is not None and балл > потолок:
+        score = max(0, min(100, int(result["match"])))
+        # The model's verdict and its number disagree, and then we believe the
+        # verdict: it comes first, meaning it was thought of before the model had
+        # a chance to fit the figure. Without this, "someone else's trade" lived
+        # happily alongside 85% and a "verified" tick.
+        ceiling = CEILING_BY_VERDICT.get(str(result.get("verdict", "")).strip().lower())
+        if ceiling is not None and score > ceiling:
             _lk(log, "log_deep_verdict_caps", title=job.get("title"),
-                verdict=result.get("verdict"), was=балл, now=потолок)
-            балл = потолок
-        job["score"] = балл
-        # «Проверено» — только если модель и правда могла прочитать объявление.
+                verdict=result.get("verdict"), was=score, now=ceiling)
+            score = ceiling
+        job["score"] = score
+        # "Verified" — only if the model could really read the posting.
         #
-        # Не поняв текста, она не говорит «не поняла»: пересказывает профиль
-        # кандидата и ставит балл из примера. Конструктору белья столяр, маляр,
-        # садовник и кладовщик достались по девяносто процентов — все с галочкой
-        # «проверено», все на польском. Галочка означает «второй, внимательный
-        # проход подтвердил»; тут подтверждать было нечем.
+        # Having failed to understand the text, it does not say "I did not
+        # understand": it retells the candidate's profile and puts down a score
+        # from the example. The lingerie designer got a joiner, a painter, a
+        # gardener and a storekeeper at ninety percent each — all with a
+        # "verified" tick, all in Polish. The tick means "a second, careful pass
+        # confirmed this"; here there was nothing to confirm with.
         #
-        # Название профессии по справочнику снимает вопрос: оно приходит
-        # по-английски, и по нему судить можно, даже когда само объявление
-        # непрочитано.
-        понятно = bool(job.get("occupation")) or английское
-        if not понятно:
+        # The occupation name from the taxonomy settles the question: it arrives
+        # in English, and it can be judged by even when the posting itself was
+        # never read.
+        understood = bool(job.get("occupation")) or in_english
+        if not understood:
             job["verified"] = False
-            if балл > UNREAD_CEILING:
+            if score > UNREAD_CEILING:
                 _lk(log, "log_deep_unreadable", title=job.get("title"),
-                    was=балл, now=UNREAD_CEILING)
+                    was=score, now=UNREAD_CEILING)
                 job["score"] = UNREAD_CEILING
         else:
-            # И ещё одно условие: довод должен опираться на резюме, а не на
-            # выдумку. Модель написала конструктору белья «кандидат имеет опыт и
-            # образование в области электротехники» — и это была вакансия
-            # лектора по электротехнике на 90% с галочкой. Никакой электротехники
-            # у человека нет. Теперь она обязана привести кусок резюме, а мы
-            # проверяем, что он там и правда есть.
-            цитата = str(result.get("quote", "")).strip()
-            if цитата and not _quote_is_real(цитата, cv):
-                _lk(log, "log_quote_not_found", title=job.get("title"), quote=цитата[:70])
+            # And one more condition: the reasoning must rest on the CV rather
+            # than on invention. The model told the lingerie designer that "the
+            # candidate has experience and education in electrical engineering" —
+            # and that was a lectureship in electrical engineering at 90% with a
+            # tick. The person has no electrical engineering whatsoever. Now it is
+            # obliged to quote a piece of the CV, and we check that the piece is
+            # really there.
+            quote = str(result.get("quote", "")).strip()
+            if quote and not _quote_is_real(quote, cv):
+                _lk(log, "log_quote_not_found", title=job.get("title"), quote=quote[:70])
                 job["verified"] = False
             else:
                 job["verified"] = True
@@ -763,30 +774,33 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
     k = 2 if "-" in cfg.get("ui", {}).get("output_lang", "ru") else 1
     if result.get("reason"):
         job["reason"] = str(result["reason"])[:1000 * k]
-    # Второй проход: советы проверяются отдельным вопросом, без вакансии — чтобы
-    # не было соблазна подогнать ответ под её требования. Запрет выдумывать
-    # стоит и в самом промпте разбора, но слабая модель его перебивает.
+    # A second pass: the suggestions are checked with a separate question, without
+    # the job — so there is no temptation to fit the answer to its requirements.
+    # The ban on inventing is in the deep-analysis prompt too, but a weak model
+    # talks over it.
     #
-    # Оба списка одним вопросом: на местной модели каждый вызов стоит минуту, а
-    # вакансий на разбор бывает по тридцать. Два вопроса вместо одного добавляли
-    # к прогону около часа и ничего не уточняли — резюме-то одно и то же.
-    из_cv = [str(с).strip() for с in (result.get("cv_changes") or []) if str(с).strip()]
-    из_linkedin = [str(с).strip() for с in (result.get("linkedin_changes") or []) if str(с).strip()]
-    честные = set(keep_honest_advice(из_cv + из_linkedin, cv, ask, log))
-    правки = [с for с in из_cv if с in честные]
-    в_профиль = [с for с in из_linkedin if с in честные]
+    # Both lists in one question: on a local model every call costs a minute, and
+    # there can be thirty jobs to analyse. Two questions instead of one added about
+    # an hour to a run and settled nothing further — the CV is the same either way.
+    from_cv = [str(a).strip() for a in (result.get("cv_changes") or []) if str(a).strip()]
+    from_linkedin = [str(a).strip() for a in (result.get("linkedin_changes") or [])
+                     if str(a).strip()]
+    honest = set(keep_honest_advice(from_cv + from_linkedin, cv, ask, log))
+    cv_edits = [a for a in from_cv if a in honest]
+    profile_edits = [a for a in from_linkedin if a in honest]
     job["advice"] = json.dumps(
         {
-            "cv_changes": правки,
-            "linkedin_changes": в_профиль,
+            "cv_changes": cv_edits,
+            "linkedin_changes": profile_edits,
             "cover_hint": result.get("cover_hint", ""),
             "salary_estimate": str(result.get("salary_estimate", ""))[:500 * k],
             "company_insights": [str(x)[:300 * k] for x in (result.get("company_insights") or [])][:8],
-            # Ссылки от модели уходят прямо в href на странице результатов.
-            # Экранирование там есть, но оно бережёт от разрыва атрибута, а не от
-            # схемы: «javascript:...» — совершенно законное значение href, и один
-            # щелчок по номеру источника выполнил бы чужой сценарий на нашей же
-            # странице. Соседний разбор вакансий схему проверяет; здесь не проверял.
+            # Links from the model go straight into an href on the results page.
+            # Escaping is done there, but it guards against breaking out of the
+            # attribute, not against the scheme: "javascript:..." is a perfectly
+            # legal href value, and one click on a source number would have run
+            # somebody else's script on our own page. The job parsing next door
+            # checks the scheme; this did not.
             "sources": [u for u in (str(x)[:300] for x in (result.get("sources") or []))
                         if u.lower().startswith(("http://", "https://"))][:8],
         },
