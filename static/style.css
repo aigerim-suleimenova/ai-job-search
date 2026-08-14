@@ -118,6 +118,15 @@ header {
   align-items: center;
   column-gap: 16px;
   row-gap: 4px;
+  /* Allow copying visible error/status text and logs (explicit opt-in) */
+  .flash,
+  .analyse-error,
+  .running .log,
+  #live-log,
+  pre.cmd code {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+  }
   padding: 12px 0 0;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
@@ -436,6 +445,48 @@ pre.cmd code {
      интерфейс — арабский: это не текст, а то, что набирают в терминале. */
   direction: ltr; text-align: left;
 }
+
+/* Top-right copy button used on cards with inline copy actions */
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+.copy-btn svg { width: 16px; height: 16px; display: block; }
+.copy-btn svg path, .copy-btn svg rect { stroke: var(--muted); fill: none; stroke-width: 1.4; }
+.copy-btn .check { display: none; }
+.copy-btn.copied { background: var(--card-2); border-color: var(--border-strong); }
+.copy-btn.copied .clipboard { display: none; }
+.copy-btn.copied .check { display: block; }
+
+/* simple tooltip bubble */
+.copy-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s, transform 0.12s;
+  margin-right: 8px;
+}
+.copy-btn:hover::after { opacity: 1; transform: translateY(-50%) translateX(-4px); }
 
 /* --- Tables --- */
 
