@@ -149,6 +149,13 @@ def test_the_upload_box_is_not_swallowed_by_the_settings_form(client, profile):
         "the upload box ended up inside the settings form"
 
 
+def test_the_model_list_says_what_the_power_number_means(in_english):
+    """"power 74/100" on every row, and not a word about whose scale it is, what
+    it is measured against, or what it changes for the person choosing."""
+    from jobsearch import i18n
+    assert i18n.t("en", "models_power_hint") in in_english.get("/models").text
+
+
 def test_the_cv_check_goes_to_the_background_and_does_not_hold_the_page(client, profile, monkeypatch):
     """This used to be a link that thought silently for minutes. Now the page comes
     back at once and the work goes on in the background."""

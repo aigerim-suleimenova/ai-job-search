@@ -149,6 +149,7 @@ STRINGS = {
 "models_fits_no": "bellek yetmez",
 "models_installed": "indirildi",
 "models_power": "güç",
+"models_power_hint": "Güç, modelleri kendi kabaca karşılaştırmamızdır — bir kıyaslama testi değildir, hız ya da fiyat hakkında da bir şey söylemez. Seçim yapmak içindir: sayı ne kadar yüksekse, model ilanı o kadar iyi anlar ve puanlarken o kadar az yanılır.",
 "models_needs": "gerekli",
 "models_download": "İndir",
 "models_pull_hint": "Bu sayfadan çıkabilirsiniz — indirme arka planda sürer. Bir model birkaç gigabayt olduğundan birkaç dakika ya da daha uzun sürer.",

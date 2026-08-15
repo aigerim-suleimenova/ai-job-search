@@ -149,6 +149,7 @@ STRINGS = {
 "models_fits_no": "za mało pamięci",
 "models_installed": "pobrany",
 "models_power": "moc",
+"models_power_hint": "Moc to nasze własne, przybliżone porównanie modeli — nie benchmark i ani słowa o szybkości czy cenie. Służy do wyboru: im wyższa liczba, tym lepiej model rozumie ogłoszenie i tym rzadziej myli się w ocenie.",
 "models_needs": "potrzebne",
 "models_download": "Pobierz",
 "models_pull_hint": "Możesz opuścić tę stronę — pobieranie idzie w tle. Model waży kilka gigabajtów, więc zajmie kilka minut albo więcej.",

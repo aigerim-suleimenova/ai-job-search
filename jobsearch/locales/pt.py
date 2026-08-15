@@ -149,6 +149,7 @@ STRINGS = {
 "models_fits_no": "memória insuficiente",
 "models_installed": "descarregado",
 "models_power": "potência",
+"models_power_hint": "A potência é a nossa própria comparação aproximada dos modelos — não é um benchmark nem diz nada sobre velocidade ou preço. Serve para escolher: quanto maior o número, melhor o modelo entende um anúncio e menos erra ao pontuá-lo.",
 "models_needs": "necessários",
 "models_download": "Descarregar",
 "models_pull_hint": "Pode sair desta página: a descarga continua em segundo plano. Um modelo ocupa vários gigabytes, por isso demora alguns minutos ou mais.",

@@ -765,6 +765,16 @@ TR = {
                        "it": "memoria insufficiente", "de": "zu wenig Speicher"},
     "models_installed": {"ru": "скачана", "en": "downloaded", "it": "scaricato", "de": "heruntergeladen"},
     "models_power": {"ru": "мощность", "en": "power", "it": "potenza", "de": "Stärke"},
+    # A bare "power 74/100" on every row said nothing: not what the number
+    # measures, not what it is compared against, not what it changes for the
+    # person choosing. It is our own estimate, and it has to say so — and say
+    # what it is not, because a number out of a hundred beside a model is read
+    # as a benchmark score.
+    "models_power_hint": {
+        "ru": "Мощность — наша собственная грубая оценка моделей, не бенчмарк и не про скорость или цену. Она нужна, чтобы выбирать: чем выше число, тем лучше модель понимает описание вакансии и тем реже ошибается в оценке.",
+        "en": "Power is our own rough comparison of the models — not a benchmark, and not a word about speed or price. It is here to choose by: the higher the number, the better a model understands a job description and the less often it misjudges one.",
+        "it": "La potenza è il nostro confronto approssimativo tra i modelli — non è un benchmark e non dice nulla su velocità o prezzo. Serve a scegliere: più alto è il numero, meglio il modello capisce un annuncio e meno spesso sbaglia la valutazione.",
+        "de": "Die Stärke ist unser eigener grober Vergleich der Modelle — kein Benchmark und kein Wort über Geschwindigkeit oder Preis. Sie dient der Auswahl: je höher die Zahl, desto besser versteht ein Modell eine Stellenanzeige und desto seltener bewertet es sie falsch."},
     "models_needs": {"ru": "нужно", "en": "needed", "it": "necessari", "de": "nötig"},
     "models_download": {"ru": "Скачать", "en": "Download", "it": "Scarica", "de": "Herunterladen"},
     "models_pull_hint": {"ru": "Можно закрыть эту страницу и заниматься другим — скачивание идёт в фоне. Модель весит несколько гигабайт, это занимает от нескольких минут.",

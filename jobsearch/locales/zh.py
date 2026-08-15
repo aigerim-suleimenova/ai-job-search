@@ -149,6 +149,7 @@ STRINGS = {
 "models_fits_no": "内存不够",
 "models_installed": "已下载",
 "models_power": "能力",
+"models_power_hint": "能力是我们自己对模型的粗略比较，不是跑分，也不涉及速度和价格。它是用来挑选的：数字越高，模型越能读懂职位描述，打分出错也越少。",
 "models_needs": "需要",
 "models_download": "下载",
 "models_pull_hint": "可以离开本页——下载在后台继续。模型有好几个 GB，因此要几分钟甚至更久。",
