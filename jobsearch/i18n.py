@@ -80,6 +80,19 @@ OUTPUT_INSTRUCTION = {
 }
 
 
+def out_code(cfg: dict) -> str:
+    """The code of the language the results are written in.
+
+    Resolved in one place because it is read from several: the settings have a
+    results language, and when it is empty the interface language stands in for
+    it. Every reader used to spell that rule out itself, and they spelled it out
+    differently — one of them fell back to Russian.
+    """
+    ui = cfg.get("ui", {})
+    code = ui.get("output_lang") or ui.get("lang") or "en"
+    return code if code in OUTPUT_INSTRUCTION else "en"
+
+
 def out_lang(cfg: dict) -> str:
     """Which language the model writes its results in.
 
@@ -87,9 +100,25 @@ def out_lang(cfg: dict) -> str:
     used to make the model quietly write in Russian to someone whose every other
     word was in a different language.
     """
-    ui = cfg.get("ui", {})
-    code = ui.get("output_lang") or ui.get("lang") or "en"
-    return OUTPUT_INSTRUCTION.get(code, OUTPUT_INSTRUCTION["en"])
+    return OUTPUT_INSTRUCTION[out_code(cfg)]
+
+
+def lang_banner(cfg: dict) -> str:
+    """A language demand for the START of the prompt.
+
+    The prompts are written in Russian, so when the results are wanted in another
+    language the model often ignores an instruction buried mid-text — an explicit
+    demand on the first line works reliably.
+
+    It is asked for by the same rule everywhere the results language is: with the
+    setting empty the interface language decides. Read directly, with "ru" as the
+    default, the banner used to disappear for anyone whose results language had
+    never been written down — and the Russian prompt then answered in Russian.
+    """
+    if out_code(cfg) == "ru":
+        return ""
+    return (f"ЯЗЫК ОТВЕТА (КРИТИЧНО): все текстовые значения в JSON пиши {out_lang(cfg)}. "
+            f"По-русски НЕ писать, независимо от языка этой инструкции.\n\n")
 
 
 # Interface strings. Key → {ru, en}. A missing translation falls back to English.

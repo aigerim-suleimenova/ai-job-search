@@ -299,7 +299,10 @@ def fill_in(data: Path, lang: str) -> None:
                           salary=profile["salary"], work_format="remote",
                           languages=profile["languages"])
     cfg["search"].update(locations=profile["locations"], threshold=70)
-    cfg["ui"]["lang"] = lang
+    # Both languages, not just the interface one: config.load() fills the results
+    # language in from the system language, and setting the interface language
+    # alone leaves the two pointing at different places.
+    cfg["ui"].update(lang=lang, output_lang=lang)
     config.save(cfg)
     config.cv_text_path().write_text(cv, encoding="utf-8")
     config.cv_meta_path().write_text(

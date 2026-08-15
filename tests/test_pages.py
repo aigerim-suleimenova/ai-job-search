@@ -156,6 +156,41 @@ def test_the_model_list_says_what_the_power_number_means(in_english):
     assert i18n.t("en", "models_power_hint") in in_english.get("/models").text
 
 
+# --- The language picker in the header -----------------------------------------
+
+def test_switching_the_interface_switches_the_results_too(client, profile):
+    """The results language is written down once, on the first launch, from the
+    system language. Someone who then switched the interface to English went on
+    getting scores and CV advice in Russian — and the field that decides it lives
+    on another page, which they had no reason to open."""
+    from jobsearch import config
+    cfg = config.load()
+    cfg["ui"].update(lang="ru", output_lang="ru")
+    config.save(cfg)
+
+    client.post("/set_lang", data={"ui_lang": "en", "back": "/"}, follow_redirects=False)
+
+    saved = config.load()["ui"]
+    assert saved["lang"] == "en"
+    assert saved["output_lang"] == "en", "the results are still written in Russian"
+
+
+def test_a_results_language_chosen_apart_is_left_alone(client, profile):
+    """The other side: an interface in one language and results in another is a
+    real choice — the settings page offers it outright. Switching the interface
+    must not quietly undo it."""
+    from jobsearch import config
+    cfg = config.load()
+    cfg["ui"].update(lang="de", output_lang="en")
+    config.save(cfg)
+
+    client.post("/set_lang", data={"ui_lang": "fr", "back": "/"}, follow_redirects=False)
+
+    saved = config.load()["ui"]
+    assert saved["lang"] == "fr"
+    assert saved["output_lang"] == "en", "somebody else's choice was overwritten"
+
+
 def test_the_cv_check_goes_to_the_background_and_does_not_hold_the_page(client, profile, monkeypatch):
     """This used to be a link that thought silently for minutes. Now the page comes
     back at once and the work goes on in the background."""

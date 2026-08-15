@@ -5,7 +5,6 @@ import re
 from . import config, i18n, llm, providers, websearch
 
 
-
 def _lk(log, key: str, **fmt) -> None:
     """A log line in the interface language (log comes in from the pipeline).
 
@@ -60,18 +59,6 @@ _PRIORITY_NOTE = {
     "both": "ПРИОРИТЕТ ОЦЕНКИ: учитывай И роль, И навыки. Совпадение по навыкам может "
             "компенсировать неточное совпадение по названию должности.",
 }
-
-
-def _lang_banner(cfg: dict) -> str:
-    """A language banner for the START of the prompt. The prompts are written in
-    Russian, so when the results are wanted in another language the model often
-    ignores an instruction buried mid-text — an explicit demand on the first line
-    works reliably."""
-    code = cfg.get("ui", {}).get("output_lang", "ru")
-    if code == "ru":
-        return ""
-    return (f"ЯЗЫК ОТВЕТА (КРИТИЧНО): все текстовые значения в JSON пиши {i18n.out_lang(cfg)}. "
-            f"По-русски НЕ писать, независимо от языка этой инструкции.\n\n")
 
 
 def _profile_block(cfg: dict) -> str:
@@ -260,7 +247,7 @@ def triage(jobs: list, cfg: dict, log, cv: str = "", on_batch=None) -> list:
             for i, j in enumerate(batch)
         )
         result = llm.ask_json(
-            _lang_banner(cfg) + TRIAGE_PROMPT.format(
+            i18n.lang_banner(cfg) + TRIAGE_PROMPT.format(
                 profile=profile, cv=cv_excerpt, jobs=listing, lang=lang,
                 examples=_examples_block(cfg)),
             model=model, claude_bin=claude_bin, provider=provider,
@@ -327,7 +314,10 @@ def _as_text(value) -> str:
 def profile_from_cv(cfg: dict, cv: str) -> dict:
     """Fills the empty profile fields from the CV. Returns the updated cfg."""
     data = llm.ask_json(
-        PROFILE_FROM_CV_PROMPT.format(cv=cv[:6000], lang=i18n.out_lang(cfg)),
+        # With the banner, as everywhere else: "in English" alone, inside a
+        # Russian prompt, got the summary written in Russian into the profile —
+        # and from the profile it went on into every later prompt.
+        i18n.lang_banner(cfg) + PROFILE_FROM_CV_PROMPT.format(cv=cv[:6000], lang=i18n.out_lang(cfg)),
         model=cfg["llm"].get("triage_model", "haiku"),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
         provider=cfg["llm"].get("provider", "claude_cli"),
@@ -648,7 +638,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
         # searches and hands over the results as text — then the model merely
         # retells them, and gets no network tools at all.
         searches_itself = providers.supports_web_search(cfg["llm"].get("provider", "claude_cli"))
-        prompt = _lang_banner(cfg) + RESEARCH_PROMPT.format(
+        prompt = i18n.lang_banner(cfg) + RESEARCH_PROMPT.format(
             company=job.get("company", ""), title=job.get("title", ""),
             location=job.get("location", ""), lang=lang)
         results = ""
@@ -681,7 +671,7 @@ def deep_analyze(job: dict, cfg: dict, cv: str, log, research: bool = True) -> N
     # 2. With the CV and the profile — but with no tools, so there is nowhere to
     #    carry them off to.
     in_english = _in_english(f"{job.get('title', '')} {description[:1500]}")
-    prompt = _lang_banner(cfg) + DEEP_PROMPT.format(
+    prompt = i18n.lang_banner(cfg) + DEEP_PROMPT.format(
         profile=_profile_block(cfg),
         cv=cv[:6000] or "(CV не загружено)",
         title=job.get("title", ""), company=job.get("company", ""),
