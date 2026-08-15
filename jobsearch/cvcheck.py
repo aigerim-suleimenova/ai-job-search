@@ -181,7 +181,7 @@ def visual_review(pages: list, cfg: dict) -> dict:
         return {}
     files = ", ".join(str(p) for p in pages)
     data = llm.ask_json(
-        VISUAL_PROMPT.format(files=files, lang=i18n.out_lang(cfg)),
+        i18n.lang_banner(cfg) + VISUAL_PROMPT.format(files=files, lang=i18n.out_lang(cfg)),
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
         provider=cfg["llm"].get("provider", "claude_cli"),
@@ -225,7 +225,8 @@ def keyword_check(cfg: dict, cv: str, jobs: list) -> dict:
         for j in jobs[:5]
     )
     data = llm.ask_json(
-        KEYWORDS_PROMPT.format(cv=cv[:6000], jobs=listing, lang=i18n.out_lang(cfg)),
+        i18n.lang_banner(cfg) + KEYWORDS_PROMPT.format(cv=cv[:6000], jobs=listing,
+                                                       lang=i18n.out_lang(cfg)),
         model=cfg["llm"].get("deep_model", ""),
         claude_bin=cfg["llm"].get("claude_bin", "claude"),
         provider=cfg["llm"].get("provider", "claude_cli"),

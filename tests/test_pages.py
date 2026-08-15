@@ -130,6 +130,67 @@ def test_with_no_anchor_the_redirect_is_as_before(client, profile):
     assert r.status_code == 303 and "#" not in r.headers["location"]
 
 
+# --- The order of the settings page, and what it says about itself -------------
+
+def test_the_cv_comes_before_the_fields_it_fills(client, profile):
+    """The CV used to sit at the very bottom of the page, below "Save settings",
+    while "Fill empty fields from CV" waited halfway up and did nothing at all
+    until a CV was there — with the box to upload one two screens further down."""
+    html = client.get("/").text
+    assert html.index('id="cv"') < html.index("/save?then=profile_from_cv"), \
+        "the CV is still below the button that needs it"
+
+
+def test_the_upload_box_is_not_swallowed_by_the_settings_form(client, profile):
+    """The CV goes up in a form of its own — a file field inside the settings form
+    would not be sent at all: forms do not nest."""
+    html = client.get("/").text
+    assert html.index('action="/upload_cv"') < html.index('action="/save"'), \
+        "the upload box ended up inside the settings form"
+
+
+def test_the_model_list_says_what_the_power_number_means(in_english):
+    """"power 74/100" on every row, and not a word about whose scale it is, what
+    it is measured against, or what it changes for the person choosing."""
+    from jobsearch import i18n
+    assert i18n.t("en", "models_power_hint") in in_english.get("/models").text
+
+
+# --- The language picker in the header -----------------------------------------
+
+def test_switching_the_interface_switches_the_results_too(client, profile):
+    """The results language is written down once, on the first launch, from the
+    system language. Someone who then switched the interface to English went on
+    getting scores and CV advice in Russian — and the field that decides it lives
+    on another page, which they had no reason to open."""
+    from jobsearch import config
+    cfg = config.load()
+    cfg["ui"].update(lang="ru", output_lang="ru")
+    config.save(cfg)
+
+    client.post("/set_lang", data={"ui_lang": "en", "back": "/"}, follow_redirects=False)
+
+    saved = config.load()["ui"]
+    assert saved["lang"] == "en"
+    assert saved["output_lang"] == "en", "the results are still written in Russian"
+
+
+def test_a_results_language_chosen_apart_is_left_alone(client, profile):
+    """The other side: an interface in one language and results in another is a
+    real choice — the settings page offers it outright. Switching the interface
+    must not quietly undo it."""
+    from jobsearch import config
+    cfg = config.load()
+    cfg["ui"].update(lang="de", output_lang="en")
+    config.save(cfg)
+
+    client.post("/set_lang", data={"ui_lang": "fr", "back": "/"}, follow_redirects=False)
+
+    saved = config.load()["ui"]
+    assert saved["lang"] == "fr"
+    assert saved["output_lang"] == "en", "somebody else's choice was overwritten"
+
+
 def test_the_cv_check_goes_to_the_background_and_does_not_hold_the_page(client, profile, monkeypatch):
     """This used to be a link that thought silently for minutes. Now the page comes
     back at once and the work goes on in the background."""

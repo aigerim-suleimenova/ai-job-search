@@ -1335,10 +1335,28 @@ def app_reset():
 
 @app.post("/set_lang")
 async def set_lang(request: Request):
+    """The picker in the header. It switches the interface — and with it the
+    language the model writes results in.
+
+    It used to switch the interface alone. The results language sits beside it in
+    the settings and is filled in once, on the first launch, from the system
+    language: someone who then switched the interface to English went on getting
+    scores, CV advice and the digest in Russian, with nothing on the page to
+    explain why — the field that decides it lives on another page entirely.
+
+    Except when the two were deliberately set apart: a German interface with
+    English results is a real choice, and switching the interface must not undo
+    it. "Deliberately" is what the values say — while the results language repeats
+    the interface one, it is following it.
+    """
     form = await request.form()
     code = str(form.get("ui_lang", ""))
     cfg = config.load()
-    cfg["ui"]["lang"] = code if code in i18n.UI_LANGS else cfg["ui"].get("lang", "en")
+    was = cfg["ui"].get("lang", "en")
+    if code in i18n.UI_LANGS:
+        cfg["ui"]["lang"] = code
+        if cfg["ui"].get("output_lang", was) in (was, ""):
+            cfg["ui"]["output_lang"] = code
     config.save(cfg)
     back = str(form.get("back", "/"))
     return RedirectResponse(_here(back), status_code=303)

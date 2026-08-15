@@ -41,6 +41,12 @@
   <span class="hint" id="count" data-hidden-note="{{ t('models_hidden_note') }}"></span>
 </div>
 
+{# Every row carries "power 74/100", and the number was left to explain itself.
+   It explained nothing: whose scale, measured against what, and what it changes
+   for the person choosing. Said once above the list rather than repeated in each
+   row — it is one and the same sentence for all of them. #}
+<p class="hint" style="margin:-4px 0 14px">{{ t('models_power_hint') }}</p>
+
 {# This line was written about Ollama, yet it showed for any provider that was not
    installed: someone with Claude Code chosen read "first install and start
    Ollama" and could not see what it had to do with anything. Models can only be

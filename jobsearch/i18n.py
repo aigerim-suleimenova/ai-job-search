@@ -80,6 +80,19 @@ OUTPUT_INSTRUCTION = {
 }
 
 
+def out_code(cfg: dict) -> str:
+    """The code of the language the results are written in.
+
+    Resolved in one place because it is read from several: the settings have a
+    results language, and when it is empty the interface language stands in for
+    it. Every reader used to spell that rule out itself, and they spelled it out
+    differently — one of them fell back to Russian.
+    """
+    ui = cfg.get("ui", {})
+    code = ui.get("output_lang") or ui.get("lang") or "en"
+    return code if code in OUTPUT_INSTRUCTION else "en"
+
+
 def out_lang(cfg: dict) -> str:
     """Which language the model writes its results in.
 
@@ -87,9 +100,25 @@ def out_lang(cfg: dict) -> str:
     used to make the model quietly write in Russian to someone whose every other
     word was in a different language.
     """
-    ui = cfg.get("ui", {})
-    code = ui.get("output_lang") or ui.get("lang") or "en"
-    return OUTPUT_INSTRUCTION.get(code, OUTPUT_INSTRUCTION["en"])
+    return OUTPUT_INSTRUCTION[out_code(cfg)]
+
+
+def lang_banner(cfg: dict) -> str:
+    """A language demand for the START of the prompt.
+
+    The prompts are written in Russian, so when the results are wanted in another
+    language the model often ignores an instruction buried mid-text — an explicit
+    demand on the first line works reliably.
+
+    It is asked for by the same rule everywhere the results language is: with the
+    setting empty the interface language decides. Read directly, with "ru" as the
+    default, the banner used to disappear for anyone whose results language had
+    never been written down — and the Russian prompt then answered in Russian.
+    """
+    if out_code(cfg) == "ru":
+        return ""
+    return (f"ЯЗЫК ОТВЕТА (КРИТИЧНО): все текстовые значения в JSON пиши {out_lang(cfg)}. "
+            f"По-русски НЕ писать, независимо от языка этой инструкции.\n\n")
 
 
 # Interface strings. Key → {ru, en}. A missing translation falls back to English.
@@ -765,6 +794,16 @@ TR = {
                        "it": "memoria insufficiente", "de": "zu wenig Speicher"},
     "models_installed": {"ru": "скачана", "en": "downloaded", "it": "scaricato", "de": "heruntergeladen"},
     "models_power": {"ru": "мощность", "en": "power", "it": "potenza", "de": "Stärke"},
+    # A bare "power 74/100" on every row said nothing: not what the number
+    # measures, not what it is compared against, not what it changes for the
+    # person choosing. It is our own estimate, and it has to say so — and say
+    # what it is not, because a number out of a hundred beside a model is read
+    # as a benchmark score.
+    "models_power_hint": {
+        "ru": "Мощность — наша собственная грубая оценка моделей, не бенчмарк и не про скорость или цену. Она нужна, чтобы выбирать: чем выше число, тем лучше модель понимает описание вакансии и тем реже ошибается в оценке.",
+        "en": "Power is our own rough comparison of the models — not a benchmark, and not a word about speed or price. It is here to choose by: the higher the number, the better a model understands a job description and the less often it misjudges one.",
+        "it": "La potenza è il nostro confronto approssimativo tra i modelli — non è un benchmark e non dice nulla su velocità o prezzo. Serve a scegliere: più alto è il numero, meglio il modello capisce un annuncio e meno spesso sbaglia la valutazione.",
+        "de": "Die Stärke ist unser eigener grober Vergleich der Modelle — kein Benchmark und kein Wort über Geschwindigkeit oder Preis. Sie dient der Auswahl: je höher die Zahl, desto besser versteht ein Modell eine Stellenanzeige und desto seltener bewertet es sie falsch."},
     "models_needs": {"ru": "нужно", "en": "needed", "it": "necessari", "de": "nötig"},
     "models_download": {"ru": "Скачать", "en": "Download", "it": "Scarica", "de": "Herunterladen"},
     "models_pull_hint": {"ru": "Можно закрыть эту страницу и заниматься другим — скачивание идёт в фоне. Модель весит несколько гигабайт, это занимает от нескольких минут.",
@@ -1321,7 +1360,7 @@ TR = {
     "run_already": {"ru": "Поиск уже идёт", "en": "Search already running", "it": "Ricerca già in corso", "de": "Suche läuft bereits"},
     "profile": {"ru": "Профиль", "en": "Profile", "it": "Profilo", "de": "Profil"},
     "profile_from_cv": {"ru": "Заполнить пустые поля из CV", "en": "Fill empty fields from CV", "it": "Compila i campi vuoti dal CV", "de": "Leere Felder aus dem CV ausfüllen"},
-    "profile_from_cv_hint": {"ru": "Сначала загрузите CV внизу страницы — Claude сам предложит роли, уровень и описание.", "en": "Upload a CV at the bottom first — Claude will suggest roles, level and summary.", "it": "Carichi prima un CV in fondo alla pagina — Claude suggerirà ruoli, livello e descrizione.", "de": "Laden Sie zuerst unten ein CV hoch — Claude schlägt Rollen, Level und Beschreibung vor."},
+    "profile_from_cv_hint": {"ru": "Сначала загрузите CV выше на этой странице — Claude сам предложит роли, уровень и описание.", "en": "Upload a CV above first — Claude will suggest roles, level and summary.", "it": "Carichi prima un CV qui sopra — Claude suggerirà ruoli, livello e descrizione.", "de": "Laden Sie zuerst oben ein CV hoch — Claude schlägt Rollen, Level und Beschreibung vor."},
     "about": {"ru": "О себе: знания, опыт, стек, достижения", "en": "About you: skills, experience, stack, achievements", "it": "Su di lei: competenze, esperienza, stack, risultati", "de": "Über Sie: Kenntnisse, Erfahrung, Stack, Erfolge"},
     "about_ph": {"ru": "Например: 8 лет backend-разработки на Python и Go, высоконагруженные сервисы, Kubernetes, руководил командой из 5 человек...", "en": "E.g.: 8 years of backend development in Python and Go, high-load services, Kubernetes, led a team of 5...", "it": "Ad es.: 8 anni di sviluppo backend in Python e Go, servizi ad alto carico, Kubernetes, ho guidato un team di 5 persone...", "de": "z. B.: 8 Jahre Backend-Entwicklung in Python und Go, hochlastige Services, Kubernetes, Leitung eines 5-köpfigen Teams..."},
     "roles": {"ru": "Желаемые роли (через запятую)", "en": "Desired roles (comma-separated)", "it": "Ruoli desiderati (separati da virgola)", "de": "Gewünschte Rollen (durch Komma getrennt)"},

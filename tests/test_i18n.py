@@ -118,6 +118,20 @@ def test_the_models_output_language_falls_back_to_english():
     assert i18n.out_lang({"ui": {"output_lang": "ru"}}) == i18n.OUTPUT_INSTRUCTION["ru"]
 
 
+def test_the_language_demand_reaches_the_prompt_by_the_same_rule():
+    """The prompts are Russian, and what keeps the answer in another language is
+    the demand at the top of them. It was asked for by reading output_lang
+    directly, with "ru" for a default: with that setting never written down the
+    demand vanished, and the Russian prompt was answered in Russian."""
+    assert "in English" in i18n.lang_banner({"ui": {"output_lang": "en"}})
+    assert "in English" in i18n.lang_banner({"ui": {"lang": "en"}}), \
+        "the interface language does not stand in for an empty results language"
+    assert i18n.lang_banner({"ui": {}}), "with nothing set, English is what out_lang promises"
+    assert i18n.lang_banner({"ui": {"output_lang": "xx"}}), "an unknown code falls back to English"
+    assert i18n.lang_banner({"ui": {"output_lang": "ru"}}) == "", \
+        "a Russian prompt needs no demand to answer in Russian"
+
+
 def test_an_error_carrying_a_key_gets_translated():
     from jobsearch import llm, notify, providers
     assert i18n.err("en", providers.ProviderError(key="prov_err_ollama_down")) \

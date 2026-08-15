@@ -68,6 +68,24 @@
 </section>
 
 
+{# The CV, right after the person it belongs to and before everything that is
+   built out of it. It used to sit at the very bottom, below "Save settings" —
+   while "Fill empty fields from CV" waited halfway up the page and did nothing
+   until a CV was there. The order of the page is the order of the work: first
+   the CV, then the fields it fills. #}
+<section class="card" id="cv">
+  <h2>{{ t('cv') }}</h2>
+  {% if cv.filename %}
+  <p>{{ t('cv_loaded') }} <b>{{ cv.filename }}</b> ({{ cv.chars }} {{ t('cv_chars') }})</p>
+  {% else %}
+  <p class="hint">{{ t('cv_none') }}</p>
+  {% endif %}
+  <form method="post" action="/upload_cv" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept=".pdf,.docx,.txt,.md">
+    <button>{{ t('upload') }}</button>
+  </form>
+</section>
+
 {# Otherwise a person never learns about new versions at all: the program said
    nothing about them, and nobody is going to visit the site to check. The check
    runs in the background at startup, and what arrives here is a ready answer. #}
@@ -372,19 +390,6 @@ Spotify | https://jobs.lever.co/spotify">{{ companies_text }}</textarea>
   <button class="primary" type="submit">{{ t('save') }}</button>
 </div>
 </form>
-
-<section class="card">
-  <h2>{{ t('cv') }}</h2>
-  {% if cv.filename %}
-  <p>{{ t('cv_loaded') }} <b>{{ cv.filename }}</b> ({{ cv.chars }} {{ t('cv_chars') }})</p>
-  {% else %}
-  <p class="hint">{{ t('cv_none') }}</p>
-  {% endif %}
-  <form method="post" action="/upload_cv" enctype="multipart/form-data" class="row">
-    <input type="file" name="file" accept=".pdf,.docx,.txt,.md">
-    <button>{{ t('upload') }}</button>
-  </form>
-</section>
 
 {% if runs %}
 <section class="card">
