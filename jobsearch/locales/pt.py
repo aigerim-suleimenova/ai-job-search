@@ -217,7 +217,7 @@ STRINGS = {
 "run_already": "A busca já está a decorrer",
 "profile": "Perfil",
 "profile_from_cv": "Preencher os campos vazios a partir do CV",
-"profile_from_cv_hint": "Carregue primeiro um CV no fim da página — o Claude sugere cargos, nível e resumo.",
+"profile_from_cv_hint": "Carregue primeiro um CV acima — o Claude sugere cargos, nível e resumo.",
 "about": "Sobre si: competências, experiência, stack, resultados",
 "about_ph": "Ex.: 8 anos de desenvolvimento backend em Python e Go, serviços de alta carga, Kubernetes, liderança de uma equipa de 5…",
 "roles": "Cargos pretendidos (separados por vírgulas)",

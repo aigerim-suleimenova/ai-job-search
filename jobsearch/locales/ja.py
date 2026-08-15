@@ -217,7 +217,7 @@ STRINGS = {
 "run_already": "検索はすでに動いています",
 "profile": "プロフィール",
 "profile_from_cv": "空欄を履歴書から埋める",
-"profile_from_cv_hint": "まずページ下部で履歴書をアップロードしてください。Claude が職種、レベル、要約を提案します。",
+"profile_from_cv_hint": "まず上で履歴書をアップロードしてください。Claude が職種、レベル、要約を提案します。",
 "about": "あなたについて：スキル、経験、技術スタック、実績",
 "about_ph": "例：Python と Go でバックエンド開発 8 年、高負荷サービス、Kubernetes、5 人のチームを牽引…",
 "roles": "希望する職種（カンマ区切り）",

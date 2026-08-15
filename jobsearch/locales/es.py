@@ -217,7 +217,7 @@ STRINGS = {
 "run_already": "La búsqueda ya está en marcha",
 "profile": "Perfil",
 "profile_from_cv": "Rellenar los campos vacíos con el CV",
-"profile_from_cv_hint": "Suba primero un CV al final de la página: Claude propondrá puestos, nivel y descripción.",
+"profile_from_cv_hint": "Suba primero un CV más arriba: Claude propondrá puestos, nivel y descripción.",
 "about": "Sobre usted: competencias, experiencia, stack, logros",
 "about_ph": "Ej.: 8 años de desarrollo backend en Python y Go, servicios de alta carga, Kubernetes, equipo de 5 personas a cargo…",
 "roles": "Puestos deseados (separados por comas)",

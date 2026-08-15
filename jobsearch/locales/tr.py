@@ -217,7 +217,7 @@ STRINGS = {
 "run_already": "Arama zaten sürüyor",
 "profile": "Profil",
 "profile_from_cv": "Boş alanları CV'den doldur",
-"profile_from_cv_hint": "Önce sayfanın altından bir CV yükleyin — Claude pozisyon, seviye ve özet önerecek.",
+"profile_from_cv_hint": "Önce yukarıdan bir CV yükleyin — Claude pozisyon, seviye ve özet önerecek.",
 "about": "Sizin hakkınızda: yetkinlikler, deneyim, teknoloji yığını, başarılar",
 "about_ph": "Örn.: Python ve Go ile 8 yıl backend geliştirme, yüksek yüklü servisler, Kubernetes, 5 kişilik ekip yönetimi…",
 "roles": "İstenen pozisyonlar (virgülle)",

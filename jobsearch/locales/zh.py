@@ -217,7 +217,7 @@ STRINGS = {
 "run_already": "搜索已经在进行中",
 "profile": "档案",
 "profile_from_cv": "用简历填补空白项",
-"profile_from_cv_hint": "请先在页面底部上传简历——Claude 会给出岗位、级别和简介建议。",
+"profile_from_cv_hint": "请先在上方上传简历——Claude 会给出岗位、级别和简介建议。",
 "about": "关于你：技能、经验、技术栈、成果",
 "about_ph": "例如：用 Python 和 Go 做了 8 年后端，高负载服务，Kubernetes，带过 5 人团队…",
 "roles": "期望岗位（逗号分隔）",

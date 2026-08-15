@@ -130,6 +130,25 @@ def test_with_no_anchor_the_redirect_is_as_before(client, profile):
     assert r.status_code == 303 and "#" not in r.headers["location"]
 
 
+# --- The order of the settings page, and what it says about itself -------------
+
+def test_the_cv_comes_before_the_fields_it_fills(client, profile):
+    """The CV used to sit at the very bottom of the page, below "Save settings",
+    while "Fill empty fields from CV" waited halfway up and did nothing at all
+    until a CV was there — with the box to upload one two screens further down."""
+    html = client.get("/").text
+    assert html.index('id="cv"') < html.index("/save?then=profile_from_cv"), \
+        "the CV is still below the button that needs it"
+
+
+def test_the_upload_box_is_not_swallowed_by_the_settings_form(client, profile):
+    """The CV goes up in a form of its own — a file field inside the settings form
+    would not be sent at all: forms do not nest."""
+    html = client.get("/").text
+    assert html.index('action="/upload_cv"') < html.index('action="/save"'), \
+        "the upload box ended up inside the settings form"
+
+
 def test_the_cv_check_goes_to_the_background_and_does_not_hold_the_page(client, profile, monkeypatch):
     """This used to be a link that thought silently for minutes. Now the page comes
     back at once and the work goes on in the background."""
