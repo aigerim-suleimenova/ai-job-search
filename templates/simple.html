@@ -4,9 +4,18 @@
 {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
 
 {% if noauth %}
-<section class="card" style="border-inline-start:4px solid var(--danger)">
+<section class="card" style="border-inline-start:4px solid var(--danger); position:relative">
+  <button type="button" class="copy-btn" data-copy-target="#noauth-msg" data-tooltip="Copy" aria-label="Copy">
+    <svg class="clipboard" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="9" y="3" width="8" height="2" rx="1" />
+      <rect x="6" y="6" width="12" height="14" rx="2" />
+    </svg>
+    <svg class="check" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+    </svg>
+  </button>
   <h2>{{ t('noauth_title') }}</h2>
-  <p>{{ t('noauth_hint').format(name=provider_status.name, error=noauth) }}</p>
+  <p id="noauth-msg">{{ t('noauth_hint').format(name=provider_status.name, error=noauth) }}</p>
   <div class="row" style="margin-top:12px">
     <a href="/models"><button type="button" class="primary">{{ t('nav_models') }}</button></a>
   </div>
@@ -153,6 +162,33 @@ const startForm = document.getElementById('start-form');
 if (startForm) startForm.addEventListener('submit', () => {
   const b = document.getElementById('start-btn');
   if (b) { b.textContent = b.dataset.busy; b.disabled = true; }
+});
+</script>
+<script>
+// Small clipboard helper: copy visible text of an element referenced by
+// `data-copy-target` (graceful fallback for older browsers).
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-copy-target]');
+  if (!btn) return;
+  const sel = document.querySelector(btn.dataset.copyTarget);
+  if (!sel) return;
+  const text = sel.innerText || sel.textContent || '';
+  const doFeedback = (ok) => {
+    btn.classList.add('copied');
+    btn.dataset.tooltip = ok ? 'Copied' : 'Copy failed';
+    setTimeout(() => { btn.classList.remove('copied'); btn.dataset.tooltip = 'Copy'; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => doFeedback(true)).catch(() => doFeedback(false));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); doFeedback(true); } catch (err) { doFeedback(false); }
+    ta.remove();
+  }
 });
 </script>
 <script src="/static/dates.js?v={{ asset_v }}"></script>

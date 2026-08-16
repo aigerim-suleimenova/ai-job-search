@@ -158,7 +158,20 @@
 
 {% set back_url = '/results?min=' ~ min_score ~ '&sort=' ~ sort ~ '&viewed=' ~ viewed ~ '&source=' ~ source ~ '&run=' ~ run ~ '&posted_from=' ~ posted_from ~ '&posted_to=' ~ posted_to %}
 {% for j in jobs %}
-<section class="card job {% if j.is_direct and not j.is_agency %}direct{% endif %} {% if not j.viewed %}unseen{% endif %}">
+<section class="card job {% if j.is_direct and not j.is_agency %}direct{% endif %} {% if not j.viewed %}unseen{% endif %}" style="position:relative">
+  <button type="button" class="copy-btn" data-copy-target="#job-copy-{{ j.id }}" data-tooltip="Copy" aria-label="Copy">
+    <svg class="clipboard" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="9" y="3" width="8" height="2" rx="1" />
+      <rect x="6" y="6" width="12" height="14" rx="2" />
+    </svg>
+    <svg class="check" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+    </svg>
+  </button>
+  <pre id="job-copy-{{ j.id }}" style="position:absolute; left:-9999px; white-space:pre-wrap;">{{ j.title }} — {{ j.company }} — {{ j.location or t('loc_unknown') }} — {{ j.url }} — Score: {{ j.score }}%{% if j.reason %}
+Reason: {{ j.reason }}{% endif %}{% if j.description %}
+
+{{ j.description[:3000] }}{% endif %}</pre>
   <div class="job-head">
     <span class="score">{{ j.score }}%</span>
     <div>
@@ -261,9 +274,18 @@
 {% endfor %}
 
 {% if runs and runs[0].log %}
-<section class="card">
+<section class="card" style="position:relative">
+  <button type="button" class="copy-btn" data-copy-target="#run-journal-log" data-tooltip="Copy" aria-label="Copy">
+    <svg class="clipboard" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="9" y="3" width="8" height="2" rx="1" />
+      <rect x="6" y="6" width="12" height="14" rx="2" />
+    </svg>
+    <svg class="check" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+    </svg>
+  </button>
   <h2>{{ t('run_journal') }}</h2>
-  <pre class="log">{{ runs[0].log }}</pre>
+  <pre id="run-journal-log" class="log">{{ runs[0].log }}</pre>
 </section>
 {% endif %}
 
